@@ -1,0 +1,18 @@
+{
+    "name": "Scaffold.Navigation",
+    "rootNamespace": "",
+    "references": [
+        "GUID:69cc6723df1508c43a53a553fbf802b3",
+        "GUID:c72c3642ec330a340ad91bd6bf5d6bdc",
+        "GUID:add4e0403ba79634984fb6eb819e09bd"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

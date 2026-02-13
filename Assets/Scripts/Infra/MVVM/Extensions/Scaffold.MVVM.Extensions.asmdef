@@ -1,0 +1,21 @@
+{
+    "name": "Scaffold.MVVM.Extensions",
+    "rootNamespace": "",
+    "references": [
+        "GUID:6055be8ebefd69e48b49212b09b47b2f",
+        "GUID:69cc6723df1508c43a53a553fbf802b3",
+        "GUID:c72c3642ec330a340ad91bd6bf5d6bdc",
+        "GUID:25160a6701597c847befc2b5c6fbd88e",
+        "GUID:b0214a6008ed146ff8f122a6a9c2f6cc",
+        "GUID:187850c043ab2e447bccebb00224cad7"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

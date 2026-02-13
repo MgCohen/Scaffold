@@ -1,0 +1,17 @@
+{
+    "name": "Scaffold.Events.Container",
+    "rootNamespace": "",
+    "references": [
+        "GUID:add4e0403ba79634984fb6eb819e09bd",
+        "GUID:b0214a6008ed146ff8f122a6a9c2f6cc"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
