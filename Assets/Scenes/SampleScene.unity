@@ -128,7 +128,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 158092094}
-  - component: {fileID: 158092093}
   - component: {fileID: 158092095}
   m_Layer: 0
   m_Name: Container
@@ -137,38 +136,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &158092093
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 158092092}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2469a66fb82d4db469771e4568924f42, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Scaffold.Containers::CustomContainer
-  parentReference:
-    TypeName: 
-  autoRun: 1
-  autoInjectGameObjects: []
-  state: 0
-  parentContainer: {fileID: 0}
-  installers:
-  - rid: 6638240049252794468
-  - rid: 6638240061025681499
-  references:
-    version: 2
-    RefIds:
-    - rid: 6638240049252794468
-      type: {class: EventsInstaller, ns: , asm: Scaffold.Events.Container}
-      data: 
-    - rid: 6638240061025681499
-      type: {class: NavigationInstaller, ns: Scaffold.Navigation.Container, asm: Scaffold.Navigation.Container}
-      data:
-        settings: {fileID: 11400000, guid: 137da207fe7ec1345a5d209afdac17bd, type: 2}
-        holder: {fileID: 158092094}
 --- !u!4 &158092094
 Transform:
   m_ObjectHideFlags: 0
@@ -178,7 +145,7 @@ Transform:
   m_GameObject: {fileID: 158092092}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.21325, y: -0.53187, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -193,23 +160,13 @@ MonoBehaviour:
   m_GameObject: {fileID: 158092092}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2469a66fb82d4db469771e4568924f42, type: 3}
+  m_Script: {fileID: 11500000, guid: 68e8772d4af8aff49a2457d8390dd4bd, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Scaffold.Containers::Scaffold.Containers.Container
+  m_EditorClassIdentifier: Assembly-CSharp::Sample.Boostraper.SampleBoostrap
   parentReference:
     TypeName: 
   autoRun: 1
   autoInjectGameObjects: []
-  state: 0
-  parentContainer: {fileID: 158092093}
-  installers:
-  - rid: 6638240061025681495
-  references:
-    version: 2
-    RefIds:
-    - rid: 6638240061025681495
-      type: {class: SampleInstaller, ns: Sample.States, asm: Assembly-CSharp}
-      data: 
 --- !u!1 &519420028
 GameObject:
   m_ObjectHideFlags: 0

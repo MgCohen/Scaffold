@@ -1,6 +1,7 @@
+using Scaffold.Containers.Adapters;
 using UnityEngine;
-using VContainer;
 using VContainer.Unity;
+using VContainerBuilder = VContainer.IContainerBuilder;
 
 namespace Scaffold.Containers
 {
@@ -15,18 +16,19 @@ namespace Scaffold.Containers
             this.config = config;
             this.transform = scope.transform;
             this.context = context;
-            return scope.CreateChild(Build);
+            return scope.CreateChild(builder => Build(builder));
         }
 
-        private void Build(IContainerBuilder builder)
+        private void Build(VContainerBuilder builder)
         {
-            builder.Register<IContext>(_ => context, Lifetime.Scoped);
-            Build(builder, config, transform);
+            var adapter = new VContainerBuilderAdapter(builder);
+            adapter.Register<IContext>(_ => context, ContainerLifetime.Scoped);
+            Build(adapter, config, transform);
         }
 
         protected virtual void Build(IContainerBuilder builder, ContainerConfig config, Transform holder)
         {
-
         }
     }
 }
+

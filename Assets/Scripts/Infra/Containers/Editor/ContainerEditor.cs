@@ -9,7 +9,7 @@ using VContainer.Unity;
 namespace Scaffold.Containers.Editor
 {
 
-    [CustomEditor(typeof(oldContainer))]
+    //[CustomEditor(typeof(oldContainer))]
     public class ContainerEditor : UnityEditor.Editor
     {
         private SerializedProperty stateProp;
@@ -166,8 +166,8 @@ namespace Scaffold.Containers.Editor
             Type type = installerTypes[index];
             if (typeof(UnityEngine.Object).IsAssignableFrom(type))
             {
-                Type baseType = typeof(InstallerWrapper<>);
-                type = baseType.MakeGenericType(type);
+                //Type baseType = typeof(InstallerWrapper<>);
+                //type = baseType.MakeGenericType(type);
             }
             return type;
         }

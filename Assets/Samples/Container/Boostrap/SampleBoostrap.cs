@@ -5,9 +5,6 @@ using Scaffold.Navigation;
 using Scaffold.Navigation.Container;
 using Scaffold.States;
 using UnityEngine;
-using VContainer;
-using VContainer.Unity;
-using Container = Scaffold.Containers.Container;
 
 namespace Sample.Boostraper
 {
@@ -25,7 +22,7 @@ namespace Sample.Boostraper
         protected override void Build(IContainerBuilder builder, ContainerConfig config, Transform holder)
         {
             new SampleNavigationInstaller().Install(builder, config, holder); //use installers inside containers, OR
-            builder.Register<IEventBus, EventController>(Lifetime.Scoped); //use simple registers
+            builder.Register<IEventBus, EventController>(ContainerLifetime.Scoped); //use simple registers
         }
     }
 
@@ -42,14 +39,14 @@ namespace Sample.Boostraper
 
     public class SampleInstaller : Installer
     {
-        public override void Install(IContainerBuilder builder, ContainerConfig config, Transform holder)
+        public override void Install(Scaffold.Containers.IContainerBuilder builder, ContainerConfig config, Transform holder)
         {
-            builder.Register<Store>(BuildStore, Lifetime.Scoped);
-            builder.Register<ITurnHandler, TurnHandler>(Lifetime.Scoped);
-            builder.RegisterEntryPoint<SampleGameManager>(Lifetime.Scoped);
+            builder.Register<Store>(BuildStore, ContainerLifetime.Scoped);
+            builder.Register<ITurnHandler, TurnHandler>(ContainerLifetime.Scoped);
+            builder.RegisterEntryPoint<SampleGameManager>(ContainerLifetime.Scoped);
         }
 
-        private Store BuildStore(IObjectResolver resolver)
+        private Store BuildStore(IContainerResolver resolver)
         {
             StoreBuilder storeBuilder = new StoreBuilder();
             TurnState turnState = new TurnState()
@@ -73,9 +70,9 @@ namespace Sample.Boostraper
 
         public override void Install(IContainerBuilder builder, ContainerConfig config, Transform holder)
         {
-            NavigationSettings settings = config.Fetch<NavigationSettings>();
-            builder.Register<INavigation, NavigationController>(Lifetime.Scoped).WithParameter<NavigationSettings>(settings).WithParameter<Transform>(holder);
-            builder.Register<NavigationInjection>(Lifetime.Scoped).AsImplementedInterfaces();
+            NavigationSettings settings = config.Fetch<NavigationConfig>().Settings;
+            builder.Register<INavigation, NavigationController>(ContainerLifetime.Scoped).WithParameter<NavigationSettings>(settings).WithParameter<Transform>(holder);
+            builder.Register<NavigationInjection>(ContainerLifetime.Scoped).AsImplementedInterfaces();
         }
     }
     #endregion

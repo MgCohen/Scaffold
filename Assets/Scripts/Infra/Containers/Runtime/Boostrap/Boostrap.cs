@@ -1,3 +1,4 @@
+using Scaffold.Containers.Adapters;
 using UnityEngine;
 using VContainer;
 using VContainer.Unity;
@@ -8,14 +9,16 @@ namespace Scaffold.Containers
     {
         [SerializeField] private ContainerConfig configFile;
 
-        protected override void Configure(IContainerBuilder builder)
+        protected override void Configure(VContainer.IContainerBuilder builder)
         {
-            builder.Register<ContainerConfig>(_ => configFile, Lifetime.Scoped);
-            builder.Register<IContext>(_ => new Context(this, configFile), Lifetime.Scoped);
-            builder.RegisterBuildCallback(o =>
+            var adapter = new VContainerBuilderAdapter(builder);
+
+            adapter.Register<ContainerConfig>(_ => configFile, ContainerLifetime.Scoped);
+            adapter.Register<IContext>(_ => new Context(this, configFile), ContainerLifetime.Scoped);
+            adapter.RegisterBuildCallback(o =>
             {
-                IContext builder = o.Resolve<IContext>();
-                Build(builder);
+                IContext context = o.Resolve<IContext>();
+                Build(context);
             });
         }
 

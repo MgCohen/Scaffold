@@ -1,6 +1,4 @@
-using Scaffold.Containers;
 using UnityEngine;
-using VContainer;
 
 namespace Scaffold.Containers
 {
@@ -8,7 +6,6 @@ namespace Scaffold.Containers
     {
         public virtual void Install(IContainerBuilder builder, ContainerConfig config, Transform holder)
         {
-
         }
     }
 }
