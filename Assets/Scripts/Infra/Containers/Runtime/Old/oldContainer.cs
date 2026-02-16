@@ -7,11 +7,11 @@ using System;
 
 namespace Scaffold.Containers
 {
-    public class Container : LifetimeScope
+    public class oldContainer : LifetimeScope
     {
         [SerializeField] private Action<IObjectResolver> containerReady = delegate { };
         [SerializeField] private ContainerState state;
-        [SerializeField] private Container parentContainer;
+        [SerializeField] private oldContainer parentContainer;
         [SerializeField, SerializeReference] private List<IInstaller> installers = new List<IInstaller>();
 
         protected override void Awake()

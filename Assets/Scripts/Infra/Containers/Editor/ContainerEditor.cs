@@ -9,7 +9,7 @@ using VContainer.Unity;
 namespace Scaffold.Containers.Editor
 {
 
-    [CustomEditor(typeof(Container))]
+    [CustomEditor(typeof(oldContainer))]
     public class ContainerEditor : UnityEditor.Editor
     {
         private SerializedProperty stateProp;
