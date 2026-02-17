@@ -88,7 +88,7 @@ namespace Utility.RestApi
         private async Task<T> DeserializeResponseAsync<T>(HttpResponseMessage response, string endpoint, string functionName)
         {
             string responseString = await ReadResponseStringAsync(response, endpoint, functionName);
-            RESTData<T> responseData = responseString.FromJson<RESTData<T>>();
+            RestData<T> responseData = responseString.FromJson<RestData<T>>();
             return responseData.Deserialize();
         }
 

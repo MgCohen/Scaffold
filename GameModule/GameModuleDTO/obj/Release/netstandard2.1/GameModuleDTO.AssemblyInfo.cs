@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("GameModuleDTO")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+7e02de3e6427927cdecba60a9bea0f4bacb22b5d")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+19b1de9d165a600ef7d5ed665499972051a4e494")]
 [assembly: System.Reflection.AssemblyProductAttribute("GameModuleDTO")]
 [assembly: System.Reflection.AssemblyTitleAttribute("GameModuleDTO")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

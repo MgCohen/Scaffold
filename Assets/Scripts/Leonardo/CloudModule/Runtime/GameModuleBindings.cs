@@ -7,7 +7,7 @@ using UnityEngine;
 using Utility.Json;
 using VContainer;
 
-namespace Scaffold.CloudModules
+namespace Scaffold.CloudModules.Shared
 {
     public class GameModuleBindings : ICloudModuleBinding
     {
@@ -23,7 +23,7 @@ namespace Scaffold.CloudModules
         public Action RequestError { get; }
         
         [Inject]
-        public List<IGameModuleData> Modules { get; }
+        public List<IGameModule> Modules { get; }
 
         string ICloudModuleBinding.GetEndpointName(string endpointName)
         {
@@ -107,7 +107,7 @@ namespace Scaffold.CloudModules
 
                 RequestError?.Invoke();
 #endif
-                GameDebug.LogError($"GameModuleBindings.CallEndpointAsync Exception: {e.Message}", debugName);
+                GameDebug.LogException(e, debugName);
                 return default;
             }
             GameDebug.Log(response, debugName);

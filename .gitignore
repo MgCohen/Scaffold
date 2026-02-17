@@ -71,7 +71,6 @@ crashlytics-build.properties
 /[Aa]ssets/[Ss]treamingAssets/aa.meta
 /[Aa]ssets/[Ss]treamingAssets/aa/*
 
-# OBITUS
 # Old plastic
 .plastic/
 .vscode/
@@ -139,3 +138,15 @@ fmod_editor.log
 /Tools/SurrenderTimeout/SurrenderTimeout/obj
 /Tools/SurrenderTimeout/SurrenderTimeout/bin
 .utmp/
+
+
+# Ignore all C# project & solution files
+*.csproj
+*.sln
+
+# But keep any .csproj/.sln under GameModule/**      
+!GameModule/**/*.csproj
+!GameModule/**/*.sln
+GameModule/**/obj
+GameModule/**/bin
+

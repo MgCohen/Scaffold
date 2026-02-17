@@ -1,6 +1,6 @@
-namespace Scaffold.CloudModules
+namespace Scaffold.CloudModules.Shared
 {
-    //refactor
+    //TODO: Refactor
     public class GameModuleAuthKey
     {
 #if SERVER

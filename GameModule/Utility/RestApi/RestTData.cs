@@ -2,7 +2,7 @@ using Utility.Json;
 
 namespace Utility.RestApi
 {
-    public class RESTData<T> : RestData
+    public class RestData<T> : RestData
     {
         public T value;
 
