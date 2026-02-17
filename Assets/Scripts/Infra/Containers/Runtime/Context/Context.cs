@@ -4,22 +4,19 @@ namespace Scaffold.Containers
 {
     public class Context : IContext
     {
-        public Context(LifetimeScope scope, ContainerConfig config)
+        public Context(LifetimeScope scope)
         {
             this.scope = scope;
-            this.config = config;
             this.parent = null;
         }
 
-        private Context(Context parent, ContainerConfig config)
+        private Context(Context parent)
         {
             this.scope = null;
-            this.config = config;
             this.parent = parent;
         }
 
         private Context parent;
-        private ContainerConfig config;
         private LifetimeScope scope;
 
         public IContext AddChild<T>() where T : Container, new()
@@ -30,7 +27,7 @@ namespace Scaffold.Containers
 
         public IContext AddChild(Container container)
         {
-            return Build(container, this, config);
+            return Build(container, this);
         }
 
         public IContext Append<T>() where T : Container, new()
@@ -41,7 +38,7 @@ namespace Scaffold.Containers
 
         public IContext Append(Container container)
         {
-            return Build(container, parent, config);
+            return Build(container, parent);
         }
 
         public IContext ChangeContext<T>() where T : Container, new()
@@ -56,10 +53,10 @@ namespace Scaffold.Containers
             return Append(container);
         }
 
-        private Context Build(Container container, Context parent, ContainerConfig config)
+        private Context Build(Container container, Context parent)
         {
-            Context context = new Context(parent, config);
-            LifetimeScope childScope = container.Build(parent.scope, config, context);
+            Context context = new Context(parent);
+            LifetimeScope childScope = container.Build(parent.scope, context);
             context.scope = childScope;
             return context;
         }

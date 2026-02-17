@@ -8,12 +8,10 @@ namespace Scaffold.Containers
     public class Container
     {
         private Context context;
-        private ContainerConfig config;
         private Transform transform;
 
-        internal LifetimeScope Build(LifetimeScope scope, ContainerConfig config, Context context)
+        internal LifetimeScope Build(LifetimeScope scope, Context context)
         {
-            this.config = config;
             this.transform = scope.transform;
             this.context = context;
             return scope.CreateChild(builder => Build(builder));
@@ -23,12 +21,11 @@ namespace Scaffold.Containers
         {
             var adapter = new VContainerBuilderAdapter(builder);
             adapter.Register<IContext>(_ => context, ContainerLifetime.Scoped);
-            Build(adapter, config, transform);
+            Build(adapter, transform);
         }
 
-        protected virtual void Build(IContainerBuilder builder, ContainerConfig config, Transform holder)
+        protected virtual void Build(IContainerBuilder builder, Transform holder)
         {
         }
     }
 }
-

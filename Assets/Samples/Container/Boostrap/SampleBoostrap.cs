@@ -10,27 +10,36 @@ namespace Sample.Boostraper
 {
     public class SampleBoostrap : Boostrap
     {
+        [SerializeField] private NavigationSettings navigationSettings;
+
         protected override void Build(IContext context)
         {
-            context.AddChild(new SampleInfraContainer())
+            context.AddChild(new SampleInfraContainer(navigationSettings))
                    .AddChild(new SampleGameContainer());
         }
     }
 
     public class SampleInfraContainer : Container
     {
-        protected override void Build(IContainerBuilder builder, ContainerConfig config, Transform holder)
+        private readonly NavigationSettings navigationSettings;
+
+        public SampleInfraContainer(NavigationSettings navigationSettings)
         {
-            new SampleNavigationInstaller().Install(builder, config, holder); //use installers inside containers, OR
-            builder.Register<IEventBus, EventController>(ContainerLifetime.Scoped); //use simple registers
+            this.navigationSettings = navigationSettings;
+        }
+
+        protected override void Build(IContainerBuilder builder, Transform holder)
+        {
+            new SampleNavigationInstaller(navigationSettings).Install(builder, holder);
+            builder.Register<IEventBus, EventController>(ContainerLifetime.Scoped);
         }
     }
 
     public class SampleGameContainer : Container
     {
-        protected override void Build(IContainerBuilder builder, ContainerConfig config, Transform holder)
+        protected override void Build(IContainerBuilder builder, Transform holder)
         {
-            new SampleInstaller().Install(builder, config, holder);
+            new SampleInstaller().Install(builder, holder);
         }
     }
 
@@ -39,7 +48,7 @@ namespace Sample.Boostraper
 
     public class SampleInstaller : Installer
     {
-        public override void Install(Scaffold.Containers.IContainerBuilder builder, ContainerConfig config, Transform holder)
+        public override void Install(IContainerBuilder builder, Transform holder)
         {
             builder.Register<Store>(BuildStore, ContainerLifetime.Scoped);
             builder.Register<ITurnHandler, TurnHandler>(ContainerLifetime.Scoped);
@@ -65,12 +74,17 @@ namespace Sample.Boostraper
         }
     }
 
-    public class SampleNavigationInstaller: Installer
+    public class SampleNavigationInstaller : Installer
     {
+        private readonly NavigationSettings settings;
 
-        public override void Install(IContainerBuilder builder, ContainerConfig config, Transform holder)
+        public SampleNavigationInstaller(NavigationSettings settings)
         {
-            NavigationSettings settings = config.Fetch<NavigationConfig>().Settings;
+            this.settings = settings;
+        }
+
+        public override void Install(IContainerBuilder builder, Transform holder)
+        {
             builder.Register<INavigation, NavigationController>(ContainerLifetime.Scoped).WithParameter<NavigationSettings>(settings).WithParameter<Transform>(holder);
             builder.Register<NavigationInjection>(ContainerLifetime.Scoped).AsImplementedInterfaces();
         }
