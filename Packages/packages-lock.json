@@ -121,7 +121,7 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.burst": {
-      "version": "1.8.27",
+      "version": "1.8.26",
       "depth": 1,
       "source": "registry",
       "dependencies": {
@@ -310,7 +310,7 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.services.authentication": {
-      "version": "3.6.0",
+      "version": "3.5.2",
       "depth": 1,
       "source": "registry",
       "dependencies": {
@@ -318,6 +318,19 @@
         "com.unity.services.core": "1.15.1",
         "com.unity.nuget.newtonsoft-json": "3.2.1",
         "com.unity.modules.unitywebrequest": "1.0.0"
+      },
+      "url": "https://packages.unity.com"
+    },
+    "com.unity.services.cloudcode": {
+      "version": "2.10.2",
+      "depth": 0,
+      "source": "registry",
+      "dependencies": {
+        "com.unity.services.core": "1.15.1",
+        "com.unity.services.wire": "1.2.3",
+        "com.unity.nuget.newtonsoft-json": "3.0.2",
+        "com.unity.modules.unitywebrequest": "1.0.0",
+        "com.unity.services.authentication": "3.5.1"
       },
       "url": "https://packages.unity.com"
     },

@@ -1,0 +1,9 @@
+/var/folders/q1/mp71q15n6gg9znskyv8pfv6h0000gn/T/GameModule/module-compilation/Utility.dll
+/var/folders/q1/mp71q15n6gg9znskyv8pfv6h0000gn/T/GameModule/module-compilation/Utility.deps.json
+/var/folders/q1/mp71q15n6gg9znskyv8pfv6h0000gn/T/GameModule/module-compilation/Utility.pdb
+/var/folders/q1/mp71q15n6gg9znskyv8pfv6h0000gn/T/GameModule/module-compilation/Microsoft.Extensions.Logging.Abstractions.dll
+/var/folders/q1/mp71q15n6gg9znskyv8pfv6h0000gn/T/GameModule/module-compilation/Newtonsoft.Json.dll
+/var/folders/q1/mp71q15n6gg9znskyv8pfv6h0000gn/T/GameModule/module-compilation/System.Buffers.dll
+/var/folders/q1/mp71q15n6gg9znskyv8pfv6h0000gn/T/GameModule/module-compilation/System.Memory.dll
+/var/folders/q1/mp71q15n6gg9znskyv8pfv6h0000gn/T/GameModule/module-compilation/System.Numerics.Vectors.dll
+/var/folders/q1/mp71q15n6gg9znskyv8pfv6h0000gn/T/GameModule/module-compilation/System.Runtime.CompilerServices.Unsafe.dll

@@ -1,0 +1,11 @@
+/Users/leonardosilva/Documents/Osten Games/data2073/Data2073/GameModule/Utility/bin/Release/netstandard2.1/linux-x64/Utility.deps.json
+/Users/leonardosilva/Documents/Osten Games/data2073/Data2073/GameModule/Utility/bin/Release/netstandard2.1/linux-x64/Utility.dll
+/Users/leonardosilva/Documents/Osten Games/data2073/Data2073/GameModule/Utility/bin/Release/netstandard2.1/linux-x64/Utility.pdb
+/Users/leonardosilva/Documents/Osten Games/data2073/Data2073/GameModule/Utility/obj/Release/netstandard2.1/linux-x64/Utility.csproj.AssemblyReference.cache
+/Users/leonardosilva/Documents/Osten Games/data2073/Data2073/GameModule/Utility/obj/Release/netstandard2.1/linux-x64/Utility.GeneratedMSBuildEditorConfig.editorconfig
+/Users/leonardosilva/Documents/Osten Games/data2073/Data2073/GameModule/Utility/obj/Release/netstandard2.1/linux-x64/Utility.AssemblyInfoInputs.cache
+/Users/leonardosilva/Documents/Osten Games/data2073/Data2073/GameModule/Utility/obj/Release/netstandard2.1/linux-x64/Utility.AssemblyInfo.cs
+/Users/leonardosilva/Documents/Osten Games/data2073/Data2073/GameModule/Utility/obj/Release/netstandard2.1/linux-x64/Utility.csproj.CoreCompileInputs.cache
+/Users/leonardosilva/Documents/Osten Games/data2073/Data2073/GameModule/Utility/obj/Release/netstandard2.1/linux-x64/Utility.sourcelink.json
+/Users/leonardosilva/Documents/Osten Games/data2073/Data2073/GameModule/Utility/obj/Release/netstandard2.1/linux-x64/Utility.dll
+/Users/leonardosilva/Documents/Osten Games/data2073/Data2073/GameModule/Utility/obj/Release/netstandard2.1/linux-x64/Utility.pdb

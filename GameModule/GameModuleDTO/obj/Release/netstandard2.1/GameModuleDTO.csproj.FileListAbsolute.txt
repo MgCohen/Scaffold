@@ -1,0 +1,40 @@
+/Users/leonardosilva/Documents/Osten Games/data2073/Data2073/GameModule/GameModuleDTO/bin/Release/netstandard2.1/netstandard2.1/GameModuleDTO.deps.json
+/Users/leonardosilva/Documents/Osten Games/data2073/Data2073/GameModule/GameModuleDTO/bin/Release/netstandard2.1/netstandard2.1/GameModuleDTO.dll
+/Users/leonardosilva/Documents/Osten Games/data2073/Data2073/GameModule/GameModuleDTO/bin/Release/netstandard2.1/netstandard2.1/GameModuleDTO.pdb
+/Users/leonardosilva/Documents/Osten Games/data2073/Data2073/GameModule/GameModuleDTO/bin/Release/netstandard2.1/netstandard2.1/Microsoft.Extensions.Logging.Abstractions.dll
+/Users/leonardosilva/Documents/Osten Games/data2073/Data2073/GameModule/GameModuleDTO/bin/Release/netstandard2.1/netstandard2.1/Newtonsoft.Json.dll
+/Users/leonardosilva/Documents/Osten Games/data2073/Data2073/GameModule/GameModuleDTO/bin/Release/netstandard2.1/netstandard2.1/System.Buffers.dll
+/Users/leonardosilva/Documents/Osten Games/data2073/Data2073/GameModule/GameModuleDTO/bin/Release/netstandard2.1/netstandard2.1/System.Memory.dll
+/Users/leonardosilva/Documents/Osten Games/data2073/Data2073/GameModule/GameModuleDTO/bin/Release/netstandard2.1/netstandard2.1/System.Numerics.Vectors.dll
+/Users/leonardosilva/Documents/Osten Games/data2073/Data2073/GameModule/GameModuleDTO/bin/Release/netstandard2.1/netstandard2.1/System.Runtime.CompilerServices.Unsafe.dll
+/Users/leonardosilva/Documents/Osten Games/data2073/Data2073/GameModule/GameModuleDTO/bin/Release/netstandard2.1/netstandard2.1/Utility.dll
+/Users/leonardosilva/Documents/Osten Games/data2073/Data2073/GameModule/GameModuleDTO/bin/Release/netstandard2.1/netstandard2.1/Utility.pdb
+/Users/leonardosilva/Documents/Osten Games/data2073/Data2073/GameModule/GameModuleDTO/obj/Release/netstandard2.1/GameModuleDTO.csproj.AssemblyReference.cache
+/Users/leonardosilva/Documents/Osten Games/data2073/Data2073/GameModule/GameModuleDTO/obj/Release/netstandard2.1/GameModuleDTO.GeneratedMSBuildEditorConfig.editorconfig
+/Users/leonardosilva/Documents/Osten Games/data2073/Data2073/GameModule/GameModuleDTO/obj/Release/netstandard2.1/GameModuleDTO.AssemblyInfoInputs.cache
+/Users/leonardosilva/Documents/Osten Games/data2073/Data2073/GameModule/GameModuleDTO/obj/Release/netstandard2.1/GameModuleDTO.AssemblyInfo.cs
+/Users/leonardosilva/Documents/Osten Games/data2073/Data2073/GameModule/GameModuleDTO/obj/Release/netstandard2.1/GameModuleDTO.csproj.CoreCompileInputs.cache
+/Users/leonardosilva/Documents/Osten Games/data2073/Data2073/GameModule/GameModuleDTO/obj/Release/netstandard2.1/GameModuleDTO.sourcelink.json
+/Users/leonardosilva/Documents/Osten Games/data2073/Data2073/GameModule/GameModuleDTO/obj/Release/netstandard2.1/GameModu.AF5235B2.Up2Date
+/Users/leonardosilva/Documents/Osten Games/data2073/Data2073/GameModule/GameModuleDTO/obj/Release/netstandard2.1/GameModuleDTO.dll
+/Users/leonardosilva/Documents/Osten Games/data2073/Data2073/GameModule/GameModuleDTO/obj/Release/netstandard2.1/GameModuleDTO.pdb
+/Users/leonardosilva/Documents/MatheusCohen/Scaffold/GameModule/GameModuleDTO/bin/Release/netstandard2.1/netstandard2.1/GameModuleDTO.deps.json
+/Users/leonardosilva/Documents/MatheusCohen/Scaffold/GameModule/GameModuleDTO/bin/Release/netstandard2.1/netstandard2.1/GameModuleDTO.dll
+/Users/leonardosilva/Documents/MatheusCohen/Scaffold/GameModule/GameModuleDTO/bin/Release/netstandard2.1/netstandard2.1/GameModuleDTO.pdb
+/Users/leonardosilva/Documents/MatheusCohen/Scaffold/GameModule/GameModuleDTO/bin/Release/netstandard2.1/netstandard2.1/Microsoft.Extensions.Logging.Abstractions.dll
+/Users/leonardosilva/Documents/MatheusCohen/Scaffold/GameModule/GameModuleDTO/bin/Release/netstandard2.1/netstandard2.1/Newtonsoft.Json.dll
+/Users/leonardosilva/Documents/MatheusCohen/Scaffold/GameModule/GameModuleDTO/bin/Release/netstandard2.1/netstandard2.1/System.Buffers.dll
+/Users/leonardosilva/Documents/MatheusCohen/Scaffold/GameModule/GameModuleDTO/bin/Release/netstandard2.1/netstandard2.1/System.Memory.dll
+/Users/leonardosilva/Documents/MatheusCohen/Scaffold/GameModule/GameModuleDTO/bin/Release/netstandard2.1/netstandard2.1/System.Numerics.Vectors.dll
+/Users/leonardosilva/Documents/MatheusCohen/Scaffold/GameModule/GameModuleDTO/bin/Release/netstandard2.1/netstandard2.1/System.Runtime.CompilerServices.Unsafe.dll
+/Users/leonardosilva/Documents/MatheusCohen/Scaffold/GameModule/GameModuleDTO/bin/Release/netstandard2.1/netstandard2.1/Utility.dll
+/Users/leonardosilva/Documents/MatheusCohen/Scaffold/GameModule/GameModuleDTO/bin/Release/netstandard2.1/netstandard2.1/Utility.pdb
+/Users/leonardosilva/Documents/MatheusCohen/Scaffold/GameModule/GameModuleDTO/obj/Release/netstandard2.1/GameModuleDTO.csproj.AssemblyReference.cache
+/Users/leonardosilva/Documents/MatheusCohen/Scaffold/GameModule/GameModuleDTO/obj/Release/netstandard2.1/GameModuleDTO.GeneratedMSBuildEditorConfig.editorconfig
+/Users/leonardosilva/Documents/MatheusCohen/Scaffold/GameModule/GameModuleDTO/obj/Release/netstandard2.1/GameModuleDTO.AssemblyInfoInputs.cache
+/Users/leonardosilva/Documents/MatheusCohen/Scaffold/GameModule/GameModuleDTO/obj/Release/netstandard2.1/GameModuleDTO.AssemblyInfo.cs
+/Users/leonardosilva/Documents/MatheusCohen/Scaffold/GameModule/GameModuleDTO/obj/Release/netstandard2.1/GameModuleDTO.csproj.CoreCompileInputs.cache
+/Users/leonardosilva/Documents/MatheusCohen/Scaffold/GameModule/GameModuleDTO/obj/Release/netstandard2.1/GameModuleDTO.sourcelink.json
+/Users/leonardosilva/Documents/MatheusCohen/Scaffold/GameModule/GameModuleDTO/obj/Release/netstandard2.1/GameModu.AF5235B2.Up2Date
+/Users/leonardosilva/Documents/MatheusCohen/Scaffold/GameModule/GameModuleDTO/obj/Release/netstandard2.1/GameModuleDTO.dll
+/Users/leonardosilva/Documents/MatheusCohen/Scaffold/GameModule/GameModuleDTO/obj/Release/netstandard2.1/GameModuleDTO.pdb
