@@ -18,3 +18,7 @@ Namespaces stay unchanged (e.g. `Scaffold.Events`); only folder paths follow thi
 - **Models** is for data/shape types: DTOs, records used as payloads, enums. An empty or data-only base type (e.g. a record that only exists as a constraint base) can live in **Abstractions** (as a contract) or **Models** (as a data shape); prefer **Abstractions** when the type is the central contract of the module’s API.
 
 Summary: abstract base types and contract types belong in **Abstractions** (or **Models** when they are purely data). Only concrete implementations go in **Implementation**.
+
+## Unity .meta files
+
+Whenever you **delete** or **move** a file under `Assets/`, also delete or move the corresponding `.meta` file (e.g. `Foo.cs` and `Foo.cs.meta`). Unity uses the `.meta` file to store the asset GUID; leaving a stale `.meta` or moving only the asset breaks references (prefabs, scenes, asmdefs).
