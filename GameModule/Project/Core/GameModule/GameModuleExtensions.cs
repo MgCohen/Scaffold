@@ -367,11 +367,6 @@ namespace GameModule.GameModule
             return await gameState.GetAllGameValue<string>(context, ModuleKeys.Auth, ModuleKeys.FirebaseBearerToken);
         }
 
-        public static async Task<string> GetN3musAntiCheatAuth(this GameState gameState, IExecutionContext context)
-        {
-            return await gameState.GetAllGameValue<string>(context, ModuleKeys.Auth, ModuleKeys.N3musAntiCheatToken);
-        }
-
         public static async Task<string> GetAdminFunctionsSecretKey(this GameState gameState, IExecutionContext context)
         {
             return await gameState.GetAllGameValue<string>(context, ModuleKeys.Auth, ModuleKeys.AdminFunctionsSecretKey);
