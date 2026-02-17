@@ -22,14 +22,15 @@ namespace Scaffold.Containers.Editor
         public static void Open()
         {
             var window = GetWindow<ContainerConfigEditorWindow>("Container Config");
-            if (Selection.activeObject is ContainerConfig config)
+            var config = GetDefaultOrFirstContainerConfig();
+            if (config != null)
                 window.SetTarget(config);
         }
 
         [MenuItem("Assets/Open in Container Config Window", true)]
         private static bool ValidateOpenInWindow()
         {
-            return Selection.activeObject is ContainerConfig;
+            return true;
         }
 
         [MenuItem("Assets/Open in Container Config Window", false)]
@@ -41,14 +42,15 @@ namespace Scaffold.Containers.Editor
         private void OnEnable()
         {
             configTypes = GetConfigTypes();
-            OnSelectionChange();
         }
 
-        private void OnSelectionChange()
+        private static ContainerConfig GetDefaultOrFirstContainerConfig()
         {
-            if (Selection.activeObject is ContainerConfig config && config != targetAsset)
-                SetTarget(config);
-            Repaint();
+            var guids = AssetDatabase.FindAssets("t:ContainerConfig");
+            if (guids.Length == 0)
+                return null;
+            var path = AssetDatabase.GUIDToAssetPath(guids[0]);
+            return AssetDatabase.LoadAssetAtPath<ContainerConfig>(path);
         }
 
         private void SetTarget(ContainerConfig config)
@@ -95,7 +97,7 @@ namespace Scaffold.Containers.Editor
 
         private void DrawLeftColumn(float width)
         {
-            EditorGUILayout.BeginVertical(GUILayout.Width(width), GUILayout.ExpandHeight(true));
+            EditorGUILayout.BeginVertical(GUILayout.MaxWidth(width), GUILayout.ExpandHeight(true));
 
             if (GUILayout.Button("+", GUILayout.Height(24)))
                 ShowAddConfigMenu();

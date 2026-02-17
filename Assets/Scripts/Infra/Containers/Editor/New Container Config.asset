@@ -12,7 +12,25 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d4a725cfd62bc30448f4210fbbe07408, type: 3}
   m_Name: New Container Config
   m_EditorClassIdentifier: Scaffold.Containers::Scaffold.Containers.ContainerConfig
-  configs: []
+  configs:
+  - rid: 6638240258922905687
   references:
     version: 2
-    RefIds: []
+    RefIds:
+    - rid: 6638240258922905687
+      type: {class: 'ConfigWrapper`1[[Scaffold.Navigation.Container.NavigationConfig, Scaffold.Navigation.Container]]', ns: Scaffold.Containers, asm: Scaffold.Containers}
+      data:
+        config: {fileID: 6477316224272581237}
+--- !u!114 &6477316224272581237
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e963da0fea3d43048822517d48ffe133, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Scaffold.Navigation.Container::Scaffold.Navigation.Container.NavigationConfig
+  settings: {fileID: 11400000, guid: 137da207fe7ec1345a5d209afdac17bd, type: 2}
