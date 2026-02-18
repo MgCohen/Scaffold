@@ -19,6 +19,15 @@ Namespaces stay unchanged (e.g. `Scaffold.Events`); only folder paths follow thi
 
 Summary: abstract base types and contract types belong in **Abstractions** (or **Models** when they are purely data). Only concrete implementations go in **Implementation**.
 
+## Naming: Container and Installer
+
+- Classes that inherit from **Container** must be named **`[module]Container`** (e.g. `EventsContainer`, `NavigationContainer`, `SampleGameContainer`).
+- Classes that inherit from **Installer** must be named **`[module]Installer`** (e.g. `EventsInstaller`, `NavigationInstaller`).
+
+## Visibility: installers
+
+Any class that inherits from **Installer** and is not abstract must be **public**. Do not make concrete installer types `internal`; the application layer must reference them to register modules with the DI container.
+
 ## Unity .meta files
 
 Whenever you **delete** or **move** a file under `Assets/`, also delete or move the corresponding `.meta` file (e.g. `Foo.cs` and `Foo.cs.meta`). Unity uses the `.meta` file to store the asset GUID; leaving a stale `.meta` or moving only the asset breaks references (prefabs, scenes, asmdefs).

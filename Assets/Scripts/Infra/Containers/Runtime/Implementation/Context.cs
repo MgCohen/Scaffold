@@ -2,7 +2,7 @@ using VContainer.Unity;
 
 namespace Scaffold.Containers
 {
-    public class Context : IContext
+    internal class Context : IContext
     {
         public Context(LifetimeScope scope)
         {

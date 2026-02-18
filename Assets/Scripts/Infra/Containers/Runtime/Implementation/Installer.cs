@@ -2,10 +2,8 @@ using UnityEngine;
 
 namespace Scaffold.Containers
 {
-    public class Installer
+    public abstract class Installer
     {
-        public virtual void Install(IContainerBuilder builder, Transform holder)
-        {
-        }
+        public abstract void Install(IContainerBuilder builder, Transform holder);
     }
 }

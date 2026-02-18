@@ -5,7 +5,7 @@ using VContainerBuilder = VContainer.IContainerBuilder;
 
 namespace Scaffold.Containers
 {
-    public class Container
+    public abstract class Container
     {
         private Context context;
         private Transform transform;

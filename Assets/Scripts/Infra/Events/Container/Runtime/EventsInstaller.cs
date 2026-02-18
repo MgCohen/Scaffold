@@ -1,14 +1,13 @@
-using Scaffold.Events;
-using System;
+using Scaffold.Containers;
 using UnityEngine;
-using VContainer;
-using VContainer.Unity;
 
-[Serializable]
-public class EventsInstaller : IInstaller
+namespace Scaffold.Events.Container
 {
-    public void Install(IContainerBuilder builder)
+    public class EventsInstaller : Installer
     {
-        builder.Register<IEventBus, EventController>(Lifetime.Scoped);
+        public override void Install(IContainerBuilder builder, Transform holder)
+        {
+            builder.Register<IEventBus, EventController>(ContainerLifetime.Scoped);
+        }
     }
 }

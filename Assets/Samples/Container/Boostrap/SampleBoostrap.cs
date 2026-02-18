@@ -1,6 +1,6 @@
 using Sample.States;
 using Scaffold.Containers;
-using Scaffold.Events;
+using Scaffold.Events.Container;
 using Scaffold.Navigation;
 using Scaffold.Navigation.Container;
 using Scaffold.States;
@@ -31,7 +31,7 @@ namespace Sample.Boostraper
         protected override void Build(IContainerBuilder builder, Transform holder)
         {
             new SampleNavigationInstaller(navigationSettings).Install(builder, holder);
-            builder.Register<IEventBus, EventController>(ContainerLifetime.Scoped);
+            new EventsInstaller().Install(builder, holder);
         }
     }
 

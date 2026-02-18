@@ -1,4 +1,4 @@
-using Scaffold.Events;
+using Scaffold.Events.Container;
 using Scaffold.Navigation;
 using Scaffold.Navigation.Container;
 using Scaffold.States;
@@ -23,7 +23,7 @@ namespace Sample.States
 
         private void BuildInfra(IContainerBuilder builder)
         {
-            builder.Register<IEventBus, EventController>(Lifetime.Scoped);
+            //new EventsInstaller().Install(builder, transform);
             builder.Register<INavigation, NavigationController>(Lifetime.Scoped).WithParameter<NavigationSettings>(settings).WithParameter<Transform>(transform);
             builder.Register<NavigationInjection>(Lifetime.Scoped).AsImplementedInterfaces();
         }

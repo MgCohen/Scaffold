@@ -139,3 +139,5 @@ fmod_editor.log
 /Tools/SurrenderTimeout/SurrenderTimeout/obj
 /Tools/SurrenderTimeout/SurrenderTimeout/bin
 .utmp/
+.cursor/plans/
+.cursor/worktrees.json
