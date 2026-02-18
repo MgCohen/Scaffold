@@ -15,7 +15,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\GameModuleDTO\GameModuleDTO.csproj" />
-        <ProjectReference Include="..\Utility\Utility.csproj" />
+        <ProjectReference Include="..\..\Utility\Utility\Utility.csproj" />
     </ItemGroup>
 
     <ItemGroup>

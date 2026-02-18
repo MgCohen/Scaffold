@@ -8,13 +8,6 @@ namespace GameModuleDTO.Json
     {
         // Create a single, reusable instance of our binder and settings
         private static readonly ISerializationBinder binder = new CrossPlatformTypeBinder();
-        private static readonly JsonSerializerSettings settings = new JsonSerializerSettings
-        {
-            SerializationBinder = binder,
-            TypeNameHandling = TypeNameHandling.All,
-            //For some reason when fetching data from unity api mix up the $type variable them this is needed
-            MetadataPropertyHandling = MetadataPropertyHandling.ReadAhead
-        };
 
         /// <summary>
         /// Deserializes JSON using the robust cross-platform binder.
@@ -34,6 +27,13 @@ namespace GameModuleDTO.Json
             {
                 return default;
             }
+            JsonSerializerSettings settings = new JsonSerializerSettings
+            {
+                SerializationBinder = binder,
+                TypeNameHandling = TypeNameHandling.All,
+                //For some reason when fetching data from unity api mix up the $type variable them this is needed
+                MetadataPropertyHandling = MetadataPropertyHandling.ReadAhead
+            };
             return JsonConvert.DeserializeObject<T>(json, settings);
         }
 
@@ -50,7 +50,6 @@ namespace GameModuleDTO.Json
             // Create a copy of the settings to apply formatting dynamically
             JsonSerializerSettings settings = new JsonSerializerSettings
             {
-                SerializationBinder = binder,
                 TypeNameHandling = TypeNameHandling.All,
                 Formatting = formatting,
                 NullValueHandling = NullValueHandling.Ignore,

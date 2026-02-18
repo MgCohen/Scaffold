@@ -15,7 +15,7 @@ namespace GameModule.Response
     {
         public static async Task<string> Resolve(this Response response, IExecutionContext context, PlayerData playerData)
         {
-            if (!response.modules.IsNullOrEmpty())
+            if (!response.modules.Any())
             {
                 List<SetItemBody> items = response.modules.Select(moduleData => new SetItemBody(moduleData.Key, moduleData)).ToList();
                 await playerData.SetBatch(context, items);

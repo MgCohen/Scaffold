@@ -8,7 +8,6 @@ using GameModule.ModuleFetchData;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Unity.Services.CloudCode.Core;
-using Utility.Authentication;
 
 namespace GameModule.Authentication
 {

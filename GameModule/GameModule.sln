@@ -7,7 +7,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GameModule", "Project\GameM
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GameModuleDTO", "GameModuleDTO\GameModuleDTO.csproj", "{201A8C03-73B7-412D-9AA5-BBB4235DDC39}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Utility", "Utility\Utility.csproj", "{18255EAA-A33F-4DAE-9A6F-E6358A1DD6D9}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Utility", "..\Utility\Utility\Utility.csproj", "{58E9F41B-1DE9-46CD-BAD1-2B1748CD3731}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -27,6 +27,14 @@ Global
 		{18255eaa-a33f-4dae-9a6f-e6358a1dd6d9}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{18255eaa-a33f-4dae-9a6f-e6358a1dd6d9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{18255eaa-a33f-4dae-9a6f-e6358a1dd6d9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{56BEA030-CDC4-4A12-94F8-8C76B9C77DAE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{56BEA030-CDC4-4A12-94F8-8C76B9C77DAE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{56BEA030-CDC4-4A12-94F8-8C76B9C77DAE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{56BEA030-CDC4-4A12-94F8-8C76B9C77DAE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{58E9F41B-1DE9-46CD-BAD1-2B1748CD3731}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{58E9F41B-1DE9-46CD-BAD1-2B1748CD3731}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{58E9F41B-1DE9-46CD-BAD1-2B1748CD3731}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{58E9F41B-1DE9-46CD-BAD1-2B1748CD3731}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

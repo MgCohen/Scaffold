@@ -2,7 +2,6 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using GameModuleDTO.Initialize;
 using GameModuleDTO.Keys;
 using Unity.Services.CloudCode.Apis;
 using Unity.Services.CloudCode.Core;
@@ -21,7 +20,6 @@ namespace GameModule.ModuleFetchData
         {
             this.logger = logger;
             this.gameApiClient = gameApiClient;
-            DDebug.ILogger = logger;
             Instance = this;
         }
         

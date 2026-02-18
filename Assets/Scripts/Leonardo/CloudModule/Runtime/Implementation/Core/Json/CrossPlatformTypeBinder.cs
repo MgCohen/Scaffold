@@ -1,7 +1,7 @@
 ﻿using System;
 using Newtonsoft.Json.Serialization;
 
-namespace GameModuleDTO.Json
+namespace Scaffold.CloudModules.Shared
 {
     /// <summary>
     /// Client-Side Binder:

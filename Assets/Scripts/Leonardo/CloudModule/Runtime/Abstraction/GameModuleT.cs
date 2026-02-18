@@ -3,21 +3,12 @@ using GameModuleDTO.GameModule;
 using GameModuleDTO.Response;
 using Scaffold.Logging;
 using UnityEngine;
-using Utility.List;
 using VContainer;
 
 namespace Scaffold.CloudModules.Shared
 {
     public abstract class GameModuleT<T> : MonoBehaviour, IGameModule where T : IGameModuleData
     {
-        protected string Guid
-        {
-            get
-            {
-                return GameModuleAuthKey.guid;
-            }
-        }
-
         [Inject]
         [SerializeField]
         protected ICloudModuleBinding moduleBinding;
@@ -55,9 +46,9 @@ namespace Scaffold.CloudModules.Shared
                 return false;
             }
             
-            if (moduleBinding.Modules.IsNullOrEmpty())
+            if (moduleBinding.Modules.Any())
             {
-                GameDebug.LogWarning(moduleBinding.Modules.IsNullOrEmpty() ?
+                GameDebug.LogWarning(moduleBinding.Modules.Any() ?
                     "GameModuleBindings.Modules is null or empty." :
                     "Response.modules is null or empty.", "GameModule");
                 return false;

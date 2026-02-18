@@ -3,7 +3,6 @@ namespace GameModuleDTO.Keys
     public static class DTOKeys
     {
         public const string Default = "Default";
-        public const string DataChip = "DataChip";
         public const string Currency = "Currency";
         public const string Card = "Card";
         public const string Faction = "Faction";
