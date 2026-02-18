@@ -1,42 +1,25 @@
 using System;
 using System.Collections.Generic;
-using GameModuleDTO.GameModule;
+using GameModuleDTO.ModuleRequests;
 using Scaffold.Logging;
 using Unity.Services.CloudCode;
 using UnityEngine;
-using VContainer;
 
 namespace Scaffold.CloudModules.Shared
 {
-    public class GameModuleBindings : ICloudModuleBinding
+    public class CloudCodeUGSService : ICloudCodeService
     {
-        public string ModuleName
-        {
-            get
-            {
-                return "GameModule";
-            }
-        }
-        private const int RetryCall = 2; // In secconds
-        private const int MaxRetries = 2;
-        public Action RequestError { get; }
-        
-        [Inject]
         public List<IGameModule> Modules { get; }
+        public Action RequestError { get; }
 
-        string ICloudModuleBinding.GetEndpointName(string endpointName)
+        public CloudCodeUGSService(List<IGameModule> modules)
         {
-            return GetEndpointName(endpointName);
+            Modules = modules;
         }
 
-        private ICloudCodeService CloudService
+        private Unity.Services.CloudCode.ICloudCodeService CloudService
         {
-            get { return CloudCodeService.Instance; }
-        }
-
-        protected string GetEndpointName(string endpointName)
-        {
-            return $"{ModuleName}.{endpointName}";
+            get { return Unity.Services.CloudCode.CloudCodeService.Instance; }
         }
         
         private bool IsRetryableError(Exception ex)
@@ -62,24 +45,33 @@ namespace Scaffold.CloudModules.Shared
             return true;
         }
 
-        public async Awaitable<T> CallEndpointAsync<T>(string module, string endpoint, Dictionary<string, object> payload = null)
+        public async Awaitable<T> CallEndpointAsync<T>(string module, string endpoint, int maxRetries = 2, int retryCall = 2, Dictionary<string, object> payload = null)
         {
-            string debugName = GetEndpointName(nameof(CallEndpointAsync));
+            string debugName = $"{module}.{endpoint}";
             string response;
             try
             {
                 // First Attempt
                 response = await CloudService.CallModuleEndpointAsync(module, endpoint, payload ?? new Dictionary<string, object>());
             }
-            catch (Exception e)
+            catch (Exception exception)
             {
-#if !SERVER
+#if SERVER
+                return HandleError(exception);
+#endif
+                return await HandleErrorWithRetry(exception);
+            }
+            GameDebug.Log(response, debugName);
+            return response.FromJson<T>();
+
+            async Awaitable<T> HandleErrorWithRetry(Exception exception)
+            {
                 // Enter retry loop if the error is actually retryable (Network, 5xx, RateLimit)
-                if (IsRetryableError(e))
+                if (IsRetryableError(exception))
                 {
-                    for (int i = 0; i < MaxRetries; i++)
+                    for (int i = 0; i < maxRetries; i++)
                     {
-                        await Awaitable.WaitForSecondsAsync(RetryCall); // Ideally use a backoff strategy, but 2s is fine for now
+                        await Awaitable.WaitForSecondsAsync(retryCall); // Ideally use a backoff strategy, 2s is fine for now
                         try
                         {
                             response = await CloudService.CallModuleEndpointAsync(module, endpoint, payload ?? new Dictionary<string, object>());
@@ -94,44 +86,41 @@ namespace Scaffold.CloudModules.Shared
                             {
                                 GameDebug.LogError($"Aborting Retries on Non-Retryable Error: {retryEx.Message}", debugName);
                                 // Break the loop and fall through to the final error handler
-                                e = retryEx; // Update 'e' to the newest error for the popup
+                                exception = retryEx; // Update 'e' to the newest error for the popup
                                 break;
                             }
 
-                            GameDebug.LogError($"Retry {i + 1}/{MaxRetries} failed: {retryEx.Message}", debugName);
+                            GameDebug.LogError($"Retry {i + 1}/{maxRetries} failed: {retryEx.Message}", debugName);
                         }
                     }
                 }
                 else
                 {
-                    GameDebug.LogError($"Logic error detected, skipping retries. {e.Message}", debugName);
+                    GameDebug.LogError($"Logic error detected, skipping retries. {exception.Message}", debugName);
                 }
 
+                return HandleError(exception);
+            }
+
+            T HandleError(Exception exception)
+            {
                 RequestError?.Invoke();
-#endif
-                GameDebug.LogException(e, debugName);
+                GameDebug.LogException(exception, debugName);
                 return default;
             }
-            GameDebug.Log(response, debugName);
-            return response.FromJson<T>();
         }
-
-        public async Awaitable CallEndpointAsync(string module, string endpoint, Dictionary<string, object> payload = null)
+        
+        public async Awaitable<TResponse> CallEndpointAsync<TResponse>(ModuleRequestT<TResponse> request) 
+            where TResponse : ModuleResponse
         {
-            // Call the Cloud Code endpoint
-            await CloudService.CallModuleEndpointAsync(module, endpoint, payload ?? new Dictionary<string, object>());
-            GameDebug.Log("GameModuleBindings.CallEndpointAsync", $"{module}.{endpoint}");
-        }
-
-        public async Awaitable<GameData> InitializeModules()
-        {
-            return await CallEndpointAsync<GameData>(
-                ModuleName,
-                "InitializeModules",
-                new Dictionary<string, object>
-                {
-                    { "serverKey", GameModuleAuthKey.guid }
-                });
+            if (request == null)
+            {
+                Debug.LogError($"{nameof(request)} is null");
+                return null;
+            }
+            
+            TResponse response = await CallEndpointAsync<TResponse>(request.ModuleName, request.FunctionName, request.MaxRetries, request.RetryCall,new Dictionary<string, object>() {{"request", request}});
+            return response;
         }
     }
 }

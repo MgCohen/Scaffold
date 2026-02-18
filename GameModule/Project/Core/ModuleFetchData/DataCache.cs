@@ -118,7 +118,7 @@ namespace GameModule.ModuleFetchData
             //string json = value.ToInternalJson();
             //cache[key] = json;
             objectCache[key] = value;
-            logger.LogInformation($"[{GetType().Name}.Set] Saved key {GetDebugKey(key)} for player: '{playerId}', value: {value.ToUnityJson()}.");
+            logger.LogInformation($"[{GetType().Name}.Set] Saved key {GetDebugKey(key)} for player: '{playerId}', value: {value.ToJson()}.");
         }
         
         public async Task Set(IExecutionContext context, string key, object value, bool useWriteLock = false)

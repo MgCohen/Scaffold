@@ -40,7 +40,7 @@ namespace GameModuleDTO.Json
         /// <summary>
         /// Serializes an object using the robust cross-platform binder.
         /// </summary>
-        public static string ToUnityJson(this object obj, Formatting formatting = Formatting.None)
+        public static string ToJson(this object obj, Formatting formatting = Formatting.None)
         {
             if (obj == null)
             {

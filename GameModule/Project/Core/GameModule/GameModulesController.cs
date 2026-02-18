@@ -1,16 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using GameModule.AccessKey;
 using GameModuleDTO.GameModule;
 using GameModule.ModuleFetchData;
+using GameModuleDTO.Json;
+using GameModuleDTO.ModuleRequests;
 using Microsoft.Extensions.Logging;
 using Unity.Services.CloudCode.Core;
-using GameModuleDTO.Json;
 
 namespace GameModule.GameModule
 {
-    using AccessKey = AccessKey.AccessKey;
-    
     public class GameModulesController
     {
         public static ILogger loggerInstance;
@@ -26,12 +26,14 @@ namespace GameModule.GameModule
             this.remoteConfig = remoteConfig;
         }
 
-        [CloudCodeFunction("InitializeModules")]
-        public async Task<string> InitializeModules(IExecutionContext context, GameState gameState, IEnumerable<IGameModule> modules, string serverKey)
+        [CloudCodeFunction(nameof(InitializeGameModulesRequest))]
+        public async Task<string> InitializeModules(IExecutionContext context, GameState gameState, IEnumerable<IGameModule> modules, InitializeGameModulesRequest request)
         {
             logger.LogWarning($"GameModulesController.InitializeModules.Started");
+            request.AssertModule();
+            
             GameData gameData = new GameData();
-            bool server = !string.IsNullOrEmpty(serverKey) && serverKey == await AccessKey.GetUnityAuth(gameState, context);
+            bool server = await context.GetValidAuth(gameState, request.AuthKey);
             foreach (IGameModule module in modules)
             {
                 try
@@ -42,7 +44,7 @@ namespace GameModule.GameModule
                         continue;
                     }
 
-                    //isAccessInvalid
+                    // Is Access Valid
                     if (!(server && module.Server || !server && module.Client))
                     {
                         //TODO: enable logs based on environment
@@ -58,10 +60,9 @@ namespace GameModule.GameModule
                     logger.LogError(e, e.Message);
                 }
             }
-            string json = gameData.ToUnityJson();
+            
             logger.LogWarning($"GameModulesController.InitializeModules.Finished");
-            //logger.LogWarning($"GameModulesController.InitializeModules.Finished: {json}");
-            return json;
+            return request.GetResponse(new GameDataResponse(gameData));
         }
     }
 }

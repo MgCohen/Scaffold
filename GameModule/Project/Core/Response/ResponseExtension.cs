@@ -2,10 +2,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using GameModule.ModuleFetchData;
-using Unity.Services.CloudCode.Core;
 using GameModuleDTO.Json;
+using Unity.Services.CloudCode.Core;
 using Unity.Services.CloudSave.Model;
-using Utility.List;
 
 namespace GameModule.Response
 {
@@ -20,7 +19,7 @@ namespace GameModule.Response
                 List<SetItemBody> items = response.modules.Select(moduleData => new SetItemBody(moduleData.Key, moduleData)).ToList();
                 await playerData.SetBatch(context, items);
             }
-            return response.ToUnityJson();
+            return response.ToJson();
         }
     }
 }

@@ -1,4 +1,4 @@
-namespace GameModuleDTO.Core.Response
+namespace GameModuleDTO.ModuleRequests
 {
     public enum ResponseStatusType { Success, Failure, Error, Exception }
 

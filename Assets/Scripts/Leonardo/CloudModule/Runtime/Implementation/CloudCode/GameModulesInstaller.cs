@@ -3,11 +3,11 @@
 namespace Scaffold.GameModules.Shared
 {
     //TODO: Refactor
-    /*public class GameModulesInstaller : Installer<GameModulesInstaller>
+    /*public class CloudCodeInstaller : Installer<CloudCodeInstaller>
     {
         public override void InstallBindings()
         {
-            Container.BindInterfacesAndSelfTo<GameModuleBindings>().AsSingle().NonLazy();
+            Container.BindInterfacesAndSelfTo<UGSCloudCodeService>().AsSingle().NonLazy();
             Container.BindInterfacesAndSelfTo<GameModulesController>()
                 .FromNewComponentOnNewGameObject().AsSingle().NonLazy();
         }
