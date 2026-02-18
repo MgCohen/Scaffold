@@ -15,8 +15,8 @@ namespace Scaffold.CloudModules.Shared
         /// </summary>
         public Type BindToType(string assemblyName, string typeName)
         {
-            // If the JSON contains "System.Private.CoreLib" (from the Server), 
-            // swap it to "mscorlib" so Unity/Mono can resolve it.
+            // If the JSON contains "mscorlib" (from the Server), 
+            // swap it to "System.Private.CoreLib" so Unity/Mono can resolve it.
             string targetAssembly = assemblyName?.Replace("mscorlib", "System.Private.CoreLib");
 
             // Look up the type in the corrected assembly
@@ -31,7 +31,7 @@ namespace Scaffold.CloudModules.Shared
             // Get the current local assembly name (likely mscorlib in Unity)
             string currentAssembly = serializedType.Assembly.FullName;
 
-            // Swap "mscorlib" out for "System.Private.CoreLib" so the server 
+            // Swap "System.Private.CoreLib" out for "mscorlib" so the server 
             // recognizes it as a standard .NET type.
             assemblyName = currentAssembly.Replace("System.Private.CoreLib", "mscorlib");
             typeName = serializedType.FullName;
