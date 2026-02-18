@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace Scaffold.Navigation
 {
-    public class NoView : IView
+    internal class NoView : IView
     {
         public GameObject gameObject => throw new System.NotImplementedException();
 

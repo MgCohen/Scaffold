@@ -1,21 +1,21 @@
-using System;
 using UnityEngine;
-using VContainer;
-using VContainer.Unity;
+using Scaffold.Containers;
 
 namespace Scaffold.Navigation.Container
 {
-    [Serializable]
-    public class NavigationInstaller : IInstaller
+    public class NavigationInstaller : Installer
     {
-        [SerializeField] private NavigationSettings settings;
-        [SerializeField] private Transform holder;
-
-
-        public void Install(IContainerBuilder builder)
+        public NavigationInstaller(NavigationSettings settings)
         {
-            builder.Register<INavigation, NavigationController>(Lifetime.Scoped).WithParameter<NavigationSettings>(settings).WithParameter<Transform>(holder);
-            builder.Register<NavigationInjection>(Lifetime.Scoped).AsImplementedInterfaces();
+            this.settings = settings;
+        }
+        
+        private NavigationSettings settings;
+
+        public override void Install(IContainerBuilder builder, Transform holder)
+        {
+            builder.Register<INavigation, NavigationController>(ContainerLifetime.Scoped).WithParameter<NavigationSettings>(settings).WithParameter<Transform>(holder);
+            builder.Register<NavigationInjection>(ContainerLifetime.Scoped).AsImplementedInterfaces();
         }
     }
 }

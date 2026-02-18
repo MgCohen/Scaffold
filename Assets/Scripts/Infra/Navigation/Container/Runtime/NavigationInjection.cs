@@ -1,12 +1,12 @@
-using VContainer;
+using Scaffold.Containers;
 
 namespace Scaffold.Navigation.Container
 {
-    public class NavigationInjection : INavigationOpenHandler
+    internal class NavigationInjection : INavigationOpenHandler
     {
-        private IObjectResolver resolver;
+        private IContainerResolver resolver;
 
-        public NavigationInjection(IObjectResolver resolver)
+        public NavigationInjection(IContainerResolver resolver)
         {
             this.resolver = resolver;
         }

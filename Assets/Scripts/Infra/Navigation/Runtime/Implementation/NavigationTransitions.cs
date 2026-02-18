@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace Scaffold.Navigation
 {
-    public class NavigationTransitions
+    internal class NavigationTransitions
     {
         public NavigationTransitions(IEventBus events)
         {

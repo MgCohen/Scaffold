@@ -6,5 +6,7 @@ namespace Scaffold.Containers
     public interface IContainerResolver
     {
         T Resolve<T>();
+
+        void Inject(object obj);
     }
 }

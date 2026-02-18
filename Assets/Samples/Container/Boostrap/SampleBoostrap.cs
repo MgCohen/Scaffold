@@ -30,7 +30,7 @@ namespace Sample.Boostraper
 
         protected override void Build(IContainerBuilder builder, Transform holder)
         {
-            new SampleNavigationInstaller(navigationSettings).Install(builder, holder);
+            new NavigationInstaller(navigationSettings).Install(builder, holder);
             new EventsInstaller().Install(builder, holder);
         }
     }
@@ -71,22 +71,6 @@ namespace Sample.Boostraper
                                       .Build();
 
             return store;
-        }
-    }
-
-    public class SampleNavigationInstaller : Installer
-    {
-        private readonly NavigationSettings settings;
-
-        public SampleNavigationInstaller(NavigationSettings settings)
-        {
-            this.settings = settings;
-        }
-
-        public override void Install(IContainerBuilder builder, Transform holder)
-        {
-            builder.Register<INavigation, NavigationController>(ContainerLifetime.Scoped).WithParameter<NavigationSettings>(settings).WithParameter<Transform>(holder);
-            builder.Register<NavigationInjection>(ContainerLifetime.Scoped).AsImplementedInterfaces();
         }
     }
     #endregion

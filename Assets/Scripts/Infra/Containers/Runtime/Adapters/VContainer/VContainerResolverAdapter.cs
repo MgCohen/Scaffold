@@ -19,5 +19,10 @@ namespace Scaffold.Containers.Adapters
         {
             return _inner.Resolve<T>();
         }
+
+        public void Inject(object obj)
+        {
+            _inner.Inject(obj);
+        }
     }
 }

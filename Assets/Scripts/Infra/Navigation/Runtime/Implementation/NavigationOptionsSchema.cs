@@ -7,7 +7,7 @@ using UnityEngine.AddressableAssets;
 
 namespace Scaffold.Navigation
 {
-    public class NavigationOptionsSchema : ViewSchema
+    internal class NavigationOptionsSchema : ViewSchema
     {
         public NavigationOptions Options => options;
         [SerializeField] private NavigationOptions options;

@@ -24,8 +24,8 @@ namespace Sample.States
         private void BuildInfra(IContainerBuilder builder)
         {
             //new EventsInstaller().Install(builder, transform);
-            builder.Register<INavigation, NavigationController>(Lifetime.Scoped).WithParameter<NavigationSettings>(settings).WithParameter<Transform>(transform);
-            builder.Register<NavigationInjection>(Lifetime.Scoped).AsImplementedInterfaces();
+            //builder.Register<INavigation, NavigationController>(Lifetime.Scoped).WithParameter<NavigationSettings>(settings).WithParameter<Transform>(transform);
+            //builder.Register<NavigationInjection>(Lifetime.Scoped).AsImplementedInterfaces();
         }
 
         private void BuildState(IContainerBuilder builder)
