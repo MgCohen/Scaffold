@@ -3,7 +3,9 @@ using System;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class NavigateViewButton: MonoBehaviour
+namespace Scaffold.MVVM
+{
+    public class NavigateViewButton : MonoBehaviour
 {
     [SerializeField] private NavigateViewEvent navigateEvent;
     [SerializeField] private Button button;
@@ -16,5 +18,6 @@ public class NavigateViewButton: MonoBehaviour
     private void Navigate()
     {
         ViewEvents.Raise(this, navigateEvent);
+    }
     }
 }

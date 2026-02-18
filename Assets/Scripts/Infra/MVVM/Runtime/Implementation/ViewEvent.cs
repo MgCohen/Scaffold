@@ -1,12 +1,14 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
-[Serializable]
-public abstract class ViewEvent
+namespace Scaffold.MVVM
 {
+    [Serializable]
+    public abstract class ViewEvent
+    {
     public ViewEvent(PointerEventData pointer)
     {
         PointerData = pointer;
@@ -61,5 +63,6 @@ public abstract class ViewEvent
             History.Add(Current);
         }
         Current = next;
+    }
     }
 }

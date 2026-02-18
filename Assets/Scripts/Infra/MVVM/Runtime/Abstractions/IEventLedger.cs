@@ -1,11 +1,14 @@
-﻿using System;
+using System;
 using UnityEngine;
 
-public interface IEventLedger
+namespace Scaffold.MVVM
 {
-    void Raise(Transform transform, ViewEvent evt);
+    public interface IEventLedger
+    {
+        void Raise(Transform transform, ViewEvent evt);
 
-    void Register(Transform transform, Action<ViewEvent> evt);
+        void Register(Transform transform, Action<ViewEvent> evt);
 
-    void Unregister(Transform transform, Action<ViewEvent> evt);
+        void Unregister(Transform transform, Action<ViewEvent> evt);
+    }
 }

@@ -1,7 +1,9 @@
-﻿using UnityEngine;
+using UnityEngine;
 
-public class ClickViewEvent: ViewEvent
+namespace Scaffold.MVVM
 {
+    public class ClickViewEvent : ViewEvent
+    {
     public ClickViewEvent(string id)
     {
         this.id = id;
@@ -14,5 +16,6 @@ public class ClickViewEvent: ViewEvent
 
     public string Id => id;
     [SerializeField] private string id;
+    }
 }
 

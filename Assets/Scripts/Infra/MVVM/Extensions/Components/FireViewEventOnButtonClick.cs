@@ -1,10 +1,13 @@
 using System.Collections.Generic;
+using Scaffold.MVVM;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-public class FireViewEventOnButtonClick :  MonoBehaviour
+namespace Scaffold.MVVM
 {
+    public class FireViewEventOnButtonClick : MonoBehaviour
+    {
 
     [SerializeReference, TypeSelection(typeof(ViewEvent))]
     private ViewEvent viewEvent;
@@ -26,5 +29,6 @@ public class FireViewEventOnButtonClick :  MonoBehaviour
     {
         this.viewEvent.Restore();
         ViewEvents.Raise(this, this.viewEvent);
+    }
     }
 }

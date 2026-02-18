@@ -2,8 +2,10 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class ViewEvents
+namespace Scaffold.MVVM
 {
+    public class ViewEvents
+    {
     private static Dictionary<Type, IEventLedger> ledgers = new Dictionary<Type, IEventLedger>();
 
     public static void Raise<TEvent>(Transform source, TEvent evt) where TEvent : ViewEvent
@@ -74,5 +76,6 @@ public class ViewEvents
         }
 
         return ledger;
+    }
     }
 }

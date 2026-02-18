@@ -2,8 +2,10 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class EventLedger<T> : IEventLedger where T : ViewEvent
+namespace Scaffold.MVVM
 {
+    public class EventLedger<T> : IEventLedger where T : ViewEvent
+    {
     private readonly Dictionary<Transform, List<Action<T>>> callbackList = new();
     private readonly Dictionary<Transform, List<Action<ViewEvent>>> genericCallbackList = new();
 
@@ -106,5 +108,6 @@ public class EventLedger<T> : IEventLedger where T : ViewEvent
 
 
         return (list, glist);
+    }
     }
 }

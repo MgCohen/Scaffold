@@ -1,12 +1,15 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Scaffold.MVVM;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.Serialization;
 using UnityEngine.UI;
 
-public class ViewEventButton : Button
+namespace Scaffold.MVVM
+{
+    public class ViewEventButton : Button
 {
     [SerializeReference, TypeSelection(typeof(ViewEvent))]
     private ViewEvent viewEvent;
@@ -33,5 +36,6 @@ public class ViewEventButton : Button
     }
     public override void OnPointerDown(PointerEventData eventData) {
         base.OnPointerDown(eventData);
+    }
     }
 }
