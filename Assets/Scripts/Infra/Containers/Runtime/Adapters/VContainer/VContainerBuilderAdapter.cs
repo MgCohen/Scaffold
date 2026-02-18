@@ -19,20 +19,20 @@ namespace Scaffold.Containers.Adapters
         public IRegistrationBuilder<T> Register<T>(ContainerLifetime lifetime)
         {
             var registration = _inner.Register<T>(ToVContainerLifetime(lifetime));
-            return new VContainerRegistrationBuilderAdapter<T>(registration);
+            return ContainerBuilderAdapterFactory.CreateRegistrationBuilder<T>(registration);
         }
 
         public IRegistrationBuilder<TService> Register<TService, TImplementation>(ContainerLifetime lifetime)
             where TImplementation : TService
         {
             var registration = _inner.Register<TService, TImplementation>(ToVContainerLifetime(lifetime));
-            return new VContainerRegistrationBuilderAdapter<TService>(registration);
+            return ContainerBuilderAdapterFactory.CreateRegistrationBuilder<TService>(registration);
         }
 
         public IRegistrationBuilder<T> Register<T>(Func<IContainerResolver, T> factory, ContainerLifetime lifetime)
         {
-            var registration = _inner.Register((IObjectResolver vc) => factory(new VContainerResolverAdapter(vc)), ToVContainerLifetime(lifetime));
-            return new VContainerRegistrationBuilderAdapter<T>(registration);
+            var registration = _inner.Register((IObjectResolver vc) => factory(ContainerBuilderAdapterFactory.CreateResolver(vc)), ToVContainerLifetime(lifetime));
+            return ContainerBuilderAdapterFactory.CreateRegistrationBuilder<T>(registration);
         }
 
         // Note: VContainer's RegisterEntryPoint does not return a registration builder; we only mirror usage needed here.
@@ -46,7 +46,7 @@ namespace Scaffold.Containers.Adapters
 
         public void RegisterBuildCallback(Action<IContainerResolver> callback)
         {
-            _inner.RegisterBuildCallback((IObjectResolver vc) => callback(new VContainerResolverAdapter(vc)));
+            _inner.RegisterBuildCallback((IObjectResolver vc) => callback(ContainerBuilderAdapterFactory.CreateResolver(vc)));
         }
 
         private static Lifetime ToVContainerLifetime(ContainerLifetime lifetime)

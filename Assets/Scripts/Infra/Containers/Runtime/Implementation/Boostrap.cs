@@ -9,7 +9,7 @@ namespace Scaffold.Containers
     {
         protected override void Configure(VContainer.IContainerBuilder builder)
         {
-            var adapter = new VContainerBuilderAdapter(builder);
+            var adapter = ContainerBuilderAdapterFactory.CreateBuilder(builder);
 
             adapter.Register<IContext>(_ => new Context(this), ContainerLifetime.Scoped);
             adapter.RegisterBuildCallback(o =>

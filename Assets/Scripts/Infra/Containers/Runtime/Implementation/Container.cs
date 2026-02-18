@@ -19,7 +19,7 @@ namespace Scaffold.Containers
 
         private void Build(VContainerBuilder builder)
         {
-            var adapter = new VContainerBuilderAdapter(builder);
+            var adapter = ContainerBuilderAdapterFactory.CreateBuilder(builder);
             adapter.Register<IContext>(_ => context, ContainerLifetime.Scoped);
             Build(adapter, transform);
         }
