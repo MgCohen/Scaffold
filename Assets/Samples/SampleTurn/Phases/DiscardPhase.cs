@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace Sample.Turn.Phases
 {
     /// <summary>
@@ -9,11 +11,11 @@ namespace Sample.Turn.Phases
     {
         private IPhaseContext _context;
 
-        public override void OnEnter(MatchPlayer currentPlayer, IPhaseContext context)
+        public override void OnEnter(IReadOnlyList<MatchPlayer> activePlayers, IPhaseContext context)
         {
             _context = context;
             // In a full game: set state or raise an event so the reactive/UI module shows
-            // "select a card to discard" for currentPlayer. That module would then call CompleteDiscard() when done.
+            // "select a card to discard" for activePlayers. That module would then call CompleteDiscard() when done.
             // No state/events in this sample, so the phase just waits for CompleteDiscard().
         }
 

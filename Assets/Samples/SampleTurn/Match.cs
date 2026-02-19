@@ -1,70 +1,41 @@
 using System.Collections.Generic;
+using Scaffold.States;
+using Sample.Turn.Mutators;
 
 namespace Sample.Turn
 {
     /// <summary>
-    /// Root instance of a match: players and phases (read-only from construction). Turn state is created via CreateInitialTurnState; the caller holds and passes state.
+    /// Orchestrates a match: holds player and phase entities, creates services, and wires them together.
+    /// All state lives in the Store; all behaviour lives in the services.
     /// </summary>
     public class Match
     {
-        private readonly List<MatchPlayer> _players;
-        private readonly List<Phase> _phases;
+        private readonly Store _store;
+        private readonly PlayerPriorityService _priorityService;
+        private readonly TurnService _turnService;
 
-        public Match(IReadOnlyList<MatchPlayer> players, IReadOnlyList<Phase> phases)
+        public Match(IReadOnlyList<MatchPlayer> players, IReadOnlyList<Phase> phases, Store store)
         {
-            _players = new List<MatchPlayer>(players ?? new List<MatchPlayer>());
-            _phases = new List<Phase>(phases ?? new List<Phase>());
+            _store = store;
+            _priorityService = new PlayerPriorityService(store);
+            _turnService = new TurnService(phases, store, onTurnEnded: OnTurnEnded);
         }
 
-        public IReadOnlyList<MatchPlayer> Players => _players;
-        public IReadOnlyList<Phase> Phases => _phases;
-
-        public TurnState CreateInitialTurnState()
+        public void StartTurn()
         {
-            return new TurnState
-            {
-                CurrentRoundIndex = 0,
-                CurrentTurnOwner = _players.Count > 0 ? _players[0] : null,
-                CurrentPhase = _phases.Count > 0 ? _phases[0] : null
-            };
+            _turnService.StartTurn();
         }
 
-        public int GetPlayerIndex(MatchPlayer player)
+        public void EndRound()
         {
-            return player == null ? -1 : _players.IndexOf(player);
+            _priorityService.ResetToFirstPlayer();
+            _store.Execute(new EndRoundMutator());
         }
 
-        public int GetPhaseIndex(Phase phase)
+        private void OnTurnEnded()
         {
-            return phase == null ? -1 : _phases.IndexOf(phase);
-        }
-
-        public void StartTurn(TurnState state)
-        {
-            if (_phases.Count == 0) return;
-            var turn = new Turn(
-                Phases,
-                state.CurrentTurnOwner,
-                onPhaseChanged: phase => state.CurrentPhase = phase,
-                onTurnEnded: () => AdvanceToNextPlayerAndStartTurn(state));
-            turn.RunCurrentPhase();
-        }
-
-        public void EndRound(TurnState state)
-        {
-            state.CurrentRoundIndex++;
-            state.CurrentTurnOwner = _players.Count > 0 ? _players[0] : null;
-            state.CurrentPhase = _phases.Count > 0 ? _phases[0] : null;
-        }
-
-        private void AdvanceToNextPlayerAndStartTurn(TurnState state)
-        {
-            if (_players.Count == 0) return;
-            var index = GetPlayerIndex(state.CurrentTurnOwner);
-            var nextIndex = index < 0 ? 0 : (index + 1) % _players.Count;
-            state.CurrentTurnOwner = _players[nextIndex];
-            state.CurrentPhase = _phases.Count > 0 ? _phases[0] : null;
-            StartTurn(state);
+            _priorityService.AdvanceTurn();
+            _turnService.StartTurn();
         }
     }
 }

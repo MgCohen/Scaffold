@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Scaffold.States;
 using Sample.Turn.Phases;
 
 namespace Sample.Turn
@@ -30,7 +31,25 @@ namespace Sample.Turn
         {
             var players = GetDefaultPlayers();
             var phases = GeneratePhases();
-            return new Match(players, phases);
+
+            var initialTurnState = new TurnState
+            {
+                CurrentRoundIndex = 0,
+                CurrentPhase = phases.Count > 0 ? phases[0] : null
+            };
+
+            var initialPriorityState = new PlayerPriorityState
+            {
+                PlayerOrder = players,
+                ActivePlayers = new List<MatchPlayer> { players[0] }
+            };
+
+            var store = new StoreBuilder()
+                .BuildSlice(initialTurnState)
+                .BuildSlice(initialPriorityState)
+                .Build();
+
+            return new Match(players, phases, store);
         }
     }
 }

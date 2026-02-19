@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace Sample.Turn
 {
     /// <summary>
@@ -16,6 +18,6 @@ namespace Sample.Turn
     {
         public int PhaseId { get; internal set; }
 
-        public abstract void OnEnter(MatchPlayer currentPlayer, IPhaseContext context);
+        public abstract void OnEnter(IReadOnlyList<MatchPlayer> activePlayers, IPhaseContext context);
     }
 }

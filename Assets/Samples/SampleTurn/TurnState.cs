@@ -1,12 +1,13 @@
+using Scaffold.States;
+
 namespace Sample.Turn
 {
     /// <summary>
-    /// Turn state: current round, turn owner, and active phase. Use concrete types; convert to/from ids only at network boundaries.
+    /// Turn state: current round and active phase. Player priority is tracked separately in PlayerPriorityState.
     /// </summary>
-    public record TurnState
+    public record TurnState : State
     {
-        public int CurrentRoundIndex { get; set; }
-        public MatchPlayer CurrentTurnOwner { get; set; }
-        public Phase CurrentPhase { get; set; }
+        public int CurrentRoundIndex { get; init; }
+        public Phase CurrentPhase { get; init; }
     }
 }
