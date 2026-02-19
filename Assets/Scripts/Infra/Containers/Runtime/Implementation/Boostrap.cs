@@ -1,22 +1,14 @@
-using Scaffold.Containers.Adapters;
 using UnityEngine;
-using VContainer;
-using VContainer.Unity;
 
 namespace Scaffold.Containers
 {
-    public abstract class Boostrap : LifetimeScope
+    public abstract class Boostrap : MonoBehaviour
     {
-        protected override void Configure(VContainer.IContainerBuilder builder)
-        {
-            var adapter = ContainerBuilderAdapterFactory.CreateBuilder(builder);
+        protected virtual IContainerAdapter GetAdapter() => new VContainerAdapter();
 
-            adapter.Register<IContext>(_ => new Context(this), ContainerLifetime.Scoped);
-            adapter.RegisterBuildCallback(o =>
-            {
-                IContext context = o.Resolve<IContext>();
-                Build(context);
-            });
+        private void Start()
+        {
+            GetAdapter().Run(transform, Build);
         }
 
         protected abstract void Build(IContext context);

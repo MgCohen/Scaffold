@@ -1,10 +1,8 @@
-using VContainer.Unity;
-
 namespace Scaffold.Containers
 {
     internal class Context : IContext
     {
-        public Context(LifetimeScope scope)
+        internal Context(IContainerScope scope)
         {
             this.scope = scope;
             this.parent = null;
@@ -17,12 +15,17 @@ namespace Scaffold.Containers
         }
 
         private Context parent;
-        private LifetimeScope scope;
+        private IContainerScope scope;
+
+        /// <summary>For adapter use only. Called by the adapter after BuildChild completes.</summary>
+        internal void SetScope(IContainerScope scope)
+        {
+            this.scope = scope;
+        }
 
         public IContext AddChild<T>() where T : Container, new()
         {
-            T container = new T();
-            return AddChild(container);
+            return AddChild(new T());
         }
 
         public IContext AddChild(Container container)
@@ -32,8 +35,7 @@ namespace Scaffold.Containers
 
         public IContext Append<T>() where T : Container, new()
         {
-            T container = new T();
-            return Append(container);
+            return Append(new T());
         }
 
         public IContext Append(Container container)
@@ -43,8 +45,7 @@ namespace Scaffold.Containers
 
         public IContext ChangeContext<T>() where T : Container, new()
         {
-            T container = new T();
-            return ChangeContext(container);
+            return ChangeContext(new T());
         }
 
         public IContext ChangeContext(Container container)
@@ -55,10 +56,9 @@ namespace Scaffold.Containers
 
         private Context Build(Container container, Context parent)
         {
-            Context context = new Context(parent);
-            LifetimeScope childScope = container.Build(parent.scope, context);
-            context.scope = childScope;
-            return context;
+            Context childContext = new Context(parent);
+            parent.scope.BuildChild(container, childContext, parent.scope.Transform);
+            return childContext;
         }
     }
 }

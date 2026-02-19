@@ -5,9 +5,9 @@ namespace Scaffold.Events.Container
 {
     public class EventsInstaller : Installer
     {
-        public override void Install(IContainerBuilder builder, Transform holder)
+        public override void Install(IContainerRegistry registry, Transform holder)
         {
-            builder.Register<IEventBus, EventController>(ContainerLifetime.Scoped);
+            registry.Register<IEventBus, EventController>(ContainerLifetime.Scoped);
         }
     }
 }

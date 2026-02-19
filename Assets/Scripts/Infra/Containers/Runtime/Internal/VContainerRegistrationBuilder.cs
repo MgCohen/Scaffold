@@ -1,17 +1,13 @@
 using System;
 using VContainer;
 
-namespace Scaffold.Containers.Adapters
+namespace Scaffold.Containers
 {
-    /// <summary>
-    /// Adapter that wraps VContainer's RegistrationBuilder fluent API.
-    /// </summary>
-    /// <typeparam name="T">The component type being registered.</typeparam>
-    internal sealed class VContainerRegistrationBuilderAdapter<T> : IRegistrationBuilder<T>
+    internal sealed class VContainerRegistrationBuilder<T> : IRegistrationBuilder<T>
     {
         private readonly RegistrationBuilder _inner;
 
-        public VContainerRegistrationBuilderAdapter(RegistrationBuilder inner)
+        internal VContainerRegistrationBuilder(RegistrationBuilder inner)
         {
             _inner = inner ?? throw new ArgumentNullException(nameof(inner));
         }
@@ -29,4 +25,3 @@ namespace Scaffold.Containers.Adapters
         }
     }
 }
-
