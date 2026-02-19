@@ -1,16 +1,13 @@
 using System;
 using VContainer;
 
-namespace Scaffold.Containers.Adapters
+namespace Scaffold.Containers
 {
-    /// <summary>
-    /// Adapter that wraps VContainer.IObjectResolver and exposes the project-level IContainerResolver interface.
-    /// </summary>
-    internal sealed class VContainerResolverAdapter : IContainerResolver
+    internal sealed class VContainerResolver : IContainerResolver
     {
         private readonly IObjectResolver _inner;
 
-        public VContainerResolverAdapter(IObjectResolver inner)
+        internal VContainerResolver(IObjectResolver inner)
         {
             _inner = inner ?? throw new ArgumentNullException(nameof(inner));
         }

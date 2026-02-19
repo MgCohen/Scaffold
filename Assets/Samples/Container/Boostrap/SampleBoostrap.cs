@@ -5,6 +5,7 @@ using Scaffold.Navigation;
 using Scaffold.Navigation.Container;
 using Scaffold.States;
 using UnityEngine;
+using VContainer.Unity;
 
 namespace Sample.Boostraper
 {
@@ -28,18 +29,18 @@ namespace Sample.Boostraper
             this.navigationSettings = navigationSettings;
         }
 
-        protected override void Build(IContainerBuilder builder, Transform holder)
+        public override void Build(IContainerRegistry registry, Transform holder)
         {
-            new NavigationInstaller(navigationSettings).Install(builder, holder);
-            new EventsInstaller().Install(builder, holder);
+            new NavigationInstaller(navigationSettings).Install(registry, holder);
+            new EventsInstaller().Install(registry, holder);
         }
     }
 
     public class SampleGameContainer : Container
     {
-        protected override void Build(IContainerBuilder builder, Transform holder)
+        public override void Build(IContainerRegistry registry, Transform holder)
         {
-            new SampleInstaller().Install(builder, holder);
+            new SampleInstaller().Install(registry, holder);
         }
     }
 
@@ -48,11 +49,11 @@ namespace Sample.Boostraper
 
     public class SampleInstaller : Installer
     {
-        public override void Install(IContainerBuilder builder, Transform holder)
+        public override void Install(IContainerRegistry registry, Transform holder)
         {
-            builder.Register<Store>(BuildStore, ContainerLifetime.Scoped);
-            builder.Register<ITurnHandler, TurnHandler>(ContainerLifetime.Scoped);
-            builder.RegisterEntryPoint<SampleGameManager>(ContainerLifetime.Scoped);
+            registry.Register<Store>(BuildStore, ContainerLifetime.Scoped);
+            registry.Register<ITurnHandler, TurnHandler>(ContainerLifetime.Scoped);
+            registry.RegisterEntryPoint<SampleGameManager>(ContainerLifetime.Scoped);
         }
 
         private Store BuildStore(IContainerResolver resolver)

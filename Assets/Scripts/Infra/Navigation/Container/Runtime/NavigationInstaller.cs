@@ -12,10 +12,10 @@ namespace Scaffold.Navigation.Container
         
         private NavigationSettings settings;
 
-        public override void Install(IContainerBuilder builder, Transform holder)
+        public override void Install(IContainerRegistry registry, Transform holder)
         {
-            builder.Register<INavigation, NavigationController>(ContainerLifetime.Scoped).WithParameter<NavigationSettings>(settings).WithParameter<Transform>(holder);
-            builder.Register<NavigationInjection>(ContainerLifetime.Scoped).AsImplementedInterfaces();
+            registry.Register<INavigation, NavigationController>(ContainerLifetime.Scoped).WithParameter<NavigationSettings>(settings).WithParameter<Transform>(holder);
+            registry.Register<NavigationInjection>(ContainerLifetime.Scoped).AsImplementedInterfaces();
         }
     }
 }

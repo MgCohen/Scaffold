@@ -2,16 +2,12 @@ using System;
 
 namespace Scaffold.Containers
 {
-    /// <summary>
-    /// Project-level abstraction over the underlying DI container builder.
-    /// Only exposes the subset of functionality used by Scaffold containers and installers.
-    /// </summary>
-    public interface IContainerBuilder
+    public interface IContainerRegistry
     {
         IRegistrationBuilder<T> Register<T>(ContainerLifetime lifetime);
 
-        IRegistrationBuilder<TService> Register<TService, TImplementation>(ContainerLifetime lifetime)
-            where TImplementation : TService;
+        IRegistrationBuilder<TService> Register<TService, TImpl>(ContainerLifetime lifetime)
+            where TImpl : TService;
 
         IRegistrationBuilder<T> Register<T>(Func<IContainerResolver, T> factory, ContainerLifetime lifetime);
 
@@ -21,4 +17,3 @@ namespace Scaffold.Containers
         void RegisterBuildCallback(Action<IContainerResolver> callback);
     }
 }
-
