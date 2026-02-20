@@ -1,6 +1,6 @@
 # Coding standards
 
-Apply these rules when writing or reviewing code in the project.
+**Mandatory for all code.** Anyone (including AI) writing, editing, or reviewing code in this project **must** read this entire file and follow every rule below. Do not rely on summaries in project-context or elsewhere; when creating or modifying any code, open this file and apply the full rules. No exceptions.
 
 ## Comments
 
@@ -11,7 +11,8 @@ Apply these rules when writing or reviewing code in the project.
 
 - **Do not put more than one class per file**, unless:
   - One of the classes is **private** (e.g. a private nested class in the same file), or
-  - It is a **generic variation** (e.g. `Foo` and `Foo<T>` in the same file).
+  - It is a **generic variation** (e.g. `Foo` and `Foo<T>` in the same file), or
+  - One of the types is an **event, record, or small data class that is created only by that file’s main class** — it may stay in the same file as long as it is purely a data type (even if used as a parameter or argument elsewhere).
 
 ## Public API and dead code
 
@@ -79,3 +80,59 @@ _store.Subscribe<TurnState>((_, state) => OnTurnStateChanged(state));
 
 - **Avoid line breaks** unless you are using Fluent or Builder patterns (where multi-line chaining is idiomatic).
 - **Constructors, method signatures, and similar declarations** stay on one line even when long (e.g. a constructor with many parameters). Do not split parameters or the signature across multiple lines.
+
+## Immutable records — inline constructor
+
+When implementing immutable records, use the **inline (primary) constructor** form instead of a separate body with properties.
+
+- **Reference the assembly**: Any project or asmdef that defines or uses records must reference the **Scaffold.Records** assembly so the record syntax is available.
+
+### Preferred form
+
+```csharp
+// ✅ GOOD — inline constructor
+public record Sample(int Value);
+```
+
+### Avoid
+
+```csharp
+// ❌ BAD — mutable-style body with separate property
+public record Sample
+{
+    public int Value { get; init; }
+}
+```
+
+Use the inline form for simple immutable data; it keeps the type declaration minimal and makes immutability obvious.
+
+## Small, focused functions
+
+- **One job per method**: Each method should do one thing and be nameable in a short phrase (e.g. "compute player priority", "advance to next phase").
+- **Single level of abstraction**: Inside a method, don't mix high-level steps with low-level details. Either call other methods for the steps or inline the details, not both.
+- **Short enough to grasp**: If a method is long or has nested conditionals/loops, extract steps into well-named methods so the main method reads like a short list of steps.
+- **Extract instead of comment blocks**: If you're tempted to add a comment like "// Step 1: validate input", extract that into a method whose name is that step (e.g. `ValidateInput()`).
+
+**Triggers for refactor:** If a method is **above 8 lines**, refactor it by extracting steps into well-named methods so it stays small and focused. If a method has a **return in the middle** (early return before the end of the body), refactor by extracting the early-exit path or the post-return logic into a separate method.
+
+### Example
+
+```csharp
+// ❌ One long method doing several things
+void ProcessTurn()
+{
+    if (currentPlayer == null) return;
+    var priority = 0;
+    foreach (var p in players) { priority = Mathf.Max(priority, p.Priority); }
+    currentPlayer.Priority = priority + 1;
+    if (currentPhase.CanAdvance) { /* 10 more lines */ }
+}
+
+// ✅ Focused methods, one level of abstraction
+void ProcessTurn()
+{
+    if (!TryGetCurrentPlayer(out var player)) return;
+    UpdatePlayerPriority(player);
+    TryAdvancePhase();
+}
+```

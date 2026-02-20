@@ -4,9 +4,9 @@ using Scaffold.States;
 namespace Sample.Turn.Mutators
 {
     /// <summary>
-    /// Sets the list of currently active players in PlayerPriorityState.
+    /// Sets the list of currently active players in PriorityState.
     /// </summary>
-    public class SetActivePlayersMutator : Mutator<PlayerPriorityState>
+    public class SetActivePlayersMutator : Mutator<PriorityState>
     {
         private readonly IReadOnlyList<MatchPlayer> _activePlayers;
 
@@ -15,7 +15,7 @@ namespace Sample.Turn.Mutators
             _activePlayers = activePlayers;
         }
 
-        public override PlayerPriorityState Change(PlayerPriorityState state)
+        public override PriorityState Change(PriorityState state)
         {
             return state with { ActivePlayers = _activePlayers };
         }

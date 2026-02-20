@@ -1,4 +1,3 @@
-
 using Scaffold.States;
 using System;
 using System.Collections.Generic;
@@ -7,7 +6,7 @@ using System.Numerics;
 using UnityEngine;
 using UnityEngine.Assertions;
 
-namespace Scaffold.States
+namespace Scaffold.Game.Stack
 {
     public class Main
     {

@@ -5,9 +5,9 @@ using Scaffold.States;
 namespace Sample.Turn.Mutators
 {
     /// <summary>
-    /// Removes specific players from the active players list in PlayerPriorityState.
+    /// Removes specific players from the active players list in PriorityState.
     /// </summary>
-    public class RemoveActivePlayersMutator : Mutator<PlayerPriorityState>
+    public class RemoveActivePlayersMutator : Mutator<PriorityState>
     {
         private readonly IReadOnlyList<MatchPlayer> _playersToRemove;
 
@@ -16,7 +16,7 @@ namespace Sample.Turn.Mutators
             _playersToRemove = playersToRemove;
         }
 
-        public override PlayerPriorityState Change(PlayerPriorityState state)
+        public override PriorityState Change(PriorityState state)
         {
             var remaining = state.ActivePlayers.Where(p => !_playersToRemove.Contains(p)).ToList();
             return state with { ActivePlayers = remaining };

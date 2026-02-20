@@ -11,13 +11,15 @@ namespace Sample.Turn
     public class Match
     {
         private readonly Store _store;
-        private readonly PlayerPriorityService _priorityService;
+        private readonly TurnOrderService _turnOrderService;
+        private readonly PriorityService _priorityService;
         private readonly TurnService _turnService;
 
         public Match(IReadOnlyList<MatchPlayer> players, IReadOnlyList<Phase> phases, Store store)
         {
             _store = store;
-            _priorityService = new PlayerPriorityService(store);
+            _turnOrderService = new TurnOrderService(store);
+            _priorityService = new PriorityService(store);
             _turnService = new TurnService(phases, store, onTurnEnded: OnTurnEnded);
         }
 
@@ -28,13 +30,15 @@ namespace Sample.Turn
 
         public void EndRound()
         {
-            _priorityService.ResetToFirstPlayer();
+            _turnOrderService.MoveToFirst();
+            _priorityService.SetNextActivePlayers();
             _store.Execute(new EndRoundMutator());
         }
 
         private void OnTurnEnded()
         {
-            _priorityService.AdvanceTurn();
+            _turnOrderService.AdvanceToNext();
+            _priorityService.SetNextActivePlayers();
             _turnService.StartTurn();
         }
     }

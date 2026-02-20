@@ -25,19 +25,6 @@ namespace Sample.Turn
             _store.Subscribe<TurnState>(OnTurnStateChanged);
         }
 
-        private void OnTurnStateChanged(IReference _, TurnState state)
-        {
-            if (state.CurrentPhase == null) return;
-            EnterPhase(state.CurrentPhase);
-        }
-
-        private void EnterPhase(Phase phase)
-        {
-            var activePlayers = _store.Get<PlayerPriorityState>().ActivePlayers;
-            var context = new PhaseContext(AdvancePhase);
-            phase.OnEnter(activePlayers, context);
-        }
-
         public void AdvancePhase()
         {
             if (_phases.Count == 0) return;
@@ -46,16 +33,30 @@ namespace Sample.Turn
             RunCurrentPhase();
         }
 
-        private bool IsLastPhase()
-        {
-            return _currentPhaseIndex + 1 >= _phases.Count;
-        }
-
         public void RunCurrentPhase()
         {
             if (_phases.Count == 0) return;
             if (_currentPhaseIndex < 0) _currentPhaseIndex = 0;
             _store.Execute(new SetCurrentPhaseMutator(_phases[_currentPhaseIndex]));
+        }
+
+        private bool IsLastPhase()
+        {
+            return _currentPhaseIndex + 1 >= _phases.Count;
+        }
+
+        private void EnterPhase(Phase phase)
+        {
+            var priorityState = _store.Get<PriorityState>();
+            var activePlayers = priorityState.ActivePlayers;
+            var context = new PhaseContext(AdvancePhase);
+            phase.OnEnter(activePlayers, context);
+        }
+
+        private void OnTurnStateChanged(IReference _, TurnState state)
+        {
+            if (state.CurrentPhase == null) return;
+            EnterPhase(state.CurrentPhase);
         }
 
         private sealed class PhaseContext : IPhaseContext
