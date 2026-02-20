@@ -1,8 +1,7 @@
+using System;
 using System.Collections.Generic;
 using Scaffold.States;
 using Sample.Turn.Phases;
-using Sample.Turn.PlayerActions;
-using Sample.Turn.PlayWindows;
 
 namespace Sample.Turn
 {
@@ -11,8 +10,6 @@ namespace Sample.Turn
     /// </summary>
     public class MatchBuilder
     {
-        private readonly PhaseFactory _phaseFactory = new PhaseFactory();
-
         private List<MatchPlayer> GetDefaultPlayers()
         {
             return new List<MatchPlayer>
@@ -22,27 +19,21 @@ namespace Sample.Turn
             };
         }
 
-        private List<Phase> GeneratePhases(PlayService playService, PlayWindow mainPlayWindow)
+        private List<Phase> GeneratePhases(PhaseFactory phaseFactory)
         {
             var phases = new List<Phase>();
-            phases.Add(_phaseFactory.Create<DiscardPhase>());
-            phases.Add(new PlayPhase(playService, mainPlayWindow));
+            phases.Add(phaseFactory.Create<PlayPhase>());
+            phases.Add(phaseFactory.Create<DiscardPhase>());
             return phases;
-        }
-
-        private static IEnumerable<PlayerAction> GetActionCandidates(MatchPlayer player)
-        {
-            yield return new PassAction(player);
-            yield return new PlayCardAction(player);
-            yield return new ActivateAction(player);
         }
 
         public Match Build()
         {
             var players = GetDefaultPlayers();
 
-            var initialPlayState = new PlayState(null);
-            var initialPlayWindowState = new PlayWindowState();
+            var emptyStack = Array.Empty<PlayWindow>();
+            var emptyWindowStates = new Dictionary<PlayWindow, PlayWindowState>();
+            var initialPlayState = new PlayState(emptyStack, emptyWindowStates);
 
             var firstTurnOwners = new List<MatchPlayer> { players[0] };
             var firstActivePlayers = new List<MatchPlayer> { players[0] };
@@ -51,12 +42,11 @@ namespace Sample.Turn
                 .BuildSlice(new TurnOrderState(players, firstTurnOwners))
                 .BuildSlice(new PriorityState(firstActivePlayers))
                 .BuildSlice(initialPlayState)
-                .BuildSlice(initialPlayWindowState)
                 .Build();
 
-            var playService = new PlayService(store, GetActionCandidates);
-            var mainPlayWindow = new MainPlayWindow();
-            var phases = GeneratePhases(playService, mainPlayWindow);
+            var playService = new PlayService(store);
+            var phaseFactory = new PhaseFactory(playService);
+            var phases = GeneratePhases(phaseFactory);
 
             return new Match(players, phases, store);
         }

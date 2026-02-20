@@ -12,8 +12,8 @@ namespace Sample.Turn
     {
         private readonly Store _store;
         private readonly TurnOrderService _turnOrderService;
-        private readonly PriorityService _priorityService;
-        private readonly TurnService _turnService;
+        private readonly IPriorityService _priorityService;
+        private readonly ITurnService _turnService;
 
         public Match(IReadOnlyList<MatchPlayer> players, IReadOnlyList<Phase> phases, Store store)
         {

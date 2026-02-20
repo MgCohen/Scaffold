@@ -80,6 +80,7 @@ _store.Subscribe<TurnState>((_, state) => OnTurnStateChanged(state));
 
 - **Avoid line breaks** unless you are using Fluent or Builder patterns (where multi-line chaining is idiomatic).
 - **Constructors, method signatures, and similar declarations** stay on one line even when long (e.g. a constructor with many parameters). Do not split parameters or the signature across multiple lines.
+- **No line breaks inside methods.** Keep each statement or expression on one line. Do not split a single statement (e.g. an assignment, method call, or object construction) across multiple lines.
 
 ## Immutable records — inline constructor
 
@@ -105,6 +106,26 @@ public record Sample
 ```
 
 Use the inline form for simple immutable data; it keeps the type declaration minimal and makes immutability obvious.
+
+## Immutable records — use `with` to derive new instances
+
+When you need a modified copy of an immutable record, use the `with` expression instead of constructing a new instance manually.
+
+```csharp
+public record MyState(int Value);
+
+// ❌ BAD — manually constructing a new record
+private MyState Increment(MyState state)
+{
+    return new MyState(state.Value + 1);
+}
+
+// ✅ GOOD — using with to derive a new instance
+private MyState Increment(MyState state)
+{
+    return state with { Value = state.Value + 1 };
+}
+```
 
 ## Small, focused functions
 
