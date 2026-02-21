@@ -2,93 +2,97 @@ using Scaffold.States;
 using System.Collections;
 using System.Collections.Generic;
 
-public interface IPriorityHandler
+namespace Scaffold.Game.Stack
 {
-    void SetPriority(IPlayer player);
-    void PassPriority();
-    bool CheckForPlayerPriority();
-    IPlayer GetPriorityPlayer();
-}
 
-public class PriorityHandler : IPriorityHandler
-{
-    public PriorityHandler(ITurnHandler turn, IActionHandler actions, Store store)
+    public interface IPriorityHandler
     {
-        this.actions = actions;
-        this.turn = turn;
-        this.store = store;
+        void SetPriority(IPlayer player);
+        void PassPriority();
+        bool CheckForPlayerPriority();
+        IPlayer GetPriorityPlayer();
     }
 
-    private Store store;
-    private IActionHandler actions;
-    private ITurnHandler turn;
-
-    public void SetPriority(IPlayer player)
+    public class PriorityHandler : IPriorityHandler
     {
-        store.Execute(new ChangePriorityPlayer(player));
-    }
-
-    public IPlayer GetPriorityPlayer()
-    {
-        PriorityState state = store.Get<PriorityState>();
-        return state.Priority;
-    }
-
-    public bool CheckForPlayerPriority()
-    {
-        PriorityState state = store.Get<PriorityState>();
-        return state.Priority != null;
-    }
-
-    public void PassPriority()
-    {
-        IPlayerAction previousAction = actions.CheckPreviousAction();
-        if (previousAction is PassAction)
+        public PriorityHandler(ITurnHandler turn, IActionHandler actions, Store store)
         {
-            store.Execute(new ChangePriorityPlayer(null));
+            this.actions = actions;
+            this.turn = turn;
+            this.store = store;
         }
-        else
+
+        private Store store;
+        private IActionHandler actions;
+        private ITurnHandler turn;
+
+        public void SetPriority(IPlayer player)
         {
-            MovePriority();
+            store.Execute(new ChangePriorityPlayer(player));
+        }
+
+        public IPlayer GetPriorityPlayer()
+        {
+            PriorityState state = store.Get<PriorityState>();
+            return state.Priority;
+        }
+
+        public bool CheckForPlayerPriority()
+        {
+            PriorityState state = store.Get<PriorityState>();
+            return state.Priority != null;
+        }
+
+        public void PassPriority()
+        {
+            IPlayerAction previousAction = actions.CheckPreviousAction();
+            //if (previousAction is PassAction)
+            //{
+            //    store.Execute(new ChangePriorityPlayer(null));
+            //}
+            //else
+            //{
+            //    MovePriority();
+            //}
+        }
+
+        private void MovePriority()
+        {
+            var priority = GetPriorityPlayer();
+            IPlayer next = turn.GetNextPlayer(priority);
+            SetPriority(priority);
         }
     }
 
-    private void MovePriority()
+    public record PriorityState(IPlayer Active, IPlayer Priority, IEnumerable<IPlayer> Order) : State;
+
+    public class ChangePriorityPlayer : Mutator<PriorityState>
     {
-        var priority = GetPriorityPlayer();
-        IPlayer next = turn.GetNextPlayer(priority);
-        SetPriority(priority);
-    }
-}
+        public ChangePriorityPlayer(IPlayer player)
+        {
+            Player = player;
+        }
 
-public record PriorityState(IPlayer Active, IPlayer Priority, IEnumerable<IPlayer> Order) : State;
+        public IPlayer Player { get; }
 
-public class ChangePriorityPlayer : Mutator<PriorityState>
-{
-    public ChangePriorityPlayer(IPlayer player)
-    {
-        Player = player;
-    }
-
-    public IPlayer Player { get; }
-
-    public override PriorityState Change(PriorityState state)
-    {
-        return state with { Priority = Player };
-    }
-}
-
-public class ChangeActivePlayer: Mutator<PriorityState>
-{
-    public ChangeActivePlayer(IPlayer player)
-    {
-        Player = player;
+        public override PriorityState Change(PriorityState state)
+        {
+            return state with { Priority = Player };
+        }
     }
 
-    public IPlayer Player { get; }
-
-    public override PriorityState Change(PriorityState state)
+    public class ChangeActivePlayer : Mutator<PriorityState>
     {
-        return state with { Active = Player };
+        public ChangeActivePlayer(IPlayer player)
+        {
+            Player = player;
+        }
+
+        public IPlayer Player { get; }
+
+        public override PriorityState Change(PriorityState state)
+        {
+            return state with { Active = Player };
+        }
     }
 }
