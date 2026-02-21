@@ -255,6 +255,15 @@
       },
       "url": "https://packages.unity.com"
     },
+    "com.unity.multiplayer.widgets": {
+      "version": "1.0.5",
+      "depth": 0,
+      "source": "registry",
+      "dependencies": {
+        "com.unity.services.multiplayer": "1.0.0"
+      },
+      "url": "https://packages.unity.com"
+    },
     "com.unity.netcode.gameobjects": {
       "version": "2.8.0",
       "depth": 0,
@@ -376,7 +385,7 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.services.multiplayer": {
-      "version": "2.0.0",
+      "version": "2.1.2",
       "depth": 0,
       "source": "registry",
       "dependencies": {
@@ -388,7 +397,7 @@
         "com.unity.services.deployment": "1.6.2",
         "com.unity.nuget.newtonsoft-json": "3.2.1",
         "com.unity.modules.unitywebrequest": "1.0.0",
-        "com.unity.services.authentication": "3.5.1"
+        "com.unity.services.authentication": "3.6.0"
       },
       "url": "https://packages.unity.com"
     },

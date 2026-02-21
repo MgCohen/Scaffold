@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using UnityEngine;
 using Unity.Netcode;
+using Infra.Networking.Runtime.Abstractions;
+using Infra.Networking.Runtime.Implementation;
 
 namespace Infra.Networking.Samples
 {
@@ -11,7 +13,7 @@ namespace Infra.Networking.Samples
     }
 
     /// <summary>
-    /// A simple sample demonstrating how to send and receive typed custom messages.
+    /// A simple sample demonstrating how to send and receive typed custom messages using the service.
     /// Requirements: Attach to a NetworkObject in the scene or an active GameObject while NetworkManager is active.
     /// </summary>
     public class NetworkMessagingSample : NetworkBehaviour
@@ -20,36 +22,53 @@ namespace Infra.Networking.Samples
         public bool triggerMessageSend = false;
 
         private int m_MessageCounter = 0;
+        private INetworkMessageDispatcher m_Dispatcher;
 
         public override void OnNetworkSpawn()
         {
             base.OnNetworkSpawn();
 
-            // Register handler for our custom SampleMessage.
-            // In a real application, make sure to handle re-registration carefully or do this only once per client/server lifetime.
-            NetworkMessageDispatcher.RegisterHandler<SampleMessage>(OnSampleMessageReceived);
+            // In a real application, inject INetworkMessageDispatcher via an Installer/Container.
+            m_Dispatcher = new NetworkMessageDispatcher(NetworkManager.Singleton);
+            m_Dispatcher.RegisterHandler<SampleMessage>(OnSampleMessageReceived);
         }
 
         public override void OnNetworkDespawn()
         {
-            // Clean up handler when object is despawned if no one else needs it.
-            NetworkMessageDispatcher.UnregisterHandler<SampleMessage>();
+            if (m_Dispatcher != null)
+            {
+                m_Dispatcher.UnregisterHandler<SampleMessage>();
+                if (m_Dispatcher is System.IDisposable disposable)
+                {
+                    disposable.Dispose();
+                }
+                m_Dispatcher = null;
+            }
 
             base.OnNetworkDespawn();
         }
 
         private void Update()
         {
-            if (triggerMessageSend)
+            if (IsServer)
             {
-                triggerMessageSend = false;
-                SendSampleMessage();
+                if (Input.GetKeyDown(KeyCode.A))
+                {
+                    SendSampleMessage();
+                }
+            }
+            else
+            {
+                if (Input.GetKeyDown(KeyCode.S))
+                {
+                    SendSampleMessage();
+                }
             }
         }
 
         public void SendSampleMessage()
         {
-            if (!IsSpawned) return;
+            if (!IsSpawned || m_Dispatcher == null) return;
 
             var message = new SampleMessage
             {
@@ -61,17 +80,13 @@ namespace Infra.Networking.Samples
             {
                 Debug.Log($"[Server] Sending SampleMessage ID: {message.Id} to all clients...");
                 
-                // Example of sending to all connected clients:
                 List<ulong> clientIds = new List<ulong>(NetworkManager.Singleton.ConnectedClientsIds);
-                NetworkMessageDispatcher.SendToClients(message, clientIds);
-                
-                // Alternative: if you want to send to a specific client:
-                // NetworkMessageDispatcher.SendToClient(message, specificClientId);
+                m_Dispatcher.SendToClients(message, clientIds);
             }
             else if (IsClient)
             {
                 Debug.Log($"[Client {NetworkManager.Singleton.LocalClientId}] Sending SampleMessage ID: {message.Id} to server...");
-                NetworkMessageDispatcher.SendToServer(message);
+                m_Dispatcher.SendToServer(message);
             }
         }
 
@@ -79,10 +94,8 @@ namespace Infra.Networking.Samples
         {
             Debug.Log($"{(IsServer ? "[Server]" : $"[Client {NetworkManager.Singleton.LocalClientId}]")} Received SampleMessage ID: {message.Id}, Timestamp: {message.Timestamp} from Client: {senderClientId}");
             
-            // Example Server Reflection: Server receives from client, logs it, and bounces it to all other clients
-            if (IsServer)
+            if (IsServer && m_Dispatcher != null)
             {
-                // In a real scenario, validate data before resending
                 Debug.Log($"[Server] Bouncing message {message.Id} from {senderClientId} to everyone else.");
                 
                 List<ulong> otherClients = new List<ulong>();
@@ -94,7 +107,7 @@ namespace Infra.Networking.Samples
 
                 if (otherClients.Count > 0)
                 {
-                    NetworkMessageDispatcher.SendToClients(message, otherClients);
+                    m_Dispatcher.SendToClients(message, otherClients);
                 }
             }
         }
