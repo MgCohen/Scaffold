@@ -6,7 +6,7 @@ namespace CustomSerializableGenerator
 {
     internal static class Emitter
     {
-        public static string EmitSource(INamedTypeSymbol type, IReadOnlyList<IFieldSymbol> fields)
+        public static string EmitSource(INamedTypeSymbol type, IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> fields)
         {
             bool hasNamespace = !type.ContainingNamespace.IsGlobalNamespace;
             var sb = new StringBuilder();
@@ -28,7 +28,7 @@ namespace CustomSerializableGenerator
             return sb.ToString();
         }
 
-        private static void AppendUsings(StringBuilder sb, IReadOnlyList<IFieldSymbol> fields)
+        private static void AppendUsings(StringBuilder sb, IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> fields)
         {
             sb.AppendLine("using System;");
             sb.AppendLine("using Unity.Netcode;");
@@ -37,12 +37,12 @@ namespace CustomSerializableGenerator
             sb.AppendLine();
         }
 
-        private static IEnumerable<string> CollectConversionNamespaces(IReadOnlyList<IFieldSymbol> fields)
+        private static IEnumerable<string> CollectConversionNamespaces(IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> fields)
         {
             var seen = new HashSet<string>();
-            foreach (var field in fields)
+            foreach (var tuple in fields)
             {
-                if (!TypeConversions.TryGetConversion(field.Type, out var targetFull))
+                if (!TypeConversions.TryGetConversion(tuple.Field.Type, out var targetFull))
                     continue;
                 var ns = TypeConversions.GetNamespace(targetFull);
                 if (ns != null && seen.Add(ns))
@@ -66,7 +66,7 @@ namespace CustomSerializableGenerator
             string indent = indented ? "    " : "";
             string keyword = GetTypeKeyword(type);
             string accessibility = GetAccessibilityKeyword(type.DeclaredAccessibility);
-            sb.AppendLine($"{indent}{accessibility} partial {keyword} {type.Name} : {KnownTypes.ISerializableSource}");
+            sb.AppendLine($"{indent}{accessibility} partial {keyword} {type.Name} : {nameof(ISerializableSource)}");
             sb.AppendLine($"{indent}{{");
         }
 
@@ -76,15 +76,16 @@ namespace CustomSerializableGenerator
             sb.AppendLine($"{indent}}}");
         }
 
-        private static void AppendConstructorFromSerializable(StringBuilder sb, INamedTypeSymbol type, IReadOnlyList<IFieldSymbol> fields, bool indented)
+        private static void AppendConstructorFromSerializable(StringBuilder sb, INamedTypeSymbol type, IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> fields, bool indented)
         {
             string i1 = indented ? "        " : "    ";
             string i2 = indented ? "            " : "        ";
 
-            sb.AppendLine($"{i1}public {type.Name}({type.Name}.Serializable serializable)");
+            sb.AppendLine($"{i1}public {type.Name}({type.Name}.Serializable serializable, {nameof(ISerializationResolver)} resolver = null)");
             sb.AppendLine($"{i1}{{");
-            foreach (var field in fields)
-                AppendFieldAssignment(sb, field, "serializable", convertToSerialized: false, i2);
+            sb.AppendLine($"{i2}resolver ??= new DefaultSerializationResolver();");
+            foreach (var tuple in fields)
+                AppendFieldAssignment(sb, tuple.Field, tuple.TargetType, "serializable", "resolver", convertToSerialized: false, i2);
             sb.AppendLine($"{i1}}}");
             sb.AppendLine();
         }
@@ -92,17 +93,20 @@ namespace CustomSerializableGenerator
         private static void AppendSerializeMethod(StringBuilder sb, bool indented)
         {
             string i1 = indented ? "        " : "    ";
-            sb.AppendLine($"{i1}public {KnownTypes.ISerializedStruct} Serialize() => new Serializable(this);");
+            sb.AppendLine($"{i1}public {nameof(ISerializedStruct)} Serialize({nameof(ISerializationResolver)} resolver = null)");
+            sb.AppendLine($"{i1}{{");
+            sb.AppendLine($"{i1}    return new Serializable(this, resolver);");
+            sb.AppendLine($"{i1}}}");
             sb.AppendLine();
         }
 
-        private static void AppendSerializableStruct(StringBuilder sb, INamedTypeSymbol type, IReadOnlyList<IFieldSymbol> fields, bool indented)
+        private static void AppendSerializableStruct(StringBuilder sb, INamedTypeSymbol type, IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> fields, bool indented)
         {
             string i1 = indented ? "        " : "    ";
             string i2 = indented ? "            " : "        ";
             string i3 = indented ? "                " : "            ";
 
-            sb.AppendLine($"{i1}public struct Serializable : INetworkSerializeByMemcpy, {KnownTypes.ISerializedStruct}");
+            sb.AppendLine($"{i1}public struct Serializable : {nameof(ISerializedStruct)}");
             sb.AppendLine($"{i1}{{");
             sb.AppendLine($"{i2}public Type SerializableType => typeof({type.Name});");
             sb.AppendLine();
@@ -113,23 +117,38 @@ namespace CustomSerializableGenerator
             sb.AppendLine($"{i1}}}");
         }
 
-        private static void AppendSerializableConstructor(StringBuilder sb, INamedTypeSymbol type, IReadOnlyList<IFieldSymbol> fields, string i2, string i3)
+        private static void AppendSerializableConstructor(StringBuilder sb, INamedTypeSymbol type, IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> fields, string i2, string i3)
         {
-            sb.AppendLine($"{i2}public Serializable({type.Name} source)");
+            sb.AppendLine($"{i2}public Serializable({type.Name} source, {nameof(ISerializationResolver)} resolver = null)");
             sb.AppendLine($"{i2}{{");
-            foreach (var field in fields)
-                AppendFieldAssignment(sb, field, "source", convertToSerialized: true, i3);;
+            sb.AppendLine($"{i3}resolver ??= new DefaultSerializationResolver();");
+            foreach (var tuple in fields)
+                AppendFieldAssignment(sb, tuple.Field, tuple.TargetType, "source", "resolver", convertToSerialized: true, i3);;
             sb.AppendLine($"{i2}}}");
             sb.AppendLine();
         }
 
-        private static void AppendSerializableFields(StringBuilder sb, IReadOnlyList<IFieldSymbol> fields, string i2)
+        private static void AppendSerializableFields(StringBuilder sb, IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> fields, string i2)
         {
-            foreach (var field in fields)
+            foreach (var tuple in fields)
             {
-                var typeName = TypeConversions.TryGetConversion(field.Type, out var targetFull)
-                    ? TypeConversions.GetShortName(targetFull)
-                    : field.Type.ToDisplayString();
+                var field = tuple.Field;
+                var targetType = tuple.TargetType;
+                
+                string typeName;
+                if (targetType != null)
+                {
+                    typeName = targetType.ToDisplayString();
+                }
+                else if (TypeConversions.TryGetConversion(field.Type, out var targetFull))
+                {
+                    typeName = TypeConversions.GetShortName(targetFull);
+                }
+                else
+                {
+                    typeName = field.Type.ToDisplayString();
+                }
+                
                 sb.AppendLine($"{i2}public {typeName} {field.Name};");
             }
         }
@@ -137,14 +156,28 @@ namespace CustomSerializableGenerator
         private static void AppendFieldAssignment(
             StringBuilder sb,
             IFieldSymbol field,
+            ITypeSymbol targetType,
             string sourceName,
+            string resolverName,
             bool convertToSerialized,
             string indent)
         {
-            if (TypeConversions.TryGetConversion(field.Type, out var targetFull))
+            if (targetType != null)
+            {
+                var sourceTypeName = field.Type.ToDisplayString();
+                var targetTypeName = targetType.ToDisplayString();
+                var fromType = convertToSerialized ? sourceTypeName : targetTypeName;
+                var toType = convertToSerialized ? targetTypeName : sourceTypeName;
+                sb.AppendLine($"{indent}{field.Name} = {resolverName}.Resolve<{fromType}, {toType}>({sourceName}.{field.Name});");
+            }
+            else if (TypeConversions.TryGetConversion(field.Type, out var targetFull))
+            {
                 AppendConvertedAssignment(sb, field, sourceName, convertToSerialized, targetFull, indent);
+            }
             else
+            {
                 sb.AppendLine($"{indent}{field.Name} = {sourceName}.{field.Name};");
+            }
         }
 
         private static void AppendConvertedAssignment(

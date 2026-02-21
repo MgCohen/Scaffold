@@ -1,0 +1,8 @@
+is_global = true
+build_property.RootNamespace = CustomSerializableContracts
+build_property.ProjectDir = c:\Users\user\Documents\Unity\Scaffold\Generators\Custom Serializable Contracts\
+build_property.EnableComHosting = 
+build_property.EnableGeneratedComInterfaceComImportInterop = 
+build_property.CsWinRTUseWindowsUIXamlProjections = false
+build_property.EffectiveAnalysisLevelStyle = 
+build_property.EnableCodeStyleSeverity = 

@@ -10,4 +10,14 @@
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.3.1" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Remove="src\Contracts\**" />
+    <EmbeddedResource Remove="src\Contracts\**" />
+    <None Remove="src\Contracts\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="src\Contracts\CustomSerializableContracts.csproj" />
+  </ItemGroup>
+
 </Project>

@@ -6,8 +6,8 @@ namespace CustomSerializableGenerator
 {
     internal class SerializableSyntaxReceiver : ISyntaxContextReceiver
     {
-        public Dictionary<INamedTypeSymbol, List<IFieldSymbol>> TypeFields { get; }
-            = new Dictionary<INamedTypeSymbol, List<IFieldSymbol>>(SymbolEqualityComparer.Default);
+        public Dictionary<INamedTypeSymbol, List<(IFieldSymbol Field, ITypeSymbol TargetType)>> TypeFields { get; }
+            = new Dictionary<INamedTypeSymbol, List<(IFieldSymbol Field, ITypeSymbol TargetType)>>(SymbolEqualityComparer.Default);
 
         public void OnVisitSyntaxNode(GeneratorSyntaxContext context)
         {
@@ -25,11 +25,11 @@ namespace CustomSerializableGenerator
             var typeSymbol = context.SemanticModel.GetDeclaredSymbol(typeDeclaration) as INamedTypeSymbol;
             if (typeSymbol == null)
                 return;
-            if (!HasAttribute(typeSymbol, KnownTypes.SerializableStructAttribute))
+            if (!HasAttribute(typeSymbol, nameof(SerializableStructAttribute)))
                 return;
 
             if (!TypeFields.ContainsKey(typeSymbol))
-                TypeFields[typeSymbol] = new List<IFieldSymbol>();
+                TypeFields[typeSymbol] = new List<(IFieldSymbol Field, ITypeSymbol TargetType)>();
         }
 
         private void VisitFieldDeclaration(GeneratorSyntaxContext context)
@@ -44,19 +44,32 @@ namespace CustomSerializableGenerator
                 var fieldSymbol = context.SemanticModel.GetDeclaredSymbol(variable) as IFieldSymbol;
                 if (fieldSymbol == null || fieldSymbol.IsStatic)
                     continue;
-                if (!HasAttribute(fieldSymbol, KnownTypes.SerializedAttribute))
+                if (!HasAttribute(fieldSymbol, nameof(SerializedAttribute)))
                     continue;
 
                 var containingType = fieldSymbol.ContainingType;
                 if (containingType == null)
                     continue;
-                if (!HasAttribute(containingType, KnownTypes.SerializableStructAttribute))
+                if (!HasAttribute(containingType, nameof(SerializableStructAttribute)))
                     continue;
 
                 if (!TypeFields.ContainsKey(containingType))
-                    TypeFields[containingType] = new List<IFieldSymbol>();
+                    TypeFields[containingType] = new List<(IFieldSymbol Field, ITypeSymbol TargetType)>();
 
-                TypeFields[containingType].Add(fieldSymbol);
+                ITypeSymbol targetType = null;
+                foreach (var attr in fieldSymbol.GetAttributes())
+                {
+                    if (attr.AttributeClass?.Name == nameof(SerializedAttribute) || attr.AttributeClass?.Name == "Serialized")
+                    {
+                        if (attr.ConstructorArguments.Length > 0 && attr.ConstructorArguments[0].Value is ITypeSymbol ts)
+                        {
+                            targetType = ts;
+                        }
+                        break;
+                    }
+                }
+
+                TypeFields[containingType].Add((fieldSymbol, targetType));
             }
         }
 

@@ -1,0 +1,11 @@
+c:\Users\user\Documents\Unity\Scaffold\Generators\Custom Serializable Contracts\bin\Release\netstandard2.0\CustomSerializableContracts.deps.json
+c:\Users\user\Documents\Unity\Scaffold\Generators\Custom Serializable Contracts\bin\Release\netstandard2.0\CustomSerializableContracts.dll
+c:\Users\user\Documents\Unity\Scaffold\Generators\Custom Serializable Contracts\bin\Release\netstandard2.0\CustomSerializableContracts.pdb
+c:\Users\user\Documents\Unity\Scaffold\Generators\Custom Serializable Contracts\obj\Release\netstandard2.0\CustomSerializableContracts.csproj.AssemblyReference.cache
+c:\Users\user\Documents\Unity\Scaffold\Generators\Custom Serializable Contracts\obj\Release\netstandard2.0\CustomSerializableContracts.GeneratedMSBuildEditorConfig.editorconfig
+c:\Users\user\Documents\Unity\Scaffold\Generators\Custom Serializable Contracts\obj\Release\netstandard2.0\CustomSerializableContracts.AssemblyInfoInputs.cache
+c:\Users\user\Documents\Unity\Scaffold\Generators\Custom Serializable Contracts\obj\Release\netstandard2.0\CustomSerializableContracts.AssemblyInfo.cs
+c:\Users\user\Documents\Unity\Scaffold\Generators\Custom Serializable Contracts\obj\Release\netstandard2.0\CustomSerializableContracts.csproj.CoreCompileInputs.cache
+c:\Users\user\Documents\Unity\Scaffold\Generators\Custom Serializable Contracts\obj\Release\netstandard2.0\CustomSerializableContracts.sourcelink.json
+c:\Users\user\Documents\Unity\Scaffold\Generators\Custom Serializable Contracts\obj\Release\netstandard2.0\CustomSerializableContracts.dll
+c:\Users\user\Documents\Unity\Scaffold\Generators\Custom Serializable Contracts\obj\Release\netstandard2.0\CustomSerializableContracts.pdb

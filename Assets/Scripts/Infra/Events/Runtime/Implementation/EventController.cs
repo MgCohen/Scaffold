@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace Scaffold.Events
 {
-    public class EventController : MonoBehaviour, IEventBus
+    public class EventController : IEventBus
     {
         readonly Dictionary<Type, Action<ContextEvent>> m_Events = new Dictionary<Type, Action<ContextEvent>>();
         readonly Dictionary<Delegate, Action<ContextEvent>> m_EventLookups = new Dictionary<Delegate, Action<ContextEvent>>();

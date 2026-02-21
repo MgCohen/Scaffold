@@ -8,12 +8,12 @@ namespace CustomSerializableGenerator
     [Generator]
     public class CustomSerializableGenerator : ISourceGenerator
     {
-        private static readonly DiagnosticDescriptor NoSerializedFieldsDiagnostic = new DiagnosticDescriptor(
-            id: "CSG001",
-            title: "No [Serialized] fields",
-            messageFormat: "Type '{0}' is marked with [SerializableStruct] but has no [Serialized] fields. At least one is required.",
+        private static readonly DiagnosticDescriptor MustBeUnmanagedDiagnostic = new DiagnosticDescriptor(
+            id: "CSG002",
+            title: "Serialized fields must be unmanaged",
+            messageFormat: "Field '{0}' must be an unmanaged type or define an unmanaged TargetType in [Serialized]. Type '{1}' is managed.",
             category: "CustomSerializableGenerator",
-            defaultSeverity: DiagnosticSeverity.Warning,
+            defaultSeverity: DiagnosticSeverity.Error,
             isEnabledByDefault: true);
 
         public void Initialize(GeneratorInitializationContext context)
@@ -44,6 +44,23 @@ namespace CustomSerializableGenerator
                     continue;
                 }
 
+                bool hasErrors = false;
+                foreach (var tuple in fields)
+                {
+                    var fieldSymbol = tuple.Field;
+                    var typeToCheck = tuple.TargetType ?? fieldSymbol.Type;
+                    
+                    if (!typeToCheck.IsUnmanagedType)
+                    {
+                        var location = fieldSymbol.Locations.Length > 0 ? fieldSymbol.Locations[0] : Location.None;
+                        var diagnostic = Diagnostic.Create(MustBeUnmanagedDiagnostic, location, fieldSymbol.Name, typeToCheck.ToDisplayString());
+                        context.ReportDiagnostic(diagnostic);
+                        hasErrors = true;
+                    }
+                }
+
+                if (hasErrors) continue;
+
                 EmitPartial(context, typeSymbol, fields);
                 validTypes.Add(typeSymbol);
             }
@@ -59,10 +76,10 @@ namespace CustomSerializableGenerator
         private static void ReportNoFields(GeneratorExecutionContext context, INamedTypeSymbol typeSymbol)
         {
             var location = typeSymbol.Locations.Length > 0 ? typeSymbol.Locations[0] : Location.None;
-            context.ReportDiagnostic(Diagnostic.Create(NoSerializedFieldsDiagnostic, location, typeSymbol.Name));
+            //context.ReportDiagnostic(Diagnostic.Create(NoSerializedFieldsDiagnostic, location, typeSymbol.Name));
         }
 
-        private static void EmitPartial(GeneratorExecutionContext context, INamedTypeSymbol typeSymbol, List<IFieldSymbol> fields)
+        private static void EmitPartial(GeneratorExecutionContext context, INamedTypeSymbol typeSymbol, List<(IFieldSymbol Field, ITypeSymbol TargetType)> fields)
         {
             var source = Emitter.EmitSource(typeSymbol, fields);
             context.AddSource($"{typeSymbol.Name}.Serializable.g.cs", SourceText.From(source, Encoding.UTF8));
