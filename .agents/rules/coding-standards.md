@@ -1,3 +1,7 @@
+---
+trigger: always_on
+---
+
 # Coding standards
 
 **Mandatory for all code.** Anyone (including AI) writing, editing, or reviewing code in this project **must** read this entire file and follow every rule below. Do not rely on summaries in project-context or elsewhere; when creating or modifying any code, open this file and apply the full rules. No exceptions.
