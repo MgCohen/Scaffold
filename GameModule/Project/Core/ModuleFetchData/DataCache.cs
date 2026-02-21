@@ -56,7 +56,7 @@ namespace GameModule.ModuleFetchData
             if (context.AccessToken != accessToken)
             {
                 // Only set the PlayerId from the context if it hasn't already been set by the constructor.
-                if (string.IsNullOrEmpty(this.playerId))
+                if (string.IsNullOrEmpty(playerId))
                 {
                     SetPlayerId(context.PlayerId);
                 }

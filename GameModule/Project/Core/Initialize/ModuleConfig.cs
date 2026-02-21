@@ -2,6 +2,7 @@
 using GameModule.GameModule;
 using GameModule.Initialize;
 using GameModule.ModuleFetchData;
+using GameModule.Response;
 using Microsoft.Extensions.DependencyInjection;
 using Unity.Services.CloudCode.Apis;
 using Unity.Services.CloudCode.Core;
@@ -23,6 +24,8 @@ public partial class ModuleConfig : ICloudCodeSetup
         
         RegisterScoped<AuthenticationModule>(config);
         RegisterScoped<ConfigFetcher>(config);
+        
+        RegisterScoped<ModuleRequestHandler>(config);
     }
     
     private void RegisterSingleton<T>(ICloudCodeConfig config) where T : class

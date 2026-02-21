@@ -21,7 +21,6 @@
 
     <ItemGroup>
       <Folder Include="Core\Keys\" />
-      <Folder Include="Legacy\" />
     </ItemGroup>
 
     <Target Name="PostBuild" AfterTargets="Build" Condition="'$(LOCAL_BUILD)' == 'true'">

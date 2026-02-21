@@ -9,7 +9,7 @@ namespace GameModuleDTO.ModuleRequests
         public virtual string ModuleName { get { return ModuleKeys.DefaultModuleName; } }
         public virtual int RetryCall { get; protected set; } = 2; // In secconds
         public virtual int MaxRetries { get; protected set; } = 2;
-        
+
         public string FunctionName
         {
             get
@@ -26,6 +26,11 @@ namespace GameModuleDTO.ModuleRequests
         protected virtual string SerializeModule(ModuleResponse moduleResponse)
         {
             return moduleResponse.ToJson();
+        }
+        
+        public virtual string GetResponse(GameDataResponse moduleResponse) 
+        {
+            return SerializeModule(moduleResponse); 
         }
     }
 }

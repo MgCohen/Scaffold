@@ -3,20 +3,20 @@ using System.Linq;
 using System.Threading.Tasks;
 using GameModule.ModuleFetchData;
 using GameModuleDTO.Json;
+using GameModuleDTO.ModuleRequests;
 using Unity.Services.CloudCode.Core;
 using Unity.Services.CloudSave.Model;
 
 namespace GameModule.Response
 {
-    using Response = GameModuleDTO.Response.Response;
-    
+    //TODO: Review
     public static class ResponseExtension
     {
-        public static async Task<string> Resolve(this Response response, IExecutionContext context, PlayerData playerData)
+        public static async Task<string> Resolve(this ModuleResponse response, IExecutionContext context, PlayerData playerData)
         {
-            if (!response.modules.Any())
+            if (!response.GameModuleDatas.Any())
             {
-                List<SetItemBody> items = response.modules.Select(moduleData => new SetItemBody(moduleData.Key, moduleData)).ToList();
+                List<SetItemBody> items = response.GameModuleDatas.Select(moduleData => new SetItemBody(moduleData.Key, moduleData)).ToList();
                 await playerData.SetBatch(context, items);
             }
             return response.ToJson();
