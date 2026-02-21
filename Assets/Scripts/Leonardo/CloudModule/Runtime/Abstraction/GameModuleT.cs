@@ -1,6 +1,4 @@
-using System.Linq;
 using GameModuleDTO.GameModule;
-using GameModuleDTO.ModuleRequests;
 using Scaffold.Logging;
 using UnityEngine;
 using VContainer;
@@ -12,6 +10,9 @@ namespace Scaffold.CloudModules.Shared
         [Inject]
         [SerializeField]
         protected ICloudCodeService cloudCodeService;
+        [Inject]
+        [SerializeField]
+        protected GameModulesController _gameModulesController;
 
         [SerializeField]
         private T data;
@@ -53,19 +54,10 @@ namespace Scaffold.CloudModules.Shared
             OnUpdateData(Data);
         }
 
-        public async Awaitable FetchModuleData()
+        public async Awaitable<T> FetchModuleData()
         {
-            GameDataResponse response = await cloudCodeService.CallEndpointAsync(new GameDataRequest(GameModuleAuthKey.guid, data.Key));
-            if (response.GameData == null || response.GameData.modulesData.Any())
-            {
-                return;
-            }
-            
-            foreach (IGameModuleData moduleData in response.GameData.modulesData)
-            {
-                IGameModule matchingModule = cloudCodeService.Modules.FirstOrDefault(m => m.DataModule?.GetType() == moduleData.GetType());
-                matchingModule?.UpdateData(moduleData);
-            }
+            await _gameModulesController.FetchModuleData(data.Key);
+            return Data;
         }
     }
 }

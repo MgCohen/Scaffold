@@ -7,7 +7,6 @@ namespace Scaffold.CloudModules.Shared
 {
     public interface ICloudCodeService
     {
-        public List<IGameModule> Modules { get; }
         public Action RequestError { get; }
         public Awaitable<T> CallEndpointAsync<T>(string module, string endpoint, int maxRetry, int retryCall, Dictionary<string, object> payload = null);
         public Awaitable<TResponse> CallEndpointAsync<TResponse>(ModuleRequestT<TResponse> request)

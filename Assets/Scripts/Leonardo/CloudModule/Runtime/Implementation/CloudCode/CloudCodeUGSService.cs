@@ -9,17 +9,16 @@ namespace Scaffold.CloudModules.Shared
 {
     public class CloudCodeUGSService : ICloudCodeService
     {
-        public List<IGameModule> Modules { get; }
-        public Action RequestError { get; }
-
-        public CloudCodeUGSService(List<IGameModule> modules)
+        public CloudCodeUGSService()
         {
-            Modules = modules;
+            CloudService = CloudCodeService.Instance;
         }
+        
+        public Action RequestError { get; }
 
         private Unity.Services.CloudCode.ICloudCodeService CloudService
         {
-            get { return Unity.Services.CloudCode.CloudCodeService.Instance; }
+            get;
         }
         
         private bool IsRetryableError(Exception ex)
@@ -104,8 +103,8 @@ namespace Scaffold.CloudModules.Shared
 
             T HandleError(Exception exception)
             {
-                RequestError?.Invoke();
                 GameDebug.LogException(exception, debugName);
+                RequestError?.Invoke();
                 return default;
             }
         }
@@ -115,7 +114,7 @@ namespace Scaffold.CloudModules.Shared
         {
             if (request == null)
             {
-                Debug.LogError($"{nameof(request)} is null");
+                GameDebug.LogError($"{nameof(request)} is null");
                 return null;
             }
             
