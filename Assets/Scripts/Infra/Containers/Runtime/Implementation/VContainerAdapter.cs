@@ -18,9 +18,12 @@ namespace Scaffold.Containers
 
         private sealed class VContainerRootScope : LifetimeScope
         {
-            private Action<IContext> _build;
+            private Action<IContext> buildAction;
 
-            public void SetBuild(Action<IContext> build) => _build = build;
+            public void SetBuild(Action<IContext> build)
+            {
+                buildAction = build;
+            }
 
             protected override void Configure(VContainer.IContainerBuilder builder)
             {
@@ -28,7 +31,7 @@ namespace Scaffold.Containers
                 var rootContext = new Context(rootScope);
                 var registry = new VContainerRegistry(builder);
                 registry.Register<IContext>(_ => rootContext, ContainerLifetime.Scoped);
-                registry.RegisterBuildCallback(_ => _build(rootContext));
+                registry.RegisterBuildCallback(_ => buildAction(rootContext));
             }
         }
     }

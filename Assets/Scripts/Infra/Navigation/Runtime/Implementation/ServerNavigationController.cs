@@ -2,17 +2,17 @@ using Scaffold.Navigation;
 using System;
 using UnityEngine;
 
-namespace Scaffold.MVVM
+namespace Scaffold.Navigation
 {
-
     public class ServerNavigationController : MonoBehaviour, INavigation
     {
-        //blank implementation to allow navigation code to run on serverr without any effect
-        public NavigationPoint CurrentPoint => default;
+        public NavigationPoint CurrentPoint
+        {
+            get { return default; }
+        }
 
         public void Close<TViewController>(TViewController controller) where TViewController : IViewController
         {
-
         }
 
         public IViewController GetPreviousView()
@@ -22,7 +22,6 @@ namespace Scaffold.MVVM
 
         public void Initialize()
         {
-
         }
 
         public IViewController Open(Type viewType, bool closeCurrent = false, NavigationOptions options = null)
@@ -32,7 +31,6 @@ namespace Scaffold.MVVM
 
         public void Open<TViewController>(TViewController controller, bool closeCurrent = false, NavigationOptions options = null) where TViewController : IViewController
         {
-
         }
 
         public IViewController Return()

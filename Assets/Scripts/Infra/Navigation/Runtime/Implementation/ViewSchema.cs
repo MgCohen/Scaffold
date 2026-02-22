@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Scaffold.MVVM;
 using Scaffold.Schemas;
 using Scaffold.Types;
 using UnityEngine;

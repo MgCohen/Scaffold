@@ -31,3 +31,10 @@ Any class that inherits from **Installer** and is not abstract must be **public*
 ## Unity .meta files
 
 Whenever you **delete** or **move** a file under `Assets/`, also delete or move the corresponding `.meta` file (e.g. `Foo.cs` and `Foo.cs.meta`). Unity uses the `.meta` file to store the asset GUID; leaving a stale `.meta` or moving only the asset breaks references (prefabs, scenes, asmdefs).
+
+## Module creation and dependencies
+
+Whenever you create a new module under `Assets/Scripts/Infra/`:
+- **Update the dependency tree document**: Ensure the `Docs/infra_dependency_tree.md` file reflects the new module and its references.
+- **Check for circular dependencies**: Ensure the new module does not create any circular dependency loops between other modules.
+- **Check for unrelated dependencies**: Ensure it doesn't create new dependencies that don't relate to itself. For example, if creating module A creates a dependency between module B and module C, flag it and ask for help before proceeding.

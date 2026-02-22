@@ -18,6 +18,5 @@ public class TestScript : MonoBehaviour
     [Button]
     private void Start()
     {
-
     }
 }

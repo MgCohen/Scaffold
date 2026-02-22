@@ -9,60 +9,57 @@ namespace Scaffold.MVVM
     [Serializable]
     public abstract class ViewEvent
     {
-    public ViewEvent(PointerEventData pointer)
-    {
-        PointerData = pointer;
-    }
-
-
-    public ViewEvent()
-    {
-
-    }
-
-    //Event Base Variables
-    public PointerEventData PointerData {  get; private set; }
-
-    //Event Path
-    public Transform Source { get; private set; }
-    public Transform Current { get; private set; }
-    public List<Transform> History { get; private set; } = new List<Transform>();
-
-    //event State
-    public Transform Consumer { get; private set; }
-    public bool IsConsumed { get; private set; }
-
-    //Event Settings
-    public int maxRange { get; private set; } = -1;
-
-
-    public void Consume()
-    {
-        IsConsumed = true;
-        Consumer = Current;
-
-        if(History.LastOrDefault() != Current)
+        public ViewEvent(PointerEventData pointer)
         {
-            History.Add(Current);
+            PointerData = pointer;
         }
-        Current = null;
-    }
 
-    public void Restore()
-    {
-        IsConsumed = false;
-        Current = null;
-        Consumer = null;
-        History.Clear();
-    }
-
-    public void LogNext(Transform next)
-    {
-        if(Current != null)
+        public ViewEvent()
         {
-            History.Add(Current);
         }
-        Current = next;
-    }
+
+        public PointerEventData PointerData { get; private set; }
+
+        public Transform Source { get; private set; }
+        public Transform Current { get; private set; }
+        public List<Transform> History { get; private set; } = new List<Transform>();
+
+        public Transform Consumer { get; private set; }
+        public bool IsConsumed { get; private set; }
+
+        public int maxRange { get; private set; } = -1;
+
+        public void Consume()
+        {
+            IsConsumed = true;
+            Consumer = Current;
+            AddCurrentToHistoryIfNeeded();
+            Current = null;
+        }
+
+        private void AddCurrentToHistoryIfNeeded()
+        {
+            if (History.LastOrDefault() != Current)
+            {
+                History.Add(Current);
+            }
+        }
+
+        public void Restore()
+        {
+            IsConsumed = false;
+            Current = null;
+            Consumer = null;
+            History.Clear();
+        }
+
+        public void LogNext(Transform next)
+        {
+            if (Current != null)
+            {
+                History.Add(Current);
+            }
+            Current = next;
+        }
     }
 }

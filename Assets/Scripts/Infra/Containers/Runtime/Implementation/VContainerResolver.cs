@@ -5,21 +5,21 @@ namespace Scaffold.Containers
 {
     internal sealed class VContainerResolver : IContainerResolver
     {
-        private readonly IObjectResolver _inner;
+        private readonly IObjectResolver inner;
 
         internal VContainerResolver(IObjectResolver inner)
         {
-            _inner = inner ?? throw new ArgumentNullException(nameof(inner));
+            this.inner = inner ?? throw new ArgumentNullException(nameof(inner));
         }
 
         public T Resolve<T>()
         {
-            return _inner.Resolve<T>();
+            return inner.Resolve<T>();
         }
 
         public void Inject(object obj)
         {
-            _inner.Inject(obj);
+            inner.Inject(obj);
         }
     }
 }

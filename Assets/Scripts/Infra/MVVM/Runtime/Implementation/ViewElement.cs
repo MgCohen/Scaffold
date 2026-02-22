@@ -54,7 +54,6 @@ namespace Scaffold.MVVM
 
         public virtual void Bind(IViewController viewModel)
         {
-            //logic done in ViewElement<T> due to viewModel type-safety
         }
 
         protected virtual void OnBind()

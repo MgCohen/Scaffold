@@ -17,7 +17,6 @@ namespace Scaffold.Containers
         private Context parent;
         private IContainerScope scope;
 
-        /// <summary>For adapter use only. Called by the adapter after BuildChild completes.</summary>
         internal void SetScope(IContainerScope scope)
         {
             this.scope = scope;

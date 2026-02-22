@@ -2,9 +2,12 @@ using UnityEngine;
 
 namespace Scaffold.Containers
 {
-    public abstract class Boostrap : MonoBehaviour
+    public abstract class Bootstrap : MonoBehaviour
     {
-        protected virtual IContainerAdapter GetAdapter() => new VContainerAdapter();
+        protected virtual IContainerAdapter GetAdapter()
+        {
+            return new VContainerAdapter();
+        }
 
         private void Start()
         {

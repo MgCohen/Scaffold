@@ -9,7 +9,7 @@ using VContainer.Unity;
 
 namespace Sample.Boostraper
 {
-    public class SampleBoostrap : Boostrap
+    public class SampleBoostrap : Bootstrap
     {
         [SerializeField] private NavigationSettings navigationSettings;
 
@@ -22,6 +22,7 @@ namespace Sample.Boostraper
 
     public class SampleInfraContainer : Container
     {
+
         private readonly NavigationSettings navigationSettings;
 
         public SampleInfraContainer(NavigationSettings navigationSettings)

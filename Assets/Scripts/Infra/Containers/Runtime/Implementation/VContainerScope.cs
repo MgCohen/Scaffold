@@ -5,24 +5,29 @@ namespace Scaffold.Containers
 {
     internal sealed class VContainerScope : IContainerScope
     {
-        private readonly LifetimeScope _scope;
+        private readonly LifetimeScope scope;
 
         internal VContainerScope(LifetimeScope scope)
         {
-            _scope = scope;
+            this.scope = scope;
         }
 
-        public Transform Transform => _scope.transform;
+        public Transform Transform
+        {
+            get { return scope.transform; }
+        }
 
         public void BuildChild(Container container, Context childContext, Transform holder)
         {
-            LifetimeScope childScope = _scope.CreateChild(b =>
+            LifetimeScope childScope = scope.CreateChild(b =>
             {
                 var registry = new VContainerRegistry(b);
                 registry.Register<IContext>(_ => childContext, ContainerLifetime.Scoped);
-                registry.Register<IContainerResolver>(
-                    _ => new VContainerResolver(_.Resolve<VContainer.IObjectResolver>()),
-                    ContainerLifetime.Scoped);
+                registry.Register<IContainerResolver>(resolver =>
+                {
+                    var objectResolver = resolver.Resolve<VContainer.IObjectResolver>();
+                    return new VContainerResolver(objectResolver);
+                }, ContainerLifetime.Scoped);
                 container.Build(registry, holder);
             });
             childContext.SetScope(new VContainerScope(childScope));
@@ -30,7 +35,7 @@ namespace Scaffold.Containers
 
         public void Dispose()
         {
-            _scope.Dispose();
+            scope.Dispose();
         }
     }
 }

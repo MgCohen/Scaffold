@@ -5,22 +5,22 @@ namespace Scaffold.Containers
 {
     internal sealed class VContainerRegistrationBuilder<T> : IRegistrationBuilder<T>
     {
-        private readonly RegistrationBuilder _inner;
+        private readonly RegistrationBuilder inner;
 
         internal VContainerRegistrationBuilder(RegistrationBuilder inner)
         {
-            _inner = inner ?? throw new ArgumentNullException(nameof(inner));
+            this.inner = inner ?? throw new ArgumentNullException(nameof(inner));
         }
 
         public IRegistrationBuilder<T> WithParameter<TParam>(TParam value)
         {
-            _inner.WithParameter(value);
+            inner.WithParameter(value);
             return this;
         }
 
         public IRegistrationBuilder<T> AsImplementedInterfaces()
         {
-            _inner.AsImplementedInterfaces();
+            inner.AsImplementedInterfaces();
             return this;
         }
     }

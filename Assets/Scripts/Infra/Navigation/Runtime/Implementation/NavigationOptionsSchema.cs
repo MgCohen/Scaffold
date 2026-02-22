@@ -1,4 +1,3 @@
-using Scaffold.MVVM;
 using UnityEngine;
 
 #if ADDRESSABLES

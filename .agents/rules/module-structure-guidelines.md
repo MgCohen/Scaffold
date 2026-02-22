@@ -2,6 +2,13 @@
 
 Apply these rules when creating or organizing any module in the project.
 
+## New Module Creation
+
+Whenever a new module is created, you must:
+1. **Update Analysis**: Update the `Docs/Plans/infra-module-analysis.md` file to reflect the new module.
+2. **Prevent Circular Dependencies**: Make sure the new module does not create circular dependencies.
+3. **Prevent Unrelated Dependencies**: The new module must not create new dependencies that don't relate to itself. For example, if creating module A requires adding a new dependency between module B and C, flag it and ask for help before proceeding.
+
 ## Module Folder Splitting
 
 A module is to be split into the following top-level folders:

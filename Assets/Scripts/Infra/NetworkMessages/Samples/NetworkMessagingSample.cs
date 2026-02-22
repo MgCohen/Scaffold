@@ -20,28 +20,28 @@ namespace Scaffold.NetworkMessages.Samples
         [Tooltip("Check this in the inspector or at runtime to send a test message.")]
         public bool triggerMessageSend = false;
 
-        private int m_MessageCounter = 0;
-        private INetworkMessageDispatcher m_Dispatcher;
+        private int messageCounter = 0;
+        private INetworkMessageDispatcher dispatcher;
 
         public override void OnNetworkSpawn()
         {
             base.OnNetworkSpawn();
 
             // In a real application, inject INetworkMessageDispatcher via an Installer/Container.
-            m_Dispatcher = new NetworkMessageDispatcher(NetworkManager.Singleton);
-            m_Dispatcher.RegisterHandler<SampleMessage>(OnSampleMessageReceived);
+            dispatcher = new NetworkMessageDispatcher(NetworkManager.Singleton);
+            dispatcher.RegisterHandler<SampleMessage>(OnSampleMessageReceived);
         }
 
         public override void OnNetworkDespawn()
         {
-            if (m_Dispatcher != null)
+            if (dispatcher != null)
             {
-                m_Dispatcher.UnregisterHandler<SampleMessage>();
-                if (m_Dispatcher is System.IDisposable disposable)
+                dispatcher.UnregisterHandler<SampleMessage>();
+                if (dispatcher is System.IDisposable disposable)
                 {
                     disposable.Dispose();
                 }
-                m_Dispatcher = null;
+                dispatcher = null;
             }
 
             base.OnNetworkDespawn();
@@ -67,11 +67,11 @@ namespace Scaffold.NetworkMessages.Samples
 
         public void SendSampleMessage()
         {
-            if (!IsSpawned || m_Dispatcher == null) return;
+            if (!IsSpawned || dispatcher == null) return;
 
             var message = new SampleMessage
             {
-                Id = ++m_MessageCounter,
+                Id = ++messageCounter,
                 Timestamp = Time.time
             };
 
@@ -80,12 +80,12 @@ namespace Scaffold.NetworkMessages.Samples
                 Debug.Log($"[Server] Sending SampleMessage ID: {message.Id} to all clients...");
                 
                 List<ulong> clientIds = new List<ulong>(NetworkManager.Singleton.ConnectedClientsIds);
-                m_Dispatcher.SendToClients(message, clientIds);
+                dispatcher.SendToClients(message, clientIds);
             }
             else if (IsClient)
             {
                 Debug.Log($"[Client {NetworkManager.Singleton.LocalClientId}] Sending SampleMessage ID: {message.Id} to server...");
-                m_Dispatcher.SendToServer(message);
+                dispatcher.SendToServer(message);
             }
         }
 
@@ -93,7 +93,7 @@ namespace Scaffold.NetworkMessages.Samples
         {
             Debug.Log($"{(IsServer ? "[Server]" : $"[Client {NetworkManager.Singleton.LocalClientId}]")} Received SampleMessage ID: {message.Id}, Timestamp: {message.Timestamp} from Client: {senderClientId}");
             
-            if (IsServer && m_Dispatcher != null)
+            if (IsServer && dispatcher != null)
             {
                 Debug.Log($"[Server] Bouncing message {message.Id} from {senderClientId} to everyone else.");
                 
@@ -106,7 +106,7 @@ namespace Scaffold.NetworkMessages.Samples
 
                 if (otherClients.Count > 0)
                 {
-                    m_Dispatcher.SendToClients(message, otherClients);
+                    dispatcher.SendToClients(message, otherClients);
                 }
             }
         }

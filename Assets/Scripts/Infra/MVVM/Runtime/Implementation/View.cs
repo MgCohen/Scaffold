@@ -5,10 +5,16 @@ namespace Scaffold.MVVM
 {
     public class View<T> : ViewElement<T>, IView where T : IViewModel
     {
-        public ViewState State => state;
+        public ViewState State
+        {
+            get { return state; }
+        }
         protected ViewState state;
 
-        public ViewType Type => type;
+        public ViewType Type
+        {
+            get { return type; }
+        }
         [SerializeField] private ViewType type = ViewType.Screen;
 
         protected virtual void ToggleView(bool state)
