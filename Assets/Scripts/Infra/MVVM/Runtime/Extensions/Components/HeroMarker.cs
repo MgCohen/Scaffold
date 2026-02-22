@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace Scaffold.Navigation
+namespace Scaffold.MVVM
 {
     public class HeroMarker : MonoBehaviour, IHeroHandler
     {
@@ -36,9 +36,6 @@ namespace Scaffold.Navigation
 
             transform.position = from.transform.position;
             transform.localScale = from.transform.localScale;
-
-            //transform.DOLocalMove(targetPos, 1f);
-            //transform.DOLocalRotateQuaternion(targetRot, 1f);
         }
     }
 }

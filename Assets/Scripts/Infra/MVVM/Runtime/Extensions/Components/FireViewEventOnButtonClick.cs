@@ -1,7 +1,5 @@
-using System.Collections.Generic;
-using Scaffold.MVVM;
+using Scaffold.Types;
 using UnityEngine;
-using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace Scaffold.MVVM

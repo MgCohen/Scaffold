@@ -7,7 +7,6 @@ namespace Scaffold.MVVM.Container
     {
         public override void Install(IContainerRegistry registry, Transform holder)
         {
-            // Register MVVM bindings here
         }
     }
 }

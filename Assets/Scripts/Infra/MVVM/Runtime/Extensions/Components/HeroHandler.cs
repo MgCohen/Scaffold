@@ -2,7 +2,7 @@ using Scaffold.MVVM;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Scaffold.Navigation
+namespace Scaffold.MVVM
 {
     public class HeroHandler
     {

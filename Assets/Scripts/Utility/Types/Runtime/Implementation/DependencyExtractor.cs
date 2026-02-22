@@ -8,11 +8,11 @@ namespace Scaffold.Types
 {
     public class DependencyExtractor : IDependencyExtractor
     {
-        private readonly ConcurrentDictionary<Type, Type[]> _cache = new ConcurrentDictionary<Type, Type[]>();
+        private readonly ConcurrentDictionary<Type, Type[]> cache = new ConcurrentDictionary<Type, Type[]>();
 
         public IEnumerable<Type> GetConstructorDependencies(Type type)
         {
-            return _cache.GetOrAdd(type, AnalyzeDependencies);
+            return cache.GetOrAdd(type, AnalyzeDependencies);
         }
 
         private Type[] AnalyzeDependencies(Type type)
@@ -47,12 +47,9 @@ namespace Scaffold.Types
 
         private ConstructorInfo GetTargetConstructor(ConstructorInfo[] constructors, List<ConstructorInfo> annotatedConstructors)
         {
-            if (annotatedConstructors.Count == 1)
-            {
-                return annotatedConstructors[0];
-            }
-
-            return GetConstructorWithMostParameters(constructors);
+            var hasSingleAnnotatedConstructor = annotatedConstructors.Count == 1;
+            var targetConstructor = hasSingleAnnotatedConstructor ? annotatedConstructors[0] : GetConstructorWithMostParameters(constructors);
+            return targetConstructor;
         }
 
         private ConstructorInfo GetConstructorWithMostParameters(ConstructorInfo[] constructors)
@@ -75,12 +72,9 @@ namespace Scaffold.Types
 
         private Type[] GetConstructorParameters(ConstructorInfo constructor)
         {
-            if (constructor == null)
-            {
-                return Array.Empty<Type>();
-            }
-
-            return constructor.GetParameters().Select(p => p.ParameterType).ToArray();
+            var hasConstructor = constructor != null;
+            var constructorParameters = hasConstructor ? constructor.GetParameters().Select(p => p.ParameterType).ToArray() : Array.Empty<Type>();
+            return constructorParameters;
         }
     }
 }

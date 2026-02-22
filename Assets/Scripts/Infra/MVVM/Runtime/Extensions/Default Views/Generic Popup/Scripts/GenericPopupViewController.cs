@@ -3,30 +3,22 @@ using System.Collections.Generic;
 using Scaffold.MVVM;
 using UnityEngine;
 
-public class GenericPopupViewController : ViewModel
+namespace Scaffold.MVVM.Extensions.DefaultViews
 {
-    public Sprite DecorationImage { get; private set; }
-    public string Content { get; private set; }
-    public string Title { get; private set; }
-    public bool ShowClose { get; private set; }
-    public IEnumerable<ButtonOption> Options { get; private set; }
-    public GenericPopupViewController(string title, string content, bool showClose, params ButtonOption[] options)
+    public class GenericPopupViewController : ViewModel
     {
-        this.Title = title;
-        this.Content = content;
-        this.ShowClose = showClose;
-        this.Options = options;
-    }
-}
+        public Sprite DecorationImage { get; private set; }
+        public string Content { get; private set; }
+        public string Title { get; private set; }
+        public bool ShowClose { get; private set; }
+        public IEnumerable<ButtonOption> Options { get; private set; }
 
-public class ButtonOption
-{
-    public ButtonOption(string key, Action callback)
-    {
-        Key = key;
-        Callback = callback;
+        public GenericPopupViewController(string title, string content, bool showClose, params ButtonOption[] options)
+        {
+            this.Title = title;
+            this.Content = content;
+            this.ShowClose = showClose;
+            this.Options = options;
+        }
     }
-
-    public string Key { get; private set; }
-    public Action Callback { get; private set; }
 }

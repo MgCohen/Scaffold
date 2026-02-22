@@ -27,7 +27,7 @@ namespace Scaffold.MVVM
         public Transform Consumer { get; private set; }
         public bool IsConsumed { get; private set; }
 
-        public int maxRange { get; private set; } = -1;
+        public int MaxRange { get; private set; } = -1;
 
         public void Consume()
         {

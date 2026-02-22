@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace Scaffold.Navigation
+namespace Scaffold.MVVM
 {
     public interface IHeroHandler
     {

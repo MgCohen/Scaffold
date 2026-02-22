@@ -18,7 +18,7 @@ namespace Scaffold.NetworkMessages.Samples
     public class NetworkMessagingSample : NetworkBehaviour
     {
         [Tooltip("Check this in the inspector or at runtime to send a test message.")]
-        public bool triggerMessageSend = false;
+        public bool TriggerMessageSend = false;
 
         private int messageCounter = 0;
         private INetworkMessageDispatcher dispatcher;
@@ -27,7 +27,6 @@ namespace Scaffold.NetworkMessages.Samples
         {
             base.OnNetworkSpawn();
 
-            // In a real application, inject INetworkMessageDispatcher via an Installer/Container.
             dispatcher = new NetworkMessageDispatcher(NetworkManager.Singleton);
             dispatcher.RegisterHandler<SampleMessage>(OnSampleMessageReceived);
         }

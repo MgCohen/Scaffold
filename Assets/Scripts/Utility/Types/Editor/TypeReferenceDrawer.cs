@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
@@ -12,7 +12,7 @@ namespace Scaffold.Types.Editor
     [CustomPropertyDrawer(typeof(TypeReference))]
     public class TypeReferenceDrawer : PropertyDrawer
     {
-        private static readonly HashSet<string> _systemAssemblyNames = new HashSet<string> { "mscorlib", "System", "System.Core" };
+        private static readonly HashSet<string> systemAssemblyNames = new HashSet<string> { "mscorlib", "System", "System.Core" };
         private static Dictionary<Type, GenericMenu> menus = new Dictionary<Type, GenericMenu>();
         private static Action<Type> OnClickCallback;
 
@@ -36,11 +36,9 @@ namespace Scaffold.Types.Editor
             {
                 OnClickCallback = (t) =>
                 {
-                    var serializedType = JsonConvert.SerializeObject(t, new JsonSerializerSettings()
-                    {
-                        TypeNameHandling = TypeNameHandling.All,
-                    });
-                    property.FindPropertyRelative("serializedType").stringValue = serializedType;
+                    var serializedType = SerializeType(t);
+                    var serializedTypeProperty = property.FindPropertyRelative("serializedType");
+                    serializedTypeProperty.stringValue = serializedType;
                     property.serializedObject.ApplyModifiedProperties();
                 };
                 menus[filterType].ShowAsContext();
@@ -93,7 +91,13 @@ namespace Scaffold.Types.Editor
 
         private static bool IsSystemAssembly(AssemblyName assemblyName)
         {
-            return _systemAssemblyNames.Contains(assemblyName.Name);
+            return systemAssemblyNames.Contains(assemblyName.Name);
+        }
+
+        private static string SerializeType(Type type)
+        {
+            var settings = new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All };
+            return JsonConvert.SerializeObject(type, settings);
         }
 
     }

@@ -3,13 +3,16 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-[AttributeUsage(AttributeTargets.Field)]
-public class TypeReferenceFilterAttribute : Attribute
+namespace Scaffold.Types
 {
-    public TypeReferenceFilterAttribute(Type typeFilter)
+    [AttributeUsage(AttributeTargets.Field)]
+    public class TypeReferenceFilterAttribute : Attribute
     {
-        TypeFilter = typeFilter;
-    }
+        public TypeReferenceFilterAttribute(Type typeFilter)
+        {
+            TypeFilter = typeFilter;
+        }
 
-    public Type TypeFilter { get; }
+        public Type TypeFilter { get; }
+    }
 }

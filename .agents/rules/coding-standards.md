@@ -182,6 +182,9 @@ void ProcessTurn()
 
 ## Naming conventions
 
+- **Exceptions for Unity built-ins**: Public properties and fields that strictly mirror Unity's built-in component references are exempt from the PascalCase rule. The exact permitted names are:
+  - `public GameObject gameObject { get; }`
+  - `public Transform transform { get; }`
 - **Interfaces**: Start with `I` (e.g., `IMutator`).
 - **Private fields**: Use `camelCase` (e.g., `currentPlayer`). Do not use `_` or `m_` prefixes.
 - **Public fields and Properties**: Use `PascalCase` (e.g., `CurrentPlayer`).

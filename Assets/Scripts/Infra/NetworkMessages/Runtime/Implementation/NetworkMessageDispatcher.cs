@@ -68,7 +68,6 @@ namespace Scaffold.NetworkMessages
             try
             {
                 size = Marshal.SizeOf(typeof(T));
-                // Add some safety padding for Netcode's ForceNetworkSerializeByMemcpy headers
                 size += 16;
             }
             catch
@@ -94,7 +93,6 @@ namespace Scaffold.NetworkMessages
             }
             try
             {
-                // Read the payload back through the identical Equitable layered wrapper we wrote it with
                 messagePayload.ReadValueSafe(out ForceNetworkSerializeByMemcpy<EquatableWrapper<T>> forceSerializable);
                 T message = forceSerializable.Value.Value;
                 handler.Invoke(senderClientId, message);

@@ -30,10 +30,8 @@ namespace Scaffold.Types
                 {
                     if (type == null && !string.IsNullOrWhiteSpace(serializedType))
                     {
-                        type = JsonConvert.DeserializeObject<Type>(serializedType, new JsonSerializerSettings()
-                        {
-                            TypeNameHandling = TypeNameHandling.All,
-                        });
+                        var settings = new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All };
+                        type = JsonConvert.DeserializeObject<Type>(serializedType, settings);
                     }
                 }
                 catch
@@ -52,16 +50,13 @@ namespace Scaffold.Types
 
         public void Set(Type type)
         {
-            if (type == null)
+            var hasType = type != null;
+            if (hasType)
             {
-                return;
+                this.type = type;
+                var settings = new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All };
+                serializedType = JsonConvert.SerializeObject(type, settings);
             }
-
-            this.type = type;
-            serializedType = JsonConvert.SerializeObject(type, new JsonSerializerSettings()
-            {
-                TypeNameHandling = TypeNameHandling.All,
-            });
         }
 
         public static implicit operator TypeReference(Type type) => new(type);
