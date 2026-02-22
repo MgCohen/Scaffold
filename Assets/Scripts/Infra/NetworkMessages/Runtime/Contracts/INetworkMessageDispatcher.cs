@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Infra.Networking.Runtime.Abstractions
+namespace Scaffold.NetworkMessages
 {
     /// <summary>
     /// Contract for a service capable of routing strongly typed unmanaged structs over the network.

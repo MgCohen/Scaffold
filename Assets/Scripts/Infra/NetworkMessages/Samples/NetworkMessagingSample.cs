@@ -1,10 +1,9 @@
 using System.Collections.Generic;
 using UnityEngine;
 using Unity.Netcode;
-using Infra.Networking.Runtime.Abstractions;
-using Infra.Networking.Runtime.Implementation;
+using Scaffold.NetworkMessages;
 
-namespace Infra.Networking.Samples
+namespace Scaffold.NetworkMessages.Samples
 {
     public struct SampleMessage
     {

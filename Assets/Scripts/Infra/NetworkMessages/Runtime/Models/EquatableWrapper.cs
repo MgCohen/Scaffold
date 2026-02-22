@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Infra.Networking.Runtime.Models
+namespace Scaffold.NetworkMessages
 {
     /// <summary>
     /// A generic wrapper struct that ensures our type is IEquatable for ForceNetworkSerializeByMemcpy.

@@ -3,10 +3,9 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using Unity.Netcode;
 using UnityEngine;
-using Infra.Networking.Runtime.Abstractions;
-using Infra.Networking.Runtime.Models;
 
-namespace Infra.Networking.Runtime.Implementation
+
+namespace Scaffold.NetworkMessages
 {
     /// <summary>
     /// A generic dispatcher service for sending and receiving custom typed messages over Unity Netcode.
