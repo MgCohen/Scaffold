@@ -169,6 +169,17 @@ void ProcessTurn()
 }
 ```
 
+## Namespaces
+
+- **Mandatory Namespace**: All scripts must be enclosed within a namespace. Global/root namespace scripts are not allowed.
+- **Root Namespace**: Every namespace must start with `Scaffold.`.
+- **Feature Layer**: Follow the format `Scaffold.[FeatureName]` (e.g., `Scaffold.Navigation`).
+- **Ignore Categorization Folders**: Organizational folders like `Game/`, `Infra/`, and `Utility/` must be omitted from the namespace.
+- **Folder-to-Namespace Mapping**:
+    - **Runtime**: Scripts inside a `Runtime/` folder (or subfolders of Runtime) should **not** include "Runtime" in their namespace.
+    - **Non-Runtime**: Scripts in any other folder (e.g., `Editor/`, `Samples/`) **must** include that folder name as a suffix (e.g., `Scaffold.Feature.Editor`).
+- **Specialized Categorization**: Use additional segments only for broad, well-defined nested structures or categories within a module (e.g., `Scaffold.Containers.Adapter.VContainer`).
+
 ## Naming conventions
 
 - **Interfaces**: Start with `I` (e.g., `IMutator`).
