@@ -20,10 +20,9 @@ namespace Scaffold.CloudModules.Shared
         public ICloudCodeService CloudCodeService { get; }
         public List<IGameModule> Modules { get; }
         
-        [SerializeField]
-        private GameData gameData;
+        public GameData GameData { get; protected set; }
         
-        #region IController
+        #region Implementation of IController
         public async Awaitable Initialize()
         {
             await InitializeModules(Modules);
@@ -38,12 +37,11 @@ namespace Scaffold.CloudModules.Shared
         public async Awaitable InitializeModules(List<IGameModule> modules)
         {
             GameDataResponse response = await CloudCodeService.CallEndpointAsync(new InitializeGameModulesRequest(GameModuleAuthKey.guid));
-            gameData = response.GameData;
-            Assert.IsNotNull(gameData);
-            // Convert Awaitables to Tasks to use WhenAll
+            GameData = response.GameData;
+            Assert.IsNotNull(GameData);
             IEnumerable<Task> initializeTasks = modules
                 .Where(module => module != null)
-                .Select(async module => await module.Initialize(gameData));
+                .Select(async module => await module.Initialize(GameData));
             await Task.WhenAll(initializeTasks);
         }
         

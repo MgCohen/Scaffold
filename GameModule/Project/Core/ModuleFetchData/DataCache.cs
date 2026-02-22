@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using GameModuleDTO.GameModule;
 using Unity.Services.CloudCode.Apis;
 using Unity.Services.CloudCode.Core;
 using GameModuleDTO.Json;
@@ -127,6 +128,11 @@ namespace GameModule.ModuleFetchData
             InternalSet(key, value);
             await SaveData(context, key, value, useWriteLock);
         }
+        
+        public async Task Set(IExecutionContext context, IGameModuleData value, bool useWriteLock = false)
+        {
+            await Set(context, value.Key, value, useWriteLock);
+        }
 
         public async Task SetBatch(IExecutionContext context, List<SetItemBody> values, bool useWriteLock = false)
         {
@@ -151,6 +157,18 @@ namespace GameModule.ModuleFetchData
 
         public async Task<T> GetOrSet<T>(IExecutionContext context, string key, T defaultValue, bool useWriteLock = false)
         {
+            if (await Exists(context, key))
+            {
+                return await Get<T>(context, key, defaultValue);
+            }
+
+            await Set(context, key, defaultValue, useWriteLock);
+            return defaultValue;
+        }
+        
+        public async Task<T> GetOrSet<T>(IExecutionContext context, T defaultValue = default, bool useWriteLock = false) where T : IGameModuleData
+        {
+            string key = defaultValue.Key;
             if (await Exists(context, key))
             {
                 return await Get<T>(context, key, defaultValue);

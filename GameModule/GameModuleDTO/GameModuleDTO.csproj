@@ -21,6 +21,8 @@
 
     <ItemGroup>
       <Folder Include="Core\Keys\" />
+      <Folder Include="Sample\ReactiveModule\Request\" />
+      <Folder Include="Sample\SimpleModule\Request\" />
     </ItemGroup>
 
     <Target Name="PostBuild" AfterTargets="Build" Condition="'$(LOCAL_BUILD)' == 'true'">

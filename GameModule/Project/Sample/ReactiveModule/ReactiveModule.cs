@@ -6,16 +6,22 @@ using GameModuleDTO.Sample.ReactiveModule;
 using Microsoft.Extensions.Logging;
 using Unity.Services.CloudCode.Core;
 
-namespace GameModule.Sample.ReactiveModule
+namespace GameModule.Sample
 {
     public class ReactiveModule: IGameModule
     {
-        public ReactiveModule(ILogger<ReactiveModule> logger)
+        public ReactiveModule(ILogger<ReactiveModule> logger, IExecutionContext context, PlayerData playerData, CounterModule counterModule)
         {
             _logger = logger;
+            _counterModule = counterModule;
+            _playerData = playerData;
+            _context = context;
         }
                 
         private readonly ILogger<ReactiveModule> _logger;
+        private CounterModule _counterModule;
+        private PlayerData _playerData;
+        private IExecutionContext _context;
         
         #region IGameModule implementation
         public bool Client { get { return true; } }
@@ -24,8 +30,16 @@ namespace GameModule.Sample.ReactiveModule
         
         public async Task<IGameModuleData> Initialize(IExecutionContext context, PlayerData playerData, GameState gameState, RemoteConfig remoteConfig)
         {
-            return await playerData.GetOrSet<ReactiveModuleData>(context, Key, default);
+            _counterModule.OnValueChange += OnCounterValueChange;
+            return await playerData.GetOrSet<ReactiveModuleData>(context);
         }
+
+        private async void OnCounterValueChange(int value)
+        {
+            ReactiveModuleData reactiveModuleData = await _playerData.GetOrSet<ReactiveModuleData>(_context);
+            reactiveModuleData.IncreaseValue(value);
+        }
+
         #endregion
     }
 }

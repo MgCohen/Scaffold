@@ -29,14 +29,14 @@ namespace GameModule.GameModule
         }
 
         [CloudCodeFunction(nameof(InitializeGameModulesRequest))]
-        public async Task<GameDataResponse> InitializeModules(IExecutionContext context, GameState gameState, IEnumerable<IGameModule> modules, InitializeGameModulesRequest request)
+        public async Task<GameDataResponse> InitializeModules(IExecutionContext context, GameState gameState, InitializeGameModulesRequest request, IEnumerable<IGameModule> modules)
         {
             _logger.LogInformation("[InitializeModules] Starting");
             return await ProcessModulesSequentially(context, gameState, modules, request);
         }
         
         [CloudCodeFunction(nameof(GameDataRequest))]
-        public async Task<GameDataResponse> GetGameModulesRequest(IExecutionContext context, GameState gameState, IEnumerable<IGameModule> modules, GameDataRequest request)
+        public async Task<GameDataResponse> GetGameModulesRequest(IExecutionContext context, GameState gameState, GameDataRequest request, IEnumerable<IGameModule> modules)
         {
             _logger.LogInformation("[GetGameModulesRequest] Starting");
             return await ProcessModulesSequentially(context, gameState, modules, request, request.ModuleKeys);

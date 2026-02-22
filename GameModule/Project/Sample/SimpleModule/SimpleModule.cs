@@ -6,7 +6,7 @@ using GameModuleDTO.Sample.SimpleModuleData;
 using Microsoft.Extensions.Logging;
 using Unity.Services.CloudCode.Core;
 
-namespace GameModule.Sample.SimpleModule
+namespace GameModule.Sample
 {
     public class SimpleModule : IGameModule
     {
