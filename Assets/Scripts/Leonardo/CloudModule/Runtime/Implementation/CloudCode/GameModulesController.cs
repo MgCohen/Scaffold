@@ -50,7 +50,7 @@ namespace Scaffold.CloudModules.Shared
         public async Awaitable FetchModuleData(params string[] fetchModuleKeys)
         {
             GameDataResponse response = await CloudCodeService.CallEndpointAsync(new GameDataRequest(GameModuleAuthKey.guid, fetchModuleKeys));
-            if (response.GameData == null || response.GameData.modulesData.Any())
+            if (!response.IsValid())
             {
                 return;
             }

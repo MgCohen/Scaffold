@@ -8,6 +8,8 @@ namespace GameModuleDTO.ModuleRequests
         public string Message { get; private set; } = "";
         public List<ModuleResponse> Responses { get; protected set; } = new List<ModuleResponse>();
         public List<IGameModuleData> GameModuleDatas  { get; protected set; } = new List<IGameModuleData>();
+
+        public abstract bool IsValid();
         
         public bool IsSuccess()
         {

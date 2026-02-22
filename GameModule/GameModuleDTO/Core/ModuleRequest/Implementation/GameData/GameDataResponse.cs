@@ -10,5 +10,10 @@ namespace GameModuleDTO.ModuleRequests
         {
             this.GameData = gameData;
         }
+
+        public override bool IsValid()
+        {
+            return GameData != null && GameData.modulesData.Any();
+        }
     }
 }
