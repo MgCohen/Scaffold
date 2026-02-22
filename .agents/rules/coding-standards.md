@@ -65,6 +65,7 @@ var context = new PhaseContext(AdvancePhase);
 
 - **Always use curly-bracket bodies for methods in a class.** Do not use expression-body (`=>`) syntax for class methods, even if the body is a single expression.
 - **Use `=>` only for actual lambdas** (e.g. anonymous functions, delegates passed as arguments, or `Action`/`Func` assignments).
+- **Exceptions:** You are permitted to use the expression-body (`=>`) syntax for **get-only properties** and **operator overloads**.
 
 ```csharp
 // ❌ Expression-body method
@@ -78,6 +79,12 @@ private bool HasPlayers(PlayerPriorityState state)
 
 // ✅ Lambda (correct use of =>)
 _store.Subscribe<TurnState>((_, state) => OnTurnStateChanged(state));
+
+// ✅ Get-only property (correct use of =>)
+public Type SerializableType => typeof(SourceSample);
+
+// ✅ Operator overload (correct use of =>)
+public static implicit operator TypeReference(Type type) => new(type);
 ```
 
 ## Line breaks
