@@ -10,5 +10,10 @@ namespace GameModule.Response
         {
             Request = request;
         }
+
+        public T GetCurrentRequestAsT<T>() where T : ModuleResponse
+        {
+            return Request as T;
+        }
     }
 }

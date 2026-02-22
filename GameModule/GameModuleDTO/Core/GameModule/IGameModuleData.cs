@@ -2,7 +2,7 @@
 {
     public interface IGameModuleData
     {
-        public string Key { get; }
         public static string StaticKey { get; }
+        public string Key { get; }
     }
 }

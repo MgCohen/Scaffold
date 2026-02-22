@@ -6,8 +6,8 @@ namespace GameModuleDTO.ModuleRequests
     {
         public ResponseStatusType StatusType { get; private set; }
         public string Message { get; private set; } = "";
-        public List<ModuleResponse> Responses { get; protected set; }
-        public List<IGameModuleData> GameModuleDatas = new List<IGameModuleData>();
+        public List<ModuleResponse> Responses { get; protected set; } = new List<ModuleResponse>();
+        public List<IGameModuleData> GameModuleDatas  { get; protected set; } = new List<IGameModuleData>();
         
         public bool IsSuccess()
         {
@@ -32,6 +32,11 @@ namespace GameModuleDTO.ModuleRequests
         public void SetResponseException(string message)
         {
             SetResponse(ResponseStatusType.Exception, $"Failed with exception: \n{message}");
+        }
+
+        public void ClearGameModuleDatas()
+        {
+            GameModuleDatas.Clear();
         }
 
         public void AddModulesData(List<IGameModuleData> moduleList)

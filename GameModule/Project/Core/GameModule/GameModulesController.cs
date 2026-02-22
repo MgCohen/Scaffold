@@ -17,53 +17,48 @@ namespace GameModule.GameModule
         private readonly ILogger<GameModulesController> _logger;
         private readonly PlayerData _playerData;
         private readonly RemoteConfig _remoteConfig;
-        private readonly ModuleRequestHandler _moduleRequestHandler;
 
         public GameModulesController(
             ILogger<GameModulesController> logger, 
             PlayerData playerData, 
-            RemoteConfig remoteConfig, 
-            ModuleRequestHandler moduleRequestHandler)
+            RemoteConfig remoteConfig)
         {
             _logger = logger;
             _playerData = playerData;
             _remoteConfig = remoteConfig;
-            _moduleRequestHandler = moduleRequestHandler;
         }
 
         [CloudCodeFunction(nameof(InitializeGameModulesRequest))]
-        public async Task<string> InitializeModules(IExecutionContext context, GameState gameState, IEnumerable<IGameModule> modules, InitializeGameModulesRequest request)
+        public async Task<GameDataResponse> InitializeModules(IExecutionContext context, GameState gameState, IEnumerable<IGameModule> modules, InitializeGameModulesRequest request)
         {
-            _logger.LogInformation("[GameModules] Starting full initialization.");
+            _logger.LogInformation("[InitializeModules] Starting");
             return await ProcessModulesSequentially(context, gameState, modules, request);
         }
-
+        
         [CloudCodeFunction(nameof(GameDataRequest))]
-        public async Task<string> FetchModules(IExecutionContext context, GameState gameState, IEnumerable<IGameModule> modules, GameDataRequest request)
+        public async Task<GameDataResponse> GetGameModulesRequest(IExecutionContext context, GameState gameState, IEnumerable<IGameModule> modules, GameDataRequest request)
         {
-            _logger.LogInformation("[GameModules] Fetching specific modules.");
+            _logger.LogInformation("[GetGameModulesRequest] Starting");
             return await ProcessModulesSequentially(context, gameState, modules, request, request.ModuleKeys);
         }
 
-        private async Task<string> ProcessModulesSequentially(
+        private async Task<T> ProcessModulesSequentially<T>(
             IExecutionContext context, 
             GameState gameState, 
             IEnumerable<IGameModule> modules, 
-            ModuleRequest request, 
-            IReadOnlyCollection<string> filterKeys = null)
+            ModuleRequestT<T> request,
+            IReadOnlyCollection<string> filterKeys = null) where T : ModuleResponse
         {
-            _moduleRequestHandler.SetCurrentRequest(request);
             request.AssertModule();
-            
+    
+            // 1. Initialize the response type. 
+            // If T is GameDataResponse, we pass the gameData object into it.
             GameData gameData = new GameData();
             bool isServer = await context.GetValidAuth(gameState, request.AuthKey);
 
             foreach (IGameModule gameModule in modules)
             {
-                if (gameModule == null)
-                {
-                    continue;
-                }
+                if (gameModule == null) continue;
 
                 bool hasAccess = isServer ? gameModule.Server : gameModule.Client;
                 if (!hasAccess)
@@ -78,7 +73,6 @@ namespace GameModule.GameModule
 
                 try
                 {
-                    // Execução um por um, aguardando o término antes de ir para o próximo
                     IGameModuleData? moduleData = await gameModule.Initialize(context, _playerData, gameState, _remoteConfig);
                     if (moduleData != null)
                     {
@@ -90,8 +84,9 @@ namespace GameModule.GameModule
                     _logger.LogError(e, "Error on module {ModuleKey}: {Message}", gameModule.Key, e.Message);
                 }
             }
-
-            return request.GetResponse(new GameDataResponse(gameData));
+            
+            T? response = new GameDataResponse(gameData) as T;
+            return await request.ResolveResponse(response, context, _playerData);
         }
     }
 }

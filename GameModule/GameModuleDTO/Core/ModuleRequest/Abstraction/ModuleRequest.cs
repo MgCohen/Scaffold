@@ -1,4 +1,3 @@
-using GameModuleDTO.Json;
 using GameModuleDTO.Keys;
 
 namespace GameModuleDTO.ModuleRequests
@@ -21,16 +20,5 @@ namespace GameModuleDTO.ModuleRequests
         public bool HasAuth { get { return !string.IsNullOrEmpty(AuthKey); } }
 
         public abstract void AssertModule();
-
-        // In case of override serialization
-        protected virtual string SerializeModule(ModuleResponse moduleResponse)
-        {
-            return moduleResponse.ToJson();
-        }
-        
-        public virtual string GetResponse(GameDataResponse moduleResponse) 
-        {
-            return SerializeModule(moduleResponse); 
-        }
     }
 }

@@ -10,10 +10,5 @@ namespace GameModuleDTO.ModuleRequests
         {
             this.GameData = gameData;
         }
-        
-        protected T FirstModuleAsT<T>() where T : IGameModuleData
-        {
-            return (T)GameData?.modulesData.FirstOrDefault(x => x.GetType() == typeof(T));
-        }
     }
 }
