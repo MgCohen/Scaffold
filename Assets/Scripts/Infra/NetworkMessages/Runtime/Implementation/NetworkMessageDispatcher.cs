@@ -17,9 +17,9 @@ namespace Scaffold.NetworkMessages
         private readonly Dictionary<Type, object> handlers = new Dictionary<Type, object>();
         private bool isDisposed;
 
-        public NetworkMessageDispatcher(NetworkManager networkManager)
+        public NetworkMessageDispatcher()
         {
-            this.networkManager = networkManager ?? throw new ArgumentNullException(nameof(networkManager));
+            networkManager = NetworkManager.Singleton;
         }
 
         public void RegisterHandler<T>(Action<ulong, T> handler) where T : unmanaged

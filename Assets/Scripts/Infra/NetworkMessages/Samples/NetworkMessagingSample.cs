@@ -26,8 +26,7 @@ namespace Scaffold.NetworkMessages.Samples
         public override void OnNetworkSpawn()
         {
             base.OnNetworkSpawn();
-
-            dispatcher = new NetworkMessageDispatcher(NetworkManager.Singleton);
+            dispatcher = new NetworkMessageDispatcher();
             dispatcher.RegisterHandler<SampleMessage>(OnSampleMessageReceived);
         }
 
