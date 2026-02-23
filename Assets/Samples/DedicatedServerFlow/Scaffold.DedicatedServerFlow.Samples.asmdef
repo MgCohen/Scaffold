@@ -1,0 +1,17 @@
+{
+    "name": "Scaffold.DedicatedServerFlow.Samples",
+    "rootNamespace": "Scaffold.DedicatedServerFlow.Samples",
+    "references": [
+        "Scaffold.Turns",
+        "Scaffold.States"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
