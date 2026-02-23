@@ -29,10 +29,10 @@ namespace Scaffold.Maps.Samples
             return indexer.Values;
         }
 
-        public IReadOnlyCollection<string> UseCaseUpdateEntryAndReevaluatePredicate()
+        public IReadOnlyCollection<string> UseCaseUpdateEntry_IndexerMembershipUnchangedByValue()
         {
             Map<string, int, string> people = CreatePeopleMap();
-            Indexer<string, int, string> indexer = people.AddIndexer("ActiveMatheusAdults", MatchesActiveMatheusAdult);
+            Indexer<string, int, string> indexer = people.AddIndexer("MatheusAdults", MatchesMatheusAdult);
             Index<string, int> index = new Index<string, int>("Matheus", 29);
             people[index] = "inactive";
             people[index] = "active";
@@ -51,14 +51,9 @@ namespace Scaffold.Maps.Samples
             people.Add("Ana", 29, "Ana-29");
         }
 
-        private bool MatchesMatheusAdult(string name, int age, string value)
+        private bool MatchesMatheusAdult(string name, int age)
         {
             return name == "Matheus" && age > 10;
-        }
-
-        private bool MatchesActiveMatheusAdult(string name, int age, string value)
-        {
-            return name == "Matheus" && age > 10 && value == "active";
         }
     }
 }

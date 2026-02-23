@@ -39,6 +39,18 @@ Apply these rules when implementing or refactoring any gameplay module that uses
 - **Changing current phase** → `store.Execute(new SetCurrentPhaseMutator(phase))`.
 - **TurnState** extends `State`; properties use `{ get; init; }`. Initial state is built by the builder and registered as a slice; the builder passes the Store into the controller.
 
+## 5. State is for game-related data only
+
+- **State is for transient, game-logic state**, not for persistent data or non-gameplay systems.
+- If ever in doubt about using State or not, **ask the user**.
+
+### Examples:
+
+- **Inventory** (Persistent / Menu): Do not use State.
+- **In-battle Inventory** (Transient / Logic): Use State.
+- **Player Health** (Transient / Logic): Use State.
+- **Player Leaderboard** (Social / UI): Do not use State.
+
 ## Summary
 
 | Need | Action |
@@ -47,3 +59,4 @@ Apply these rules when implementing or refactoring any gameplay module that uses
 | Change state | Create a `Mutator<TState>`, then `store.Execute(mutator)` |
 | Know "current" value | Get from Store |
 | Know "all possible" values | Use controller’s entity list |
+| Non-gameplay data | Use dedicated services/storage, not State |

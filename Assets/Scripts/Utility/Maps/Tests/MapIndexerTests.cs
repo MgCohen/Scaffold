@@ -40,16 +40,17 @@ namespace Scaffold.Maps.Tests
         }
 
         [Test]
-        public void SetByIndex_ReevaluatesPredicate()
+        public void SetByIndex_DoesNotRemoveFromIndexerWhenValueChanges()
         {
             Map<string, int, string> map = new Map<string, int, string>();
-            Indexer<string, int, string> indexer = map.AddIndexer("ActiveMatheusAdults", MatchesActiveMatheusAdult);
+            Indexer<string, int, string> indexer = map.AddIndexer("MatheusAdults", MatchesMatheusAdult);
+            map.Add("Matheus", 29, "Matheus-29");
             Index<string, int> index = new Index<string, int>("Matheus", 29);
             map[index] = "inactive";
             int countAfterInactive = indexer.Count;
             map[index] = "active";
             int countAfterActive = indexer.Count;
-            Assert.AreEqual(0, countAfterInactive);
+            Assert.AreEqual(1, countAfterInactive);
             Assert.AreEqual(1, countAfterActive);
         }
 
@@ -72,14 +73,9 @@ namespace Scaffold.Maps.Tests
             return map;
         }
 
-        private bool MatchesMatheusAdult(string name, int age, string value)
+        private bool MatchesMatheusAdult(string name, int age)
         {
             return name == "Matheus" && age > 10;
-        }
-
-        private bool MatchesActiveMatheusAdult(string name, int age, string value)
-        {
-            return name == "Matheus" && age > 10 && value == "active";
         }
 
         private bool ContainsValue(IReadOnlyCollection<string> values, string expected)

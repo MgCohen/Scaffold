@@ -5,28 +5,12 @@ namespace Scaffold.Maps
 {
     public class Map<TPrimary, TSecondary, TValue> : BaseMap<Index<TPrimary, TSecondary>, TValue>
     {
-        public Map() : base()
+        public Map()
         {
             predicateIndexers = new Dictionary<string, Indexer<TPrimary, TSecondary, TValue>>();
         }
 
         private readonly Dictionary<string, Indexer<TPrimary, TSecondary, TValue>> predicateIndexers;
-
-        public TValue this[TPrimary primary]
-        {
-            get
-            {
-                return this[primary, default];
-            }
-        }
-
-        public TValue this[TSecondary secondary]
-        {
-            get
-            {
-                return this[default, secondary];
-            }
-        }
 
         public TValue this[TPrimary primary, TSecondary secondary]
         {
@@ -35,9 +19,22 @@ namespace Scaffold.Maps
                 Index<TPrimary, TSecondary> index = CreateIndex(primary, secondary);
                 return this[index];
             }
+            set
+            {
+                Index<TPrimary, TSecondary> index = CreateIndex(primary, secondary);
+                bool hasHolder = TryGetHolder(index, out Holder<TValue> holder);
+                if (hasHolder)
+                {
+                    holder.Value = value;
+                }
+                else
+                {
+                    Add(index, value);
+                }
+            }
         }
 
-        public new TValue this[Index<TPrimary, TSecondary> index]
+        public override TValue this[Index<TPrimary, TSecondary> index]
         {
             get
             {
@@ -45,8 +42,15 @@ namespace Scaffold.Maps
             }
             set
             {
-                base[index] = value;
-                TrackEntry(index, value);
+                bool hasHolder = TryGetHolder(index, out Holder<TValue> holder);
+                if (hasHolder)
+                {
+                    holder.Value = value;
+                }
+                else
+                {
+                    Add(index, value);
+                }
             }
         }
 
@@ -66,10 +70,11 @@ namespace Scaffold.Maps
             Add(index, value);
         }
 
-        public new void Add(Index<TPrimary, TSecondary> index, TValue value)
+        public void Add(Index<TPrimary, TSecondary> index, TValue value)
         {
-            base.Add(index, value);
-            TrackEntry(index, value);
+            Holder<TValue> holder = new Holder<TValue>(value);
+            base.Add(index, holder);
+            TrackEntry(index, holder);
         }
 
         public bool Contains(TPrimary primary, TSecondary secondary)
@@ -84,7 +89,7 @@ namespace Scaffold.Maps
             return TryGetValue(index, out value);
         }
 
-        public Indexer<TPrimary, TSecondary, TValue> AddIndexer(string name, Func<TPrimary, TSecondary, TValue, bool> predicate)
+        public Indexer<TPrimary, TSecondary, TValue> AddIndexer(string name, Func<TPrimary, TSecondary, bool> predicate)
         {
             Indexer<TPrimary, TSecondary, TValue> indexer = CreateIndexer(name, predicate);
             RegisterIndexer(indexer);
@@ -113,26 +118,31 @@ namespace Scaffold.Maps
             return Remove(index);
         }
 
-        public new bool Remove(Index<TPrimary, TSecondary> index)
+        public override bool Remove(Index<TPrimary, TSecondary> index)
         {
+            bool hasHolder = TryGetHolder(index, out Holder<TValue> holder);
+            if (hasHolder == false)
+            {
+                return false;
+            }
             bool wasRemoved = base.Remove(index);
             if (wasRemoved)
             {
-                UntrackEntry(index);
+                UntrackEntry(holder);
             }
             return wasRemoved;
         }
 
-        public new void Clear()
+        public override void Clear()
         {
             base.Clear();
             ClearIndexers();
         }
 
-        private Indexer<TPrimary, TSecondary, TValue> CreateIndexer(string name, Func<TPrimary, TSecondary, TValue, bool> predicate)
+        private Indexer<TPrimary, TSecondary, TValue> CreateIndexer(string name, Func<TPrimary, TSecondary, bool> predicate)
         {
             Indexer<TPrimary, TSecondary, TValue> indexer = new Indexer<TPrimary, TSecondary, TValue>(name, predicate);
-            indexer.Rebuild(this);
+            indexer.Rebuild(GetEntries());
             return indexer;
         }
 
@@ -141,19 +151,19 @@ namespace Scaffold.Maps
             predicateIndexers.Add(indexer.Name, indexer);
         }
 
-        private void TrackEntry(Index<TPrimary, TSecondary> index, TValue value)
+        private void TrackEntry(Index<TPrimary, TSecondary> index, Holder<TValue> holder)
         {
             foreach (Indexer<TPrimary, TSecondary, TValue> indexer in predicateIndexers.Values)
             {
-                indexer.Track(index, value);
+                indexer.Track(index, holder);
             }
         }
 
-        private void UntrackEntry(Index<TPrimary, TSecondary> index)
+        private void UntrackEntry(Holder<TValue> holder)
         {
             foreach (Indexer<TPrimary, TSecondary, TValue> indexer in predicateIndexers.Values)
             {
-                indexer.Untrack(index);
+                indexer.Untrack(holder);
             }
         }
 

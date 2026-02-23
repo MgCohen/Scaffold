@@ -5,22 +5,28 @@ namespace Scaffold.Maps
 {
     public class Indexer<TPrimary, TSecondary, TValue>
     {
-        public Indexer(string name, Func<TPrimary, TSecondary, TValue, bool> predicate)
+        public Indexer(string name, Func<TPrimary, TSecondary, bool> predicate)
         {
             Name = ValidateName(name);
             this.predicate = ValidatePredicate(predicate);
-            values = new Dictionary<Index<TPrimary, TSecondary>, TValue>();
+            holders = new List<Holder<TValue>>();
         }
 
-        private readonly Func<TPrimary, TSecondary, TValue, bool> predicate;
-        private readonly Dictionary<Index<TPrimary, TSecondary>, TValue> values;
+        private readonly Func<TPrimary, TSecondary, bool> predicate;
+        private readonly List<Holder<TValue>> holders;
 
         public string Name { get; }
+
         public IReadOnlyCollection<TValue> Values
         {
             get
             {
-                return values.Values;
+                List<TValue> result = new List<TValue>(holders.Count);
+                foreach (Holder<TValue> holder in holders)
+                {
+                    result.Add(holder.Value);
+                }
+                return result;
             }
         }
 
@@ -28,45 +34,40 @@ namespace Scaffold.Maps
         {
             get
             {
-                return values.Count;
+                return holders.Count;
             }
         }
 
-        internal void Rebuild(IEnumerable<KeyValuePair<Index<TPrimary, TSecondary>, TValue>> entries)
+        internal void Rebuild(IEnumerable<KeyValuePair<Index<TPrimary, TSecondary>, Holder<TValue>>> entries)
         {
-            values.Clear();
-            foreach (KeyValuePair<Index<TPrimary, TSecondary>, TValue> entry in entries)
+            holders.Clear();
+            foreach (KeyValuePair<Index<TPrimary, TSecondary>, Holder<TValue>> entry in entries)
             {
                 Track(entry.Key, entry.Value);
             }
         }
 
-        internal void Track(Index<TPrimary, TSecondary> index, TValue value)
+        internal void Track(Index<TPrimary, TSecondary> index, Holder<TValue> holder)
         {
-            bool isMatch = Matches(index, value);
-            if (isMatch)
+            bool isMatch = predicate(index.primary, index.secondary);
+            if (isMatch && holders.Contains(holder) == false)
             {
-                values[index] = value;
+                holders.Add(holder);
             }
             if (isMatch == false)
             {
-                values.Remove(index);
+                holders.Remove(holder);
             }
         }
 
-        internal void Untrack(Index<TPrimary, TSecondary> index)
+        internal void Untrack(Holder<TValue> holder)
         {
-            values.Remove(index);
+            holders.Remove(holder);
         }
 
         internal void Clear()
         {
-            values.Clear();
-        }
-
-        private bool Matches(Index<TPrimary, TSecondary> index, TValue value)
-        {
-            return predicate(index.primary, index.secondary, value);
+            holders.Clear();
         }
 
         private string ValidateName(string name)
@@ -79,7 +80,7 @@ namespace Scaffold.Maps
             return name;
         }
 
-        private Func<TPrimary, TSecondary, TValue, bool> ValidatePredicate(Func<TPrimary, TSecondary, TValue, bool> predicate)
+        private Func<TPrimary, TSecondary, bool> ValidatePredicate(Func<TPrimary, TSecondary, bool> predicate)
         {
             if (predicate == null)
             {
