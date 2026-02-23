@@ -3,12 +3,11 @@ using System;
 namespace Scaffold.Commands
 {
     /// <summary>
-    /// Low-level transport shape used between queue and transport integrations.
-    /// Source id and source type are used by the internal queue stream key.
+    /// Low-level transport shape used by command transport adapters.
     /// </summary>
     public class CommandTransportMessage
     {
-        public CommandTransportMessage(ICommand message, CommandSourceType sourceType, ulong sourceId, long sequence, string messageId, DateTime createdAtUtc, string correlationId)
+        public CommandTransportMessage(ICommand message, string messageId, DateTime createdAtUtc, string correlationId)
         {
             var hasMessage = message != null;
             if (!hasMessage)
@@ -21,21 +20,12 @@ namespace Scaffold.Commands
                 throw new ArgumentException("Message id is required.", nameof(messageId));
             }
             Message = message;
-            SourceType = sourceType;
-            SourceId = sourceId;
-            Sequence = sequence;
             MessageId = messageId;
             CreatedAtUtc = createdAtUtc;
             CorrelationId = correlationId;
         }
 
         public ICommand Message { get; }
-
-        public CommandSourceType SourceType { get; }
-
-        public ulong SourceId { get; }
-
-        public long Sequence { get; }
 
         public string MessageId { get; }
 

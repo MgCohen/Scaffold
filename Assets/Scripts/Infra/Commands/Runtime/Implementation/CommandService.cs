@@ -4,24 +4,18 @@ using System.Collections.Generic;
 namespace Scaffold.Commands
 {
     /// <summary>
-    /// Instance-based command service with sender-ordered queueing and polymorphic subscriptions.
+    /// Instance-based command service with polymorphic subscriptions.
     /// </summary>
     public class CommandService : ICommandService, IDisposable
     {
         private readonly object syncRoot = new object();
         private readonly ICommandTransport transport;
-        private readonly CommandServiceOptions options;
-        private readonly CommandQueue queue;
         private readonly List<SubscriptionEntry> subscriptions = new List<SubscriptionEntry>();
-        private long nextOutgoingSequence;
         private bool isDisposed;
 
-        public CommandService(ICommandTransport commandTransport, CommandServiceOptions commandOptions = null)
+        public CommandService(ICommandTransport commandTransport)
         {
             transport = ResolveTransport(commandTransport);
-            options = ResolveOptions(commandOptions);
-            queue = CreateQueue(options);
-            nextOutgoingSequence = options.FirstOutgoingSequence;
             transport.AddReceiver(HandleIncomingMessage);
         }
 
@@ -82,23 +76,6 @@ namespace Scaffold.Commands
             return commandTransport;
         }
 
-        private CommandServiceOptions ResolveOptions(CommandServiceOptions commandOptions)
-        {
-            var hasOptions = commandOptions != null;
-            if (hasOptions)
-            {
-                return commandOptions;
-            }
-            var defaultOptions = CommandServiceOptions.CreateDefault();
-            return defaultOptions;
-        }
-
-        private CommandQueue CreateQueue(CommandServiceOptions commandOptions)
-        {
-            var commandQueue = new CommandQueue(commandOptions.FirstIncomingSequence, commandOptions.BootstrapIncomingFromFirstMessage);
-            return commandQueue;
-        }
-
         private void EnsureNotDisposed()
         {
             if (isDisposed)
@@ -113,27 +90,17 @@ namespace Scaffold.Commands
             var canProcess = hasMessage && !isDisposed;
             if (canProcess)
             {
-                var readyItems = EnqueueMessage(message);
-                DispatchItems(readyItems);
+                var dispatchItem = CreateDispatchItem(message);
+                DispatchItem(dispatchItem);
             }
         }
 
-        private List<CommandDispatchItem> EnqueueMessage(CommandTransportMessage message)
+        private CommandDispatchItem CreateDispatchItem(CommandTransportMessage message)
         {
-            List<CommandDispatchItem> readyItems;
-            lock (syncRoot)
-            {
-                readyItems = queue.Enqueue(message);
-            }
-            return readyItems;
-        }
-
-        private void DispatchItems(List<CommandDispatchItem> readyItems)
-        {
-            foreach (var readyItem in readyItems)
-            {
-                DispatchItem(readyItem);
-            }
+            var receivedAtUtc = DateTime.UtcNow;
+            var metadata = new CommandMetadata(message.MessageId, message.CreatedAtUtc, receivedAtUtc, message.CorrelationId);
+            var dispatchItem = new CommandDispatchItem(message.Message, metadata);
+            return dispatchItem;
         }
 
         private void DispatchItem(CommandDispatchItem readyItem)
@@ -168,22 +135,10 @@ namespace Scaffold.Commands
 
         private CommandTransportMessage CreateOutgoingMessage(ICommand command)
         {
-            var sequence = ReserveOutgoingSequence();
             var messageId = CreateMessageId();
             var createdAtUtc = DateTime.UtcNow;
-            var outgoingMessage = new CommandTransportMessage(command, options.LocalSourceType, options.LocalSourceId, sequence, messageId, createdAtUtc, string.Empty);
+            var outgoingMessage = new CommandTransportMessage(command, messageId, createdAtUtc, string.Empty);
             return outgoingMessage;
-        }
-
-        private long ReserveOutgoingSequence()
-        {
-            long sequence;
-            lock (syncRoot)
-            {
-                sequence = nextOutgoingSequence;
-                nextOutgoingSequence = nextOutgoingSequence + 1;
-            }
-            return sequence;
         }
 
         private string CreateMessageId()

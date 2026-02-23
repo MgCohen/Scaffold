@@ -4,7 +4,8 @@ using System.Collections.Generic;
 namespace Scaffold.NetworkMessages
 {
     /// <summary>
-    /// Contract for a service capable of routing strongly typed unmanaged structs over the network.
+    /// Contract for routing strongly typed unmanaged structs over the network.
+    /// Implementations can apply internal ordering and recovery for out-of-order payloads.
     /// </summary>
     public interface INetworkMessageDispatcher
     {
