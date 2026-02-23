@@ -184,3 +184,34 @@ Choose the appropriate event-driven approach based on the scope:
 - **Direct 1-to-1**: Use direct callbacks (e.g., passing an `Action` or delegate to a specific object).
 - **1-to-many**: Use standard C# `Action` or events.
 - **Many-to-many or Anonymous**: Use the **Scaffold Events system** when either the caller or the sender is anonymous, or when broadcasting to many disconnected systems.
+
+## Argument validation
+
+- **Validate arguments at every API boundary**: constructors, and **public** or **protected** methods. Also validate parameters of **internal** methods that act as entry points for a module.
+- **Do not validate again** in private methods that are only called by code that has already validated the same inputs.
+- **Use Stef.Validation** for argument validation: `Guard.NotNull`, `Guard.NotNullOrEmpty`, `Guard.NotNullOrWhiteSpace`, `Guard.Condition`, and related Guard methods. Add `using Stef.Validation;` where needed. Prefer Guard methods over throwing `ArgumentNullException` or `ArgumentException` directly for consistency.
+- **Custom exceptions:** Use custom exception types when the failure reason is **domain-specific** or when a standard `Argument*Exception` would be unclear (e.g. `InvalidMatchStateException`). For simple null, empty, or range violations, use Guard.
+- **Validate then delegate:** After validating and resolving parameters, delegate the real work to a separate method. The entry-point method must: (1) validate all arguments with Guard; (2) resolve or fetch any additional data needed (e.g. from the store or a resolver); (3) call a **private** or **internal** method that contains the implementation. Keep the entry-point method short; put the implementation in the second method.
+
+```csharp
+// ❌ Validation and logic mixed in one long method
+public void StartTurn(IReference reference)
+{
+    Guard.NotNull(reference, nameof(reference));
+    var state = store.Get<TurnState>(reference);
+    // ... many lines of logic inline
+}
+
+// ✅ Validate and fetch at boundary; logic in second method (same name, different parameters)
+public void StartTurn(IReference reference)
+{
+    Guard.NotNull(reference, nameof(reference));
+    var state = store.Get<TurnState>(reference);
+    StartTurn(reference, state);
+}
+
+private void StartTurn(IReference reference, TurnState state)
+{
+    // implementation here
+}
+```
