@@ -1,0 +1,23 @@
+{
+    "name": "Scaffold.Turns.Tests",
+    "rootNamespace": "Scaffold.Turns.DedicatedServerFlow.Tests",
+    "references": [
+        "Scaffold.Turns"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false,
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
+}
