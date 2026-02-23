@@ -36,6 +36,10 @@ graph TD
         NavContainer["Scaffold.Navigation.Container"]
     end
 
+    subgraph "Infra — Commands"
+        Commands["Scaffold.Commands"]
+    end
+
     subgraph "Infra — NetworkMessages"
         NetMsg["Scaffold.NetworkMessages"]
     end
@@ -129,10 +133,20 @@ graph TD
 
 ---
 
+### Commands
+
+| Assembly | Depends On | Why |
+|----------|-----------|-----|
+| **Scaffold.Commands** | - | Defines command service, sender-ordered queueing, and transport contracts |
+
+> Leaf module — no Infra or external package dependencies.
+
+---
+
 ## Layered Architecture Summary
 
 ```
-Layer 0 (no Infra deps)    Containers ·  NetworkMessages
+Layer 0 (no Infra deps)    Containers · Commands · NetworkMessages
 Layer 1                     Events  ·  Navigation
 Layer 2                     Events.Container  ·  Navigation.Container  ·  MVVM
 Layer 3                     MVVM.Extensions

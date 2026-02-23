@@ -1,19 +1,22 @@
-namespace Scaffold.NetworkMessages
+namespace Scaffold.Commands
 {
     /// <summary>
-    /// Configuration for command service sequencing and sender identity.
+    /// Service configuration for local source identity and sequence behavior.
     /// </summary>
     public class CommandServiceOptions
     {
-        public CommandServiceOptions(CommandSource localSource, long firstOutgoingSequence, long firstIncomingSequence, bool bootstrapIncomingFromFirstMessage)
+        public CommandServiceOptions(CommandSourceType localSourceType, ulong localSourceId, long firstOutgoingSequence, long firstIncomingSequence, bool bootstrapIncomingFromFirstMessage)
         {
-            LocalSource = localSource;
+            LocalSourceType = localSourceType;
+            LocalSourceId = localSourceId;
             FirstOutgoingSequence = firstOutgoingSequence;
             FirstIncomingSequence = firstIncomingSequence;
             BootstrapIncomingFromFirstMessage = bootstrapIncomingFromFirstMessage;
         }
 
-        public CommandSource LocalSource { get; }
+        public CommandSourceType LocalSourceType { get; }
+
+        public ulong LocalSourceId { get; }
 
         public long FirstOutgoingSequence { get; }
 
@@ -23,8 +26,7 @@ namespace Scaffold.NetworkMessages
 
         public static CommandServiceOptions CreateDefault()
         {
-            var localSource = new CommandSource(CommandSourceType.Local, 0);
-            var options = new CommandServiceOptions(localSource, 1, 1, true);
+            var options = new CommandServiceOptions(CommandSourceType.Local, 0, 1, 1, true);
             return options;
         }
     }

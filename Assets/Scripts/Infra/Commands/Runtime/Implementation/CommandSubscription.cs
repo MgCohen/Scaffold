@@ -1,9 +1,9 @@
 using System;
 
-namespace Scaffold.NetworkMessages
+namespace Scaffold.Commands
 {
     /// <summary>
-    /// Disposable token used to remove command subscriptions.
+    /// Disposable token used to unregister command listeners.
     /// </summary>
     public class CommandSubscription : IDisposable
     {
@@ -20,8 +20,8 @@ namespace Scaffold.NetworkMessages
             if (!isDisposed)
             {
                 isDisposed = true;
-                var callback = onDispose;
-                callback?.Invoke();
+                var disposeAction = onDispose;
+                disposeAction?.Invoke();
             }
         }
     }

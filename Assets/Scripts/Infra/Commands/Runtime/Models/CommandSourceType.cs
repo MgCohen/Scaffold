@@ -1,7 +1,7 @@
-namespace Scaffold.NetworkMessages
+namespace Scaffold.Commands
 {
     /// <summary>
-    /// Logical source categories that identify where commands originate.
+    /// Source categories used by transport and queue stream identity.
     /// </summary>
     public enum CommandSourceType
     {
