@@ -155,14 +155,23 @@ namespace GameModule.ModuleFetchData
             SaveModuleDataToCache(moduleData.Key);
         }
 
-        public void SaveModuleDataToCache(params string[] moduleKeys)
-        {
-            objectsToSave.AddRange(moduleKeys);
-        }
-
         public void SaveModuleDataToCache(List<string> moduleKeys)
         {
-            objectsToSave.AddRange(moduleKeys);
+            foreach (string moduleKey in moduleKeys)
+            {
+                SaveModuleDataToCache(moduleKey);
+            }
+        }
+
+        public void SaveModuleDataToCache(params string[] moduleKeys)
+        {
+            foreach (string moduleKey in moduleKeys)
+            {
+                if (!objectsToSave.Contains(moduleKey))
+                {
+                    objectsToSave.Add(moduleKey);
+                }
+            }
         }
 
         public async Task SaveModuleData(IExecutionContext context)
