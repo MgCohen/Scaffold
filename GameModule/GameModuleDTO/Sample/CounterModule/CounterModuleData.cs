@@ -5,11 +5,12 @@ namespace GameModuleDTO.Sample.CounterModule
 {
     public class CounterModuleData : IGameModuleData
     {
-        public static string StaticKey { get { return nameof(CounterModuleData); } }
-        public string Key { get { return StaticKey; } }
+        public string Key { get { return GameDataExtensions.GetKey<CounterModuleData>(); } }
 
         [JsonProperty]
         private int value;
+        [JsonIgnore]
+        public int Value { get { return value; } }
 
         public void IncreaseValue(int increment)
         {

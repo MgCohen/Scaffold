@@ -1,4 +1,4 @@
-using GameModuleDTO.GameModule;
+using Newtonsoft.Json;
 
 namespace GameModuleDTO.ModuleRequests
 {
@@ -7,10 +7,11 @@ namespace GameModuleDTO.ModuleRequests
         public ResponseStatusType StatusType { get; private set; }
         public string Message { get; private set; } = "";
         public List<ModuleResponse> Responses { get; protected set; } = new List<ModuleResponse>();
-        public List<IGameModuleData> GameModuleDatas  { get; protected set; } = new List<IGameModuleData>();
+        [JsonIgnore]
+        public ModuleDataToSave? ModuleDataToSave { get; protected set; }
 
         public abstract bool IsValid();
-        
+
         public bool IsSuccess()
         {
             return StatusType == ResponseStatusType.Success;
@@ -21,89 +22,38 @@ namespace GameModuleDTO.ModuleRequests
             StatusType = status;
             Message = message;
         }
+
         public void SetResponseFailure(string message)
         {
             SetResponse(ResponseStatusType.Failure, message);
         }
-        
+
         public void SetResponseError(string message)
         {
             SetResponse(ResponseStatusType.Error, message);
         }
-        
+
         public void SetResponseException(string message)
         {
             SetResponse(ResponseStatusType.Exception, $"Failed with exception: \n{message}");
         }
 
-        public void ClearGameModuleDatas()
-        {
-            GameModuleDatas.Clear();
-        }
-
-        public void AddModulesData(List<IGameModuleData> moduleList)
-        {
-            if (moduleList.Any())
-            {
-                return;
-            }
-            
-            foreach (IGameModuleData module in moduleList)
-            {
-                AddModuleData(module);
-            }
-        }
-        
-        public void AddChildModulesData(List<IGameModuleData> moduleList)
-        {
-            if (moduleList.Any())
-            {
-                return;
-            }
-            
-            AddModulesData(moduleList);
-            moduleList.Clear();
-        }
-
-        public void AddModuleData(IGameModuleData module)
-        {
-            if (module == null)
-            {
-                return;
-            }
-
-            for (int i = 0; i < GameModuleDatas.Count; i++)
-            {
-                if (GameModuleDatas[i].GetType() == module.GetType())
-                {
-                    GameModuleDatas[i] = module;
-                    return;
-                }
-            }
-
-            GameModuleDatas.Add(module);
-        }
-        
-        
-        public void AddResponse(ModuleResponse response)
-        {
-            if (response == null)
-            {
-                return;
-            }
-            
-            AddChildModulesData(response.GameModuleDatas);
-            Responses.Add(response);
-        }
-        
         protected T GetModuleResponse<T>() where T : ModuleResponse
         {
             return (T)Responses.FirstOrDefault(x => x.GetType() == typeof(T));
         }
-        
-        protected T GetModuleData<T>() where T : IGameModuleData
+
+        // Override if
+        // 1. You only want to save data if StatusType == ResponseStatusType.Success
+        // 2. You need to add or remove modules to the list
+        public virtual List<string> GetModulesUsed()
         {
-            return (T)GameModuleDatas.FirstOrDefault(x => x.GetType() == typeof(T));
+            if (ModuleDataToSave == null)
+            {
+                return [];
+            }
+
+            return ModuleDataToSave.ModulesRequired;
         }
     }
 }

@@ -5,15 +5,21 @@ namespace GameModuleDTO.Sample.ReactiveModule
 {
     public class ReactiveModuleData : IGameModuleData
     {
-        public static string StaticKey { get { return nameof(ReactiveModuleData); } }
-        public string Key { get { return StaticKey; } }
+        public string Key { get { return GameDataExtensions.GetKey<ReactiveModuleData>(); } }
 
         [JsonProperty]
-        private int value;
+        private int valueA;
+        [JsonProperty]
+        private int valueB;
+
+        public void IncreaseValueA(int increment)
+        {
+            valueA += increment;
+        }
 
         public void IncreaseValue(int increment)
         {
-            value += increment;
+            valueB += increment;
         }
     }
 }

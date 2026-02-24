@@ -19,7 +19,7 @@ namespace GameModule.ModuleFetchData
             this.logger = logger;
             this.gameApiClient = gameApiClient;
         }
-        
+
         public PlayerData(ILogger<PlayerData> logger, IGameApiClient gameApiClient, string playerId) : base(logger, gameApiClient, playerId)
         {
             this.logger = logger;
@@ -72,7 +72,7 @@ namespace GameModule.ModuleFetchData
                     if (writeLockCache.TryGetValue(item.Key, out string writeLock))
                     {
                         item.WriteLock = writeLock;
-                    } 
+                    }
                 }
             }
             SetItemBatchBody request = new SetItemBatchBody(values);

@@ -1,45 +1,49 @@
 using System.Threading.Tasks;
-using GameModule.GameModule;
 using GameModule.ModuleFetchData;
 using GameModuleDTO.GameModule;
 using GameModuleDTO.Sample.ReactiveModule;
+using GameModule.Response;
+using GameModule.Signal;
 using Microsoft.Extensions.Logging;
 using Unity.Services.CloudCode.Core;
+using GameModuleDTO.ModuleRequests;
 
 namespace GameModule.Sample
 {
-    public class ReactiveModule: IGameModule
+    public class ReactiveModule : GameModuleT<ReactiveModuleData>
     {
-        public ReactiveModule(ILogger<ReactiveModule> logger, IExecutionContext context, PlayerData playerData, CounterModule counterModule)
+        public ReactiveModule(ILogger<ReactiveModule> logger, ModuleRequestHandler moduleRequestHandler, IExecutionContext context, PlayerData playerData, SignalModule signalModule)
         {
             _logger = logger;
-            _counterModule = counterModule;
+            _moduleRequestHandler = moduleRequestHandler;
+            _signalModule = signalModule;
             _playerData = playerData;
             _context = context;
         }
-                
+
         private readonly ILogger<ReactiveModule> _logger;
-        private CounterModule _counterModule;
-        private PlayerData _playerData;
-        private IExecutionContext _context;
-        
+        private readonly ModuleRequestHandler _moduleRequestHandler;
+        private readonly SignalModule _signalModule;
+        private readonly PlayerData _playerData;
+        private readonly IExecutionContext _context;
+
         #region IGameModule implementation
-        public bool Client { get { return true; } }
-        public bool Server { get; }
-        public string Key { get { return ReactiveModuleData.StaticKey; } }
-        
+        public override bool Client { get { return true; } }
+        public override bool Server { get; }
+
         public async Task<IGameModuleData> Initialize(IExecutionContext context, PlayerData playerData, GameState gameState, RemoteConfig remoteConfig)
         {
-            _counterModule.OnValueChange += OnCounterValueChange;
+            _signalModule.Subscribe<IncrementCounterRequest>(OnCounterRequestResolve);
             return await playerData.GetOrSet<ReactiveModuleData>(context);
         }
 
-        private async void OnCounterValueChange(int value)
+        private async void OnCounterRequestResolve(IncrementCounterRequest request)
         {
             ReactiveModuleData reactiveModuleData = await _playerData.GetOrSet<ReactiveModuleData>(_context);
-            reactiveModuleData.IncreaseValue(value);
+            int valueToIncrement = 2;
+            reactiveModuleData.IncreaseValue(valueToIncrement);
+            _moduleRequestHandler.AddResponse(new ReactiveCounterResponse(valueToIncrement));
         }
-
         #endregion
     }
 }

@@ -6,6 +6,8 @@ using Unity.Services.CloudCode.Apis;
 using Unity.Services.CloudCode.Core;
 using GameModuleDTO.Json;
 using Unity.Services.CloudSave.Model;
+using System.Linq;
+using GameModule.Signal;
 
 namespace GameModule.ModuleFetchData
 {
@@ -32,7 +34,8 @@ namespace GameModule.ModuleFetchData
 
         protected Dictionary<string, string> cache = new Dictionary<string, string>();
         protected Dictionary<string, object> objectCache = new Dictionary<string, object>();
-        
+        protected List<string> objectsToSave = new List<string>();
+
         protected abstract Task<Dictionary<string, string>> FetchData(IExecutionContext context);
         protected abstract Task SaveData(IExecutionContext context, string key, object value, bool useWriteLock);
         protected abstract Task SaveBatchData(IExecutionContext context, List<SetItemBody> values, bool useWriteLock);
@@ -70,7 +73,7 @@ namespace GameModule.ModuleFetchData
         {
             return $"'{key}'";
         }
-        
+
         protected async Task Initialize(IExecutionContext context)
         {
             cache = await FetchData(context);
@@ -78,11 +81,11 @@ namespace GameModule.ModuleFetchData
             accessToken = context.AccessToken;
             logger.LogInformation($"[{GetType().Name}] Refreshed cache for player {playerId}");
         }
-        
+
         public async Task<T> Get<T>(IExecutionContext context, string key, T defaultValue)
         {
             await InitializeData(context);
-            
+
             if (objectCache.TryGetValue(key, out object? cachedObj) && cachedObj is T cachedTyped)
             {
                 logger.LogInformation($"[{GetType().Name}.Get] Key {GetDebugKey(key)}  for player: '{playerId}' with cached value of type '{typeof(T).FullName}' from cache.");
@@ -100,7 +103,7 @@ namespace GameModule.ModuleFetchData
             logger.LogInformation($"[{GetType().Name}.Get] Key {GetDebugKey(key)} for player: '{playerId}' not found of type '{typeof(T).FullName}', returning default value.");
             return defaultValue;
         }
-        
+
         //This does not update objectCache, be aware if you need to edit or get cached values
         public async Task<Dictionary<string, T>> GetAllValues<T>(IExecutionContext context)
         {
@@ -116,19 +119,17 @@ namespace GameModule.ModuleFetchData
 
         private void InternalSet(string key, object value)
         {
-            //string json = value.ToInternalJson();
-            //cache[key] = json;
             objectCache[key] = value;
             logger.LogInformation($"[{GetType().Name}.Set] Saved key {GetDebugKey(key)} for player: '{playerId}', value: {value.ToJson()}.");
         }
-        
+
         public async Task Set(IExecutionContext context, string key, object value, bool useWriteLock = false)
         {
             await InitializeData(context);
             InternalSet(key, value);
             await SaveData(context, key, value, useWriteLock);
         }
-        
+
         public async Task Set(IExecutionContext context, IGameModuleData value, bool useWriteLock = false)
         {
             await Set(context, value.Key, value, useWriteLock);
@@ -149,6 +150,37 @@ namespace GameModule.ModuleFetchData
             await SaveBatchData(context, values, useWriteLock);
         }
 
+        public void SaveModuleDataToCache(IGameModuleData moduleData)
+        {
+            SaveModuleDataToCache(moduleData.Key);
+        }
+
+        public void SaveModuleDataToCache(params string[] moduleKeys)
+        {
+            objectsToSave.AddRange(moduleKeys);
+        }
+
+        public void SaveModuleDataToCache(List<string> moduleKeys)
+        {
+            objectsToSave.AddRange(moduleKeys);
+        }
+
+        public async Task SaveModuleData(IExecutionContext context)
+        {
+            if (objectsToSave.Any())
+            {
+                List<SetItemBody> items = new List<SetItemBody>();
+                foreach (string moduleData in objectsToSave)
+                {
+                    if (objectCache.TryGetValue(moduleData, out object? cachedObj) && cachedObj != null)
+                    {
+                        items.Add(new SetItemBody(moduleData, cachedObj));
+                    }
+                }
+                await SetBatch(context, items);
+            }
+        }
+
         public async Task<bool> Exists(IExecutionContext context, string key)
         {
             await InitializeData(context);
@@ -165,13 +197,13 @@ namespace GameModule.ModuleFetchData
             await Set(context, key, defaultValue, useWriteLock);
             return defaultValue;
         }
-        
+
         public async Task<T> GetOrSet<T>(IExecutionContext context, T defaultValue = default, bool useWriteLock = false) where T : IGameModuleData
         {
-            string key = defaultValue.Key;
+            string key = GameDataExtensions.GetKey<T>();
             if (await Exists(context, key))
             {
-                return await Get<T>(context, key, defaultValue);
+                return await Get(context, key, defaultValue);
             }
 
             await Set(context, key, defaultValue, useWriteLock);

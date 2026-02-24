@@ -1,10 +1,9 @@
 using GameModuleDTO.GameModule;
 
-namespace GameModuleDTO.Sample.SimpleModuleData
+namespace GameModuleDTO.Sample.SimpleModule
 {
     public class SimpleModuleData : IGameModuleData
     {
-        public static string StaticKey { get { return nameof(SimpleModuleData); } }
-        public string Key { get { return StaticKey; } }
+        public string Key { get { return GameDataExtensions.GetKey<SimpleModuleData>(); } }
     }
 }

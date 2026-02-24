@@ -15,15 +15,18 @@ namespace GameModule.GameModule
     public class GameModulesController
     {
         private readonly ILogger<GameModulesController> _logger;
+        private readonly ModuleRequestHandler _moduleRequestHandler;
         private readonly PlayerData _playerData;
         private readonly RemoteConfig _remoteConfig;
 
         public GameModulesController(
-            ILogger<GameModulesController> logger, 
-            PlayerData playerData, 
+            ILogger<GameModulesController> logger,
+            ModuleRequestHandler moduleRequestHandler,
+            PlayerData playerData,
             RemoteConfig remoteConfig)
         {
             _logger = logger;
+            _moduleRequestHandler = moduleRequestHandler;
             _playerData = playerData;
             _remoteConfig = remoteConfig;
         }
@@ -34,7 +37,7 @@ namespace GameModule.GameModule
             _logger.LogInformation("[InitializeModules] Starting");
             return await ProcessModulesSequentially(context, gameState, modules, request);
         }
-        
+
         [CloudCodeFunction(nameof(GameDataRequest))]
         public async Task<GameDataResponse> GetGameModulesRequest(IExecutionContext context, GameState gameState, GameDataRequest request, IEnumerable<IGameModule> modules)
         {
@@ -43,14 +46,14 @@ namespace GameModule.GameModule
         }
 
         private async Task<T> ProcessModulesSequentially<T>(
-            IExecutionContext context, 
-            GameState gameState, 
-            IEnumerable<IGameModule> modules, 
+            IExecutionContext context,
+            GameState gameState,
+            IEnumerable<IGameModule> modules,
             ModuleRequestT<T> request,
             IReadOnlyCollection<string> filterKeys = null) where T : ModuleResponse
         {
             request.AssertModule();
-    
+
             // 1. Initialize the response type. 
             // If T is GameDataResponse, we pass the gameData object into it.
             GameData gameData = new GameData();
@@ -84,9 +87,9 @@ namespace GameModule.GameModule
                     _logger.LogError(e, "Error on module {ModuleKey}: {Message}", gameModule.Key, e.Message);
                 }
             }
-            
+
             T? response = new GameDataResponse(gameData) as T;
-            return await request.ResolveResponse(response, context, _playerData);
+            return await _moduleRequestHandler.ResolveResponse(request, response, context, _playerData);
         }
     }
 }
