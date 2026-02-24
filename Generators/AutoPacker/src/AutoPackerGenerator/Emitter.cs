@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Text;
 using Microsoft.CodeAnalysis;
+using Scaffold.AutoPacker;
 
 namespace AutoPackerGenerator
 {
@@ -31,6 +32,7 @@ namespace AutoPackerGenerator
         private static void AppendUsings(StringBuilder sb, IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> fields)
         {
             sb.AppendLine("using System;");
+            sb.AppendLine("using Scaffold.AutoPacker;");
             foreach (var ns in CollectConversionNamespaces(fields))
                 sb.AppendLine($"using {ns};");
             sb.AppendLine();
@@ -80,7 +82,7 @@ namespace AutoPackerGenerator
             string i1 = indented ? "        " : "    ";
             string i2 = indented ? "            " : "        ";
 
-            sb.AppendLine($"{i1}public {type.Name}({type.Name}.Serializable packedData, {nameof(IPackingHandler)} resolver = null)");
+            sb.AppendLine($"{i1}public {type.Name}({type.Name}.Packed packedData, {nameof(IPackingHandler)} resolver = null)");
             sb.AppendLine($"{i1}{{");
             sb.AppendLine($"{i2}resolver ??= new DefaultPackingHandler();");
             foreach (var tuple in fields)

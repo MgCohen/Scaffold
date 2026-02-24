@@ -38,12 +38,6 @@ namespace AutoPackerGenerator
                 var typeSymbol = pair.Key;
                 var fields = pair.Value;
 
-                if (fields.Count == 0)
-                {
-                    ReportNoFields(context, typeSymbol);
-                    continue;
-                }
-
                 bool hasErrors = false;
                 foreach (var tuple in fields)
                 {
@@ -71,12 +65,6 @@ namespace AutoPackerGenerator
         {
             var source = Emitter.EmitRegistry(types);
             context.AddSource("AutoPackerRegistry.g.cs", SourceText.From(source, Encoding.UTF8));
-        }
-
-        private static void ReportNoFields(GeneratorExecutionContext context, INamedTypeSymbol typeSymbol)
-        {
-            var location = typeSymbol.Locations.Length > 0 ? typeSymbol.Locations[0] : Location.None;
-            //context.ReportDiagnostic(Diagnostic.Create(NoSerializedFieldsDiagnostic, location, typeSymbol.Name));
         }
 
         private static void EmitPartial(GeneratorExecutionContext context, INamedTypeSymbol typeSymbol, List<(IFieldSymbol Field, ITypeSymbol TargetType)> fields)

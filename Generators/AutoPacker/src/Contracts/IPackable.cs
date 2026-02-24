@@ -1,6 +1,9 @@
 using System;
 
-public interface IPackable
+namespace Scaffold.AutoPacker
 {
-    IPackedStruct Pack(IPackingHandler resolver = null);
+    public interface IPackable
+    {
+        IPackedStruct Pack(IPackingHandler resolver = null);
+    }
 }

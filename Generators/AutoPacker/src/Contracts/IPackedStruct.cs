@@ -1,6 +1,9 @@
 using System;
 
-public interface IPackedStruct
+namespace Scaffold.AutoPacker
 {
-    Type PackedType { get; }
+    public interface IPackedStruct
+    {
+        Type PackedType { get; }
+    }
 }

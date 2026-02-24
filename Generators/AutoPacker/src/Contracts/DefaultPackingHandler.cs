@@ -1,11 +1,14 @@
 using System;
 
-public class DefaultPackingHandler : IPackingHandler
+namespace Scaffold.AutoPacker
 {
-    public TTarget Resolve<TSource, TTarget>(TSource source)
+    public class DefaultPackingHandler : IPackingHandler
     {
-        if (source == null) return default;
-        if (source is TTarget target) return target;
-        return (TTarget)Convert.ChangeType(source, typeof(TTarget));
+        public TTarget Resolve<TSource, TTarget>(TSource source)
+        {
+            if (source == null) return default;
+            if (source is TTarget target) return target;
+            return (TTarget)Convert.ChangeType(source, typeof(TTarget));
+        }
     }
 }

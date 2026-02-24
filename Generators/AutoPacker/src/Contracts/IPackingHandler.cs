@@ -1,6 +1,9 @@
 using System;
 
-public interface IPackingHandler
+namespace Scaffold.AutoPacker
 {
-    TTarget Resolve<TSource, TTarget>(TSource source);
+    public interface IPackingHandler
+    {
+        TTarget Resolve<TSource, TTarget>(TSource source);
+    }
 }

@@ -1,6 +1,6 @@
 {
     "name": "Scaffold.AutoPacker",
-    "rootNamespace": "Scaffold.AutoPacker",
+    "rootNamespace": "",
     "references": [],
     "includePlatforms": [],
     "excludePlatforms": [],

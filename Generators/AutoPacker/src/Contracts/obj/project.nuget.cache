@@ -1,11 +1,11 @@
 {
   "version": 2,
-  "dgSpecHash": "DcRJcXoYJGk=",
+  "dgSpecHash": "zHGjmAxAPZ8=",
   "success": true,
-  "projectFilePath": "C:\\Users\\user\\Documents\\Unity\\Scaffold\\Generators\\Custom Serializable\\src\\Contracts\\AutoPackerContracts.csproj",
+  "projectFilePath": "C:\\Users\\user\\Documents\\Unity\\Scaffold\\Generators\\AutoPacker\\src\\Contracts\\AutoPackerContracts.csproj",
   "expectedPackageFiles": [
-    "C:\\Users\\user\\.nuget\\packages\\microsoft.netcore.platforms\\1.1.0\\microsoft.netcore.platforms.1.1.0.nupkg.sha512",
-    "C:\\Users\\user\\.nuget\\packages\\netstandard.library\\2.0.3\\netstandard.library.2.0.3.nupkg.sha512"
+    "C:\\Users\\user\\AppData\\Local\\Temp\\cursor-sandbox-cache\\65525f5d4be14bf13f0308d81c49ca62\\nuget\\microsoft.netcore.platforms\\1.1.0\\microsoft.netcore.platforms.1.1.0.nupkg.sha512",
+    "C:\\Users\\user\\AppData\\Local\\Temp\\cursor-sandbox-cache\\65525f5d4be14bf13f0308d81c49ca62\\nuget\\netstandard.library\\2.0.3\\netstandard.library.2.0.3.nupkg.sha512"
   ],
   "logs": []
 }
