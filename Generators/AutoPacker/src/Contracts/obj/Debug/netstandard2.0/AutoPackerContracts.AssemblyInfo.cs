@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("AutoPackerContracts")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+01e1411790071a82321d87eec37c9820178f2354")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+135a48e133e39912bf359d0e8b1f605575323e51")]
 [assembly: System.Reflection.AssemblyProductAttribute("AutoPackerContracts")]
 [assembly: System.Reflection.AssemblyTitleAttribute("AutoPackerContracts")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

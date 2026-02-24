@@ -82,11 +82,11 @@ namespace AutoPackerGenerator
             string i1 = indented ? "        " : "    ";
             string i2 = indented ? "            " : "        ";
 
-            sb.AppendLine($"{i1}public {type.Name}({type.Name}.Packed packedData, {nameof(IPackingHandler)} resolver = null)");
+            sb.AppendLine($"{i1}public {type.Name}({type.Name}.Packed packedData, {nameof(IPackingHandler)} handler = null)");
             sb.AppendLine($"{i1}{{");
-            sb.AppendLine($"{i2}resolver ??= new DefaultPackingHandler();");
+            sb.AppendLine($"{i2}handler ??= new DefaultPackingHandler();");
             foreach (var tuple in fields)
-                AppendFieldAssignment(sb, tuple.Field, tuple.TargetType, "packedData", "resolver", convertToPacked: false, i2);
+                AppendFieldAssignment(sb, tuple.Field, tuple.TargetType, "packedData", "handler", convertToPacked: false, i2);
             sb.AppendLine($"{i1}}}");
             sb.AppendLine();
         }
@@ -94,9 +94,9 @@ namespace AutoPackerGenerator
         private static void AppendPackMethod(StringBuilder sb, bool indented)
         {
             string i1 = indented ? "        " : "    ";
-            sb.AppendLine($"{i1}public {nameof(IPackedStruct)} Pack({nameof(IPackingHandler)} resolver = null)");
+            sb.AppendLine($"{i1}public {nameof(IPackedStruct)} Pack({nameof(IPackingHandler)} handler = null)");
             sb.AppendLine($"{i1}{{");
-            sb.AppendLine($"{i1}    return new Packed(this, resolver);");
+            sb.AppendLine($"{i1}    return new Packed(this, handler);");
             sb.AppendLine($"{i1}}}");
             sb.AppendLine();
         }
@@ -120,11 +120,11 @@ namespace AutoPackerGenerator
 
         private static void AppendPackedConstructor(StringBuilder sb, INamedTypeSymbol type, IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> fields, string i2, string i3)
         {
-            sb.AppendLine($"{i2}public Packed({type.Name} source, {nameof(IPackingHandler)} resolver = null)");
+            sb.AppendLine($"{i2}public Packed({type.Name} source, {nameof(IPackingHandler)} handler = null)");
             sb.AppendLine($"{i2}{{");
-            sb.AppendLine($"{i3}resolver ??= new DefaultPackingHandler();");
+            sb.AppendLine($"{i3}handler ??= new DefaultPackingHandler();");
             foreach (var tuple in fields)
-                AppendFieldAssignment(sb, tuple.Field, tuple.TargetType, "source", "resolver", convertToPacked: true, i3);;
+                AppendFieldAssignment(sb, tuple.Field, tuple.TargetType, "source", "handler", convertToPacked: true, i3);;
             sb.AppendLine($"{i2}}}");
             sb.AppendLine();
         }
@@ -159,41 +159,28 @@ namespace AutoPackerGenerator
             IFieldSymbol field,
             ITypeSymbol targetType,
             string sourceName,
-            string resolverName,
+            string handlerName,
             bool convertToPacked,
-            string indent)
-        {
-            if (targetType != null)
-            {
-                var sourceTypeName = field.Type.ToDisplayString();
-                var targetTypeName = targetType.ToDisplayString();
-                var fromType = convertToPacked ? sourceTypeName : targetTypeName;
-                var toType = convertToPacked ? targetTypeName : sourceTypeName;
-                sb.AppendLine($"{indent}{field.Name} = {resolverName}.Resolve<{fromType}, {toType}>({sourceName}.{field.Name});");
-            }
-            else if (TypeConversions.TryGetConversion(field.Type, out var targetFull))
-            {
-                AppendConvertedAssignment(sb, field, sourceName, convertToPacked, targetFull, indent);
-            }
-            else
-            {
-                sb.AppendLine($"{indent}{field.Name} = {sourceName}.{field.Name};");
-            }
-        }
-
-        private static void AppendConvertedAssignment(
-            StringBuilder sb,
-            IFieldSymbol field,
-            string sourceName,
-            bool convertToPacked,
-            string targetFull,
             string indent)
         {
             var sourceTypeName = field.Type.ToDisplayString();
-            var targetShortName = TypeConversions.GetShortName(targetFull);
-            var fromType = convertToPacked ? sourceTypeName : targetShortName;
-            var toType = convertToPacked ? targetShortName : sourceTypeName;
-            sb.AppendLine($"{indent}{field.Name} = {sourceName}.{field.Name}.ConvertTo<{fromType}, {toType}>();");
+            string targetTypeName;
+            if (targetType != null)
+            {
+                targetTypeName = targetType.ToDisplayString();
+            }
+            else if (TypeConversions.TryGetConversion(field.Type, out var targetFull))
+            {
+                targetTypeName = targetFull;
+            }
+            else
+            {
+                targetTypeName = sourceTypeName;
+            }
+
+            var fromType = convertToPacked ? sourceTypeName : targetTypeName;
+            var toType = convertToPacked ? targetTypeName : sourceTypeName;
+            sb.AppendLine($"{indent}{field.Name} = {handlerName}.Resolve<{fromType}, {toType}>({sourceName}.{field.Name});");
         }
 
         // ---- Registry emission ----
