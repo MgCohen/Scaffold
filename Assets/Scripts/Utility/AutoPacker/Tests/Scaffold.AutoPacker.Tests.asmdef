@@ -1,0 +1,21 @@
+{
+    "name": "Scaffold.AutoPacker.Tests",
+    "rootNamespace": "Scaffold.AutoPacker.Tests",
+    "references": [
+        "Scaffold.AutoPacker"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false,
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
+}
