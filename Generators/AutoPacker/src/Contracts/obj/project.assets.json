@@ -186,9 +186,9 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\user\\Documents\\Unity\\Scaffold\\Generators\\Custom Serializable\\src\\Contracts\\CustomSerializableContracts.csproj",
-      "projectName": "CustomSerializableContracts",
-      "projectPath": "C:\\Users\\user\\Documents\\Unity\\Scaffold\\Generators\\Custom Serializable\\src\\Contracts\\CustomSerializableContracts.csproj",
+      "projectUniqueName": "C:\\Users\\user\\Documents\\Unity\\Scaffold\\Generators\\Custom Serializable\\src\\Contracts\\AutoPackerContracts.csproj",
+      "projectName": "AutoPackerContracts",
+      "projectPath": "C:\\Users\\user\\Documents\\Unity\\Scaffold\\Generators\\Custom Serializable\\src\\Contracts\\AutoPackerContracts.csproj",
       "packagesPath": "C:\\Users\\user\\.nuget\\packages\\",
       "outputPath": "C:\\Users\\user\\Documents\\Unity\\Scaffold\\Generators\\Custom Serializable\\src\\Contracts\\obj\\",
       "projectStyle": "PackageReference",

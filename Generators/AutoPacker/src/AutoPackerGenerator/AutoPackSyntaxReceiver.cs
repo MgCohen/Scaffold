@@ -2,9 +2,9 @@ using System.Collections.Generic;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace CustomSerializableGenerator
+namespace AutoPackerGenerator
 {
-    internal class SerializableSyntaxReceiver : ISyntaxContextReceiver
+    internal class AutoPackSyntaxReceiver : ISyntaxContextReceiver
     {
         public Dictionary<INamedTypeSymbol, List<(IFieldSymbol Field, ITypeSymbol TargetType)>> TypeFields { get; }
             = new Dictionary<INamedTypeSymbol, List<(IFieldSymbol Field, ITypeSymbol TargetType)>>(SymbolEqualityComparer.Default);
@@ -25,7 +25,7 @@ namespace CustomSerializableGenerator
             var typeSymbol = context.SemanticModel.GetDeclaredSymbol(typeDeclaration) as INamedTypeSymbol;
             if (typeSymbol == null)
                 return;
-            if (!HasAttribute(typeSymbol, nameof(SerializableStructAttribute)))
+            if (!HasAttribute(typeSymbol, nameof(AutoPackAttribute)))
                 return;
 
             if (!TypeFields.ContainsKey(typeSymbol))
@@ -44,13 +44,13 @@ namespace CustomSerializableGenerator
                 var fieldSymbol = context.SemanticModel.GetDeclaredSymbol(variable) as IFieldSymbol;
                 if (fieldSymbol == null || fieldSymbol.IsStatic)
                     continue;
-                if (!HasAttribute(fieldSymbol, nameof(SerializedAttribute)))
+                if (!HasAttribute(fieldSymbol, nameof(PackedAttribute)))
                     continue;
 
                 var containingType = fieldSymbol.ContainingType;
                 if (containingType == null)
                     continue;
-                if (!HasAttribute(containingType, nameof(SerializableStructAttribute)))
+                if (!HasAttribute(containingType, nameof(AutoPackAttribute)))
                     continue;
 
                 if (!TypeFields.ContainsKey(containingType))
@@ -59,7 +59,7 @@ namespace CustomSerializableGenerator
                 ITypeSymbol targetType = null;
                 foreach (var attr in fieldSymbol.GetAttributes())
                 {
-                    if (attr.AttributeClass?.Name == nameof(SerializedAttribute) || attr.AttributeClass?.Name == "Serialized")
+                    if (attr.AttributeClass?.Name == nameof(PackedAttribute) || attr.AttributeClass?.Name == "Packed")
                     {
                         if (attr.ConstructorArguments.Length > 0 && attr.ConstructorArguments[0].Value is ITypeSymbol ts)
                         {

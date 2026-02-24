@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Text;
 using Microsoft.CodeAnalysis;
 
-namespace CustomSerializableGenerator
+namespace AutoPackerGenerator
 {
     internal static class Emitter
     {
@@ -17,9 +17,9 @@ namespace CustomSerializableGenerator
                 AppendNamespaceOpen(sb, type);
 
             AppendTypeOpen(sb, type, hasNamespace);
-            AppendConstructorFromSerializable(sb, type, fields, hasNamespace);
-            AppendSerializeMethod(sb, hasNamespace);
-            AppendSerializableStruct(sb, type, fields, hasNamespace);
+            AppendConstructorFromPacked(sb, type, fields, hasNamespace);
+            AppendPackMethod(sb, hasNamespace);
+            AppendPackedStruct(sb, type, fields, hasNamespace);
             AppendTypeClose(sb, hasNamespace);
 
             if (hasNamespace)
@@ -31,7 +31,6 @@ namespace CustomSerializableGenerator
         private static void AppendUsings(StringBuilder sb, IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> fields)
         {
             sb.AppendLine("using System;");
-            sb.AppendLine("using Unity.Netcode;");
             foreach (var ns in CollectConversionNamespaces(fields))
                 sb.AppendLine($"using {ns};");
             sb.AppendLine();
@@ -66,7 +65,7 @@ namespace CustomSerializableGenerator
             string indent = indented ? "    " : "";
             string keyword = GetTypeKeyword(type);
             string accessibility = GetAccessibilityKeyword(type.DeclaredAccessibility);
-            sb.AppendLine($"{indent}{accessibility} partial {keyword} {type.Name} : {nameof(ISerializableSource)}");
+            sb.AppendLine($"{indent}{accessibility} partial {keyword} {type.Name} : {nameof(IPackable)}");
             sb.AppendLine($"{indent}{{");
         }
 
@@ -76,59 +75,59 @@ namespace CustomSerializableGenerator
             sb.AppendLine($"{indent}}}");
         }
 
-        private static void AppendConstructorFromSerializable(StringBuilder sb, INamedTypeSymbol type, IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> fields, bool indented)
+        private static void AppendConstructorFromPacked(StringBuilder sb, INamedTypeSymbol type, IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> fields, bool indented)
         {
             string i1 = indented ? "        " : "    ";
             string i2 = indented ? "            " : "        ";
 
-            sb.AppendLine($"{i1}public {type.Name}({type.Name}.Serializable serializable, {nameof(ISerializationResolver)} resolver = null)");
+            sb.AppendLine($"{i1}public {type.Name}({type.Name}.Serializable packedData, {nameof(IPackingHandler)} resolver = null)");
             sb.AppendLine($"{i1}{{");
-            sb.AppendLine($"{i2}resolver ??= new DefaultSerializationResolver();");
+            sb.AppendLine($"{i2}resolver ??= new DefaultPackingHandler();");
             foreach (var tuple in fields)
-                AppendFieldAssignment(sb, tuple.Field, tuple.TargetType, "serializable", "resolver", convertToSerialized: false, i2);
+                AppendFieldAssignment(sb, tuple.Field, tuple.TargetType, "packedData", "resolver", convertToPacked: false, i2);
             sb.AppendLine($"{i1}}}");
             sb.AppendLine();
         }
 
-        private static void AppendSerializeMethod(StringBuilder sb, bool indented)
+        private static void AppendPackMethod(StringBuilder sb, bool indented)
         {
             string i1 = indented ? "        " : "    ";
-            sb.AppendLine($"{i1}public {nameof(ISerializedStruct)} Serialize({nameof(ISerializationResolver)} resolver = null)");
+            sb.AppendLine($"{i1}public {nameof(IPackedStruct)} Pack({nameof(IPackingHandler)} resolver = null)");
             sb.AppendLine($"{i1}{{");
-            sb.AppendLine($"{i1}    return new Serializable(this, resolver);");
+            sb.AppendLine($"{i1}    return new Packed(this, resolver);");
             sb.AppendLine($"{i1}}}");
             sb.AppendLine();
         }
 
-        private static void AppendSerializableStruct(StringBuilder sb, INamedTypeSymbol type, IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> fields, bool indented)
+        private static void AppendPackedStruct(StringBuilder sb, INamedTypeSymbol type, IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> fields, bool indented)
         {
             string i1 = indented ? "        " : "    ";
             string i2 = indented ? "            " : "        ";
             string i3 = indented ? "                " : "            ";
 
-            sb.AppendLine($"{i1}public struct Serializable : {nameof(ISerializedStruct)}");
+            sb.AppendLine($"{i1}public struct Packed : {nameof(IPackedStruct)}");
             sb.AppendLine($"{i1}{{");
-            sb.AppendLine($"{i2}public Type SerializableType => typeof({type.Name});");
+            sb.AppendLine($"{i2}public Type PackedType => typeof({type.Name});");
             sb.AppendLine();
 
-            AppendSerializableConstructor(sb, type, fields, i2, i3);
-            AppendSerializableFields(sb, fields, i2);
+            AppendPackedConstructor(sb, type, fields, i2, i3);
+            AppendPackedFields(sb, fields, i2);
 
             sb.AppendLine($"{i1}}}");
         }
 
-        private static void AppendSerializableConstructor(StringBuilder sb, INamedTypeSymbol type, IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> fields, string i2, string i3)
+        private static void AppendPackedConstructor(StringBuilder sb, INamedTypeSymbol type, IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> fields, string i2, string i3)
         {
-            sb.AppendLine($"{i2}public Serializable({type.Name} source, {nameof(ISerializationResolver)} resolver = null)");
+            sb.AppendLine($"{i2}public Packed({type.Name} source, {nameof(IPackingHandler)} resolver = null)");
             sb.AppendLine($"{i2}{{");
-            sb.AppendLine($"{i3}resolver ??= new DefaultSerializationResolver();");
+            sb.AppendLine($"{i3}resolver ??= new DefaultPackingHandler();");
             foreach (var tuple in fields)
-                AppendFieldAssignment(sb, tuple.Field, tuple.TargetType, "source", "resolver", convertToSerialized: true, i3);;
+                AppendFieldAssignment(sb, tuple.Field, tuple.TargetType, "source", "resolver", convertToPacked: true, i3);;
             sb.AppendLine($"{i2}}}");
             sb.AppendLine();
         }
 
-        private static void AppendSerializableFields(StringBuilder sb, IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> fields, string i2)
+        private static void AppendPackedFields(StringBuilder sb, IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> fields, string i2)
         {
             foreach (var tuple in fields)
             {
@@ -159,20 +158,20 @@ namespace CustomSerializableGenerator
             ITypeSymbol targetType,
             string sourceName,
             string resolverName,
-            bool convertToSerialized,
+            bool convertToPacked,
             string indent)
         {
             if (targetType != null)
             {
                 var sourceTypeName = field.Type.ToDisplayString();
                 var targetTypeName = targetType.ToDisplayString();
-                var fromType = convertToSerialized ? sourceTypeName : targetTypeName;
-                var toType = convertToSerialized ? targetTypeName : sourceTypeName;
+                var fromType = convertToPacked ? sourceTypeName : targetTypeName;
+                var toType = convertToPacked ? targetTypeName : sourceTypeName;
                 sb.AppendLine($"{indent}{field.Name} = {resolverName}.Resolve<{fromType}, {toType}>({sourceName}.{field.Name});");
             }
             else if (TypeConversions.TryGetConversion(field.Type, out var targetFull))
             {
-                AppendConvertedAssignment(sb, field, sourceName, convertToSerialized, targetFull, indent);
+                AppendConvertedAssignment(sb, field, sourceName, convertToPacked, targetFull, indent);
             }
             else
             {
@@ -184,14 +183,14 @@ namespace CustomSerializableGenerator
             StringBuilder sb,
             IFieldSymbol field,
             string sourceName,
-            bool convertToSerialized,
+            bool convertToPacked,
             string targetFull,
             string indent)
         {
             var sourceTypeName = field.Type.ToDisplayString();
             var targetShortName = TypeConversions.GetShortName(targetFull);
-            var fromType = convertToSerialized ? sourceTypeName : targetShortName;
-            var toType = convertToSerialized ? targetShortName : sourceTypeName;
+            var fromType = convertToPacked ? sourceTypeName : targetShortName;
+            var toType = convertToPacked ? targetShortName : sourceTypeName;
             sb.AppendLine($"{indent}{field.Name} = {sourceName}.{field.Name}.ConvertTo<{fromType}, {toType}>();");
         }
 
@@ -205,7 +204,7 @@ namespace CustomSerializableGenerator
             AppendRegistryField(sb);
             AppendRegistryStaticConstructor(sb, types);
             AppendRegisterMethod(sb);
-            AppendGetSerializableTypesMethod(sb);
+            AppendGetPackableTypesMethod(sb);
             AppendRegistryClassClose(sb);
             return sb.ToString();
         }
@@ -219,7 +218,7 @@ namespace CustomSerializableGenerator
 
         private static void AppendRegistryClassOpen(StringBuilder sb)
         {
-            sb.AppendLine("public static class SerializableTypeRegistry");
+            sb.AppendLine("public static class AutoPackerRegistry");
             sb.AppendLine("{");
         }
 
@@ -236,7 +235,7 @@ namespace CustomSerializableGenerator
 
         private static void AppendRegistryStaticConstructor(StringBuilder sb, IReadOnlyList<INamedTypeSymbol> types)
         {
-            sb.AppendLine("    static SerializableTypeRegistry()");
+            sb.AppendLine("    static AutoPackerRegistry()");
             sb.AppendLine("    {");
             sb.AppendLine("        _types = new List<Dictionary<Type, Type>>();");
             foreach (var type in types)
@@ -248,21 +247,21 @@ namespace CustomSerializableGenerator
         private static void AppendRegisterCall(StringBuilder sb, INamedTypeSymbol type)
         {
             var fqn = type.ToDisplayString();
-            sb.AppendLine($"        Register(typeof({fqn}), typeof({fqn}.Serializable));");
+            sb.AppendLine($"        Register(typeof({fqn}), typeof({fqn}.Packed));");
         }
 
         private static void AppendRegisterMethod(StringBuilder sb)
         {
-            sb.AppendLine("    private static void Register(Type sourceType, Type serializedType)");
+            sb.AppendLine("    private static void Register(Type sourceType, Type packedType)");
             sb.AppendLine("    {");
-            sb.AppendLine("        _types.Add(new Dictionary<Type, Type> { { sourceType, serializedType } });");
+            sb.AppendLine("        _types.Add(new Dictionary<Type, Type> { { sourceType, packedType } });");
             sb.AppendLine("    }");
             sb.AppendLine();
         }
 
-        private static void AppendGetSerializableTypesMethod(StringBuilder sb)
+        private static void AppendGetPackableTypesMethod(StringBuilder sb)
         {
-            sb.AppendLine("    public static List<Dictionary<Type, Type>> GetSerializableTypes() => _types;");
+            sb.AppendLine("    public static List<Dictionary<Type, Type>> GetPackableTypes() => _types;");
         }
 
         // ---- Type keyword / accessibility helpers ----

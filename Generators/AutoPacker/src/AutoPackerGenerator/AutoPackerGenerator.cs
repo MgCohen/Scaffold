@@ -3,34 +3,34 @@ using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
 
-namespace CustomSerializableGenerator
+namespace AutoPackerGenerator
 {
     [Generator]
-    public class CustomSerializableGenerator : ISourceGenerator
+    public class AutoPackerGenerator : ISourceGenerator
     {
         private static readonly DiagnosticDescriptor MustBeUnmanagedDiagnostic = new DiagnosticDescriptor(
             id: "CSG002",
             title: "Serialized fields must be unmanaged",
-            messageFormat: "Field '{0}' must be an unmanaged type or define an unmanaged TargetType in [Serialized]. Type '{1}' is managed.",
-            category: "CustomSerializableGenerator",
+            messageFormat: "Field '{0}' must be an unmanaged type or define an unmanaged TargetType in [Packed]. Type '{1}' is managed.",
+            category: "AutoPackerGenerator",
             defaultSeverity: DiagnosticSeverity.Error,
             isEnabledByDefault: true);
 
         public void Initialize(GeneratorInitializationContext context)
         {
-            context.RegisterForSyntaxNotifications(() => new SerializableSyntaxReceiver());
+            context.RegisterForSyntaxNotifications(() => new AutoPackSyntaxReceiver());
         }
 
         public void Execute(GeneratorExecutionContext context)
         {
-            if (!(context.SyntaxContextReceiver is SerializableSyntaxReceiver receiver))
+            if (!(context.SyntaxContextReceiver is AutoPackSyntaxReceiver receiver))
                 return;
 
             var validTypes = CollectAndEmitPartials(context, receiver);
             EmitRegistryFile(context, validTypes);
         }
 
-        private static List<INamedTypeSymbol> CollectAndEmitPartials(GeneratorExecutionContext context, SerializableSyntaxReceiver receiver)
+        private static List<INamedTypeSymbol> CollectAndEmitPartials(GeneratorExecutionContext context, AutoPackSyntaxReceiver receiver)
         {
             var validTypes = new List<INamedTypeSymbol>();
             foreach (var pair in receiver.TypeFields)
@@ -70,7 +70,7 @@ namespace CustomSerializableGenerator
         private static void EmitRegistryFile(GeneratorExecutionContext context, List<INamedTypeSymbol> types)
         {
             var source = Emitter.EmitRegistry(types);
-            context.AddSource("SerializableTypeRegistry.g.cs", SourceText.From(source, Encoding.UTF8));
+            context.AddSource("AutoPackerRegistry.g.cs", SourceText.From(source, Encoding.UTF8));
         }
 
         private static void ReportNoFields(GeneratorExecutionContext context, INamedTypeSymbol typeSymbol)
@@ -82,7 +82,7 @@ namespace CustomSerializableGenerator
         private static void EmitPartial(GeneratorExecutionContext context, INamedTypeSymbol typeSymbol, List<(IFieldSymbol Field, ITypeSymbol TargetType)> fields)
         {
             var source = Emitter.EmitSource(typeSymbol, fields);
-            context.AddSource($"{typeSymbol.Name}.Serializable.g.cs", SourceText.From(source, Encoding.UTF8));
+            context.AddSource($"{typeSymbol.Name}.Packed.g.cs", SourceText.From(source, Encoding.UTF8));
         }
     }
 }

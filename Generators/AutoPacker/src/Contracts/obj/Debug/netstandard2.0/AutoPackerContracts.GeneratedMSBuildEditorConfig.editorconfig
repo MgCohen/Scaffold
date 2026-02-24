@@ -1,0 +1,8 @@
+is_global = true
+build_property.RootNamespace = AutoPackerContracts
+build_property.ProjectDir = C:\Users\user\Documents\Unity\Scaffold\Generators\Custom Serializable\src\Contracts\
+build_property.EnableComHosting = 
+build_property.EnableGeneratedComInterfaceComImportInterop = 
+build_property.CsWinRTUseWindowsUIXamlProjections = false
+build_property.EffectiveAnalysisLevelStyle = 
+build_property.EnableCodeStyleSeverity = 

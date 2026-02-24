@@ -1,13 +1,13 @@
 using System;
 
 [AttributeUsage(AttributeTargets.Field)]
-public sealed class SerializedAttribute : Attribute 
+public sealed class PackedAttribute : Attribute 
 { 
     public Type TargetType { get; }
 
-    public SerializedAttribute() { }
+    public PackedAttribute() { }
 
-    public SerializedAttribute(Type targetType)
+    public PackedAttribute(Type targetType)
     {
         TargetType = targetType;
     }

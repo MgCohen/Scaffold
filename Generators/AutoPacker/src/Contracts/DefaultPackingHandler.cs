@@ -1,6 +1,6 @@
 using System;
 
-public class DefaultSerializationResolver : ISerializationResolver
+public class DefaultPackingHandler : IPackingHandler
 {
     public TTarget Resolve<TSource, TTarget>(TSource source)
     {

@@ -1,12 +1,12 @@
 using System.Collections.Generic;
 using Microsoft.CodeAnalysis;
 
-namespace CustomSerializableGenerator
+namespace AutoPackerGenerator
 {
     internal static class TypeConversions
     {
-        // Maps field type display string → fully qualified target type for the Serializable struct.
-        // Add entries here whenever a new non-blittable type needs a serializable equivalent.
+        // Maps field type display string → fully qualified target type for the Packed struct.
+        // Add entries here whenever a new non-blittable type needs a packable equivalent.
         private static readonly Dictionary<string, string> Map = new Dictionary<string, string>
         {
             { "string", "Unity.Collections.FixedString128Bytes" },

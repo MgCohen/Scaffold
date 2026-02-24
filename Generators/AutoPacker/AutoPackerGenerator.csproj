@@ -17,7 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="src\Contracts\CustomSerializableContracts.csproj" />
+    <ProjectReference Include="src\Contracts\AutoPackerContracts.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,4 +1,4 @@
 using System;
 
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct, Inherited = false)]
-public sealed class SerializableStructAttribute : Attribute { }
+public sealed class AutoPackAttribute : Attribute { }
