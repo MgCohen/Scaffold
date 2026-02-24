@@ -18,7 +18,7 @@ public abstract class GameModuleT<T> : IGameModule where T : IGameModuleData
         }
     }
 
-    public Task<IGameModuleData> Initialize(IExecutionContext context, PlayerData playerData, GameState gameState, RemoteConfig remoteConfig)
+    public virtual Task<IGameModuleData> Initialize(IExecutionContext context, PlayerData playerData, GameState gameState, RemoteConfig remoteConfig)
     {
         throw new System.NotImplementedException();
     }

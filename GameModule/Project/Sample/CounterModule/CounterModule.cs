@@ -1,6 +1,4 @@
-using System;
 using System.Threading.Tasks;
-using GameModule.GameModule;
 using GameModule.ModuleFetchData;
 using GameModule.Response;
 using GameModuleDTO.GameModule;
@@ -26,7 +24,7 @@ namespace GameModule.Sample
         public override bool Client { get { return true; } }
         public override bool Server { get; }
 
-        public async Task<CounterModuleData> Initialize(IExecutionContext context, PlayerData playerData, GameState gameState, RemoteConfig remoteConfig)
+        public override async Task<IGameModuleData> Initialize(IExecutionContext context, PlayerData playerData, GameState gameState, RemoteConfig remoteConfig)
         {
             return await playerData.GetOrSet<CounterModuleData>(context);
         }

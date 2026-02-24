@@ -31,7 +31,7 @@ namespace GameModule.Sample
         public override bool Client { get { return true; } }
         public override bool Server { get; }
 
-        public async Task<IGameModuleData> Initialize(IExecutionContext context, PlayerData playerData, GameState gameState, RemoteConfig remoteConfig)
+        public override async Task<IGameModuleData> Initialize(IExecutionContext context, PlayerData playerData, GameState gameState, RemoteConfig remoteConfig)
         {
             _signalModule.Subscribe<IncrementCounterRequest>(OnCounterRequestResolve);
             return await playerData.GetOrSet<ReactiveModuleData>(context);
