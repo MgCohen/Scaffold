@@ -35,6 +35,8 @@ namespace GameModule.Sample
         {
             _logger.LogInformation("[IncrementCounterRequest] Starting");
             CounterModuleData counterData = await playerData.GetOrSet<CounterModuleData>(context);
+            playerData.AddToCache(counterData);
+
             int valueToIncrement = 1;
             counterData.IncreaseValue(valueToIncrement);
             IncrementCounterResponse incrementCounterResponse = new IncrementCounterResponse(valueToIncrement);

@@ -8,7 +8,6 @@ namespace GameModuleDTO.ModuleRequests
         public IncrementCounterResponse(int value)
         {
             Value = value;
-            ModuleDataToSave = new ModuleDataToSave<CounterModuleData>();
         }
 
         public int Value { get; protected set; }

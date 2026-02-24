@@ -8,7 +8,6 @@ namespace GameModuleDTO.Sample.ReactiveModule
         public ReactiveCounterResponse(int value)
         {
             Value = value;
-            ModuleDataToSave = new ModuleDataToSave<ReactiveModuleData>();
         }
 
         public int Value { get; protected set; }

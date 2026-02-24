@@ -7,8 +7,6 @@ namespace GameModuleDTO.ModuleRequests
         public ResponseStatusType StatusType { get; private set; }
         public string Message { get; private set; } = "";
         public List<ModuleResponse> Responses { get; protected set; } = new List<ModuleResponse>();
-        [JsonIgnore]
-        public ModuleDataToSave? ModuleDataToSave { get; protected set; }
 
         public abstract bool IsValid();
 
@@ -41,19 +39,6 @@ namespace GameModuleDTO.ModuleRequests
         protected T GetModuleResponse<T>() where T : ModuleResponse
         {
             return (T)Responses.FirstOrDefault(x => x.GetType() == typeof(T));
-        }
-
-        // Override if
-        // 1. You only want to save data if StatusType == ResponseStatusType.Success
-        // 2. You need to add or remove modules to the list
-        public virtual List<string> GetModulesUsed()
-        {
-            if (ModuleDataToSave == null)
-            {
-                return [];
-            }
-
-            return ModuleDataToSave.ModulesRequired;
         }
     }
 }

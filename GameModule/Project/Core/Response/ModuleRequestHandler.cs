@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Unity.Services.CloudCode.Core;
 using GameModule.ModuleFetchData;
-using GameModuleDTO.GameModule;
 
 namespace GameModule.Response
 {
@@ -35,18 +34,21 @@ namespace GameModule.Response
             _signalModule.Push(request);
         }
 
-        public async Task<T> ResolveResponse<T>(ModuleRequestT<T> request, T response, IExecutionContext context, PlayerData playerData) where T : ModuleResponse
+        public async Task<T> ResolveResponse<T>(ModuleRequestT<T> request, T response, IExecutionContext context, PlayerData playerData = null) where T : ModuleResponse
         {
             if (request == null || context == null)
             {
                 return null;
             }
 
-            AddModulesUsed(response);
             NotifyRequestResolve(request);
             if (playerData != null)
             {
-                await playerData.SaveModuleData(context);
+                await playerData.SaveCache(context);
+            }
+            else
+            {
+                await _playerData.SaveCache(context);
             }
 
             return response;
@@ -59,13 +61,7 @@ namespace GameModule.Response
                 return;
             }
 
-            AddModulesUsed(response);
             Responses.Add(response);
-        }
-
-        private void AddModulesUsed(ModuleResponse response)
-        {
-            _playerData.SaveModuleDataToCache(response.GetModulesUsed());
         }
     }
 }

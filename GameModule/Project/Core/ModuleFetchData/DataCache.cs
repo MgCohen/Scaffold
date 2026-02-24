@@ -7,7 +7,6 @@ using Unity.Services.CloudCode.Core;
 using GameModuleDTO.Json;
 using Unity.Services.CloudSave.Model;
 using System.Linq;
-using GameModule.Signal;
 
 namespace GameModule.ModuleFetchData
 {
@@ -39,7 +38,6 @@ namespace GameModule.ModuleFetchData
         protected abstract Task<Dictionary<string, string>> FetchData(IExecutionContext context);
         protected abstract Task SaveData(IExecutionContext context, string key, object value, bool useWriteLock);
         protected abstract Task SaveBatchData(IExecutionContext context, List<SetItemBody> values, bool useWriteLock);
-
         protected abstract Task DeleteData(IExecutionContext context, string key);
 
         public string PlayerId
@@ -130,11 +128,6 @@ namespace GameModule.ModuleFetchData
             await SaveData(context, key, value, useWriteLock);
         }
 
-        public async Task Set(IExecutionContext context, IGameModuleData value, bool useWriteLock = false)
-        {
-            await Set(context, value.Key, value, useWriteLock);
-        }
-
         public async Task SetBatch(IExecutionContext context, List<SetItemBody> values, bool useWriteLock = false)
         {
             await InitializeData(context);
@@ -150,20 +143,15 @@ namespace GameModule.ModuleFetchData
             await SaveBatchData(context, values, useWriteLock);
         }
 
-        public void SaveModuleDataToCache(IGameModuleData moduleData)
-        {
-            SaveModuleDataToCache(moduleData.Key);
-        }
-
-        public void SaveModuleDataToCache(List<string> moduleKeys)
+        public void AddToCache(IEnumerable<string> moduleKeys)
         {
             foreach (string moduleKey in moduleKeys)
             {
-                SaveModuleDataToCache(moduleKey);
+                AddToCache(moduleKey);
             }
         }
 
-        public void SaveModuleDataToCache(params string[] moduleKeys)
+        public void AddToCache(params string[] moduleKeys)
         {
             foreach (string moduleKey in moduleKeys)
             {
@@ -174,7 +162,7 @@ namespace GameModule.ModuleFetchData
             }
         }
 
-        public async Task SaveModuleData(IExecutionContext context)
+        public async Task SaveCache(IExecutionContext context)
         {
             if (objectsToSave.Any())
             {

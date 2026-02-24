@@ -35,11 +35,11 @@ namespace GameModule.Authentication
             {
                 throw new Exception("[AuthenticationModule.GetBase64EncodedApiKey] Empty GameState, cannot fetch keys without it.");
             }
-            
+
             // Fetch these from RemoteConfig or constants for now.
             if (string.IsNullOrEmpty(keyId))
             {
-                keyId = gameState != null ? await gameState.GetAdminFunctionsKeyID(context) : null;
+                keyId = gameState != null ? await gameState.GetAdminFunctionsKeyId(context) : null;
                 if (string.IsNullOrEmpty(keyId))
                 {
                     throw new Exception("[AuthenticationModule.GetBase64EncodedApiKey] Service Account Keys missing in Cloud Code Configuration.");
@@ -54,7 +54,7 @@ namespace GameModule.Authentication
                     throw new Exception("[AuthenticationModule.GetBase64EncodedApiKey] Service Account Secret Keys missing in Cloud Code Configuration.");
                 }
             }
-            
+
             return base64EncodedApiKey = Convert.ToBase64String(Encoding.ASCII.GetBytes($"{keyId}:{secretKey}"));
         }
 
@@ -67,7 +67,7 @@ namespace GameModule.Authentication
 
             // Docs: https://services.docs.unity.com/auth/v1/#tag/Token-Exchange
             string basicAuth = await GetBase64EncodedApiKey(context, gameState);
-            
+
             // Note: Adding environmentId is best practice for scope, though projectId is strictly required
             string url = $"https://services.api.unity.com/auth/v1/token-exchange?projectId={context.ProjectId}&environmentId={context.EnvironmentId}";
 

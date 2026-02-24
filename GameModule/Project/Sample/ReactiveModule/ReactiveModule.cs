@@ -40,6 +40,8 @@ namespace GameModule.Sample
         private async void OnCounterRequestResolve(IncrementCounterRequest request)
         {
             ReactiveModuleData reactiveModuleData = await _playerData.GetOrSet<ReactiveModuleData>(_context);
+            _playerData.AddToCache(reactiveModuleData);
+
             int valueToIncrement = 2;
             reactiveModuleData.IncreaseValue(valueToIncrement);
             _moduleRequestHandler.AddResponse(new ReactiveCounterResponse(valueToIncrement));
