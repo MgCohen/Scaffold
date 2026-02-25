@@ -133,32 +133,39 @@ def walk_and_process(base_dir):
         
         process_directory(root, base_dir)
 
-base_scaffold = "/Users/leonardosilva/Documents/MatheusCohen/Scaffold/GameModule"
-project_root = os.path.join(base_scaffold, "Project")
-dto_root = os.path.join(base_scaffold, "GameModuleDTO")
+import sys
 
-walk_and_process(project_root)
-walk_and_process(dto_root)
+if __name__ == "__main__":
+    target_paths = sys.argv[1:] if len(sys.argv) > 1 else [os.getcwd()]
+    
+    for target_path in target_paths:
+        abs_path = os.path.abspath(target_path)
+        base_name = os.path.basename(abs_path)
+        if not base_name:
+            base_name = os.path.basename(os.path.dirname(abs_path)) or "Root"
+            
+        print(f"Processing target: {abs_path}")
+        walk_and_process(abs_path)
+        
+        # Root read.md for the target
+        root_md = os.path.join(abs_path, "read.md")
+        with open(root_md, 'w', encoding='utf-8') as f:
+            f.write("<!-- hash: root -->\n")
+            f.write(f"# {base_name} Documentation\n\n")
+            f.write(f"This is the entry point for `{base_name}` documentation.\n\n")
+            
+            # Generate links to existing top-level subdirectories that have Read.md
+            sub_dirs = []
+            for item in os.listdir(abs_path):
+                item_path = os.path.join(abs_path, item)
+                if os.path.isdir(item_path) and not item.startswith('.') and item not in ('obj', 'bin'):
+                    if os.path.exists(os.path.join(item_path, f"{item}Read.md")):
+                        sub_dirs.append(item)
+            
+            if sub_dirs:
+                f.write("## Sub-Modules\n\n")
+                for sub in sorted(sub_dirs):
+                    f.write(f"- [{sub}]({sub}/{sub}Read.md)\n")
 
-# Root read.md
-root_md = os.path.join(base_scaffold, "read.md")
-with open(root_md, 'w', encoding='utf-8') as f:
-    f.write("<!-- hash: root -->\n")
-    f.write("# GameModule Root Documentation\n\n")
-    f.write("## Introduction\n")
-    f.write("This is the main entry point for the GameModule repository. The architecture is split primarily into two domains: **Project** and **GameModuleDTO**.\n\n")
-    f.write("## Scalability and Architecture\n")
-    f.write("- **GameModuleDTO**: Holds the data transfer objects, keys, requests, and interfaces. It ensures a decoupled standard format that can scale horizontally without affecting logic.\n")
-    f.write("- **Project**: Contains the core logic, implementations of module systems, authentication, state fetchers, and signal management.\n\n")
-    f.write("## Interactive Systems\n")
-    f.write("```mermaid\n")
-    f.write("graph TD\n")
-    f.write("    Project[Core Game Systems] <--> DTO[Data Transfer Objects]\n")
-    f.write("    DTO --> ClientRequests[Client Side Requests]\n")
-    f.write("    Project --> ServerResponse[Server Handlers]\n")
-    f.write("```\n\n")
-    f.write("## Navigation\n")
-    f.write("- [Project Architecture](Project/ProjectRead.md)\n")
-    f.write("- [GameModuleDTO Overview](GameModuleDTO/GameModuleDTORead.md)\n")
+    print("Documentation generated successfully.")
 
-print("Documentation generated successfully.")
