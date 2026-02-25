@@ -1,0 +1,18 @@
+{
+  "name": "Documentation Generator",
+  "task": "Generate linked markdown documentation for the codebase.",
+  "input_parameters": {
+    "paths": "A list of directory or file paths to process. If no path is provided, assume the root directory is the entry point."
+  },
+  "prompt": "You are an expert technical writer and software architect. Please take the provided list of paths. If the list is empty, assume the root directory of the project is the entry point. For each child path, recursively read the script files and create a '{LocalNameOfPath}Read.md' file. In this file, clearly describe its purpose and how it is related to other components. Additionally, in the root folder, create a 'read.md' file that explains the first entry point, how the architecture scales, and how it can be interacted with. When designing and explaining dependencies, use the behavior tree schema (e.g., using mermaid.js diagrams or hierarchical text structures showing sequences, fallbacks, and conditions). The ultimate goal is to have a clear, navigable documentation structure that links to each other correctly on Git using relative paths.",
+  "instructions": [
+    "1. Read the provided paths or default to the root directory.",
+    "2. Traverse the directory structure recursively.",
+    "3. Read the script files in each path to understand their logic.",
+    "4. Create '{LocalNameOfPath}Read.md' for each path.",
+    "5. Detail the purpose and relations of the scripts in the '{LocalNameOfPath}Read.md' file.",
+    "6. Use behavior tree schema to model dependencies and logic flow.",
+    "7. Create a 'read.md' in the root directory detailing the entry point, scalability, and interactions.",
+    "8. Ensure all generated markdown files contain proper relative links to each other for Git compatibility."
+  ]
+}
