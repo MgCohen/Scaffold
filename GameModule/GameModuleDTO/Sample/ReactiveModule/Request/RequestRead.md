@@ -1,19 +1,19 @@
-<!-- hash: d9bc4510e7c48e78978de2c0435deefe -->
+<!-- hash: 6638704a4b2039861caa2ede4dd1b2eb -->
 # Request Documentation
 
-This document details the purpose and relations of the components in `/Sample/ReactiveModule/Request`.
+This document details the purpose and relations of the components in `/GameModuleDTO/Sample/ReactiveModule/Request`.
 
 ## Component Overview
 
 ### `ReactiveCounterRequest` (class)
-- **Description**: Represents a data payload for a reactive counter request sent to the server. Contains parameters required to execute the request.
+- **Description**: Sample implementation managing reactive parameter commands execution blocks.
 - **Namespace**: `GameModuleDTO.Sample.ReactiveModule`
 - **Inherits/Implements**: `ModuleRequestT<ReactiveCounterResponse>`
 - **Properties**: `Value`
 - **Methods**: `AssertModule`
 
 ### `ReactiveCounterResponse` (class)
-- **Description**: Represents the server's response to a reactive counter request. Contains the result data.
+- **Description**: Sample payload returning active state changes for reactive components.
 - **Namespace**: `GameModuleDTO.Sample.ReactiveModule`
 - **Inherits/Implements**: `ModuleResponse`
 - **Properties**: `Value`

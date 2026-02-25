@@ -1,12 +1,12 @@
-<!-- hash: 395679658b11b06063ed4c3cf3c23c1a -->
+<!-- hash: f099ecf94e63776de029da0e47f3a1fa -->
 # Signal Documentation
 
-This document details the purpose and relations of the components in `/Core/Signal`.
+This document details the purpose and relations of the components in `/Project/Core/Signal`.
 
 ## Component Overview
 
 ### `SignalModule` (class)
-- **Description**: A core game module responsible for managing signal module logic and state within the game.
+- **Description**: A decoupled event bus system for broadcasting requests.
 - **Namespace**: `GameModule.Signal`
 
 ## Dependency & Behavior Schema

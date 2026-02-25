@@ -1,12 +1,12 @@
-<!-- hash: 493319d1a5b8ce21bc47c72a56a6e41f -->
+<!-- hash: 4ffeea3fd8c0e3fcbb67ddc44cf6eefb -->
 # AccessKey Documentation
 
-This document details the purpose and relations of the components in `/Core/AccessKey`.
+This document details the purpose and relations of the components in `/Project/Core/AccessKey`.
 
 ## Component Overview
 
 ### `AccessKey` (class)
-- **Description**: Handles core data and operations for access key within the architecture.
+- **Description**: Provides extension utilities for validating execution contexts against game state authentication tokens.
 - **Namespace**: `GameModule.AccessKey`
 
 ## Dependency & Behavior Schema

@@ -10,34 +10,37 @@ using Unity.Services.CloudSave.Model;
 
 namespace GameModule.ModuleFetchData
 {
+    /// <summary>
+    /// Orchestrates user profile details gracefully.
+    /// </summary>
     public class PlayerData : DataCache
     {
-        protected Dictionary<string, string> writeLockCache = new Dictionary<string, string>();
+        protected Dictionary<string, string> _writeLockCache = new Dictionary<string, string>();
 
         public PlayerData(ILogger<PlayerData> logger, IGameApiClient gameApiClient) : base(logger, gameApiClient)
         {
-            this.logger = logger;
-            this.gameApiClient = gameApiClient;
+            _logger = logger;
+            _gameApiClient = gameApiClient;
         }
 
         public PlayerData(ILogger<PlayerData> logger, IGameApiClient gameApiClient, string playerId) : base(logger, gameApiClient, playerId)
         {
-            this.logger = logger;
-            this.gameApiClient = gameApiClient;
+            _logger = logger;
+            _gameApiClient = gameApiClient;
         }
 
         protected override async Task<Dictionary<string, string>> FetchData(IExecutionContext context)
         {
             try
             {
-                ApiResponse<GetItemsResponse> result = await gameApiClient.CloudSaveData.GetProtectedItemsAsync(
-                    context, context.ServiceToken, context.ProjectId, playerId);
+                ApiResponse<GetItemsResponse> result = await _gameApiClient.CloudSaveData.GetProtectedItemsAsync(
+                    context, context.ServiceToken, context.ProjectId, _playerId);
 
                 if (result.Data == null || result.Data.Results == null)
                 {
                     return new Dictionary<string, string>();
                 }
-                writeLockCache = result.Data.Results.ToDictionary(item => item.Key, item => item.WriteLock);
+                _writeLockCache = result.Data.Results.ToDictionary(item => item.Key, item => item.WriteLock);
                 Dictionary<string, string> fetchedData = result.Data.Results
                     .ToDictionary(item => item.Key, item => item.Value?.ToString() ?? string.Empty);
 
@@ -45,7 +48,7 @@ namespace GameModule.ModuleFetchData
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"[PlayerData.FetchData] An error occurred while fetching player data: PlayerId:'{playerId}'");
+                _logger.LogError(ex, $"[PlayerData.FetchData] An error occurred while fetching player data: PlayerId:'{_playerId}'");
                 throw;
             }
         }
@@ -55,12 +58,12 @@ namespace GameModule.ModuleFetchData
             SetItemBody item = new SetItemBody(key, value);
             if (useWriteLock)
             {
-                if (writeLockCache.TryGetValue(key, out string writeLock))
+                if (_writeLockCache.TryGetValue(key, out string writeLock))
                 {
                     item.WriteLock = writeLock;
                 }
             }
-            await gameApiClient.CloudSaveData.SetProtectedItemAsync(context, context.ServiceToken, context.ProjectId, playerId, item);
+            await _gameApiClient.CloudSaveData.SetProtectedItemAsync(context, context.ServiceToken, context.ProjectId, _playerId, item);
         }
 
         protected override async Task SaveBatchData(IExecutionContext context, List<SetItemBody> values, bool useWriteLock)
@@ -69,19 +72,19 @@ namespace GameModule.ModuleFetchData
             {
                 if (useWriteLock)
                 {
-                    if (writeLockCache.TryGetValue(item.Key, out string writeLock))
+                    if (_writeLockCache.TryGetValue(item.Key, out string writeLock))
                     {
                         item.WriteLock = writeLock;
                     }
                 }
             }
             SetItemBatchBody request = new SetItemBatchBody(values);
-            await gameApiClient.CloudSaveData.SetProtectedItemBatchAsync(context, context.ServiceToken, context.ProjectId, playerId, request);
+            await _gameApiClient.CloudSaveData.SetProtectedItemBatchAsync(context, context.ServiceToken, context.ProjectId, _playerId, request);
         }
 
         protected override async Task DeleteData(IExecutionContext context, string key)
         {
-            await gameApiClient.CloudSaveData.DeleteProtectedItemAsync(context, context.ServiceToken, context.ProjectId, playerId, key);
+            await _gameApiClient.CloudSaveData.DeleteProtectedItemAsync(context, context.ServiceToken, context.ProjectId, _playerId, key);
         }
 
         public async Task Delete(IExecutionContext context, string key)
@@ -91,7 +94,7 @@ namespace GameModule.ModuleFetchData
 
         public string GetWriteLock(string key)
         {
-            return writeLockCache.GetValueOrDefault(key, "");
+            return _writeLockCache.GetValueOrDefault(key, "");
         }
     }
 }

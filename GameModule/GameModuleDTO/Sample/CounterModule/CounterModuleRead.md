@@ -1,7 +1,7 @@
-<!-- hash: 15b08a5a04bd89227891bf32fa3ed34d -->
+<!-- hash: 42672531d0dea296f5ec0544ebf2d778 -->
 # CounterModule Documentation
 
-This document details the purpose and relations of the components in `/Sample/CounterModule`.
+This document details the purpose and relations of the components in `/GameModuleDTO/Sample/CounterModule`.
 
 ## Sub-Modules
 
@@ -10,7 +10,7 @@ This document details the purpose and relations of the components in `/Sample/Co
 ## Component Overview
 
 ### `CounterModuleData` (class)
-- **Description**: Data container holding state and properties for counter module data.
+- **Description**: Sample data model representing a basic network counter configuration.
 - **Namespace**: `GameModuleDTO.Sample.CounterModule`
 - **Inherits/Implements**: `IGameModuleData`
 - **Properties**: `Value`, `Key`

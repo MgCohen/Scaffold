@@ -11,15 +11,18 @@ using Unity.Services.RemoteConfig.Model;
 
 namespace GameModule.ModuleFetchData
 {
+    /// <summary>
+    /// Connects to Remote Config to fetch server parameters.
+    /// </summary>
     public class RemoteConfig : DataCache
     {
         public static RemoteConfig Instance { get; private set; }
-        protected ConfigFetcher configFetcher;
-        
+        protected ConfigFetcher _configFetcher;
+
         public RemoteConfig(ILogger<DataCache> logger, IGameApiClient gameApiClient, ConfigFetcher configFetcher) : base(logger, gameApiClient)
         {
             Instance = this;
-            this.configFetcher = configFetcher;
+            _configFetcher = configFetcher;
         }
 
         protected override async Task<Dictionary<string, string>> FetchData(IExecutionContext context)
@@ -29,32 +32,32 @@ namespace GameModule.ModuleFetchData
                 // CASE A: Server/Trigger Context (No Player)
                 if (string.IsNullOrEmpty(context.PlayerId))
                 {
-                    logger.LogInformation("[RemoteConfig] Fetching via Admin API (Server Context)...");
-                    return await configFetcher.FetchAdminConfigs(context);
+                    _logger.LogInformation("[RemoteConfig] Fetching via Admin API (Server Context)...");
+                    return await _configFetcher.FetchAdminConfigs(context);
                 }
 
                 // Player Context (SDK)
-                logger.LogInformation($"[RemoteConfig] Fetching via SDK. PlayerId: {context.PlayerId}");
-                ApiResponse<SettingsDeliveryResponse> result = await gameApiClient.RemoteConfigSettings.AssignSettingsGetAsync(context, context.AccessToken, context.ProjectId, context.EnvironmentId);
-                
+                _logger.LogInformation($"[RemoteConfig] Fetching via SDK. PlayerId: {context.PlayerId}");
+                ApiResponse<SettingsDeliveryResponse> result = await _gameApiClient.RemoteConfigSettings.AssignSettingsGetAsync(context, context.AccessToken, context.ProjectId, context.EnvironmentId);
+
                 if (result.Data == null || result.Data.Configs == null || result.Data.Configs.Settings == null)
                 {
                     return new Dictionary<string, string>();
                 }
 
                 return result.Data.Configs.Settings.ToDictionary(
-                    item => item.Key, 
+                    item => item.Key,
                     item => item.Value?.ToString() ?? string.Empty
                 );
             }
             catch (ApiException apiEx)
             {
-                logger.LogError($"[RemoteConfig] API Error: {apiEx.Response.StatusCode} - {apiEx.Message}");
+                _logger.LogError($"[RemoteConfig] API Error: {apiEx.Response.StatusCode} - {apiEx.Message}");
                 throw;
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"[RemoteConfig] General Error. PlayerId: '{context.PlayerId}'");
+                _logger.LogError(ex, $"[RemoteConfig] General Error. PlayerId: '{context.PlayerId}'");
                 throw;
             }
         }

@@ -1,12 +1,12 @@
-<!-- hash: 5925b1a42d5d4d308fe69cac463ef9f4 -->
+<!-- hash: c6a4d898dce9d6a9f2cdf6fcdc6a5fce -->
 # InitializeGameModules Documentation
 
-This document details the purpose and relations of the components in `/Core/ModuleRequest/Implementation/InitializeGameModules`.
+This document details the purpose and relations of the components in `/GameModuleDTO/Core/ModuleRequest/Implementation/InitializeGameModules`.
 
 ## Component Overview
 
 ### `InitializeGameModulesRequest` (class)
-- **Description**: Represents a data payload for a initialize game modules request sent to the server. Contains parameters required to execute the request.
+- **Description**: Defines a request starting the lifecycle for the network modules specifically.
 - **Namespace**: `GameModuleDTO.ModuleRequests`
 - **Inherits/Implements**: `ModuleRequestT<GameDataResponse>`
 - **Methods**: `AssertModule`

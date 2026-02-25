@@ -1,19 +1,19 @@
-<!-- hash: d0618bf13365da8c79ff3953f876c583 -->
+<!-- hash: 22aad6cdabb3b9ae3b707de31fde1880 -->
 # GameData Documentation
 
-This document details the purpose and relations of the components in `/Core/ModuleRequest/Implementation/GameData`.
+This document details the purpose and relations of the components in `/GameModuleDTO/Core/ModuleRequest/Implementation/GameData`.
 
 ## Component Overview
 
 ### `GameDataRequest` (class)
-- **Description**: Represents a data payload for a game data request sent to the server. Contains parameters required to execute the request.
+- **Description**: Represents a network request asking for specific module data to execute logic.
 - **Namespace**: `GameModuleDTO.ModuleRequests`
 - **Inherits/Implements**: `ModuleRequestT<GameDataResponse>`
 - **Properties**: `ModuleKeys`
 - **Methods**: `AssertModule`
 
 ### `GameDataResponse` (class)
-- **Description**: Represents the server's response to a game data request. Contains the result data.
+- **Description**: Serves as the standard response delivering the gathered game module payload block.
 - **Namespace**: `GameModuleDTO.ModuleRequests`
 - **Inherits/Implements**: `ModuleResponse`
 - **Properties**: `GameData`

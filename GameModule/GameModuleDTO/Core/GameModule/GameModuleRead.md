@@ -1,21 +1,21 @@
-<!-- hash: 5b934836dee5d7613efaab40b03fc09b -->
+<!-- hash: 5389363dc3d41febf207fec4ac401d99 -->
 # GameModule Documentation
 
-This document details the purpose and relations of the components in `/Core/GameModule`.
+This document details the purpose and relations of the components in `/GameModuleDTO/Core/GameModule`.
 
 ## Component Overview
 
 ### `GameData` (class)
-- **Description**: Data container holding state and properties for game data.
+- **Description**: Acts as a central container holding multiple game module configurations. The main goal is to aggregate configuration instances for network transmission.
 - **Namespace**: `GameModuleDTO.GameModule`
-- **Methods**: `GetModules`, `AddModuleData`, `AddModules`
+- **Methods**: `AddModuleData`, `GetModules`, `AddModules`
 
-### `GameDataExtensions` (class)
-- **Description**: Provides utility extension methods for game data extensions.
-- **Namespace**: `Global`
+### `identification` (class)
+- **Description**: Supplies static extension utilities for game module data objects seamlessly. The main goal is explicitly tracking logic definitions cleanly.
+- **Namespace**: `GameModuleDTO.GameModule`
 
-### `IGameModuleData` (interface)
-- **Description**: Data container holding state and properties for igame module data.
+### `required` (interface)
+- **Description**: No description provided.
 - **Namespace**: `GameModuleDTO.GameModule`
 - **Properties**: `StaticKey`, `Key`
 
@@ -24,8 +24,8 @@ This document details the purpose and relations of the components in `/Core/Game
 ```mermaid
 graph TD
     GameData[GameData]
-    GameDataExtensions[GameDataExtensions]
-    IGameModuleData[IGameModuleData]
+    identification[identification]
+    required[required]
 ```
 
 

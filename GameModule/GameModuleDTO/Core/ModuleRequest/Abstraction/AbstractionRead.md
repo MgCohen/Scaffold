@@ -1,33 +1,33 @@
-<!-- hash: e45a3948eb26c7f64aad6e72a05bf1e5 -->
+<!-- hash: 5cb7ceb1d89f466f42ce677855e2dee5 -->
 # Abstraction Documentation
 
-This document details the purpose and relations of the components in `/Core/ModuleRequest/Abstraction`.
+This document details the purpose and relations of the components in `/GameModuleDTO/Core/ModuleRequest/Abstraction`.
 
 ## Component Overview
 
 ### `ModuleRequestT` (class)
-- **Description**: Handles core data and operations for module request t within the architecture.
+- **Description**: Represents a strongly-typed module request returning a specific response type.
 - **Namespace**: `GameModuleDTO.ModuleRequests`
 
-### `ModuleRequest` (class)
-- **Description**: Represents a data payload for a module request sent to the server. Contains parameters required to execute the request.
+### `for` (class)
+- **Description**: No description provided.
 - **Namespace**: `GameModuleDTO.ModuleRequests`
-- **Properties**: `ModuleName`, `AuthKey`, `HasAuth`, `FunctionName`, `RetryCall`, `MaxRetries`
+- **Properties**: `ModuleName`, `RetryCall`, `FunctionName`, `AuthKey`, `HasAuth`, `MaxRetries`
 - **Methods**: `AssertModule`
 
-### `ModuleResponse` (class)
-- **Description**: Represents the server's response to a module request. Contains the result data.
+### `for` (class)
+- **Description**: No description provided.
 - **Namespace**: `GameModuleDTO.ModuleRequests`
-- **Properties**: `Responses`, `Message`, `StatusType`
-- **Methods**: `SetResponseError`, `SetResponseFailure`, `IsSuccess`, `SetResponseException`, `SetResponse`, `IsValid`
+- **Properties**: `StatusType`, `Message`, `Responses`
+- **Methods**: `SetResponseError`, `SetResponseException`, `IsValid`, `IsSuccess`, `SetResponse`, `SetResponseFailure`
 
 ## Dependency & Behavior Schema
 
 ```mermaid
 graph TD
     ModuleRequestT[ModuleRequestT]
-    ModuleRequest[ModuleRequest]
-    ModuleResponse[ModuleResponse]
+    for[for]
+    for[for]
 ```
 
 

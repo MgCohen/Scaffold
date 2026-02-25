@@ -12,6 +12,9 @@ using Unity.Services.CloudCode.Core;
 
 namespace GameModule.GameModule
 {
+    /// <summary>
+    /// Routes and executes the primary network calls across registered modules actively.
+    /// </summary>
     public class GameModulesController
     {
         private readonly ILogger<GameModulesController> _logger;
@@ -19,6 +22,13 @@ namespace GameModule.GameModule
         private readonly PlayerData _playerData;
         private readonly RemoteConfig _remoteConfig;
 
+        /// <summary>
+        /// Initializes the central processing router correctly.
+        /// </summary>
+        /// <param name="logger">Core logging subsystem dependency.</param>
+        /// <param name="moduleRequestHandler">Active handler execution instance natively.</param>
+        /// <param name="playerData">The targeted executing player logic state component.</param>
+        /// <param name="remoteConfig">The server remote configurations parameters element structure execution target parameter configuration object format.</param>
         public GameModulesController(
             ILogger<GameModulesController> logger,
             ModuleRequestHandler moduleRequestHandler,
@@ -31,6 +41,14 @@ namespace GameModule.GameModule
             _remoteConfig = remoteConfig;
         }
 
+        /// <summary>
+        /// Initializes all attached configurations actively correctly.
+        /// </summary>
+        /// <param name="context">The active processing runtime layer format object safely.</param>
+        /// <param name="gameState">The specific logical component property mapping environment context state correctly.</param>
+        /// <param name="request">The originating configuration startup command properties.</param>
+        /// <param name="modules">The full list of available runtime features.</param>
+        /// <returns>A mapped execution completion state object dynamically securely.</returns>
         [CloudCodeFunction(nameof(InitializeGameModulesRequest))]
         public async Task<GameDataResponse> InitializeModules(IExecutionContext context, GameState gameState, InitializeGameModulesRequest request, IEnumerable<IGameModule> modules)
         {
@@ -38,6 +56,14 @@ namespace GameModule.GameModule
             return await ProcessModulesSequentially(context, gameState, modules, request);
         }
 
+        /// <summary>
+        /// Fetches specified modules dynamically.
+        /// </summary>
+        /// <param name="context">Execution context.</param>
+        /// <param name="gameState">Game state config.</param>
+        /// <param name="request">Data request parameter.</param>
+        /// <param name="modules">Module array data.</param>
+        /// <returns>Data response dynamically.</returns>
         [CloudCodeFunction(nameof(GameDataRequest))]
         public async Task<GameDataResponse> GetGameModulesRequest(IExecutionContext context, GameState gameState, GameDataRequest request, IEnumerable<IGameModule> modules)
         {
@@ -89,6 +115,10 @@ namespace GameModule.GameModule
             }
 
             T? response = new GameDataResponse(gameData) as T;
+            if (response == null)
+            {
+                throw new InvalidOperationException($"[ProcessModulesSequentially] Could not cast GameDataResponse to expected type '{typeof(T).Name}'.");
+            }
             return await _moduleRequestHandler.ResolveResponse(request, response, context, _playerData);
         }
     }

@@ -5,22 +5,25 @@ using Unity.Services.CloudCode.Core;
 
 namespace GameModule.ModuleFetchData
 {
+    /// <summary>
+    /// Subclass handling player fighting states.
+    /// </summary>
     public class BattlePlayerData : PlayerData
     {
-        private bool initialized;
-        
+        private bool _initialized;
+
         public BattlePlayerData(ILogger<BattlePlayerData> logger, IGameApiClient gameApiClient, string playerId) : base(logger, gameApiClient)
         {
-            this.logger = logger;
-            this.gameApiClient = gameApiClient;
-            this.playerId = playerId;
+            _logger = logger;
+            _gameApiClient = gameApiClient;
+            _playerId = playerId;
         }
-        
+
         protected override async Task InitializeData(IExecutionContext context)
         {
-            if (!initialized)
+            if (!_initialized)
             {
-                initialized = true;
+                _initialized = true;
                 await Initialize(context);
             }
         }

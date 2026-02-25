@@ -1,15 +1,15 @@
-<!-- hash: dd196bbde9b15ade30f2a2ec411208a6 -->
+<!-- hash: ccb5ebaddfb5dff5bad436f669744369 -->
 # Response Documentation
 
-This document details the purpose and relations of the components in `/Core/Response`.
+This document details the purpose and relations of the components in `/Project/Core/Response`.
 
 ## Component Overview
 
 ### `ModuleRequestHandler` (class)
-- **Description**: Handles core data and operations for module request handler within the architecture.
+- **Description**: Processes incoming module queries and formats responses.
 - **Namespace**: `GameModule.Response`
-- **Properties**: `Responses`, `Request`
-- **Methods**: `SetCurrentRequest`, `AddResponse`, `NotifyRequestResolve`
+- **Properties**: `Request`, `Responses`
+- **Methods**: `SetCurrentRequest`, `NotifyRequestResolve`, `AddResponse`
 
 ## Dependency & Behavior Schema
 

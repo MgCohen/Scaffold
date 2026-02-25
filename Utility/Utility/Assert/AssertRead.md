@@ -1,4 +1,4 @@
-<!-- hash: 0c505e43f420fd4701daa4678ff39a5c -->
+<!-- hash: 1f383ea6d556f8128b33b8170d9e6427 -->
 # Assert Documentation
 
 This document details the purpose and relations of the components in `/Utility/Assert`.
@@ -6,9 +6,9 @@ This document details the purpose and relations of the components in `/Utility/A
 ## Component Overview
 
 ### `Assert` (class)
-- **Description**: Provides validation methods to ensure conditions such as checking for null, emptiness, or boolean truth values, throwing appropriate exceptions if assertions fail.
+- **Description**: Provides assertion utilities for validating conditions and values. The main goal is to enforce invariants and throw standard exceptions on failure.
 - **Namespace**: `Utility.Assert`
-- **Methods**: `IsNotEmpty`, `IsTrue`
+- **Methods**: `IsTrue`, `IsNotEmpty`
 
 ## Dependency & Behavior Schema
 

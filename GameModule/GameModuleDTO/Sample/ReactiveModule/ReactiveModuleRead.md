@@ -1,7 +1,7 @@
-<!-- hash: 1b63c70762a35768074590d91c167a1b -->
+<!-- hash: f88951cf59c0d20344bc58788632af67 -->
 # ReactiveModule Documentation
 
-This document details the purpose and relations of the components in `/Sample/ReactiveModule`.
+This document details the purpose and relations of the components in `/GameModuleDTO/Sample/ReactiveModule`.
 
 ## Sub-Modules
 
@@ -10,7 +10,7 @@ This document details the purpose and relations of the components in `/Sample/Re
 ## Component Overview
 
 ### `ReactiveModuleData` (class)
-- **Description**: Data container holding state and properties for reactive module data.
+- **Description**: Sample system modeling dual variable properties for reactive interfaces.
 - **Namespace**: `GameModuleDTO.Sample.ReactiveModule`
 - **Inherits/Implements**: `IGameModuleData`
 - **Properties**: `Key`

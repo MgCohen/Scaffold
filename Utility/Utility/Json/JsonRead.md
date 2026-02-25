@@ -1,4 +1,4 @@
-<!-- hash: ff10e729e8bd22b899a19f83b6e236b6 -->
+<!-- hash: ce35bf5d67669a2b58aa5a19f6d8d172 -->
 # Json Documentation
 
 This document details the purpose and relations of the components in `/Utility/Json`.
@@ -6,10 +6,11 @@ This document details the purpose and relations of the components in `/Utility/J
 ## Component Overview
 
 ### `ShouldSerializeContractResolver` (class)
-- **Description**: A custom JSON contract resolver that excludes empty strings, empty collections, and default value types from serialization.
+- **Description**: Custom JSON contract resolver for Newtonsoft JSON serialization. The main goal is to ignore properties that have default, empty, or null values during serialization to shrink payloads.
 - **Namespace**: `Utility.Json`
 - **Inherits/Implements**: `DefaultContractResolver`
-- **Methods**: `IsValueOrNullableValueType`, `GetDefaultValue`, `CreateProperty`
+- **Properties**: `Instance`
+- **Methods**: `GetDefaultValue`, `CreateProperty`, `IsValueOrNullableValueType`
 
 ## Dependency & Behavior Schema
 

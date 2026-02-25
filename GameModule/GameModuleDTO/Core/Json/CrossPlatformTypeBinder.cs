@@ -4,15 +4,20 @@ using Newtonsoft.Json.Serialization;
 namespace GameModuleDTO.Json
 {
     /// <summary>
-    /// Client-Side Binder:
-    /// Deserialization: Converts Backend (mscorlib) -> Unity (CoreLib).
-    /// Serialization: Converts Unity (CoreLib) -> Backend (mscorlib).
+    /// Provides cross-platform JSON type binding for seamless serialization across boundaries.
     /// </summary>
+    /// <remarks>
+    /// Deserialization: Converts Backend types to Unity types.
+    /// Serialization: Converts Unity types to Backend types.
+    /// </remarks>
     public class CrossPlatformTypeBinder : ISerializationBinder
     {
         /// <summary>
-        /// CLIENT DESERIALIZATION: Reading JSON from the Backend/Old Version.
+        /// Reads JSON from the backend resolving standard runtime components.
         /// </summary>
+        /// <param name="assemblyName">The JSON source assembly name.</param>
+        /// <param name="typeName">The JSON source type name.</param>
+        /// <returns>A mapped execution type reference.</returns>
         public Type BindToType(string assemblyName, string typeName)
         {
             // If the JSON contains "System.Private.CoreLib" (from the Server), 
@@ -24,8 +29,11 @@ namespace GameModuleDTO.Json
         }
 
         /// <summary>
-        /// CLIENT SERIALIZATION: Sending JSON from Unity to the Backend.
+        /// Writes JSON from Unity to the backend resolving standard runtime packages identically.
         /// </summary>
+        /// <param name="serializedType">The type executing locally.</param>
+        /// <param name="assemblyName">The outbound assembly name parameter.</param>
+        /// <param name="typeName">The outbound type name parameter.</param>
         public void BindToName(Type serializedType, out string assemblyName, out string typeName)
         {
             // Get the current local assembly name (likely mscorlib in Unity)

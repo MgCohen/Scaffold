@@ -1,9 +1,10 @@
-<!-- hash: root -->
+<!-- hash: EmptyDir -->
 # GameModule Documentation
 
-This is the entry point for `GameModule` documentation.
+This document details the purpose and relations of the components in `/`.
 
 ## Sub-Modules
 
 - [GameModuleDTO](GameModuleDTO/GameModuleDTORead.md)
 - [Project](Project/ProjectRead.md)
+

@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using GameModule.GameModule;
 using GameModule.ModuleFetchData;
 using GameModuleDTO.GameModule;
 using GameModuleDTO.Sample.ReactiveModule;
@@ -10,6 +11,9 @@ using GameModuleDTO.ModuleRequests;
 
 namespace GameModule.Sample
 {
+    /// <summary>
+    /// Example system demonstrating signal subscription capabilities.
+    /// </summary>
     public class ReactiveModule : GameModuleT<ReactiveModuleData>
     {
         public ReactiveModule(ILogger<ReactiveModule> logger, ModuleRequestHandler moduleRequestHandler, IExecutionContext context, PlayerData playerData, SignalModule signalModule)

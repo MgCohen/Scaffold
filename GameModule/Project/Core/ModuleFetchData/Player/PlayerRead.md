@@ -1,23 +1,23 @@
-<!-- hash: e4496cb3b242a9144b15a29fc3b750cf -->
+<!-- hash: 00c89de464e66c073864f21a68472d25 -->
 # Player Documentation
 
-This document details the purpose and relations of the components in `/Core/ModuleFetchData/Player`.
+This document details the purpose and relations of the components in `/Project/Core/ModuleFetchData/Player`.
 
 ## Component Overview
 
 ### `PlayerDataExtensions` (class)
-- **Description**: Provides utility extension methods for player data extensions.
+- **Description**: Utilities logically modifying player data cleanly.
 - **Namespace**: `GameModule.ModuleFetchData`
 - **Methods**: `AddToCache`
 
 ### `PlayerData` (class)
-- **Description**: Data container holding state and properties for player data.
+- **Description**: Orchestrates user profile details gracefully.
 - **Namespace**: `GameModule.ModuleFetchData`
 - **Inherits/Implements**: `DataCache`
 - **Methods**: `GetWriteLock`
 
 ### `BattlePlayerData` (class)
-- **Description**: Data container holding state and properties for battle player data.
+- **Description**: Subclass handling player fighting states.
 - **Namespace**: `GameModule.ModuleFetchData`
 - **Inherits/Implements**: `PlayerData`
 

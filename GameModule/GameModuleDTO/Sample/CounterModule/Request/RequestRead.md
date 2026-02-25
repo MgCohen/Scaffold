@@ -1,18 +1,18 @@
-<!-- hash: 4735b4a1ecf349bca9ecb9ba93b9f7c7 -->
+<!-- hash: 1edd460dc08bb8afab8519b8795e08d7 -->
 # Request Documentation
 
-This document details the purpose and relations of the components in `/Sample/CounterModule/Request`.
+This document details the purpose and relations of the components in `/GameModuleDTO/Sample/CounterModule/Request`.
 
 ## Component Overview
 
 ### `IncrementCounterRequest` (class)
-- **Description**: Represents a data payload for a increment counter request sent to the server. Contains parameters required to execute the request.
+- **Description**: Sample request initiating a numeric counter step progression correctly.
 - **Namespace**: `GameModuleDTO.ModuleRequests`
 - **Inherits/Implements**: `ModuleRequestT<IncrementCounterResponse>`
 - **Methods**: `AssertModule`
 
 ### `IncrementCounterResponse` (class)
-- **Description**: Represents the server's response to a increment counter request. Contains the result data.
+- **Description**: Sample model returned validating the network integer accumulation natively.
 - **Namespace**: `GameModuleDTO.ModuleRequests`
 - **Inherits/Implements**: `ModuleResponse`
 - **Properties**: `Value`

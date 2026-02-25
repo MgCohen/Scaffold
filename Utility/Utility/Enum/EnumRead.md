@@ -1,4 +1,4 @@
-<!-- hash: ef06211de5405ea9782ae71d69732d6b -->
+<!-- hash: 93add4acf030bcd68bf036d13e274345 -->
 # Enum Documentation
 
 This document details the purpose and relations of the components in `/Utility/Enum`.
@@ -6,9 +6,9 @@ This document details the purpose and relations of the components in `/Utility/E
 ## Component Overview
 
 ### `EnumExtensions` (class)
-- **Description**: Offers extension methods to easily convert enum values or types into lists or arrays of their string or typed representations.
+- **Description**: Provides extension methods for converting enums to lists, arrays, and string representations. The main goal is to simplify reflection and iteration operations on enum types.
 - **Namespace**: `Utility.Enum`
-- **Methods**: `ToStringArray`, `ToStringList`
+- **Methods**: `ToStringList`, `ToStringArray`
 
 ## Dependency & Behavior Schema
 

@@ -8,8 +8,15 @@ using Unity.Services.CloudCode.Apis;
 using Unity.Services.CloudCode.Core;
 using GameModule.Signal;
 
+/// <summary>
+/// Configures the dependency injection container for cloud code execution.
+/// </summary>
 public partial class ModuleConfig : ICloudCodeSetup
 {
+    /// <summary>
+    /// Registers all scoped routines and dependencies dynamically.
+    /// </summary>
+    /// <param name="config">The injection container mapping properties securely.</param>
     public void Setup(ICloudCodeConfig config)
     {
         IGameApiClient gameApiClient = GameApiClient.Create();

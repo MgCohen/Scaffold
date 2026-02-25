@@ -1,12 +1,12 @@
-<!-- hash: b5c3650c5b8873c37d6c2b49bc2763a9 -->
+<!-- hash: 7db0fad4558461cad7f1096b65ab998c -->
 # SimpleModule Documentation
 
-This document details the purpose and relations of the components in `/Sample/SimpleModule`.
+This document details the purpose and relations of the components in `/Project/Sample/SimpleModule`.
 
 ## Component Overview
 
 ### `SimpleModule` (class)
-- **Description**: A core game module responsible for managing simple module logic and state within the game.
+- **Description**: Example system showcasing bare minimum implementations.
 - **Namespace**: `GameModule.Sample`
 - **Inherits/Implements**: `GameModuleT<SimpleModuleData>`
 - **Properties**: `Client`, `Server`

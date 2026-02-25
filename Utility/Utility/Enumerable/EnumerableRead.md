@@ -1,4 +1,4 @@
-<!-- hash: 0bdfaf9a40dddddf52b1eb05763ba1db -->
+<!-- hash: ac3e2df92c19e4f4470bdff47698ca28 -->
 # Enumerable Documentation
 
 This document details the purpose and relations of the components in `/Utility/Enumerable`.
@@ -6,22 +6,22 @@ This document details the purpose and relations of the components in `/Utility/E
 ## Component Overview
 
 ### `ArrayExtensions` (class)
-- **Description**: Provides extension methods for arrays to enable adding, removing, or checking for elements, and evaluating boolean collections.
+- **Description**: Provides extension methods for common array and enumerable operations. The main goal is to ease functional array mutations and aggregate logic evaluations.
 - **Namespace**: `Utility.Array`
-- **Methods**: `AllTrue`, `AnyTrue`
+- **Methods**: `AnyTrue`, `AllTrue`
 
 ### `CombinatoricsArrayExtensions` (class)
-- **Description**: Offers methods to generate combinations or power sets from collections, returning the results as enumerables or jagged arrays.
+- **Description**: Provides extension methods for generating combinations (power sets) from generic enumerables. The main goal is to efficiently compute mathematical combinations iteratively.
 - **Namespace**: `Utility.Combinatorics`
 
 ### `ListExtensions` (class)
-- **Description**: Contains extension methods for lists to facilitate shuffling, element comparison, and checking for null or empty states.
+- **Description**: Provides extension methods for generic List and IList collections. The main goal is to simplify operations like shuffling, splitting, and set comparison.
 - **Namespace**: `Utility.List`
 
 ### `DictionaryExtensions` (class)
-- **Description**: Provides utility methods for comparing, merging, and safely manipulating dictionaries, especially those containing list values.
+- **Description**: Provides extension methods for manipulating and querying dictionary structures. The main goal is to simplify deep dictionary comparisons and list-based value aggregations.
 - **Namespace**: `Utility.Dictionary`
-- **Methods**: `AreValuesEqual`, `AreDictionariesEqual`
+- **Methods**: `AreDictionariesEqual`, `AreValuesEqual`
 
 ## Dependency & Behavior Schema
 

@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using GameModule.GameModule;
 using GameModule.ModuleFetchData;
 using GameModule.Response;
 using GameModuleDTO.GameModule;
@@ -9,6 +10,9 @@ using Unity.Services.CloudCode.Core;
 
 namespace GameModule.Sample
 {
+    /// <summary>
+    /// Example system demonstrating client increment features.
+    /// </summary>
     public class CounterModule : GameModuleT<CounterModuleData>
     {
         public CounterModule(ILogger<CounterModule> logger, ModuleRequestHandler moduleRequestHandler)

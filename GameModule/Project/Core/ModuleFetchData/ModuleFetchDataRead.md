@@ -1,7 +1,7 @@
-<!-- hash: 308c44f78157085c7c8a5bb33738fdda -->
+<!-- hash: 9a0ced4ee2329a7b5339e96ba302f286 -->
 # ModuleFetchData Documentation
 
-This document details the purpose and relations of the components in `/Core/ModuleFetchData`.
+This document details the purpose and relations of the components in `/Project/Core/ModuleFetchData`.
 
 ## Sub-Modules
 
@@ -10,29 +10,29 @@ This document details the purpose and relations of the components in `/Core/Modu
 ## Component Overview
 
 ### `GameState` (class)
-- **Description**: Handles core data and operations for game state within the architecture.
+- **Description**: Represents server data configurations explicitly.
 - **Namespace**: `GameModule.ModuleFetchData`
 - **Inherits/Implements**: `DataCache`
 - **Properties**: `Instance`
 - **Methods**: `GetDebugKey`
 
 ### `RemoteConfig` (class)
-- **Description**: Handles core data and operations for remote config within the architecture.
+- **Description**: Connects to Remote Config to fetch server parameters.
 - **Namespace**: `GameModule.ModuleFetchData`
 - **Inherits/Implements**: `DataCache`
 - **Properties**: `Instance`
 - **Methods**: `SaveData`, `DeleteData`, `SaveBatchData`
 
 ### `DataCache` (class)
-- **Description**: Handles core data and operations for data cache within the architecture.
+- **Description**: Base abstraction for data structures.
 - **Namespace**: `GameModule.ModuleFetchData`
 - **Properties**: `PlayerId`
-- **Methods**: `DeleteData`, `SaveBatchData`, `SetPlayerId`, `AddToCache`, `GetDebugKey`, `SaveData`, `InternalSet`
+- **Methods**: `SetPlayerId`, `GetDebugKey`, `DeleteData`, `InternalSet`, `SaveData`, `AddToCache`, `SaveBatchData`
 
 ### `ConfigFetcher` (class)
-- **Description**: Handles core data and operations for config fetcher within the architecture.
+- **Description**: Handles requests to Unity Remote Config directly fetching game configurations parameters.
 - **Namespace**: `GameModule.ModuleFetchData`
-- **Properties**: `Value`, `Configs`, `Type`, `Key`
+- **Properties**: `Value`, `Key`, `Type`, `Configs`
 
 ## Dependency & Behavior Schema
 

@@ -10,6 +10,9 @@ using Unity.Services.CloudCode.Core;
 
 namespace GameModule.ModuleFetchData
 {
+    /// <summary>
+    /// Handles requests to Unity Remote Config directly fetching game configurations parameters.
+    /// </summary>
     public class ConfigFetcher
     {
         private readonly ILogger _logger;
@@ -17,6 +20,12 @@ namespace GameModule.ModuleFetchData
         private readonly AuthenticationModule _authModule;
         private readonly GameState _gameState;
 
+        /// <summary>
+        /// Initializes the fetcher module cleanly.
+        /// </summary>
+        /// <param name="logger">Core logging dependency.</param>
+        /// <param name="authModule">Authentication flow routine.</param>
+        /// <param name="gameState">Data representation model.</param>
         public ConfigFetcher(ILogger<ConfigFetcher> logger, AuthenticationModule authModule, GameState gameState)
         {
             _logger = logger;
@@ -24,6 +33,11 @@ namespace GameModule.ModuleFetchData
             _gameState = gameState;
         }
 
+        /// <summary>
+        /// Downloads the configurations efficiently.
+        /// </summary>
+        /// <param name="context">Active session gracefully.</param>
+        /// <returns>Fetched parameters.</returns>
         public async Task<Dictionary<string, string>> FetchAdminConfigs(IExecutionContext context)
         {
             try
@@ -88,7 +102,7 @@ namespace GameModule.ModuleFetchData
         }
 
         // --- JSON Data Structures for Admin API ---
-        
+
         private class AdminConfigRoot
         {
             [JsonProperty("configs")]
@@ -111,7 +125,7 @@ namespace GameModule.ModuleFetchData
 
             [JsonProperty("value")]
             public object Value { get; set; }
-            
+
             [JsonProperty("type")]
             public string Type { get; set; }
         }

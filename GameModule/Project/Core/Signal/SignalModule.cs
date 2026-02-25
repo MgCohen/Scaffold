@@ -3,6 +3,9 @@ using System.Collections.Generic;
 
 namespace GameModule.Signal
 {
+    /// <summary>
+    /// A decoupled event bus system for broadcasting requests.
+    /// </summary>
     public class SignalModule
     {
         private readonly Dictionary<Type, Action<object>> _subscribers = new Dictionary<Type, Action<object>>();

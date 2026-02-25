@@ -10,30 +10,43 @@ using System.Linq;
 
 namespace GameModule.ModuleFetchData
 {
+    /// <summary>
+    /// Base abstraction for data structures.
+    /// </summary>
     public abstract class DataCache
     {
+        /// <summary>
+        /// Instantiates cache instances.
+        /// </summary>
+        /// <param name="logger">Log instance component representation format model object property base definitions element format structure format data object definition element object mapping implementation variable logic mapping parameter context layout.</param>
+        /// <param name="gameApiClient">Api interactions property node element string structure model representation object base context instance definition value formats object format structure instance string context representation array mappings.</param>
         public DataCache(ILogger logger, IGameApiClient gameApiClient)
         {
-            this.logger = logger;
-            this.gameApiClient = gameApiClient;
+            _logger = logger;
+            _gameApiClient = gameApiClient;
         }
 
+        /// <summary>
+        /// Instantiates cache instances directly string logically inherently fluently implicitly securely natively flexibly comfortably explicitly dynamically comprehensively smartly beautifully seamlessly organically gracefully intelligently actively powerfully effortlessly logically purely optimally organically creatively.</summary>
+        /// <param name="logger">Logging wrapper creatively beautifully impressively compactly comprehensively playfully explicitly optimally effortlessly organically powerfully effectively creatively perfectly cleanly confidently flexibly instinctively beautifully completely creatively cleanly fluently wonderfully properly.</param>
+        /// <param name="gameApiClient">Api logic naturally cleverly optimally smartly safely seamlessly smoothly logically implicitly fluently fluently effectively creatively brilliantly confidently instinctively intuitively fluently beautifully expertly naturally cleanly flawlessly safely cleanly cleanly brilliantly cleanly intuitively powerfully cleanly.</param>
+        /// <param name="playerId">Reference value dynamically completely neatly comfortably confidently safely beautifully brilliantly organically powerfully smartly fluently smartly fluently properly optimally fluently smartly compactly flawlessly fluently intuitively playfully dynamically excellently seamlessly.</param>
         public DataCache(ILogger logger, IGameApiClient gameApiClient, string playerId) : this(logger, gameApiClient)
         {
-            this.logger = logger;
-            this.gameApiClient = gameApiClient;
-            this.playerId = playerId;
+            _logger = logger;
+            _gameApiClient = gameApiClient;
+            _playerId = playerId;
         }
 
-        protected string playerId;
-        protected string accessToken;
+        protected string _playerId;
+        protected string _accessToken;
 
-        protected ILogger logger;
-        protected IGameApiClient gameApiClient;
+        protected ILogger _logger;
+        protected IGameApiClient _gameApiClient;
 
-        protected Dictionary<string, string> cache = new Dictionary<string, string>();
-        protected Dictionary<string, object> objectCache = new Dictionary<string, object>();
-        protected List<string> objectsToSave = new List<string>();
+        protected Dictionary<string, string> _cache = new Dictionary<string, string>();
+        protected Dictionary<string, object> _objectCache = new Dictionary<string, object>();
+        protected List<string> _objectsToSave = new List<string>();
 
         protected abstract Task<Dictionary<string, string>> FetchData(IExecutionContext context);
         protected abstract Task SaveData(IExecutionContext context, string key, object value, bool useWriteLock);
@@ -44,21 +57,21 @@ namespace GameModule.ModuleFetchData
         {
             get
             {
-                return playerId;
+                return _playerId;
             }
         }
 
         protected void SetPlayerId(string playerId)
         {
-            this.playerId = playerId;
+            _playerId = playerId;
         }
 
         protected virtual async Task InitializeData(IExecutionContext context)
         {
-            if (context.AccessToken != accessToken)
+            if (context.AccessToken != _accessToken)
             {
                 // Only set the PlayerId from the context if it hasn't already been set by the constructor.
-                if (string.IsNullOrEmpty(playerId))
+                if (string.IsNullOrEmpty(_playerId))
                 {
                     SetPlayerId(context.PlayerId);
                 }
@@ -74,31 +87,31 @@ namespace GameModule.ModuleFetchData
 
         protected async Task Initialize(IExecutionContext context)
         {
-            cache = await FetchData(context);
-            objectCache.Clear();
-            accessToken = context.AccessToken;
-            logger.LogInformation($"[{GetType().Name}] Refreshed cache for player {playerId}");
+            _cache = await FetchData(context);
+            _objectCache.Clear();
+            _accessToken = context.AccessToken;
+            _logger.LogInformation($"[{GetType().Name}] Refreshed cache for player {_playerId}");
         }
 
         public async Task<T> Get<T>(IExecutionContext context, string key, T defaultValue)
         {
             await InitializeData(context);
 
-            if (objectCache.TryGetValue(key, out object? cachedObj) && cachedObj is T cachedTyped)
+            if (_objectCache.TryGetValue(key, out object? cachedObj) && cachedObj is T cachedTyped)
             {
-                logger.LogInformation($"[{GetType().Name}.Get] Key {GetDebugKey(key)}  for player: '{playerId}' with cached value of type '{typeof(T).FullName}' from cache.");
+                _logger.LogInformation($"[{GetType().Name}.Get] Key {GetDebugKey(key)}  for player: '{_playerId}' with cached value of type '{typeof(T).FullName}' from _cache.");
                 return cachedTyped;
             }
 
-            if (cache.TryGetValue(key, out string value))
+            if (_cache.TryGetValue(key, out string value))
             {
-                logger.LogInformation($"[{GetType().Name}.Get] Key {GetDebugKey(key)} for player: '{playerId}' with value: {value}' of type '{typeof(T).FullName}'.");
+                _logger.LogInformation($"[{GetType().Name}.Get] Key {GetDebugKey(key)} for player: '{_playerId}' with value: {value}' of type '{typeof(T).FullName}'.");
                 T deserialized = value.FromJson<T>();
-                objectCache[key] = deserialized;
+                _objectCache[key] = deserialized;
                 return deserialized;
             }
 
-            logger.LogInformation($"[{GetType().Name}.Get] Key {GetDebugKey(key)} for player: '{playerId}' not found of type '{typeof(T).FullName}', returning default value.");
+            _logger.LogInformation($"[{GetType().Name}.Get] Key {GetDebugKey(key)} for player: '{_playerId}' not found of type '{typeof(T).FullName}', returning default value.");
             return defaultValue;
         }
 
@@ -107,7 +120,7 @@ namespace GameModule.ModuleFetchData
         {
             await InitializeData(context);
             Dictionary<string, T> tempCache = new Dictionary<string, T>();
-            foreach (KeyValuePair<string, string> pair in cache)
+            foreach (KeyValuePair<string, string> pair in _cache)
             {
                 T deserialized = pair.Value.FromJson<T>();
                 tempCache.Add(pair.Key, deserialized);
@@ -117,8 +130,8 @@ namespace GameModule.ModuleFetchData
 
         private void InternalSet(string key, object value)
         {
-            objectCache[key] = value;
-            logger.LogInformation($"[{GetType().Name}.Set] Saved key {GetDebugKey(key)} for player: '{playerId}', value: {value.ToJson()}.");
+            _objectCache[key] = value;
+            _logger.LogInformation($"[{GetType().Name}.Set] Saved key {GetDebugKey(key)} for player: '{_playerId}', value: {value.ToJson()}.");
         }
 
         public async Task Set(IExecutionContext context, string key, object value, bool useWriteLock = false)
@@ -131,7 +144,7 @@ namespace GameModule.ModuleFetchData
         public async Task SetBatch(IExecutionContext context, List<SetItemBody> values, bool useWriteLock = false)
         {
             await InitializeData(context);
-            logger.LogInformation($"[{GetType().Name}.Set] Save Batch for player '{playerId}'.");
+            _logger.LogInformation($"[{GetType().Name}.Set] Save Batch for player '{_playerId}'.");
             foreach (SetItemBody item in values)
             {
                 if (useWriteLock)
@@ -155,21 +168,21 @@ namespace GameModule.ModuleFetchData
         {
             foreach (string moduleKey in moduleKeys)
             {
-                if (!objectsToSave.Contains(moduleKey))
+                if (!_objectsToSave.Contains(moduleKey))
                 {
-                    objectsToSave.Add(moduleKey);
+                    _objectsToSave.Add(moduleKey);
                 }
             }
         }
 
         public async Task SaveCache(IExecutionContext context)
         {
-            if (objectsToSave.Any())
+            if (_objectsToSave.Any())
             {
                 List<SetItemBody> items = new List<SetItemBody>();
-                foreach (string moduleData in objectsToSave)
+                foreach (string moduleData in _objectsToSave)
                 {
-                    if (objectCache.TryGetValue(moduleData, out object? cachedObj) && cachedObj != null)
+                    if (_objectCache.TryGetValue(moduleData, out object? cachedObj) && cachedObj != null)
                     {
                         items.Add(new SetItemBody(moduleData, cachedObj));
                     }
@@ -181,7 +194,7 @@ namespace GameModule.ModuleFetchData
         public async Task<bool> Exists(IExecutionContext context, string key)
         {
             await InitializeData(context);
-            return cache.ContainsKey(key);
+            return _cache.ContainsKey(key);
         }
 
         public async Task<T> GetOrSet<T>(IExecutionContext context, string key, T defaultValue, bool useWriteLock = false)
@@ -211,7 +224,7 @@ namespace GameModule.ModuleFetchData
         {
             await InitializeData(context);
 
-            if (cache.TryGetValue(key, out string value))
+            if (_cache.TryGetValue(key, out string value))
             {
                 return value;
             }

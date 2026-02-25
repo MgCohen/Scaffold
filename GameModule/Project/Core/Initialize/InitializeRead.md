@@ -1,18 +1,18 @@
-<!-- hash: 622a4f7e08a0844a1b6889462d10afd1 -->
+<!-- hash: a51590bfb345f6ade2dab6199633df73 -->
 # Initialize Documentation
 
-This document details the purpose and relations of the components in `/Core/Initialize`.
+This document details the purpose and relations of the components in `/Project/Core/Initialize`.
 
 ## Component Overview
 
 ### `ModuleConfig` (class)
-- **Description**: Handles core data and operations for module config within the architecture.
+- **Description**: Configures the dependency injection container for cloud code execution.
 - **Namespace**: `Global`
 - **Inherits/Implements**: `ICloudCodeSetup`
 - **Methods**: `Setup`
 
 ### `ModuleServices` (class)
-- **Description**: Handles core data and operations for module services within the architecture.
+- **Description**: Handles statically mapped references to global Unity interfaces.
 - **Namespace**: `GameModule.Initialize`
 
 ## Dependency & Behavior Schema

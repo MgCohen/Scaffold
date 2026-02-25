@@ -7,6 +7,9 @@ using GameModule.ModuleFetchData;
 
 namespace GameModule.Response
 {
+    /// <summary>
+    /// Processes incoming module queries and formats responses.
+    /// </summary>
     public class ModuleRequestHandler
     {
         public ModuleRequestHandler(SignalModule signalModule, PlayerData playerData) //TODO: Add gameData

@@ -1,7 +1,7 @@
-<!-- hash: 1d5825c122a3d8e2f8216f72b7f3c23b -->
+<!-- hash: 2ae6b04837a4d95c2e41284c2677965c -->
 # SimpleModule Documentation
 
-This document details the purpose and relations of the components in `/Sample/SimpleModule`.
+This document details the purpose and relations of the components in `/GameModuleDTO/Sample/SimpleModule`.
 
 ## Sub-Modules
 
@@ -10,7 +10,7 @@ This document details the purpose and relations of the components in `/Sample/Si
 ## Component Overview
 
 ### `SimpleModuleData` (class)
-- **Description**: Data container holding state and properties for simple module data.
+- **Description**: Represents an empty sample payload for simple structural tests natively.
 - **Namespace**: `GameModuleDTO.Sample.SimpleModule`
 - **Inherits/Implements**: `IGameModuleData`
 - **Properties**: `Key`

@@ -4,6 +4,9 @@ using Unity.Services.CloudCode.Core;
 
 namespace GameModule.ModuleFetchData
 {
+    /// <summary>
+    /// Utilities logically modifying player data cleanly.
+    /// </summary>
     public static class PlayerDataExtensions
     {
         public static async Task Set(this PlayerData playerData, IExecutionContext context, IGameModuleData value, bool useWriteLock = false)

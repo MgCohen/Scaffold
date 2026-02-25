@@ -1,12 +1,12 @@
-<!-- hash: e9df148b50984baf9c3c13abb6dd66e3 -->
+<!-- hash: 511a305d3f5ebf698448216914f751e9 -->
 # ReactiveModule Documentation
 
-This document details the purpose and relations of the components in `/Sample/ReactiveModule`.
+This document details the purpose and relations of the components in `/Project/Sample/ReactiveModule`.
 
 ## Component Overview
 
 ### `ReactiveModule` (class)
-- **Description**: A core game module responsible for managing reactive module logic and state within the game.
+- **Description**: Example system demonstrating signal subscription capabilities.
 - **Namespace**: `GameModule.Sample`
 - **Inherits/Implements**: `GameModuleT<ReactiveModuleData>`
 - **Properties**: `Client`, `Server`

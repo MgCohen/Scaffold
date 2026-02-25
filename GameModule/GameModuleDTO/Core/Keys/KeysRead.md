@@ -1,32 +1,32 @@
-<!-- hash: 77b3aff30b971e8062d11a2ae36d11e1 -->
+<!-- hash: e0f919d41cb832f3bdeb9b0df7555611 -->
 # Keys Documentation
 
-This document details the purpose and relations of the components in `/Core/Keys`.
+This document details the purpose and relations of the components in `/GameModuleDTO/Core/Keys`.
 
 ## Component Overview
 
 ### `LeaderboardKeys` (class)
-- **Description**: A static key configuration class containing constant string identifiers for leaderboard keys.
+- **Description**: Defines string constants for various leaderboard tracking tables.
 - **Namespace**: `GameModuleDTO.Keys`
 
 ### `PushToProjectKeys` (class)
-- **Description**: A static key configuration class containing constant string identifiers for push to project keys.
+- **Description**: Contains string constants for broadcasting messages across the entire game project instance.
 - **Namespace**: `GameModuleDTO.Keys`
 
 ### `PushToPlayerKeys` (class)
-- **Description**: A static key configuration class containing constant string identifiers for push to player keys.
+- **Description**: Groups string constants responsible for individual user notification routing.
 - **Namespace**: `GameModuleDTO.Keys`
 
 ### `DTOKeys` (class)
-- **Description**: A static key configuration class containing constant string identifiers for keys.
+- **Description**: Contains string constant definitions for standard data transfer components.
 - **Namespace**: `GameModuleDTO.Keys`
 
 ### `StatisticKeys` (class)
-- **Description**: A static key configuration class containing constant string identifiers for statistic keys.
+- **Description**: Defines literal string keys used to identify core player tracking statistics.
 - **Namespace**: `GameModuleDTO.Keys`
 
 ### `ModuleKeys` (class)
-- **Description**: A static key configuration class containing constant string identifiers for module keys.
+- **Description**: Maintains system-level string constants for core game modules.
 - **Namespace**: `GameModuleDTO.Keys`
 
 ## Dependency & Behavior Schema

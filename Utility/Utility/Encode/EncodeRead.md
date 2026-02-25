@@ -1,4 +1,4 @@
-<!-- hash: ea2b936ade8373be64e16e528f4b1285 -->
+<!-- hash: 9df7437f16abd885ed358f7859cbf347 -->
 # Encode Documentation
 
 This document details the purpose and relations of the components in `/Utility/Encode`.
@@ -6,9 +6,9 @@ This document details the purpose and relations of the components in `/Utility/E
 ## Component Overview
 
 ### `EncodeExtensions` (class)
-- **Description**: Contains utility methods for validating email addresses and encoding or decoding strings into URL-safe formats.
+- **Description**: Provides extension methods and utilities for data encoding and validation. The main goal is to offer standardized functions for sanitizing keys and validating formats.
 - **Namespace**: `Utility.Encode`
-- **Methods**: `DesanitizeKey`, `SanitizeKey`, `IsValidEmail`
+- **Methods**: `SanitizeKey`, `IsValidEmail`, `DesanitizeKey`
 
 ## Dependency & Behavior Schema
 
