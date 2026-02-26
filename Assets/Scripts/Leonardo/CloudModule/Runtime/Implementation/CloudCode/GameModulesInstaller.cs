@@ -1,15 +1,16 @@
-﻿//using Zenject;
+﻿using Scaffold.CloudModules.Shared;
+using Scaffold.Containers;
+using UnityEngine;
 
 namespace Scaffold.GameModules.Shared
 {
-    //TODO: Refactor
-    /*public class CloudCodeInstaller : Installer<CloudCodeInstaller>
+    public class GameModulesInstaller : Installer
     {
-        public override void InstallBindings()
+        public override void Install(IContainerRegistry registry, Transform holder)
         {
-            Container.BindInterfacesAndSelfTo<UGSCloudCodeService>().AsSingle().NonLazy();
-            Container.BindInterfacesAndSelfTo<GameModulesController>()
-                .FromNewComponentOnNewGameObject().AsSingle().NonLazy();
+            registry.Register<ICloudCodeService, CloudCodeUGSService>(ContainerLifetime.Singleton);
+            registry.Register<GameModulesController>(ContainerLifetime.Singleton)
+                .AsImplementedInterfaces();
         }
-    }*/
+    }
 }
