@@ -1,4 +1,4 @@
-using Scaffold.MVVM;
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace Scaffold.Navigation
 {
-    public class NavigationStack
+    internal class NavigationStack
     {
         public int Count => stack.Count;
         public IView CurrentView => CurrentPoint?.View;

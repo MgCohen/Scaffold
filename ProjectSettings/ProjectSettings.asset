@@ -12,8 +12,8 @@ PlayerSettings:
   targetDevice: 2
   useOnDemandResources: 0
   accelerometerFrequency: 60
-  companyName: DefaultCompany
-  productName: Effects
+  companyName: DDW
+  productName: Scaffold
   defaultCursor: {fileID: 0}
   cursorHotspot: {x: 0, y: 0}
   m_SplashScreenBackgroundColor: {r: 0.13725491, g: 0.12156863, b: 0.1254902, a: 1}
@@ -143,7 +143,7 @@ PlayerSettings:
   loadStoreDebugModeEnabled: 0
   visionOSBundleVersion: 1.0
   tvOSBundleVersion: 1.0
-  bundleVersion: 1.0
+  bundleVersion: 0.1
   preloadedAssets:
   - {fileID: 11400000, guid: 4d9471cc030a7774e9c9327474c8ae3b, type: 2}
   metroInputSource: 0
@@ -776,11 +776,11 @@ PlayerSettings:
   captureStartupLogs: {}
   activeInputHandler: 2
   windowsGamepadBackendHint: 0
-  cloudProjectId: ca605538-a8a0-4f4f-94a9-5c6feba78ad5
+  cloudProjectId: e5139a8c-6c7c-4507-ae77-76d3c4f427f4
   framebufferDepthMemorylessMode: 0
   qualitySettingsNames: []
-  projectName: Effects
-  organizationId: matheus_unity792
+  projectName: Scaffold
+  organizationId: matheuscohen
   cloudEnabled: 0
   legacyClampBlendShapeWeights: 0
   hmiLoadingImage: {fileID: 0}

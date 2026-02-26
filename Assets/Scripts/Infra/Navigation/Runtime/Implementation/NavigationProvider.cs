@@ -1,4 +1,4 @@
-using Scaffold.MVVM;
+
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -6,7 +6,7 @@ using UnityEngine;
 namespace Scaffold.Navigation
 {
 
-    public class NavigationProvider
+    internal class NavigationProvider
     {
         public NavigationProvider(NavigationSettings settings, Transform viewHolder)
         {

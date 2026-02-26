@@ -1,4 +1,4 @@
-using Scaffold.MVVM;
+
 using UnityEngine;
 using UnityEngine.UI;
 

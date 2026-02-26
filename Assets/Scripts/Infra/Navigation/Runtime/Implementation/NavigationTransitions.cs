@@ -1,5 +1,4 @@
 using Scaffold.Events;
-using Scaffold.MVVM;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,7 +7,7 @@ using UnityEngine;
 
 namespace Scaffold.Navigation
 {
-    public class NavigationTransitions
+    internal class NavigationTransitions
     {
         public NavigationTransitions(IEventBus events)
         {
@@ -260,7 +259,6 @@ namespace Scaffold.Navigation
         #region Animation Handlers
         private async Task HandleAnimator(AnimationViewSchema schema, NavigationPoint point)
         {
-            //small delay to skip a frame, to guarantee asset load
             await Task.Delay(20);
 
             var animator = point.View.gameObject.GetComponent<Animator>();
@@ -272,7 +270,6 @@ namespace Scaffold.Navigation
                 throw new System.Exception($"No valid state {schema.AnimationName} in this animator");
             }
 
-            //wait for the correct animation to start
             var state = animator.GetCurrentAnimatorStateInfo(0);
             while (!state.IsName(schema.AnimationName))
             {
@@ -280,14 +277,12 @@ namespace Scaffold.Navigation
                 state = animator.GetCurrentAnimatorStateInfo(0);
             }
 
-            //wait until its not the target or we complete the animation
             while (state.IsName(schema.AnimationName) && state.normalizedTime <= 1)
             {
                 await Task.Delay(100);
                 state = animator.GetCurrentAnimatorStateInfo(0);
             }
 
-            //wait until all animations are completed in case of a sequence
             while (state.normalizedTime <= 1)
             {
                 await Task.Delay(100);
@@ -301,15 +296,5 @@ namespace Scaffold.Navigation
             await point.View.gameObject.GetComponent<IViewAnimationHandler>().AnimateView(direction);
         }
         #endregion
-    }
-
-    public interface IViewAnimationHandler
-    {
-        Task AnimateView(AnimationType direction);
-    }
-
-    public interface IViewTransitionHandler
-    {
-        Task DoTransition(ViewTransitionData transitionData, TransitionDirection direction);
     }
 }

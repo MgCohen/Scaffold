@@ -2,12 +2,15 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using UnityEngine;
 
-public class TypeSelectionAttribute : PropertyAttribute
+namespace Scaffold.Types
 {
-    [NotNull] public Type baseType;
-
-    public TypeSelectionAttribute([NotNull] Type baseType)
+    public class TypeSelectionAttribute : PropertyAttribute
     {
-        this.baseType = baseType;
+        [NotNull] public Type baseType;
+
+        public TypeSelectionAttribute([NotNull] Type baseType)
+        {
+            this.baseType = baseType;
+        }
     }
 }

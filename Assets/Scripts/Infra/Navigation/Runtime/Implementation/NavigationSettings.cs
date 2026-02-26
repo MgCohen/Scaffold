@@ -1,4 +1,4 @@
-using Scaffold.MVVM;
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -29,11 +29,5 @@ namespace Scaffold.Navigation
             cachedConfigs[type] = config;
             return config;
         }
-
-        //public bool TryGetOverlayConfig(Type type, out OverlayConfig config)
-        //{
-        //    config = overlays.FirstOrDefault(s => s.Type.IsAssignableFrom(type));
-        //    return config != null;
-        //}
     }
 }
