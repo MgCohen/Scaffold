@@ -1,4 +1,4 @@
-<!-- hash: 7d9f0d6b49fb8e5e32b5b132e0fb7559 -->
+<!-- hash: a875c9e66d44ef73baae197fe3eeb7d9 -->
 # Abstraction Documentation
 
 This document details the purpose and relations of the components in `/Runtime/Abstraction`.

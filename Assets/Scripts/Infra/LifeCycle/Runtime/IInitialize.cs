@@ -9,6 +9,11 @@ namespace Scaffold.LifeCycle
     /// </summary>
     public interface IInitialize
     {
+        /// <summary>
+        /// Initializes the component before it starts operating.
+        /// The main goal is to trigger setup operations asynchronously.
+        /// It is used during the bootstrap phase of the game module or system.
+        /// </summary>
         public Awaitable Initialize();
     }
 }

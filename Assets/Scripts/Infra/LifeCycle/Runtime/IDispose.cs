@@ -9,6 +9,11 @@ namespace Scaffold.LifeCycle
     /// </summary>
     public interface IDispose
     {
+        /// <summary>
+        /// Begins the disposal process.
+        /// The main goal is to clean up resources asynchronously.
+        /// It is used when a system shuts down or is destroyed.
+        /// </summary>
         public Awaitable Dispose();
     }
 }

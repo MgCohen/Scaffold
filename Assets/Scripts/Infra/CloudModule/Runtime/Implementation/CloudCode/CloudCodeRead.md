@@ -1,4 +1,4 @@
-<!-- hash: 3309b9433d37f3ae56d24ad330210954 -->
+<!-- hash: e281d180c66a93248853ceb1bd5005f8 -->
 # CloudCode Documentation
 
 This document details the purpose and relations of the components in `/Runtime/Implementation/CloudCode`.
@@ -20,7 +20,7 @@ This document details the purpose and relations of the components in `/Runtime/I
 - **Description**: Controls the lifecycle and initialization of all registered game modules using Cloud Code requests. The main goal is to orchestrate the backend fetching and localized data injection for each system. It is used primarily by the application's root controller to initialize systems sequentially.
 - **Namespace**: `Scaffold.CloudModules`
 - **Inherits/Implements**: `IGameModulesService`, `IController`
-- **Properties**: `CloudCodeService`, `Modules`, `GameData`
+- **Properties**: `GameData`, `Modules`, `CloudCodeService`
 - **Methods**: `Dispose`
 
 ## Dependency & Behavior Schema

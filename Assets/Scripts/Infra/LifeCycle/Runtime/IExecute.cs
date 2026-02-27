@@ -9,6 +9,11 @@ namespace Scaffold.LifeCycle
     /// </summary>
     public interface IExecute
     {
+        /// <summary>
+        /// Executes the core logic for the component.
+        /// The main goal is to run periodic updates or operations asynchronously.
+        /// It is used by the application's tick or execution loop.
+        /// </summary>
         public Awaitable Execute();
     }
 }

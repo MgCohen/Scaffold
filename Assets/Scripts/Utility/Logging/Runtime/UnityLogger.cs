@@ -9,6 +9,11 @@ namespace Scaffold.Logging
     /// </summary>
     public class UnityLogger : ILogger
     {
+        /// <summary>
+        /// Outputs the translated message to the standard Unity console natively.
+        /// The main goal is to respect standard Unity debug hierarchies automatically.
+        /// It is used indiscriminately across editor and client runtime instances.
+        /// </summary>
         public void Log(LogLevel level, string message)
         {
             switch (level)

@@ -12,6 +12,11 @@ namespace Scaffold.CloudModules
     /// </summary>
     public class GameModulesInstaller : Installer
     {
+        /// <summary>
+        /// Installs the specific Cloud Module dependencies into the container layer.
+        /// The main goal is to map interfaces to their concrete implementations contextually.
+        /// It is used by the encompassing VContainer lifetime scopes during generation.
+        /// </summary>
         public override void Install(IContainerRegistry registry, Transform holder)
         {
             registry.Register<TaskQueueHandler>(ContainerLifetime.Singleton)
