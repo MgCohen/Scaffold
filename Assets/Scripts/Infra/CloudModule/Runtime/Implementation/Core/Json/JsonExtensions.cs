@@ -1,18 +1,18 @@
 using Newtonsoft.Json;
 using Utility.Json;
 
-namespace Scaffold.CloudModules.Shared
+namespace Scaffold.CloudModules
 {
+    /// <summary>
+    /// Provides extension methods for JSON serialization and deserialization.
+    /// The main goal is to securely try to parse arbitrary strings into JSON using cross-platform capabilities.
+    /// It is used heavily by the Cloud Code Service when passing messages and structured data payloads.
+    /// </summary>
     public static class JsonExtensions
     {
-        private static readonly CrossPlatformTypeBinder crossPlatformTypeBinder = new  CrossPlatformTypeBinder();
-        private static readonly ShouldSerializeContractResolver contractResolver = new ShouldSerializeContractResolver();
-        
-        /// <summary>
-        /// Deserializes a JSON string into the given type.
-        /// If the input is not valid JSON (i.e., doesn't start with '{', '[', or '"'),
-        /// it returns the raw string as T, or tries to deserialize it as a literal.
-        /// </summary>
+        private static readonly CrossPlatformTypeBinder _crossPlatformTypeBinder = new CrossPlatformTypeBinder();
+        private static readonly ShouldSerializeContractResolver _contractResolver = new ShouldSerializeContractResolver();
+
         public static T FromJson<T>(this string json)
         {
             if (string.IsNullOrWhiteSpace(json))
@@ -22,7 +22,6 @@ namespace Scaffold.CloudModules.Shared
 
             string trimmed = json.Trim();
 
-            // If it doesn't look like JSON, treat as raw value
             if (!(trimmed.StartsWith("{") || trimmed.StartsWith("[") || trimmed.StartsWith("\"")))
             {
                 if (typeof(T) == typeof(string))
@@ -35,7 +34,7 @@ namespace Scaffold.CloudModules.Shared
             {
                 JsonSerializerSettings settings = new JsonSerializerSettings
                 {
-                    SerializationBinder = crossPlatformTypeBinder,
+                    SerializationBinder = _crossPlatformTypeBinder,
                     TypeNameHandling = TypeNameHandling.Auto,
                 };
                 return JsonConvert.DeserializeObject<T>(json, settings);
@@ -55,11 +54,11 @@ namespace Scaffold.CloudModules.Shared
 
             JsonSerializerSettings settings = new JsonSerializerSettings
             {
-                SerializationBinder = crossPlatformTypeBinder,
+                SerializationBinder = _crossPlatformTypeBinder,
                 TypeNameHandling = typeNameHandling,
                 Formatting = formatting,
                 NullValueHandling = NullValueHandling.Ignore,
-                ContractResolver = contractResolver
+                ContractResolver = _contractResolver
             };
 
             return JsonConvert.SerializeObject(obj, settings);

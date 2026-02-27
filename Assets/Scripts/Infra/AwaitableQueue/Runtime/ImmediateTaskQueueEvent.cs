@@ -4,6 +4,11 @@ using UnityEngine;
 
 namespace Scaffold.AwaitableQueue
 {
+    /// <summary>
+    /// Implements an event handler that triggers asynchronous subscriber actions instantly without queueing.
+    /// The main goal is to loop over subscribers and begin their execution routines in-place on the same frame.
+    /// It is used for real-time reactivity when event delivery has a higher priority than orderly processing.
+    /// </summary>
     public class ImmediateTaskQueueEvent<T> : ITaskQueueEvent<T>
     {
         private readonly List<Func<T, Awaitable>> _subscribers = new List<Func<T, Awaitable>>();

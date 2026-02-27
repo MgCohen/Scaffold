@@ -4,10 +4,15 @@ using UnityEngine;
 
 namespace Scaffold.AwaitableQueue
 {
+    /// <summary>
+    /// Executes registered awaitable tasks back-to-back safely.
+    /// The main goal is to maintain internal lists of tasks and history and play them sequentially, pausing if required.
+    /// It is used natively locally and remotely whenever data consistency across steps is structurally required.
+    /// </summary>
     public class TaskQueueHandler : ITaskQueueHandler
     {
         private bool _enabled = true;
-        
+
         public bool IsExecuting { get; private set; }
 
         private readonly Queue<Awaitable> _taskQueue = new Queue<Awaitable>();
@@ -78,12 +83,12 @@ namespace Scaffold.AwaitableQueue
             IsExecuting = true;
             Awaitable nextTask = _taskQueue.Dequeue();
             _taskHistory.Add(nextTask);
-            
+
             OnTaskExecuting?.Invoke(nextTask);
 
             await nextTask;
             IsExecuting = false;
-            
+
             ExecuteNextTaskAsync();
         }
 

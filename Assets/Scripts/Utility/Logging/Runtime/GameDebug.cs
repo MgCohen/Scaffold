@@ -13,8 +13,8 @@ namespace Scaffold.Logging
         /// Concrete logger implementation (Unity, Console, File, etc).
         /// This can be replaced without changing the public API.
         /// </summary>
-        private static ILogger LoggerImpl = new UnityLogger();
-        
+        private static ILogger loggerImpl = new UnityLogger();
+
         /// <summary>
         /// Indicates whether the current runtime is Server or Client.
         /// Used by Shared logging methods.
@@ -36,7 +36,7 @@ namespace Scaffold.Logging
             currentEnvironment = IsServer ? LogEnvironment.Server : LogEnvironment.Client;
             if (newLogger != null)
             {
-                LoggerImpl = newLogger;
+                loggerImpl = newLogger;
             }
         }
 
@@ -150,7 +150,7 @@ namespace Scaffold.Logging
         private static string Log(LogEnvironment environment, LogLevel level, object message, object[] keys)
         {
             string formattedMessage = FormatMessage(environment, level, message, keys);
-            LoggerImpl.Log(level, formattedMessage);
+            loggerImpl.Log(level, formattedMessage);
             return formattedMessage;
         }
 
@@ -165,9 +165,9 @@ namespace Scaffold.Logging
 
         private static string LogException(LogEnvironment environment, Exception exception, object[] keys)
         {
-             object[] combinedKeys = (keys ?? Array.Empty<object>())
-                .Append(LogKey.Exception)
-                .ToArray();
+            object[] combinedKeys = (keys ?? Array.Empty<object>())
+               .Append(LogKey.Exception)
+               .ToArray();
 
             return Log(environment, LogLevel.Error, exception, combinedKeys);
         }
@@ -202,7 +202,7 @@ namespace Scaffold.Logging
             }
             return value.ToString();
         }
-        
+
         #endregion
 
         #region Assert

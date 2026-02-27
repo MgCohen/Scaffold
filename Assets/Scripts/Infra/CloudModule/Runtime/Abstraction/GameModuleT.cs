@@ -3,31 +3,38 @@ using Scaffold.Logging;
 using UnityEngine;
 using VContainer;
 
-namespace Scaffold.CloudModules.Shared
+namespace Scaffold.CloudModules
 {
+    /// <summary>
+    /// Serves as the base abstract class for all specialized game modules that require data fetching and initialization.
+    /// The main goal is to provide a generic wrapper capable of managing strongly-typed module data.
+    /// It is used throughout the CloudModule layer to streamline the creation and data synchronization of individual backend features.
+    /// </summary>
     public abstract class GameModuleT<T> : MonoBehaviour, IGameModule where T : IGameModuleData
     {
         [Inject]
         [SerializeField]
-        protected ICloudCodeService cloudCodeService;
+        protected ICloudCodeService _cloudCodeService;
+        
         [Inject]
         [SerializeField]
         protected GameModulesController _gameModulesController;
 
         [SerializeField]
-        private T data;
+        private T _data;
+        
         public T Data
         {
-            get { return data; }
+            get { return _data; }
             protected set
             {
-                data = value;
+                _data = value;
             }
         }
 
         public IGameModuleData DataModule
         {
-            get { return data; }
+            get { return _data; }
         }
 
         public async Awaitable Initialize(GameData gameModule)
@@ -56,7 +63,7 @@ namespace Scaffold.CloudModules.Shared
 
         public async Awaitable<T> FetchModuleData()
         {
-            await _gameModulesController.FetchModuleData(data.Key);
+            await _gameModulesController.FetchModuleData(_data.Key);
             return Data;
         }
     }

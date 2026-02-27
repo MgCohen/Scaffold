@@ -4,24 +4,32 @@ using System.Threading.Tasks;
 using GameModuleDTO.ModuleRequests;
 using Scaffold.Logging;
 using Scaffold.AwaitableQueue;
-using Scaffold.RetryAwaitable.Shared;
+using Scaffold.AwaitableRetry;
 using Unity.Services.CloudCode;
 using UnityEngine;
 
-namespace Scaffold.CloudModules.Shared
+namespace Scaffold.CloudModules
 {
+    /// <summary>
+    /// An implementation of the Cloud Code service bridging the Unity Gaming Services (UGS) backend.
+    /// The main goal is to securely route endpoint requests across the network, applying intelligent retries upon failures.
+    /// It is used by client modules to dispatch payloads and wait for remote computations and responses.
+    /// </summary>
     public class CloudCodeUGSService : ICloudCodeService
     {
+        private readonly TaskQueueHandler _taskQueueHandler;
+
         public CloudCodeUGSService(TaskQueueHandler taskQueueHandler)
         {
-            CloudService = CloudCodeService.Instance;
+            _CloudService = Unity.Services.CloudCode.CloudCodeService.Instance;
             _taskQueueHandler = taskQueueHandler;
             OnResponseReceived = new CompositeTaskQueueEvent<ModuleResponse>(taskQueueHandler);
         }
 
-        private Unity.Services.CloudCode.ICloudCodeService CloudService { get; }
-        private readonly TaskQueueHandler _taskQueueHandler;
+        private Unity.Services.CloudCode.ICloudCodeService _CloudService { get; }
+
         public CompositeTaskQueueEvent<ModuleResponse> OnResponseReceived { get; }
+
         public Action RequestError { get; }
 
         public void SubscribeToResponse<TResponse>(Func<TResponse, Awaitable> callback, bool immediate = false) where TResponse : ModuleResponse
@@ -36,24 +44,19 @@ namespace Scaffold.CloudModules.Shared
 
         private bool IsRetryableError(Exception ex)
         {
-            // Rate Limits are always retryable (Wait and Retry)
-            // This specific exception is thrown when the server rejects a request due to too many calls (HTTP 429)
             if (ex is CloudCodeRateLimitedException)
             {
                 return true;
             }
 
-            // Cloud Code specific exceptions
             if (ex is CloudCodeException ccEx)
             {
-                // 400-499: Logic and Client errors (e.g., Not Enough Gold, Invalid Input) -> DO NOT RETRY
                 if (ccEx.ErrorCode >= 400 && ccEx.ErrorCode < 500)
                 {
                     return false;
                 }
             }
 
-            // Generic Network/System errors (Timeout, Connection Failed) -> RETRY
             return true;
         }
 
@@ -63,12 +66,14 @@ namespace Scaffold.CloudModules.Shared
 
             try
             {
-                string response = await new Func<Task<string>>(() => CloudService.CallModuleEndpointAsync(module, endpoint, payload ?? new Dictionary<string, object>()))
+                var finalPayload = payload ?? new Dictionary<string, object>();
+                var retryHandler = new Func<Task<string>>(() => _CloudService.CallModuleEndpointAsync(module, endpoint, finalPayload))
                     .Retry(maxRetries)
                     .WithDelay(retryCall)
                     .WithCondition(IsRetryableError)
-                    .OnRetry((ex, attempt) => GameDebug.LogError($"Retry {attempt}/{maxRetries} failed: {ex.Message}", debugName))
-                    .ExecuteAsAwaitableAsync();
+                    .OnRetry((ex, attempt) => GameDebug.LogError($"Retry {attempt}/{maxRetries} failed: {ex.Message}", debugName));
+
+                string response = await retryHandler.ExecuteAsAwaitableAsync();
 
                 GameDebug.Log(response, debugName);
                 return response.FromJson<T>();
@@ -95,7 +100,8 @@ namespace Scaffold.CloudModules.Shared
                 return null;
             }
 
-            TResponse response = await CallEndpointAsync<TResponse>(request.ModuleName, request.FunctionName, request.MaxRetries, request.RetryCall, new Dictionary<string, object>() { { "request", request } });
+            var payload = new Dictionary<string, object>() { { "request", request } };
+            TResponse response = await CallEndpointAsync<TResponse>(request.ModuleName, request.FunctionName, request.MaxRetries, request.RetryCall, payload);
 
             _ = RaiseResponseEventDelayed(response);
 

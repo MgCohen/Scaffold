@@ -4,6 +4,11 @@ using UnityEngine;
 
 namespace Scaffold.AwaitableQueue
 {
+    /// <summary>
+    /// Implements an event handler that registers subscriber actions onto a managed queue handler.
+    /// The main goal is to ensure all event reactions are pipelined sequentially without causing race conditions.
+    /// It is used closely with the TaskQueueHandler to handle heavy event payloads systematically.
+    /// </summary>
     public class TaskQueueEvent<T> : ITaskQueueEvent<T>
     {
         private readonly ITaskQueueHandler _queueHandler;

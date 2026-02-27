@@ -3,12 +3,17 @@ using System.Linq;
 using System.Threading.Tasks;
 using GameModuleDTO.GameModule;
 using GameModuleDTO.ModuleRequests;
-using Scaffold.LifeCycle.Shared;
+using Scaffold.LifeCycle;
 using UnityEngine;
 using UnityEngine.Assertions;
 
-namespace Scaffold.CloudModules.Shared
+namespace Scaffold.CloudModules
 {
+    /// <summary>
+    /// Controls the lifecycle and initialization of all registered game modules using Cloud Code requests.
+    /// The main goal is to orchestrate the backend fetching and localized data injection for each system.
+    /// It is used primarily by the application's root controller to initialize systems sequentially.
+    /// </summary>
     public class GameModulesController : IGameModulesService, IController
     {
         public GameModulesController(ICloudCodeService cloudCodeService, List<IGameModule> modules)
@@ -18,6 +23,7 @@ namespace Scaffold.CloudModules.Shared
         }
         
         public ICloudCodeService CloudCodeService { get; }
+        
         public List<IGameModule> Modules { get; }
         
         public GameData GameData { get; protected set; }
@@ -36,7 +42,8 @@ namespace Scaffold.CloudModules.Shared
         
         public async Awaitable InitializeModules(List<IGameModule> modules)
         {
-            GameDataResponse response = await CloudCodeService.CallEndpointAsync(new InitializeGameModulesRequest(GameModuleAuthKey.guid));
+            var request = new InitializeGameModulesRequest(GameModuleAuthKey.guid);
+            GameDataResponse response = await CloudCodeService.CallEndpointAsync(request);
             GameData = response.GameData;
             Assert.IsNotNull(GameData);
             IEnumerable<Task> initializeTasks = modules
@@ -47,7 +54,8 @@ namespace Scaffold.CloudModules.Shared
         
         public async Awaitable FetchModuleData(params string[] fetchModuleKeys)
         {
-            GameDataResponse response = await CloudCodeService.CallEndpointAsync(new GameDataRequest(GameModuleAuthKey.guid, fetchModuleKeys));
+            var request = new GameDataRequest(GameModuleAuthKey.guid, fetchModuleKeys);
+            GameDataResponse response = await CloudCodeService.CallEndpointAsync(request);
             if (!response.IsValid())
             {
                 return;

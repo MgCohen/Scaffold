@@ -2,8 +2,13 @@ using System;
 using System.Threading.Tasks;
 using UnityEngine;
 
-namespace Scaffold.RetryAwaitable.Shared
+namespace Scaffold.AwaitableRetry
 {
+    /// <summary>
+    /// Provides extension methods for adding retry logic to Task and Task<T> delegates.
+    /// The main goal is to convert standard functions into configurable RetryTaskBuilders easily.
+    /// It is used across various asynchronous game systems, notably Cloud Code, to wrap volatile routines with resilient retries.
+    /// </summary>
     public static class TaskRetryExtensions
     {
         public static RetryTaskBuilder<T> Retry<T>(this Func<Task<T>> operation, int maxRetries = 3)
@@ -17,6 +22,11 @@ namespace Scaffold.RetryAwaitable.Shared
         }
     }
 
+    /// <summary>
+    /// Configures and executes an asynchronous task with predefined retry and delay policies, returning a result.
+    /// The main goal is to safely attempt network or volatile calls and correctly backoff between failures.
+    /// It is used by infrastructure services when continuous execution until success or max bounds is necessary.
+    /// </summary>
     public class RetryTaskBuilder<T>
     {
         private readonly Func<Task<T>> _operation;
@@ -81,7 +91,8 @@ namespace Scaffold.RetryAwaitable.Shared
 
         public System.Runtime.CompilerServices.TaskAwaiter<T> GetAwaiter()
         {
-            return ExecuteAsTaskAsync().GetAwaiter();
+            Task<T> executedTask = ExecuteAsTaskAsync();
+            return executedTask.GetAwaiter();
         }
 
         private async Task<T> ExecuteAsTaskAsync()
@@ -115,6 +126,11 @@ namespace Scaffold.RetryAwaitable.Shared
         }
     }
 
+    /// <summary>
+    /// Configures and executes an asynchronous task with predefined retry and delay policies without returning a result.
+    /// The main goal is to safely attempt void-like network or volatile calls and correctly backoff between failures.
+    /// It is used by infrastructure services when continuous execution until success or max bounds is logically required.
+    /// </summary>
     public class RetryTaskBuilder
     {
         private readonly Func<Task> _operation;
@@ -180,7 +196,8 @@ namespace Scaffold.RetryAwaitable.Shared
 
         public System.Runtime.CompilerServices.TaskAwaiter GetAwaiter()
         {
-            return ExecuteAsTaskAsync().GetAwaiter();
+            Task executedTask = ExecuteAsTaskAsync();
+            return executedTask.GetAwaiter();
         }
 
         private async Task ExecuteAsTaskAsync()

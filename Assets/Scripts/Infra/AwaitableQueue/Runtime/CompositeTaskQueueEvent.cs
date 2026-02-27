@@ -3,6 +3,11 @@ using UnityEngine;
 
 namespace Scaffold.AwaitableQueue
 {
+    /// <summary>
+    /// Combines immediate and queued event invocation behaviors into a single wrapper.
+    /// The main goal is to allow subscribers to choose between receiving events immediately or enqueued securely.
+    /// It is used natively by services like Cloud Code when broad response distribution needs flexible timing.
+    /// </summary>
     public class CompositeTaskQueueEvent<T>
     {
         private readonly TaskQueueEvent<T> _queuedEvent;
