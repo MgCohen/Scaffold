@@ -111,8 +111,8 @@ namespace Scaffold.CloudModules
 
             try
             {
-                var finalPayload = payload ?? new Dictionary<string, object>();
-                var retryHandler = new Func<Task<string>>(() => _CloudService.CallModuleEndpointAsync(module, endpoint, finalPayload))
+                Dictionary<string, object> finalPayload = payload ?? new Dictionary<string, object>();
+                RetryTaskBuilder<string> retryHandler = new Func<Task<string>>(() => _CloudService.CallModuleEndpointAsync(module, endpoint, finalPayload))
                     .Retry(maxRetries)
                     .WithDelay(retryCall)
                     .WithCondition(IsRetryableError)
@@ -150,7 +150,7 @@ namespace Scaffold.CloudModules
                 return null;
             }
 
-            var payload = new Dictionary<string, object>() { { "request", request } };
+            Dictionary<string, object> payload = new Dictionary<string, object>() { { "request", request } };
             TResponse response = await CallEndpointAsync<TResponse>(request.ModuleName, request.FunctionName, request.MaxRetries, request.RetryCall, payload);
 
             _ = RaiseResponseEventDelayed(response);

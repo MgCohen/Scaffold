@@ -72,7 +72,7 @@ namespace Scaffold.CloudModules
         /// </summary>
         public async Awaitable InitializeModules(List<IGameModule> modules)
         {
-            var request = new InitializeGameModulesRequest(GameModuleAuthKey.guid);
+            InitializeGameModulesRequest request = new InitializeGameModulesRequest(GameModuleAuthKey.guid);
             GameDataResponse response = await CloudCodeService.CallEndpointAsync(request);
             GameData = response.GameData;
             Assert.IsNotNull(GameData);
@@ -89,14 +89,14 @@ namespace Scaffold.CloudModules
         /// </summary>
         public async Awaitable FetchModuleData(params string[] fetchModuleKeys)
         {
-            var request = new GameDataRequest(GameModuleAuthKey.guid, fetchModuleKeys);
+            GameDataRequest request = new GameDataRequest(GameModuleAuthKey.guid, fetchModuleKeys);
             GameDataResponse response = await CloudCodeService.CallEndpointAsync(request);
             if (!response.IsValid())
             {
                 return;
             }
 
-            foreach (IGameModuleData moduleData in response.GameData.modulesData)
+            foreach (IGameModuleData moduleData in response.GameData.ModulesData)
             {
                 IGameModule matchingModule = Modules.FirstOrDefault(m => m.DataModule?.GetType() == moduleData.GetType());
                 matchingModule?.UpdateData(moduleData);
