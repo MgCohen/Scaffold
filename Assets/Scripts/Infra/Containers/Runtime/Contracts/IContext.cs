@@ -1,4 +1,4 @@
-﻿namespace Scaffold.Containers
+namespace Scaffold.Containers
 {
     public interface IContext
     {

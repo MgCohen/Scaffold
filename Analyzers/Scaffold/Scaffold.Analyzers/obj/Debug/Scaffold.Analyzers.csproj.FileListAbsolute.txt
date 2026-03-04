@@ -1,0 +1,11 @@
+C:\Users\user\Documents\Unity\Scaffold\Assets\Scripts\Tools\Scaffold.Analyzers.deps.json
+C:\Users\user\Documents\Unity\Scaffold\Assets\Scripts\Tools\Scaffold.Analyzers.dll
+C:\Users\user\Documents\Unity\Scaffold\Assets\Scripts\Tools\Scaffold.Analyzers.pdb
+C:\Users\user\Documents\Unity\Scaffold\Assets\Analyzers\Scaffold.Analyzers\obj\Debug\Scaffold.Analyzers.csproj.AssemblyReference.cache
+C:\Users\user\Documents\Unity\Scaffold\Assets\Analyzers\Scaffold.Analyzers\obj\Debug\Scaffold.Analyzers.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\user\Documents\Unity\Scaffold\Assets\Analyzers\Scaffold.Analyzers\obj\Debug\Scaffold.Analyzers.AssemblyInfoInputs.cache
+C:\Users\user\Documents\Unity\Scaffold\Assets\Analyzers\Scaffold.Analyzers\obj\Debug\Scaffold.Analyzers.AssemblyInfo.cs
+C:\Users\user\Documents\Unity\Scaffold\Assets\Analyzers\Scaffold.Analyzers\obj\Debug\Scaffold.Analyzers.csproj.CoreCompileInputs.cache
+C:\Users\user\Documents\Unity\Scaffold\Assets\Analyzers\Scaffold.Analyzers\obj\Debug\Scaffold.Analyzers.sourcelink.json
+C:\Users\user\Documents\Unity\Scaffold\Assets\Analyzers\Scaffold.Analyzers\obj\Debug\Scaffold.Analyzers.dll
+C:\Users\user\Documents\Unity\Scaffold\Assets\Analyzers\Scaffold.Analyzers\obj\Debug\Scaffold.Analyzers.pdb
