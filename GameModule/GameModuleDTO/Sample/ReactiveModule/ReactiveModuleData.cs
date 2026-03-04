@@ -11,11 +11,8 @@ namespace GameModuleDTO.Sample.ReactiveModule
         /// <summary>Gets the explicitly mapped implementation key.</summary>
         public string Key { get { return GameDataExtensions.GetKey<ReactiveModuleData>(); } }
 
-        [JsonProperty]
-        private int _valueA;
-
-        [JsonProperty]
-        private int _valueB;
+        public int valueA;
+        public int valueB;
 
         /// <summary>
         /// Progresses property A recursively efficiently.
@@ -23,16 +20,16 @@ namespace GameModuleDTO.Sample.ReactiveModule
         /// <param name="increment">Numeric additive property.</param>
         public void IncreaseValueA(int increment)
         {
-            _valueA += increment;
+            valueA += increment;
         }
 
         /// <summary>
         /// Progresses property B natively seamlessly.
         /// </summary>
         /// <param name="increment">Numeric additive parameter.</param>
-        public void IncreaseValue(int increment)
+        public void IncreaseValueB(int increment)
         {
-            _valueB += increment;
+            valueB += increment;
         }
     }
 }

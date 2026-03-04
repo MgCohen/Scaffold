@@ -14,11 +14,11 @@ namespace GameModuleDTO.Sample.ReactiveModule
         /// <param name="value">The resulting numeric execution argument.</param>
         public ReactiveCounterResponse(int value)
         {
-            Value = value;
+            ValueB = value;
         }
 
         /// <summary>Gets the bound execution parameter integer internally.</summary>
-        public int Value { get; protected set; }
+        public int ValueB { get; protected set; }
 
         /// <summary>
         /// Validates that the response correctly contains valid processing state data.
@@ -26,7 +26,7 @@ namespace GameModuleDTO.Sample.ReactiveModule
         /// <returns>True if validation checks succeed effectively.</returns>
         public override bool IsValid()
         {
-            return Assert.IsTrue(Value != 0, $"{nameof(Value)} must be different from 0");
+            return Assert.IsTrue(ValueB != 0, $"{nameof(ValueB)} must be different from 0");
         }
     }
 }

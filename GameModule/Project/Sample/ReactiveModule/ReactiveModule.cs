@@ -47,8 +47,8 @@ namespace GameModule.Sample
             _playerData.AddToCache(reactiveModuleData);
 
             int valueToIncrement = 2;
-            reactiveModuleData.IncreaseValue(valueToIncrement);
-            _moduleRequestHandler.AddResponse(new ReactiveCounterResponse(valueToIncrement));
+            reactiveModuleData.IncreaseValueB(valueToIncrement);
+            _moduleRequestHandler.AddResponse(new ReactiveCounterResponse(reactiveModuleData.valueB));
         }
         #endregion
     }
