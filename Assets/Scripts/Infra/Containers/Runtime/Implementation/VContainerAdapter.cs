@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using VContainer;
 using VContainer.Unity;
 
 namespace Scaffold.Containers
@@ -32,6 +33,7 @@ namespace Scaffold.Containers
                 var registry = new VContainerRegistry(builder);
                 registry.Register<IContext>(_ => rootContext, ContainerLifetime.Scoped);
                 registry.RegisterBuildCallback(_ => buildAction(rootContext));
+                builder.Register<IContext, Context>(Lifetime.Scoped);
             }
         }
     }
