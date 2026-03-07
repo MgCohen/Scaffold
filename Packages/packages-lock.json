@@ -12,7 +12,7 @@
       "depth": 0,
       "source": "git",
       "dependencies": {},
-      "hash": "34432703a177c97631a4eb1d908f086037c67969"
+      "hash": "c2af83c9d4f8cdaada9d4a0e94de2f195d8e1d01"
     },
     "com.scaffold.schemas": {
       "version": "https://github.com/ScaffoldLibrary/Schemas.git",
