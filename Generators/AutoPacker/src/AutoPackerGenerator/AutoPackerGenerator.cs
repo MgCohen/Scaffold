@@ -55,7 +55,7 @@ namespace AutoPackerGenerator
 
                 if (hasErrors) continue;
 
-                EmitPartial(context, typeSymbol, fields);
+                EmitPartial(context, typeSymbol, fields, receiver.ExtensionMethods);
                 validTypes.Add(typeSymbol);
             }
             return validTypes;
@@ -67,9 +67,9 @@ namespace AutoPackerGenerator
             context.AddSource("AutoPackerRegistry.g.cs", SourceText.From(source, Encoding.UTF8));
         }
 
-        private static void EmitPartial(GeneratorExecutionContext context, INamedTypeSymbol typeSymbol, List<(IFieldSymbol Field, ITypeSymbol TargetType)> fields)
+        private static void EmitPartial(GeneratorExecutionContext context, INamedTypeSymbol typeSymbol, List<(IFieldSymbol Field, ITypeSymbol TargetType)> fields, List<IMethodSymbol> extensionMethods)
         {
-            var source = Emitter.EmitSource(typeSymbol, fields);
+            var source = Emitter.EmitSource(typeSymbol, fields, extensionMethods);
             context.AddSource($"{typeSymbol.Name}.Packed.g.cs", SourceText.From(source, Encoding.UTF8));
         }
     }

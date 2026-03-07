@@ -7,7 +7,7 @@ namespace AutoPackerGenerator
 {
     internal static class Emitter
     {
-        public static string EmitSource(INamedTypeSymbol type, IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> fields)
+        public static string EmitSource(INamedTypeSymbol type, IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> fields, IReadOnlyList<IMethodSymbol> extensionMethods)
         {
             bool hasNamespace = !type.ContainingNamespace.IsGlobalNamespace;
             var sb = new StringBuilder();
@@ -18,9 +18,10 @@ namespace AutoPackerGenerator
                 AppendNamespaceOpen(sb, type);
 
             AppendTypeOpen(sb, type, hasNamespace);
-            AppendConstructorFromPacked(sb, type, fields, hasNamespace);
+            AppendDefaultConstructorIfMissing(sb, type, hasNamespace);
+            AppendConstructorFromPacked(sb, type, fields, hasNamespace, extensionMethods);
             AppendPackMethod(sb, hasNamespace);
-            AppendPackedStruct(sb, type, fields, hasNamespace);
+            AppendPackedStruct(sb, type, fields, hasNamespace, extensionMethods);
             AppendTypeClose(sb, hasNamespace);
 
             if (hasNamespace)
@@ -77,7 +78,30 @@ namespace AutoPackerGenerator
             sb.AppendLine($"{indent}}}");
         }
 
-        private static void AppendConstructorFromPacked(StringBuilder sb, INamedTypeSymbol type, IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> fields, bool indented)
+        private static void AppendDefaultConstructorIfMissing(StringBuilder sb, INamedTypeSymbol type, bool indented)
+        {
+            if (type.TypeKind == TypeKind.Struct)
+                return;
+
+            bool hasExplicitParameterlessConstructor = false;
+            foreach (var constructor in type.Constructors)
+            {
+                if (constructor.Parameters.Length == 0 && !constructor.IsImplicitlyDeclared)
+                {
+                    hasExplicitParameterlessConstructor = true;
+                    break;
+                }
+            }
+
+            if (!hasExplicitParameterlessConstructor)
+            {
+                string indent = indented ? "        " : "    ";
+                sb.AppendLine($"{indent}public {type.Name}() {{ }}");
+                sb.AppendLine();
+            }
+        }
+
+        private static void AppendConstructorFromPacked(StringBuilder sb, INamedTypeSymbol type, IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> fields, bool indented, IReadOnlyList<IMethodSymbol> extensionMethods)
         {
             string i1 = indented ? "        " : "    ";
             string i2 = indented ? "            " : "        ";
@@ -86,7 +110,7 @@ namespace AutoPackerGenerator
             sb.AppendLine($"{i1}{{");
             sb.AppendLine($"{i2}handler ??= new DefaultPackingHandler();");
             foreach (var tuple in fields)
-                AppendFieldAssignment(sb, tuple.Field, tuple.TargetType, "packedData", "handler", convertToPacked: false, i2);
+                AppendFieldAssignment(sb, tuple.Field, tuple.TargetType, "packedData", "handler", convertToPacked: false, i2, extensionMethods);
             sb.AppendLine($"{i1}}}");
             sb.AppendLine();
         }
@@ -101,7 +125,7 @@ namespace AutoPackerGenerator
             sb.AppendLine();
         }
 
-        private static void AppendPackedStruct(StringBuilder sb, INamedTypeSymbol type, IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> fields, bool indented)
+        private static void AppendPackedStruct(StringBuilder sb, INamedTypeSymbol type, IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> fields, bool indented, IReadOnlyList<IMethodSymbol> extensionMethods)
         {
             string i1 = indented ? "        " : "    ";
             string i2 = indented ? "            " : "        ";
@@ -112,19 +136,19 @@ namespace AutoPackerGenerator
             sb.AppendLine($"{i2}public Type PackedType => typeof({type.Name});");
             sb.AppendLine();
 
-            AppendPackedConstructor(sb, type, fields, i2, i3);
+            AppendPackedConstructor(sb, type, fields, i2, i3, extensionMethods);
             AppendPackedFields(sb, fields, i2);
 
             sb.AppendLine($"{i1}}}");
         }
 
-        private static void AppendPackedConstructor(StringBuilder sb, INamedTypeSymbol type, IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> fields, string i2, string i3)
+        private static void AppendPackedConstructor(StringBuilder sb, INamedTypeSymbol type, IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> fields, string i2, string i3, IReadOnlyList<IMethodSymbol> extensionMethods)
         {
             sb.AppendLine($"{i2}public Packed({type.Name} source, {nameof(IPackingHandler)} handler = null)");
             sb.AppendLine($"{i2}{{");
             sb.AppendLine($"{i3}handler ??= new DefaultPackingHandler();");
             foreach (var tuple in fields)
-                AppendFieldAssignment(sb, tuple.Field, tuple.TargetType, "source", "handler", convertToPacked: true, i3);;
+                AppendFieldAssignment(sb, tuple.Field, tuple.TargetType, "source", "handler", convertToPacked: true, i3, extensionMethods);;
             sb.AppendLine($"{i2}}}");
             sb.AppendLine();
         }
@@ -161,7 +185,8 @@ namespace AutoPackerGenerator
             string sourceName,
             string handlerName,
             bool convertToPacked,
-            string indent)
+            string indent,
+            IReadOnlyList<IMethodSymbol> extensionMethods)
         {
             var sourceTypeName = field.Type.ToDisplayString();
             string targetTypeName;
@@ -180,7 +205,33 @@ namespace AutoPackerGenerator
 
             var fromType = convertToPacked ? sourceTypeName : targetTypeName;
             var toType = convertToPacked ? targetTypeName : sourceTypeName;
-            sb.AppendLine($"{indent}{field.Name} = {handlerName}.Resolve<{fromType}, {toType}>({sourceName}.{field.Name});");
+
+            if (HasMatchingExtensionMethod(extensionMethods, fromType, toType))
+            {
+                sb.AppendLine($"{indent}{field.Name} = {handlerName}.Resolve({sourceName}.{field.Name});");
+            }
+            else
+            {
+                sb.AppendLine($"{indent}{field.Name} = {handlerName}.Resolve<{fromType}, {toType}>({sourceName}.{field.Name});");
+            }
+        }
+
+        private static bool HasMatchingExtensionMethod(IReadOnlyList<IMethodSymbol> extensionMethods, string sourceTypeName, string targetTypeName)
+        {
+            if (extensionMethods == null) return false;
+            foreach (var method in extensionMethods)
+            {
+                if (method.Parameters.Length >= 2)
+                {
+                    var sourceType = method.Parameters[1].Type.ToDisplayString();
+                    var returnType = method.ReturnType.ToDisplayString();
+                    if (sourceType == sourceTypeName && returnType == targetTypeName)
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
         }
 
         // ---- Registry emission ----

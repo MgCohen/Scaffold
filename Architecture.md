@@ -47,6 +47,7 @@ The logic is split into several interconnected but distinct submodules located i
 - **NetworkMessages**: Structures and subsystems dedicated to handling data transfer or network communication payloads.
 
 ### Tools
+- **AutoPacker**: A Roslyn Source Generator that creates zero-allocation structs and conversions for optimal Data Transfer Objects.
 - **Maps**: Utilities mapped to data collections or routing maps.
 - **Records**: Tools relating to immutable data structures or state records.
 - **Types**: Custom type wrappers, extensions, and type-safety enforcers. 
