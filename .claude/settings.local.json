@@ -20,7 +20,13 @@
       "Bash(cmd /c \"rmdir /s /q C:\\\\Users\\\\user\\\\Documents\\\\Unity\\\\Scaffold\\\\TestAnalyzer\")",
       "Bash(dotnet build \"C:/Users/user/Documents/Unity/Scaffold/Scaffold.sln\"*)",
       "Bash(dotnet build -c Release \"C:/Users/user/Documents/Unity/Scaffold/Analyzers/Scaffold/Scaffold.Analyzers/Scaffold.Analyzers.csproj\"*)",
-      "Bash(rm -f \"C:/Users/user/Documents/Unity/Scaffold/msbuild.binlog\")"
+      "Bash(rm -f \"C:/Users/user/Documents/Unity/Scaffold/msbuild.binlog\")",
+      "Bash(dotnet build \"C:/Users/user/Documents/Unity/Scaffold/Scaffold.sln\")",
+      "Bash(grep -n \"Assets\\\\\\\\Analyzers\\\\\\\\Scaffold.Analyzers.dll\" \"C:/Users/user/Documents/Unity/Scaffold/Scaffold.Maps.csproj\" \"C:/Users/user/Documents/Unity/Scaffold/Scaffold.Types.Editor.csproj\" \"C:/Users/user/Documents/Unity/Scaffold/Scaffold.NetworkMessages.Samples.csproj\" \"C:/Users/user/Documents/Unity/Scaffold/Scaffold.Events.csproj\")",
+      "Bash(grep -rl \"Assets\\\\\\\\Analyzers\\\\\\\\Scaffold.Analyzers.dll\" \"C:/Users/user/Documents/Unity/Scaffold/\" --include=\"*.csproj\")",
+      "Bash(tee /tmp/scaffold_build.txt)",
+      "Bash(dotnet build \"C:/Users/user/Documents/Unity/Scaffold/Scaffold.sln\" --no-incremental)",
+      "Bash(echo \"Exit: $?\")"
     ]
   }
 }
