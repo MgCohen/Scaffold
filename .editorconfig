@@ -1,0 +1,20 @@
+root = true
+
+[*.cs]
+# Scaffold Analyzer Severity Configuration
+# Values: error | warning | suggestion | none
+# Set to "none" to disable a rule entirely.
+# Set to "error" to make a rule block compilation.
+
+dotnet_diagnostic.SCA0001.severity = warning   # No comments on methods
+dotnet_diagnostic.SCA0002.severity = warning   # Methods in order of usage
+dotnet_diagnostic.SCA0003.severity = warning   # No nested function calls
+dotnet_diagnostic.SCA0004.severity = warning   # Use curly brackets for methods
+dotnet_diagnostic.SCA0005.severity = warning   # Avoid line breaks in signatures
+dotnet_diagnostic.SCA0006.severity = warning   # Methods should be small
+scaffold.SCA0006.max_lines = 8                 # Max lines per method body (default: 8)
+dotnet_diagnostic.SCA0009.severity = warning   # Namespace matches folder structure
+dotnet_diagnostic.SCA0010.severity = warning   # No _ or m_ prefixes on private fields
+dotnet_diagnostic.SCA0011.severity = warning   # Private fields must be camelCase
+dotnet_diagnostic.SCA0012.severity = warning   # Public members must be PascalCase
+dotnet_diagnostic.SCA0013.severity = warning   # Prefer Unity's Awaitable over Task/ValueTask

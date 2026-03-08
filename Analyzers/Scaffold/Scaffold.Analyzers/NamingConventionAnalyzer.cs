@@ -38,34 +38,39 @@ namespace Scaffold.Analyzers
 
         private void AnalyzeField(SyntaxNodeAnalysisContext context)
         {
+            var options = context.Options.AnalyzerConfigOptionsProvider.GetOptions(context.Node.SyntaxTree);
+            var prefixRule = AnalyzerConfig.ShouldSuppress(options, DiagnosticIdPrefix) ? null : AnalyzerConfig.GetEffectiveDescriptor(options, DiagnosticIdPrefix, PrefixRule);
+            var camelRule  = AnalyzerConfig.ShouldSuppress(options, DiagnosticIdCamel)  ? null : AnalyzerConfig.GetEffectiveDescriptor(options, DiagnosticIdCamel, CamelRule);
+            var pascalRule = AnalyzerConfig.ShouldSuppress(options, DiagnosticIdPascal) ? null : AnalyzerConfig.GetEffectiveDescriptor(options, DiagnosticIdPascal, PascalRule);
+
             var fieldDeclaration = (FieldDeclarationSyntax)context.Node;
             bool isPublic = fieldDeclaration.Modifiers.Any(SyntaxKind.PublicKeyword);
 
             foreach (var variable in fieldDeclaration.Declaration.Variables)
             {
                 var name = variable.Identifier.Text;
-                
+
                 // Exempted names
                 if (name == "gameObject" || name == "transform") continue;
 
                 if (isPublic)
                 {
-                    if (name.Length > 0 && !char.IsUpper(name[0]))
+                    if (pascalRule != null && name.Length > 0 && !char.IsUpper(name[0]))
                     {
-                        var diagnostic = Diagnostic.Create(PascalRule, variable.Identifier.GetLocation(), name);
+                        var diagnostic = Diagnostic.Create(pascalRule, variable.Identifier.GetLocation(), name);
                         context.ReportDiagnostic(diagnostic);
                     }
                 }
                 else
                 {
-                    if (name.StartsWith("_") || name.StartsWith("m_"))
+                    if (prefixRule != null && (name.StartsWith("_") || name.StartsWith("m_")))
                     {
-                        var diagnostic = Diagnostic.Create(PrefixRule, variable.Identifier.GetLocation(), name);
+                        var diagnostic = Diagnostic.Create(prefixRule, variable.Identifier.GetLocation(), name);
                         context.ReportDiagnostic(diagnostic);
                     }
-                    else if (name.Length > 0 && char.IsUpper(name[0]))
+                    else if (camelRule != null && name.Length > 0 && char.IsUpper(name[0]))
                     {
-                        var diagnostic = Diagnostic.Create(CamelRule, variable.Identifier.GetLocation(), name);
+                        var diagnostic = Diagnostic.Create(camelRule, variable.Identifier.GetLocation(), name);
                         context.ReportDiagnostic(diagnostic);
                     }
                 }
@@ -74,6 +79,10 @@ namespace Scaffold.Analyzers
 
         private void AnalyzeProperty(SyntaxNodeAnalysisContext context)
         {
+            var options = context.Options.AnalyzerConfigOptionsProvider.GetOptions(context.Node.SyntaxTree);
+            if (AnalyzerConfig.ShouldSuppress(options, DiagnosticIdPascal)) return;
+            var pascalRule = AnalyzerConfig.GetEffectiveDescriptor(options, DiagnosticIdPascal, PascalRule);
+
             var propDeclaration = (PropertyDeclarationSyntax)context.Node;
             bool isPublic = propDeclaration.Modifiers.Any(SyntaxKind.PublicKeyword);
 
@@ -82,25 +91,29 @@ namespace Scaffold.Analyzers
 
             if (isPublic && name.Length > 0 && !char.IsUpper(name[0]))
             {
-                var diagnostic = Diagnostic.Create(PascalRule, propDeclaration.Identifier.GetLocation(), name);
+                var diagnostic = Diagnostic.Create(pascalRule, propDeclaration.Identifier.GetLocation(), name);
                 context.ReportDiagnostic(diagnostic);
             }
         }
 
         private void AnalyzeMethod(SyntaxNodeAnalysisContext context)
         {
+            var options = context.Options.AnalyzerConfigOptionsProvider.GetOptions(context.Node.SyntaxTree);
+            if (AnalyzerConfig.ShouldSuppress(options, DiagnosticIdPascal)) return;
+            var pascalRule = AnalyzerConfig.GetEffectiveDescriptor(options, DiagnosticIdPascal, PascalRule);
+
             var methodDeclaration = (MethodDeclarationSyntax)context.Node;
             if (methodDeclaration.Identifier.Text == string.Empty) return; // Constructors handled differently, but just in case
-            
+
             var name = methodDeclaration.Identifier.Text;
-            
+
             // Basic heuristic: method names should be PascalCase
             if (name.Length > 0 && !char.IsUpper(name[0]))
             {
                 // check if it's an operator or special method
                 if (methodDeclaration.Modifiers.Any(SyntaxKind.OverrideKeyword) || name.StartsWith("operator")) return;
 
-                var diagnostic = Diagnostic.Create(PascalRule, methodDeclaration.Identifier.GetLocation(), name);
+                var diagnostic = Diagnostic.Create(pascalRule, methodDeclaration.Identifier.GetLocation(), name);
                 context.ReportDiagnostic(diagnostic);
             }
         }

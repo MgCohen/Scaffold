@@ -150,11 +150,17 @@ fmod_editor.log
 GameModule/**/obj
 GameModule/**/bin
 
-# But keep any .csproj/.sln under Utility/**      
+# But keep any .csproj/.sln under Utility/**
 !Utility/**/*.csproj
 !Utility/**/*.sln
 Utility/**/obj
 Utility/**/bin
+
+# But keep any .csproj/.sln under Analyzers/**
+!Analyzers/**/*.csproj
+!Analyzers/**/*.sln
+Analyzers/**/bin
+Analyzers/**/obj
 
 Utility/Utility/obj/Release/netstandard2.1/Utility.AssemblyInfoInputs.cache
 Utility/Utility/obj/Release/netstandard2.1/Utility.assets.cache

@@ -54,6 +54,10 @@ namespace Scaffold.Analyzers
 
         private void AnalyzeArguments(SyntaxNodeAnalysisContext context, ArgumentListSyntax argumentList)
         {
+            var options = context.Options.AnalyzerConfigOptionsProvider.GetOptions(context.Node.SyntaxTree);
+            if (AnalyzerConfig.ShouldSuppress(options, DiagnosticId)) return;
+            var rule = AnalyzerConfig.GetEffectiveDescriptor(options, DiagnosticId, Rule);
+
             foreach (var argument in argumentList.Arguments)
             {
                 var expression = argument.Expression;
@@ -75,7 +79,7 @@ namespace Scaffold.Analyzers
 
                     // Report diagnostic
                     var kindName = expression is InvocationExpressionSyntax ? "function call" : "object construction";
-                    var diagnostic = Diagnostic.Create(Rule, expression.GetLocation(), kindName);
+                    var diagnostic = Diagnostic.Create(rule, expression.GetLocation(), kindName);
                     context.ReportDiagnostic(diagnostic);
                 }
             }

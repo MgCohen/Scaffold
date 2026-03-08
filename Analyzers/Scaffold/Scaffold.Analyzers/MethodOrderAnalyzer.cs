@@ -50,6 +50,10 @@ namespace Scaffold.Analyzers
 
         private void AnalyzeType(SyntaxNodeAnalysisContext context, TypeDeclarationSyntax typeDeclaration)
         {
+            var options = context.Options.AnalyzerConfigOptionsProvider.GetOptions(context.Node.SyntaxTree);
+            if (AnalyzerConfig.ShouldSuppress(options, DiagnosticId)) return;
+            var rule = AnalyzerConfig.GetEffectiveDescriptor(options, DiagnosticId, Rule);
+
             var methods = typeDeclaration.Members.OfType<MethodDeclarationSyntax>().ToList();
             var methodNames = new HashSet<string>(methods.Select(m => m.Identifier.Text));
             
@@ -97,7 +101,7 @@ namespace Scaffold.Analyzers
                     if (callerIndex > i)
                     {
                         // The method appears before the method that calls it!
-                        var diagnostic = Diagnostic.Create(Rule, method.Identifier.GetLocation(), name, caller.Identifier.Text);
+                        var diagnostic = Diagnostic.Create(rule, method.Identifier.GetLocation(), name, caller.Identifier.Text);
                         context.ReportDiagnostic(diagnostic);
                     }
                 }

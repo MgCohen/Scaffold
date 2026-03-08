@@ -14,7 +14,7 @@ namespace Scaffold.Analyzers
         private const string Category = "Style";
 
         private static readonly LocalizableString Title = "Methods should be small and focused";
-        private static readonly LocalizableString MessageFormat = "Error SCA0006: Method '{0}' has {1} lines of code, exceeding the 8-line limit. Refactor and extract procedural parts into smaller, well-named private methods.";
+        private static readonly LocalizableString MessageFormat = "Error SCA0006: Method '{0}' has {1} lines of code, exceeding the {2}-line limit. Refactor and extract procedural parts into smaller, well-named private methods.";
         private static readonly LocalizableString Description = "Keep methods under 8 lines of code. Refactor by extracting steps into well-named methods.";
 
         private static readonly DiagnosticDescriptor Rule = new DiagnosticDescriptor(
@@ -38,6 +38,11 @@ namespace Scaffold.Analyzers
 
         private void AnalyzeMethod(SyntaxNodeAnalysisContext context)
         {
+            var options = context.Options.AnalyzerConfigOptionsProvider.GetOptions(context.Node.SyntaxTree);
+            if (AnalyzerConfig.ShouldSuppress(options, DiagnosticId)) return;
+            var rule = AnalyzerConfig.GetEffectiveDescriptor(options, DiagnosticId, Rule);
+            var maxLines = AnalyzerConfig.GetInt(options, "scaffold.SCA0006.max_lines", 8);
+
             var methodDeclaration = (MethodDeclarationSyntax)context.Node;
 
             if (methodDeclaration.Body == null)
@@ -55,9 +60,9 @@ namespace Scaffold.Analyzers
             // Let's count statements instead, or just direct line numbers inside the block.
             var lineCount = (endLine - startLine) - 1;
 
-            if (lineCount > 8)
+            if (lineCount > maxLines)
             {
-                var diagnostic = Diagnostic.Create(Rule, methodDeclaration.Identifier.GetLocation(), methodDeclaration.Identifier.Text, lineCount);
+                var diagnostic = Diagnostic.Create(rule, methodDeclaration.Identifier.GetLocation(), methodDeclaration.Identifier.Text, lineCount, maxLines);
                 context.ReportDiagnostic(diagnostic);
             }
         }

@@ -46,7 +46,7 @@ For full detail on modules and relationships, see [Architecture.md](Architecture
 ## How to Build
 
 - **Application**: Standard Unity Editor pipeline (`File > Build Settings`) or Unity CLI batch mode.
-- **Analyzers & Generators**: These are standard .NET projects. After modifying them, run `dotnet build` in their directory to regenerate the DLLs that Unity picks up during compilation.
+- **Analyzers & Generators**: These are standard .NET projects. After modifying them, run `dotnet build -c Release` in their directory. The compiled DLL lands in `Analyzers/Output/` and is picked up by the IDE/language server via `Directory.Build.props` at the repo root. Unity does **not** run the analyzer — diagnostics surface directly in the IDE and to AI tooling.
 
 ## How to Test
 

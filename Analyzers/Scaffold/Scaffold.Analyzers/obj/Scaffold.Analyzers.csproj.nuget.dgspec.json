@@ -1,23 +1,22 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\user\\Documents\\Unity\\Scaffold\\Assets\\Analyzers\\Scaffold.Analyzers\\Scaffold.Analyzers.csproj": {}
+    "C:\\Users\\user\\Documents\\Unity\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers\\Scaffold.Analyzers.csproj": {}
   },
   "projects": {
-    "C:\\Users\\user\\Documents\\Unity\\Scaffold\\Assets\\Analyzers\\Scaffold.Analyzers\\Scaffold.Analyzers.csproj": {
+    "C:\\Users\\user\\Documents\\Unity\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers\\Scaffold.Analyzers.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\user\\Documents\\Unity\\Scaffold\\Assets\\Analyzers\\Scaffold.Analyzers\\Scaffold.Analyzers.csproj",
+        "projectUniqueName": "C:\\Users\\user\\Documents\\Unity\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers\\Scaffold.Analyzers.csproj",
         "projectName": "Scaffold.Analyzers",
-        "projectPath": "C:\\Users\\user\\Documents\\Unity\\Scaffold\\Assets\\Analyzers\\Scaffold.Analyzers\\Scaffold.Analyzers.csproj",
+        "projectPath": "C:\\Users\\user\\Documents\\Unity\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers\\Scaffold.Analyzers.csproj",
         "packagesPath": "C:\\Users\\user\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\user\\Documents\\Unity\\Scaffold\\Assets\\Analyzers\\Scaffold.Analyzers\\obj\\",
+        "outputPath": "C:\\Users\\user\\Documents\\Unity\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\user\\Documents\\Unity\\Scaffold\\Assets\\NuGet.Config",
           "C:\\Users\\user\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
@@ -26,6 +25,7 @@
           "netstandard2.0"
         ],
         "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
@@ -51,14 +51,19 @@
           "targetAlias": "netstandard2.0",
           "dependencies": {
             "Microsoft.CodeAnalysis.Analyzers": {
-              "include": "Runtime, Build, Native, ContentFiles, Analyzers, BuildTransitive",
               "suppressParent": "All",
               "target": "Package",
               "version": "[3.3.4, )"
             },
             "Microsoft.CodeAnalysis.CSharp": {
+              "suppressParent": "All",
               "target": "Package",
-              "version": "[4.3.0, )"
+              "version": "[4.8.0, )"
+            },
+            "Microsoft.CodeAnalysis.CSharp.Workspaces": {
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[4.8.0, )"
             },
             "NETStandard.Library": {
               "suppressParent": "All",

@@ -33,6 +33,10 @@ namespace Scaffold.Analyzers
 
         private void AnalyzeMethod(SyntaxNodeAnalysisContext context)
         {
+            var options = context.Options.AnalyzerConfigOptionsProvider.GetOptions(context.Node.SyntaxTree);
+            if (AnalyzerConfig.ShouldSuppress(options, DiagnosticId)) return;
+            var rule = AnalyzerConfig.GetEffectiveDescriptor(options, DiagnosticId, Rule);
+
             var methodDeclaration = (MethodDeclarationSyntax)context.Node;
 
             if (methodDeclaration.ReturnType is IdentifierNameSyntax identifierName)
@@ -40,7 +44,7 @@ namespace Scaffold.Analyzers
                 var typeName = identifierName.Identifier.Text;
                 if (typeName == "Task" || typeName == "ValueTask")
                 {
-                    var diagnostic = Diagnostic.Create(Rule, methodDeclaration.ReturnType.GetLocation(), methodDeclaration.Identifier.Text, typeName);
+                    var diagnostic = Diagnostic.Create(rule, methodDeclaration.ReturnType.GetLocation(), methodDeclaration.Identifier.Text, typeName);
                     context.ReportDiagnostic(diagnostic);
                 }
             }
@@ -49,7 +53,7 @@ namespace Scaffold.Analyzers
                 var typeName = genericName.Identifier.Text;
                 if (typeName == "Task" || typeName == "ValueTask")
                 {
-                    var diagnostic = Diagnostic.Create(Rule, methodDeclaration.ReturnType.GetLocation(), methodDeclaration.Identifier.Text, typeName);
+                    var diagnostic = Diagnostic.Create(rule, methodDeclaration.ReturnType.GetLocation(), methodDeclaration.Identifier.Text, typeName);
                     context.ReportDiagnostic(diagnostic);
                 }
             }

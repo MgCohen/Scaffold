@@ -37,6 +37,10 @@ namespace Scaffold.Analyzers
 
         private void AnalyzeMethod(SyntaxNodeAnalysisContext context)
         {
+            var options = context.Options.AnalyzerConfigOptionsProvider.GetOptions(context.Node.SyntaxTree);
+            if (AnalyzerConfig.ShouldSuppress(options, DiagnosticId)) return;
+            var rule = AnalyzerConfig.GetEffectiveDescriptor(options, DiagnosticId, Rule);
+
             var methodDeclaration = (MethodDeclarationSyntax)context.Node;
 
             // Check leading trivia
@@ -46,7 +50,7 @@ namespace Scaffold.Analyzers
                 {
                     if (IsComment(trivia) && !IsAllowedComment(trivia))
                     {
-                        var diagnostic = Diagnostic.Create(Rule, trivia.GetLocation(), methodDeclaration.Identifier.Text);
+                        var diagnostic = Diagnostic.Create(rule, trivia.GetLocation(), methodDeclaration.Identifier.Text);
                         context.ReportDiagnostic(diagnostic);
                         break;
                     }

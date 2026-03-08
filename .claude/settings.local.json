@@ -3,7 +3,21 @@
     "allow": [
       "Bash(python3 -c \"import sys,json; data=json.load\\(sys.stdin\\); print\\(data[0][''text'']\\)\")",
       "Bash(python3 -c \":*)",
-      "Bash(node -e \":*)"
+      "Bash(node -e \":*)",
+      "Bash(ls -la \"c:\\\\Users\\\\user\\\\Documents\\\\Unity\\\\Scaffold\\\\Analyzers\\\\Scaffold\\\\Scaffold.Analyzers\\\\bin\\\\Release\"\" 2>/dev/null || echo \"Release folder not found \")",
+      "Bash(grep -r \"Analyzer\" \"c:\\\\Users\\\\user\\\\Documents\\\\Unity\\\\Scaffold\"/*.csproj)",
+      "Bash(grep -l \"Analyzer\" \"c:\\\\Users\\\\user\\\\Documents\\\\Unity\\\\Scaffold\"/*.csproj)",
+      "Bash(grep -B2 -A2 \"<Analyzer\" \"c:\\\\Users\\\\user\\\\Documents\\\\Unity\\\\Scaffold\"/*.csproj)",
+      "Bash(grep \"Scaffold\\\\.Analyzers\\\\.dll\" \"c:\\\\Users\\\\user\\\\Documents\\\\Unity\\\\Scaffold\"/*.csproj)",
+      "Bash(dotnet build -c Release)",
+      "Bash(dotnet build -v minimal)",
+      "Bash(dotnet build -v diagnostic)",
+      "Bash(dotnet build /p:UseSharedCompilation=false)",
+      "Bash(powershell -Command \":*)",
+      "Bash(powershell -File:*)",
+      "Bash(dotnet build -v normal)",
+      "Bash(\"c:/Users/user/Documents/Unity/Scaffold/TestAnalyzer/TestAnalyzer.csproj\":*)",
+      "Bash(cmd /c \"rmdir /s /q C:\\\\Users\\\\user\\\\Documents\\\\Unity\\\\Scaffold\\\\TestAnalyzer\")"
     ]
   }
 }

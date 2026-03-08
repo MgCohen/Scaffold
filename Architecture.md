@@ -29,7 +29,7 @@ The repository contains the following main directories:
     - `Infra/`: Infrastructure systems and framework-level tools.
     - `Presentation/`: User interface and visual representation layer.
     - `Tools/`: Helper utilities and structural tools.
-- `Analyzers/`: Contains custom Roslyn analyzers that enforce codestyle and architectural rules.
+- `Analyzers/`: Contains custom Roslyn analyzers that enforce codestyle and architectural rules. Source lives in `Analyzers/Scaffold/`; compiled artifact goes to `Analyzers/Output/Scaffold.Analyzers.dll` and is injected into all projects via `Directory.Build.props` at the repo root (not through Unity's asset pipeline).
 - `Generators/`: Source generators (e.g., AutoPacker and ObservableNestedPropertiesGenerator) that output boilerplate code during compilation.
 - `Packages/`: Project dependencies and third-party modules.
 

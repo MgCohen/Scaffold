@@ -35,6 +35,10 @@ namespace Scaffold.Analyzers
 
         private void AnalyzeSyntaxTree(SyntaxTreeAnalysisContext context)
         {
+            var options = context.Options.AnalyzerConfigOptionsProvider.GetOptions(context.Tree);
+            if (AnalyzerConfig.ShouldSuppress(options, DiagnosticId)) return;
+            var rule = AnalyzerConfig.GetEffectiveDescriptor(options, DiagnosticId, Rule);
+
             var root = context.Tree.GetRoot(context.CancellationToken);
             var namespaceDecs = root.DescendantNodes().OfType<BaseNamespaceDeclarationSyntax>().ToList();
 
@@ -49,7 +53,7 @@ namespace Scaffold.Analyzers
             
             if (namespaceDecs.Count == 0)
             {
-                var diagnostic = Diagnostic.Create(Rule, root.GetLocation(), "<global>", "ProjectNamespace.Folder");
+                var diagnostic = Diagnostic.Create(rule, root.GetLocation(), "<global>", "ProjectNamespace.Folder");
                 context.ReportDiagnostic(diagnostic);
             }
         }

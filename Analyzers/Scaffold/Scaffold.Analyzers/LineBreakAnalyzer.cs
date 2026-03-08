@@ -40,6 +40,10 @@ namespace Scaffold.Analyzers
 
         private void AnalyzeMethodSignature(SyntaxNodeAnalysisContext context)
         {
+            var options = context.Options.AnalyzerConfigOptionsProvider.GetOptions(context.Node.SyntaxTree);
+            if (AnalyzerConfig.ShouldSuppress(options, DiagnosticId)) return;
+            var rule = AnalyzerConfig.GetEffectiveDescriptor(options, DiagnosticId, Rule);
+
             var methodDeclaration = (MethodDeclarationSyntax)context.Node;
 
             // Basic check: does the parameter list or modifiers span multiple lines?
@@ -49,15 +53,19 @@ namespace Scaffold.Analyzers
 
             if (startLine != paramEndLine && methodDeclaration.ParameterList.Parameters.Count > 0)
             {
-                var diagnostic = Diagnostic.Create(Rule, methodDeclaration.Identifier.GetLocation());
+                var diagnostic = Diagnostic.Create(rule, methodDeclaration.Identifier.GetLocation());
                 context.ReportDiagnostic(diagnostic);
             }
         }
 
         private void AnalyzeExpressionStatement(SyntaxNodeAnalysisContext context)
         {
+            var options = context.Options.AnalyzerConfigOptionsProvider.GetOptions(context.Node.SyntaxTree);
+            if (AnalyzerConfig.ShouldSuppress(options, DiagnosticId)) return;
+            var rule = AnalyzerConfig.GetEffectiveDescriptor(options, DiagnosticId, Rule);
+
             var statement = (ExpressionStatementSyntax)context.Node;
-            
+
             // Allow builder/fluent patterns which typically look like multiline chained method calls on new lines
             // We'll skip enforcing multi-line purely on InvocationExpression with member access to prevent over-flagging fluent patterns.
             if (statement.Expression is InvocationExpressionSyntax inv && inv.Expression is MemberAccessExpressionSyntax)
@@ -68,19 +76,23 @@ namespace Scaffold.Analyzers
             var lineSpan = statement.GetLocation().GetLineSpan();
             if (lineSpan.StartLinePosition.Line != lineSpan.EndLinePosition.Line)
             {
-                var diagnostic = Diagnostic.Create(Rule, statement.GetLocation());
+                var diagnostic = Diagnostic.Create(rule, statement.GetLocation());
                 context.ReportDiagnostic(diagnostic);
             }
         }
 
         private void AnalyzeLocalDeclarationStatement(SyntaxNodeAnalysisContext context)
         {
+            var options = context.Options.AnalyzerConfigOptionsProvider.GetOptions(context.Node.SyntaxTree);
+            if (AnalyzerConfig.ShouldSuppress(options, DiagnosticId)) return;
+            var rule = AnalyzerConfig.GetEffectiveDescriptor(options, DiagnosticId, Rule);
+
             var statement = (LocalDeclarationStatementSyntax)context.Node;
 
             var lineSpan = statement.GetLocation().GetLineSpan();
             if (lineSpan.StartLinePosition.Line != lineSpan.EndLinePosition.Line)
             {
-                var diagnostic = Diagnostic.Create(Rule, statement.GetLocation());
+                var diagnostic = Diagnostic.Create(rule, statement.GetLocation());
                 context.ReportDiagnostic(diagnostic);
             }
         }
