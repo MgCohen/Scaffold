@@ -1,0 +1,70 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e2a2b870c5f4644fa9773cc5523aab77, type: 3}
+  m_Name: LevelPlayAdConfiguration
+  m_EditorClassIdentifier: 
+  editorConfig:
+    platform: 0
+    appKey: a9f3474559fa84dc64535da80e84cfa03f5dc8190afa698da326a3f55b2ba9b3
+    rewardedPlacements:
+    - adUnitId: 6057491
+      placementKey: {fileID: 11400000, guid: 841831626886d47cd862ad070d6bc9ab, type: 2}
+      rewardEndpointUrl: 
+    - adUnitId: 6057491
+      placementKey: {fileID: 11400000, guid: 10780803e665e4916aab65315b4ef159, type: 2}
+      rewardEndpointUrl: 
+    interstitialPlacements:
+    - adUnitId: 
+      placementKey: {fileID: 11400000, guid: 7bb0b904b38224bdf8a4a55496236411, type: 2}
+    - adUnitId: 
+      placementKey: {fileID: 11400000, guid: e3de2a90c17df4a3faee0ba6b8b2b604, type: 2}
+    bannerPlacements:
+    - adUnitId: 
+      placementKey: {fileID: 11400000, guid: 5e07cb69571f84893afb694dd048deb5, type: 2}
+      bannerPosition: 0
+  platformConfigs:
+  - platform: 11
+    appKey: a9f3474559fa84dc64535da80e84cfa03f5dc8190afa698da326a3f55b2ba9b3
+    rewardedPlacements:
+    - adUnitId: 
+      placementKey: {fileID: 11400000, guid: 841831626886d47cd862ad070d6bc9ab, type: 2}
+      rewardEndpointUrl: 
+    - adUnitId: 
+      placementKey: {fileID: 11400000, guid: 10780803e665e4916aab65315b4ef159, type: 2}
+      rewardEndpointUrl: 
+    interstitialPlacements:
+    - adUnitId: 
+      placementKey: {fileID: 11400000, guid: 7bb0b904b38224bdf8a4a55496236411, type: 2}
+    - adUnitId: 
+      placementKey: {fileID: 11400000, guid: e3de2a90c17df4a3faee0ba6b8b2b604, type: 2}
+    bannerPlacements:
+    - adUnitId: 
+      placementKey: {fileID: 11400000, guid: 5e07cb69571f84893afb694dd048deb5, type: 2}
+      bannerPosition: 0
+  - platform: 8
+    appKey: 
+    rewardedPlacements:
+    - adUnitId: 
+      placementKey: {fileID: 11400000, guid: 841831626886d47cd862ad070d6bc9ab, type: 2}
+      rewardEndpointUrl: 
+    - adUnitId: 
+      placementKey: {fileID: 11400000, guid: 10780803e665e4916aab65315b4ef159, type: 2}
+      rewardEndpointUrl: 
+    interstitialPlacements:
+    - adUnitId: 
+      placementKey: {fileID: 11400000, guid: 7bb0b904b38224bdf8a4a55496236411, type: 2}
+    - adUnitId: 
+      placementKey: {fileID: 11400000, guid: e3de2a90c17df4a3faee0ba6b8b2b604, type: 2}
+    bannerPlacements:
+    - adUnitId: 
+      placementKey: {fileID: 11400000, guid: 5e07cb69571f84893afb694dd048deb5, type: 2}
+      bannerPosition: 0
