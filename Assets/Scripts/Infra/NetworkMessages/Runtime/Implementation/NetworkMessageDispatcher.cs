@@ -7,10 +7,6 @@ using UnityEngine;
 
 namespace Scaffold.NetworkMessages
 {
-    /// <summary>
-    /// A generic dispatcher service for sending and receiving custom typed messages over Unity Netcode.
-    /// Eliminates reflection dynamically by wrapping all unmanaged struct types inside ForceNetworkSerializeByMemcpy.
-    /// </summary>
     public class NetworkMessageDispatcher : INetworkMessageDispatcher, IDisposable
     {
         private readonly NetworkManager networkManager;
@@ -25,77 +21,110 @@ namespace Scaffold.NetworkMessages
         public void RegisterHandler<T>(Action<ulong, T> handler) where T : unmanaged
         {
             if (isDisposed) return;
-
-            var messageName = typeof(T).FullName;
-
-            if (handlers.ContainsKey(typeof(T)))
-            {
-                Debug.LogWarning($"[NetworkMessageDispatcher] A handler for {messageName} is already registered. Overwriting.");
-            }
-
+            string messageName = typeof(T).FullName;
+            WarnIfHandlerExists<T>(messageName);
             handlers[typeof(T)] = handler;
-
-            var messagingManager = networkManager.CustomMessagingManager;
-            if (messagingManager != null)
-            {
-                messagingManager.RegisterNamedMessageHandler(messageName, ReceiveMessage<T>);
-            }
-            else
-            {
-                Debug.LogWarning($"[NetworkMessageDispatcher] NetworkManager.CustomMessagingManager is null when registering {messageName}. Ensure NetworkManager is correctly initialized and listening.");
-            }
+            RegisterMessagingHandler<T>(messageName);
         }
 
         public void UnregisterHandler<T>() where T : unmanaged
         {
             if (isDisposed) return;
-
-            var messageName = typeof(T).FullName;
-
+            string messageName = typeof(T).FullName;
             if (handlers.Remove(typeof(T)))
             {
-                var messagingManager = networkManager.CustomMessagingManager;
-                if (messagingManager != null)
-                {
-                    messagingManager.UnregisterNamedMessageHandler(messageName);
-                }
+                UnregisterMessagingHandler(messageName);
             }
+        }
+
+        public void SendToServer<T>(T message) where T : unmanaged
+        {
+            if (isDisposed) return;
+            CustomMessagingManager messaging = networkManager.CustomMessagingManager;
+            if (!TryValidateMessagingManager(messaging)) return;
+            using var writer = CreateWriter(message);
+            messaging.SendNamedMessage(typeof(T).FullName, NetworkManager.ServerClientId, writer);
+        }
+
+        public void SendToClient<T>(T message, ulong clientId) where T : unmanaged
+        {
+            if (isDisposed) return;
+            CustomMessagingManager messaging = networkManager.CustomMessagingManager;
+            if (!TryValidateMessagingManager(messaging)) return;
+            using var writer = CreateWriter(message);
+            messaging.SendNamedMessage(typeof(T).FullName, clientId, writer);
+        }
+
+        public void SendToClients<T>(T message, IReadOnlyList<ulong> clientIds) where T : unmanaged
+        {
+            if (isDisposed) return;
+            CustomMessagingManager messaging = networkManager.CustomMessagingManager;
+            if (!TryValidateMessagingManager(messaging)) return;
+            using var writer = CreateWriter(message);
+            messaging.SendNamedMessage(typeof(T).FullName, clientIds, writer);
+        }
+
+        public void Dispose()
+        {
+            if (isDisposed) return;
+            isDisposed = true;
+            UnregisterAllHandlers();
+            handlers.Clear();
+        }
+
+        private bool TryValidateMessagingManager(CustomMessagingManager messaging)
+        {
+            if (messaging != null) return true;
+            Debug.LogError("[NetworkMessageDispatcher] Cannot send message: CustomMessagingManager is null.");
+            return false;
         }
 
         private FastBufferWriter CreateWriter<T>(T message) where T : unmanaged
         {
-            int size;
+            int size = CalculateBufferSize<T>();
+            FastBufferWriter writer = new FastBufferWriter(size, Unity.Collections.Allocator.Temp);
+            EquatableWrapper<T> genericWrapper = new EquatableWrapper<T>(message);
+            ForceNetworkSerializeByMemcpy<EquatableWrapper<T>> forceSerializable = new ForceNetworkSerializeByMemcpy<EquatableWrapper<T>>(genericWrapper);
+            writer.WriteValueSafe(in forceSerializable);
+            return writer;
+        }
+
+        private int CalculateBufferSize<T>() where T : unmanaged
+        {
             try
             {
-                size = Marshal.SizeOf(typeof(T));
-                size += 16;
+                return Marshal.SizeOf(typeof(T)) + 16;
             }
             catch
             {
-                size = 256; // Fallback capacity
+                return 256;
             }
-
-            var writer = new FastBufferWriter(size, Unity.Collections.Allocator.Temp);
-            var genericWrapper = new EquatableWrapper<T>(message);
-            var forceSerializable = new ForceNetworkSerializeByMemcpy<EquatableWrapper<T>>(genericWrapper);
-            writer.WriteValueSafe(in forceSerializable);
-            return writer;
         }
 
         private void ReceiveMessage<T>(ulong senderClientId, FastBufferReader messagePayload) where T : unmanaged
         {
             if (isDisposed) return;
+            if (!TryGetHandler<T>(out Action<ulong, T> handler)) return;
+            TryDeserializeAndHandle(senderClientId, messagePayload, handler);
+        }
 
-            if (!handlers.TryGetValue(typeof(T), out var handlerObj) || handlerObj is not Action<ulong, T> handler)
+        private bool TryGetHandler<T>(out Action<ulong, T> handler) where T : unmanaged
+        {
+            if (handlers.TryGetValue(typeof(T), out object handlerObj) && handlerObj is Action<ulong, T> typedHandler)
             {
-                Debug.LogWarning($"[NetworkMessageDispatcher] Received message of type {typeof(T).FullName} but no valid handler was found.");
-                return;
+                handler = typedHandler;
+                return true;
             }
+            Debug.LogWarning($"[NetworkMessageDispatcher] Received message of type {typeof(T).FullName} but no valid handler was found.");
+            handler = null;
+            return false;
+        }
+
+        private void TryDeserializeAndHandle<T>(ulong senderClientId, FastBufferReader messagePayload, Action<ulong, T> handler) where T : unmanaged
+        {
             try
             {
-                messagePayload.ReadValueSafe(out ForceNetworkSerializeByMemcpy<EquatableWrapper<T>> forceSerializable);
-                T message = forceSerializable.Value.Value;
-                handler.Invoke(senderClientId, message);
+                DeserializeAndHandle(senderClientId, messagePayload, handler);
             }
             catch (Exception e)
             {
@@ -103,66 +132,49 @@ namespace Scaffold.NetworkMessages
             }
         }
 
-        public void SendToServer<T>(T message) where T : unmanaged
+        private void DeserializeAndHandle<T>(ulong senderClientId, FastBufferReader messagePayload, Action<ulong, T> handler) where T : unmanaged
         {
-            if (isDisposed) return;
-
-            var messagingManager = networkManager.CustomMessagingManager;
-            if (messagingManager == null)
-            {
-                Debug.LogError("[NetworkMessageDispatcher] Cannot send message: CustomMessagingManager is null.");
-                return;
-            }
-
-            using var writer = CreateWriter(message);
-            messagingManager.SendNamedMessage(typeof(T).FullName, NetworkManager.ServerClientId, writer);
+            messagePayload.ReadValueSafe(out ForceNetworkSerializeByMemcpy<EquatableWrapper<T>> forceSerializable);
+            T message = forceSerializable.Value.Value;
+            handler.Invoke(senderClientId, message);
         }
 
-        public void SendToClient<T>(T message, ulong clientId) where T : unmanaged
+        private void WarnIfHandlerExists<T>(string messageName)
         {
-            if (isDisposed) return;
-
-            var messagingManager = networkManager.CustomMessagingManager;
-            if (messagingManager == null)
+            if (handlers.ContainsKey(typeof(T)))
             {
-                Debug.LogError("[NetworkMessageDispatcher] Cannot send message: CustomMessagingManager is null.");
-                return;
+                Debug.LogWarning($"[NetworkMessageDispatcher] A handler for {messageName} is already registered. Overwriting.");
             }
-
-            using var writer = CreateWriter(message);
-            messagingManager.SendNamedMessage(typeof(T).FullName, clientId, writer);
         }
 
-        public void SendToClients<T>(T message, IReadOnlyList<ulong> clientIds) where T : unmanaged
+        private void RegisterMessagingHandler<T>(string messageName) where T : unmanaged
         {
-            if (isDisposed) return;
-
-            var messagingManager = networkManager.CustomMessagingManager;
+            CustomMessagingManager messagingManager = networkManager.CustomMessagingManager;
             if (messagingManager == null)
             {
-                Debug.LogError("[NetworkMessageDispatcher] Cannot send message: CustomMessagingManager is null.");
+                Debug.LogWarning($"[NetworkMessageDispatcher] NetworkManager.CustomMessagingManager is null when registering {messageName}. Ensure NetworkManager is correctly initialized and listening.");
                 return;
             }
-
-            using var writer = CreateWriter(message);
-            messagingManager.SendNamedMessage(typeof(T).FullName, clientIds, writer);
+            messagingManager.RegisterNamedMessageHandler(messageName, ReceiveMessage<T>);
         }
 
-        public void Dispose()
+        private void UnregisterMessagingHandler(string messageName)
         {
-            if (isDisposed) return;
-            isDisposed = true;
-
-            var messagingManager = networkManager?.CustomMessagingManager;
+            CustomMessagingManager messagingManager = networkManager.CustomMessagingManager;
             if (messagingManager != null)
             {
-                foreach (var handlerType in handlers.Keys)
-                {
-                    messagingManager.UnregisterNamedMessageHandler(handlerType.FullName);
-                }
+                messagingManager.UnregisterNamedMessageHandler(messageName);
             }
+        }
 
-            handlers.Clear();
+        private void UnregisterAllHandlers()
+        {
+            CustomMessagingManager messagingManager = networkManager?.CustomMessagingManager;
+            if (messagingManager == null) return;
+            foreach (Type handlerType in handlers.Keys)
+            {
+                messagingManager.UnregisterNamedMessageHandler(handlerType.FullName);
+            }
         }
     }
 }

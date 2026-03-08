@@ -1,0 +1,15 @@
+{
+    "name": "Scaffold.NetworkMessages.Tests",
+    "rootNamespace": "Scaffold.NetworkMessages.Tests",
+    "references": ["Scaffold.NetworkMessages"],
+    "includePlatforms": ["Editor"],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false,
+    "optionalUnityReferences": ["TestAssemblies"]
+}

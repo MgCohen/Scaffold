@@ -11,10 +11,6 @@ namespace Scaffold.NetworkMessages.Samples
         public float Timestamp;
     }
 
-    /// <summary>
-    /// A simple sample demonstrating how to send and receive typed custom messages using the service.
-    /// Requirements: Attach to a NetworkObject in the scene or an active GameObject while NetworkManager is active.
-    /// </summary>
     public class NetworkMessagingSample : NetworkBehaviour
     {
         [Tooltip("Check this in the inspector or at runtime to send a test message.")]
@@ -32,16 +28,7 @@ namespace Scaffold.NetworkMessages.Samples
 
         public override void OnNetworkDespawn()
         {
-            if (dispatcher != null)
-            {
-                dispatcher.UnregisterHandler<SampleMessage>();
-                if (dispatcher is System.IDisposable disposable)
-                {
-                    disposable.Dispose();
-                }
-                dispatcher = null;
-            }
-
+            CleanupDispatcher();
             base.OnNetworkDespawn();
         }
 
@@ -49,59 +36,104 @@ namespace Scaffold.NetworkMessages.Samples
         {
             if (IsServer)
             {
-                if (Input.GetKeyDown(KeyCode.A))
-                {
-                    SendSampleMessage();
-                }
+                HandleServerInput();
             }
             else
             {
-                if (Input.GetKeyDown(KeyCode.S))
-                {
-                    SendSampleMessage();
-                }
+                HandleClientInput();
+            }
+        }
+
+        private void HandleServerInput()
+        {
+            if (Input.GetKeyDown(KeyCode.A))
+            {
+                SendSampleMessage();
+            }
+        }
+
+        private void HandleClientInput()
+        {
+            if (Input.GetKeyDown(KeyCode.S))
+            {
+                SendSampleMessage();
             }
         }
 
         public void SendSampleMessage()
         {
             if (!IsSpawned || dispatcher == null) return;
-
-            var message = new SampleMessage { Id = ++messageCounter, Timestamp = Time.time };
-
-            if (IsServer)
-            {
-                Debug.Log($"[Server] Sending SampleMessage ID: {message.Id} to all clients...");
-                
-                List<ulong> clientIds = new List<ulong>(NetworkManager.Singleton.ConnectedClientsIds);
-                dispatcher.SendToClients(message, clientIds);
-            }
-            else if (IsClient)
-            {
-                Debug.Log($"[Client {NetworkManager.Singleton.LocalClientId}] Sending SampleMessage ID: {message.Id} to server...");
-                dispatcher.SendToServer(message);
-            }
+            SampleMessage message = new SampleMessage { Id = ++messageCounter, Timestamp = Time.time };
+            SendMessageForRole(message);
         }
 
         private void OnSampleMessageReceived(ulong senderClientId, SampleMessage message)
         {
             Debug.Log($"{(IsServer ? "[Server]" : $"[Client {NetworkManager.Singleton.LocalClientId}]")} Received SampleMessage ID: {message.Id}, Timestamp: {message.Timestamp} from Client: {senderClientId}");
-            
             if (IsServer && dispatcher != null)
             {
-                Debug.Log($"[Server] Bouncing message {message.Id} from {senderClientId} to everyone else.");
-                
-                List<ulong> otherClients = new List<ulong>();
-                foreach (var clientId in NetworkManager.Singleton.ConnectedClientsIds)
-                {
-                    if (clientId != senderClientId)
-                        otherClients.Add(clientId);
-                }
+                BounceToOtherClients(senderClientId, message);
+            }
+        }
 
-                if (otherClients.Count > 0)
-                {
-                    dispatcher.SendToClients(message, otherClients);
-                }
+        private void SendMessageForRole(SampleMessage message)
+        {
+            if (IsServer)
+            {
+                SendMessageAsServer(message);
+            }
+            else if (IsClient)
+            {
+                SendMessageAsClient(message);
+            }
+        }
+
+        private void SendMessageAsServer(SampleMessage message)
+        {
+            Debug.Log($"[Server] Sending SampleMessage ID: {message.Id} to all clients...");
+            List<ulong> clientIds = new List<ulong>(NetworkManager.Singleton.ConnectedClientsIds);
+            dispatcher.SendToClients(message, clientIds);
+        }
+
+        private void SendMessageAsClient(SampleMessage message)
+        {
+            Debug.Log($"[Client {NetworkManager.Singleton.LocalClientId}] Sending SampleMessage ID: {message.Id} to server...");
+            dispatcher.SendToServer(message);
+        }
+
+        private void BounceToOtherClients(ulong senderClientId, SampleMessage message)
+        {
+            Debug.Log($"[Server] Bouncing message {message.Id} from {senderClientId} to everyone else.");
+            List<ulong> otherClients = BuildOtherClientList(senderClientId);
+            if (otherClients.Count > 0)
+            {
+                dispatcher.SendToClients(message, otherClients);
+            }
+        }
+
+        private List<ulong> BuildOtherClientList(ulong senderClientId)
+        {
+            List<ulong> otherClients = new List<ulong>();
+            foreach (ulong clientId in NetworkManager.Singleton.ConnectedClientsIds)
+            {
+                if (clientId != senderClientId) otherClients.Add(clientId);
+            }
+            return otherClients;
+        }
+
+        private void CleanupDispatcher()
+        {
+            if (dispatcher == null) return;
+            dispatcher.UnregisterHandler<SampleMessage>();
+            DisposeDispatcher();
+            dispatcher = null;
+        }
+
+        private void DisposeDispatcher()
+        {
+            if (dispatcher is System.IDisposable disposable)
+            {
+                disposable.Dispose();
             }
         }
     }

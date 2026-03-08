@@ -19,14 +19,24 @@ namespace Scaffold.Navigation
             {
                 return config;
             }
+            return GetAndCacheConfig(type);
+        }
 
+        private ViewConfig GetAndCacheConfig(Type type)
+        {
             var isController = typeof(IViewController).IsAssignableFrom(type);
-            config = screens.FirstOrDefault(s => isController ? s.ControllerType.IsAssignableFrom(type) : s.ViewType.IsAssignableFrom(type));
+            var config = FindViewConfig(type, isController);
+            cachedConfigs[type] = config;
+            return config;
+        }
+
+        private ViewConfig FindViewConfig(Type type, bool isController)
+        {
+            var config = screens.FirstOrDefault(s => isController ? s.ControllerType.IsAssignableFrom(type) : s.ViewType.IsAssignableFrom(type));
             if (!config)
             {
                 throw new Exception($"No view config found for {type.Name}");
             }
-            cachedConfigs[type] = config;
             return config;
         }
     }

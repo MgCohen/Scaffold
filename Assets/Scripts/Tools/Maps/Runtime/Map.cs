@@ -125,18 +125,23 @@ namespace Scaffold.Maps
             {
                 return false;
             }
-            bool wasRemoved = base.Remove(index);
-            if (wasRemoved)
-            {
-                UntrackEntry(holder);
-            }
-            return wasRemoved;
+            return RemoveTrackedEntry(index, holder);
         }
 
         public override void Clear()
         {
             base.Clear();
             ClearIndexers();
+        }
+
+        private bool RemoveTrackedEntry(Index<TPrimary, TSecondary> index, Holder<TValue> holder)
+        {
+            bool wasRemoved = base.Remove(index);
+            if (wasRemoved)
+            {
+                UntrackEntry(holder);
+            }
+            return wasRemoved;
         }
 
         private Indexer<TPrimary, TSecondary, TValue> CreateIndexer(string name, Func<TPrimary, TSecondary, bool> predicate)

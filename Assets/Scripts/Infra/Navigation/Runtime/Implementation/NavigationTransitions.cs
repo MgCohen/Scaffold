@@ -34,52 +34,75 @@ namespace Scaffold.Navigation
             runningTransition = true;
             while (pendingTransitions.Count > 0)
             {
-                var transition = pendingTransitions.Dequeue();
-                if (transition != null)
-                {
-                    transition.OpenningSequence = () => DoOpenSequence(transition.From, transition.To);
-                    transition.ClosingSequence = () => DoCloseSequence(transition.From, transition.To);
-                    transition.HidingSequence = () => DoHideSequence(transition.From, transition.To);
-                    var transitionSchema = GetTransitionSchema(transition, out var direction);
-                    if (transitionSchema != null)
-                    {
-                        await ResolveTransitionSchema(transitionSchema, transition, direction);
-                    }
-                    else
-                    {
-                        await DefaultViewTransition(transition);
-                    }
-                    TransitionFinished?.Invoke(transition);
-                }
+                await ProcessNextTransition();
             }
             runningTransition = false;
         }
 
+        private async Awaitable ProcessNextTransition()
+        {
+            var transition = pendingTransitions.Dequeue();
+            if (transition != null)
+            {
+                SetupTransitionSequences(transition);
+                await ExecuteTransition(transition);
+                TransitionFinished?.Invoke(transition);
+            }
+        }
 
-        #region View Transitions
+        private void SetupTransitionSequences(ViewTransitionData transition)
+        {
+            transition.OpenningSequence = () => DoOpenSequence(transition.From, transition.To);
+            transition.ClosingSequence = () => DoCloseSequence(transition.From, transition.To);
+            transition.HidingSequence = () => DoHideSequence(transition.From, transition.To);
+        }
+
+        private async Awaitable ExecuteTransition(ViewTransitionData transition)
+        {
+            var transitionSchema = GetTransitionSchema(transition, out var direction);
+            if (transitionSchema != null)
+            {
+                await ResolveTransitionSchema(transitionSchema, transition, direction);
+                return;
+            }
+            await DefaultViewTransition(transition);
+        }
 
         private TransitionViewSchema GetTransitionSchema(ViewTransitionData transition, out TransitionDirection direction)
         {
-            if (transition?.From?.Config != null && transition.From.Config.TryGetSchema<TransitionViewSchema>(out var fromSchema))
+            if (TryGetFromSchema(transition, out var fromSchema))
             {
-                if (fromSchema.IsValidTransition(transition.From, transition.To, TransitionDirection.FromThisView))
-                {
-                    direction = TransitionDirection.FromThisView;
-                    return fromSchema;
-                }
+                direction = TransitionDirection.FromThisView;
+                return fromSchema;
             }
+            return GetToTransitionSchema(transition, out direction);
+        }
 
-            if (transition?.From?.Config != null && transition.To.Config.TryGetSchema<TransitionViewSchema>(out var toSchema))
+        private TransitionViewSchema GetToTransitionSchema(ViewTransitionData transition, out TransitionDirection direction)
+        {
+            if (TryGetToSchema(transition, out var toSchema))
             {
-                if (toSchema.IsValidTransition(transition.From, transition.To, TransitionDirection.ToThisView))
-                {
-                    direction = TransitionDirection.ToThisView;
-                    return toSchema;
-                }
+                direction = TransitionDirection.ToThisView;
+                return toSchema;
             }
-
             direction = default;
             return null;
+        }
+
+        private bool TryGetFromSchema(ViewTransitionData transition, out TransitionViewSchema schema)
+        {
+            schema = null;
+            if (transition?.From?.Config == null) { return false; }
+            if (!transition.From.Config.TryGetSchema<TransitionViewSchema>(out schema)) { return false; }
+            return schema.IsValidTransition(transition.From, transition.To, TransitionDirection.FromThisView);
+        }
+
+        private bool TryGetToSchema(ViewTransitionData transition, out TransitionViewSchema schema)
+        {
+            schema = null;
+            if (transition?.From?.Config == null) { return false; }
+            if (!transition.To.Config.TryGetSchema<TransitionViewSchema>(out schema)) { return false; }
+            return schema.IsValidTransition(transition.From, transition.To, TransitionDirection.ToThisView);
         }
 
         private async Awaitable ResolveTransitionSchema(TransitionViewSchema schema, ViewTransitionData transition, TransitionDirection direction)
@@ -88,19 +111,11 @@ namespace Scaffold.Navigation
             {
                 await HandleCodeTransitions(transition, direction);
             }
-            else if (schema.Handler is TransitionHandler.Template)
+            else
             {
-                throw new Exception("No handler for template transitions was defined yet");
-            }
-            else if (schema.Handler is TransitionHandler.Default)
-            {
-                await DefaultViewTransition(transition);
+                await HandleNonCodeTransition(schema, transition);
             }
         }
-
-        #endregion
-
-        #region Transition Handlers
 
         private async Awaitable HandleCodeTransitions(ViewTransitionData transition, TransitionDirection direction)
         {
@@ -108,28 +123,169 @@ namespace Scaffold.Navigation
             await point.View.gameObject.GetComponent<IViewTransitionHandler>().DoTransition(transition, direction);
         }
 
+        private async Awaitable HandleNonCodeTransition(TransitionViewSchema schema, ViewTransitionData transition)
+        {
+            if (schema.Handler is TransitionHandler.Template)
+            {
+                throw new Exception("No handler for template transitions was defined yet");
+            }
+            if (schema.Handler is TransitionHandler.Default)
+            {
+                await DefaultViewTransition(transition);
+            }
+        }
+
         private async Awaitable DefaultViewTransition(ViewTransitionData transition)
         {
             if (transition.From != null)
             {
-                if (transition.CloseCurrent)
-                {
-                    await transition.ClosingSequence();
-                }
-                else
-                {
-                    await transition.HidingSequence();
-                }
+                await DefaultFromTransition(transition);
             }
-
             if (transition.To != null)
             {
                 await transition.OpenningSequence();
             }
         }
-        #endregion
 
-        #region View Animations
+        private async Awaitable DefaultFromTransition(ViewTransitionData transition)
+        {
+            if (transition.CloseCurrent)
+            {
+                await transition.ClosingSequence();
+            }
+            else
+            {
+                await transition.HidingSequence();
+            }
+        }
+
+        private async Awaitable DoCloseSequence(NavigationPoint from, NavigationPoint to)
+        {
+            var viewType = from.ViewModel.GetType();
+            var beforeCloseEvent = new BeforeViewCloseEvent(viewType);
+            events.Raise(beforeCloseEvent);
+            await RunAnimationIfPresent(from, to, AnimationType.Closing, from);
+            this.Close(from);
+            var afterCloseEvent = new AfterViewCloseEvent(viewType);
+            events.Raise(afterCloseEvent);
+        }
+
+        private async Awaitable DoHideSequence(NavigationPoint from, NavigationPoint to)
+        {
+            var viewType = from.ViewModel.GetType();
+            var beforeHideEvent = new BeforeViewCloseEvent(viewType);
+            events.Raise(beforeHideEvent);
+            await RunAnimationIfPresent(from, to, AnimationType.Hiding, from);
+            this.Hide(from, to);
+            var afterHideEvent = new AfterViewCloseEvent(viewType);
+            events.Raise(afterHideEvent);
+        }
+
+        private async Awaitable DoOpenSequence(NavigationPoint from, NavigationPoint to)
+        {
+            var viewType = to.ViewModel.GetType();
+            var beforeOpenEvent = new BeforeViewOpenEvent(viewType);
+            events.Raise(beforeOpenEvent);
+            await ActivateAndOpen(from, to);
+            var afterOpenEvent = new AfterViewOpenEvent(viewType);
+            events.Raise(afterOpenEvent);
+        }
+
+        private async Awaitable ActivateAndOpen(NavigationPoint from, NavigationPoint to)
+        {
+            to.View.gameObject.SetActive(true);
+            if (to.View.State is ViewState.Closed)
+            {
+                to.View.Bind(to.ViewModel);
+            }
+            await RunAnimationIfPresent(from, to, AnimationType.Opening, to);
+            this.Open(to);
+        }
+
+        private async Awaitable RunAnimationIfPresent(NavigationPoint from, NavigationPoint to, AnimationType animType, NavigationPoint target)
+        {
+            var schema = GetAnimationSchema(from, to, animType);
+            if (schema != null)
+            {
+                await ResolveAnimationSchema(schema, target, animType);
+            }
+        }
+
+        private void Close(NavigationPoint point)
+        {
+            if (point.View == null || point.View.gameObject == null)
+            {
+                return;
+            }
+            point.View.Close();
+            DestroyIfNotSceneView(point);
+        }
+
+        private void DestroyIfNotSceneView(NavigationPoint point)
+        {
+            if (!point.IsSceneView)
+            {
+                GameObject.Destroy(point.View.gameObject);
+            }
+        }
+
+        private void Hide(NavigationPoint point, NavigationPoint to)
+        {
+            if (point.View == null || point.View.gameObject == null)
+            {
+                return;
+            }
+            HideIfApplicable(point, to);
+        }
+
+        private void HideIfApplicable(NavigationPoint point, NavigationPoint to)
+        {
+            bool toHasNoView = to.View == null || to.View.gameObject == null;
+            bool toIsScreen = !toHasNoView && to.View.Type is ViewType.Screen;
+            if (toHasNoView || toIsScreen)
+            {
+                point.View.Hide();
+            }
+        }
+
+        private void Open(NavigationPoint point)
+        {
+            try
+            {
+                TryOpenPoint(point);
+            }
+            catch (Exception ex)
+            {
+                LogOpenError(ex);
+            }
+        }
+
+        private void TryOpenPoint(NavigationPoint point)
+        {
+            if (point?.Disposed == true || point?.View == null || point?.View?.gameObject == null)
+            {
+                return;
+            }
+            FocusOrOpenView(point);
+        }
+
+        private void FocusOrOpenView(NavigationPoint point)
+        {
+            if (point.View.State is ViewState.Open)
+            {
+                point.View.Focus();
+            }
+            else
+            {
+                point.View.Open();
+            }
+        }
+
+        private void LogOpenError(Exception ex)
+        {
+            Debug.Log("Catched a problem while opening a point");
+            Debug.LogException(ex);
+        }
 
         private AnimationViewSchema GetAnimationSchema(NavigationPoint from, NavigationPoint to, AnimationType direction)
         {
@@ -144,7 +300,65 @@ namespace Scaffold.Navigation
             {
                 await this.HandleAnimator(animationSchema, point);
             }
-            else if (animationSchema.Handler is AnimationHandler.Code)
+            else
+            {
+                await HandleNonAnimatorAnimation(animationSchema, point, direction);
+            }
+        }
+
+        private async Awaitable HandleAnimator(AnimationViewSchema schema, NavigationPoint point)
+        {
+            await Awaitable.WaitForSecondsAsync(0.02f);
+            var animator = point.View.gameObject.GetComponent<Animator>();
+            animator.Play(schema.AnimationName);
+            await WaitForAnimationState(animator, schema.AnimationName);
+        }
+
+        private async Awaitable WaitForAnimationState(Animator animator, string animationName)
+        {
+            var stateHash = Animator.StringToHash(animationName);
+            if (!animator.HasState(0, stateHash))
+            {
+                throw new System.Exception($"No valid state {animationName} in this animator");
+            }
+            await WaitForAnimationCompletion(animator, animationName);
+        }
+
+        private async Awaitable WaitForAnimationCompletion(Animator animator, string animationName)
+        {
+            var state = animator.GetCurrentAnimatorStateInfo(0);
+            while (!state.IsName(animationName))
+            {
+                await Awaitable.WaitForSecondsAsync(0.1f);
+                state = animator.GetCurrentAnimatorStateInfo(0);
+            }
+            await WaitForAnimationEnd(animator, animationName);
+        }
+
+        private async Awaitable WaitForAnimationEnd(Animator animator, string animationName)
+        {
+            var state = animator.GetCurrentAnimatorStateInfo(0);
+            while (state.IsName(animationName) && state.normalizedTime <= 1)
+            {
+                await Awaitable.WaitForSecondsAsync(0.1f);
+                state = animator.GetCurrentAnimatorStateInfo(0);
+            }
+            await WaitForNormalizedTimeEnd(animator);
+        }
+
+        private async Awaitable WaitForNormalizedTimeEnd(Animator animator)
+        {
+            var state = animator.GetCurrentAnimatorStateInfo(0);
+            while (state.normalizedTime <= 1)
+            {
+                await Awaitable.WaitForSecondsAsync(0.1f);
+                state = animator.GetCurrentAnimatorStateInfo(0);
+            }
+        }
+
+        private async Awaitable HandleNonAnimatorAnimation(AnimationViewSchema animationSchema, NavigationPoint point, AnimationType direction)
+        {
+            if (animationSchema.Handler is AnimationHandler.Code)
             {
                 await this.HandleCodeAnimation(point, direction);
             }
@@ -154,156 +368,9 @@ namespace Scaffold.Navigation
             }
         }
 
-        private async Awaitable DoCloseSequence(NavigationPoint from, NavigationPoint to)
-        {
-            var viewType = from.ViewModel.GetType();
-            var beforeCloseEvent = new BeforeViewCloseEvent(viewType);
-            events.Raise(beforeCloseEvent);
-            var transitionSchema = this.GetAnimationSchema(from, to, AnimationType.Closing);
-            if (transitionSchema != null)
-            {
-                await this.ResolveAnimationSchema(transitionSchema, from, AnimationType.Closing);
-            }
-            this.Close(from);
-            var afterCloseEvent = new AfterViewCloseEvent(viewType);
-            events.Raise(afterCloseEvent);
-        }
-
-        private async Awaitable DoHideSequence(NavigationPoint from, NavigationPoint to)
-        {
-            var viewType = from.ViewModel.GetType();
-            var beforeHideEvent = new BeforeViewCloseEvent(viewType);
-            events.Raise(beforeHideEvent);
-            var transitionSchema = this.GetAnimationSchema(from, to, AnimationType.Hiding);
-            if (transitionSchema != null)
-            {
-                await this.ResolveAnimationSchema(transitionSchema, from, AnimationType.Hiding);
-            }
-            this.Hide(from, to);
-            var afterHideEvent = new AfterViewCloseEvent(viewType);
-            events.Raise(afterHideEvent);
-        }
-
-        private void Close(NavigationPoint point)
-        {
-            if (point.View == null || point.View.gameObject == null)
-            {
-                return;
-            }
-
-            point.View.Close();
-            if (!point.IsSceneView)
-            {
-                GameObject.Destroy(point.View.gameObject);
-            }
-        }
-
-        private void Hide(NavigationPoint point, NavigationPoint to)
-        {
-            if (point.View == null || point.View.gameObject == null)
-            {
-                return;
-            }
-
-            if (to.View == null || to.View.gameObject == null)
-            {
-                point.View.Hide();
-                return;
-            }
-
-            if (to.View.Type is ViewType.Screen)
-            {
-                point.View.Hide();
-            }
-        }
-
-        private async Awaitable DoOpenSequence(NavigationPoint from, NavigationPoint to)
-        {
-            var viewType = to.ViewModel.GetType();
-            var beforeOpenEvent = new BeforeViewOpenEvent(viewType);
-            events.Raise(beforeOpenEvent);
-            to.View.gameObject.SetActive(true);
-            if (to.View.State is ViewState.Closed)
-            {
-                to.View.Bind(to.ViewModel);
-            }
-            var transitionSchema = this.GetAnimationSchema(from, to, AnimationType.Opening);
-            if (transitionSchema != null)
-            {
-                await this.ResolveAnimationSchema(transitionSchema, to, AnimationType.Opening);
-            }
-            this.Open(to);
-            var afterOpenEvent = new AfterViewOpenEvent(viewType);
-            events.Raise(afterOpenEvent);
-        }
-
-        private void Open(NavigationPoint point)
-        {
-            try
-            {
-                if (point?.Disposed == true || point?.View == null || point?.View?.gameObject == null)
-                {
-                    return;
-                }
-
-                if (point.View.State is ViewState.Open)
-                {
-                    point.View.Focus();
-                }
-                else
-                {
-                    point.View.Open();
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.Log("Catched a problem while opening a point");
-                Debug.LogException(ex);
-                return;
-            }
-        }
-
-        #endregion
-
-        #region Animation Handlers
-        private async Awaitable HandleAnimator(AnimationViewSchema schema, NavigationPoint point)
-        {
-            await Awaitable.WaitForSecondsAsync(0.02f);
-
-            var animator = point.View.gameObject.GetComponent<Animator>();
-            animator.Play(schema.AnimationName);
-
-            var stateHash = Animator.StringToHash(schema.AnimationName);
-            if (!animator.HasState(0, stateHash))
-            {
-                throw new System.Exception($"No valid state {schema.AnimationName} in this animator");
-            }
-
-            var state = animator.GetCurrentAnimatorStateInfo(0);
-            while (!state.IsName(schema.AnimationName))
-            {
-                await Awaitable.WaitForSecondsAsync(0.1f);
-                state = animator.GetCurrentAnimatorStateInfo(0);
-            }
-
-            while (state.IsName(schema.AnimationName) && state.normalizedTime <= 1)
-            {
-                await Awaitable.WaitForSecondsAsync(0.1f);
-                state = animator.GetCurrentAnimatorStateInfo(0);
-            }
-
-            while (state.normalizedTime <= 1)
-            {
-                await Awaitable.WaitForSecondsAsync(0.1f);
-                state = animator.GetCurrentAnimatorStateInfo(0);
-            }
-        }
-
-
         private async Awaitable HandleCodeAnimation(NavigationPoint point, AnimationType direction)
         {
             await point.View.gameObject.GetComponent<IViewAnimationHandler>().AnimateView(direction);
         }
-        #endregion
     }
 }

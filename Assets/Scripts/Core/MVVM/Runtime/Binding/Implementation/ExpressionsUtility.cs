@@ -9,20 +9,19 @@ namespace Scaffold.MVVM.Binding
         public static string GetPropertyName<T>(this Expression<Func<T>> propertyLambda)
         {
             MemberExpression me = propertyLambda.Body as MemberExpression;
-            if (me == null)
-            {
-                throw new ArgumentException("You must pass a lambda of the form: '() => Class.Property' or '() => object.Property'");
-            }
+            if (me == null) { throw new ArgumentException("You must pass a lambda of the form: '() => Class.Property' or '() => object.Property'"); }
+            return BuildPropertyPath(me);
+        }
 
+        private static string BuildPropertyPath(MemberExpression me)
+        {
             string result = string.Empty;
             do
             {
                 result = me.Member.Name + "." + result;
                 me = me.Expression as MemberExpression;
             } while (me != null);
-
-            result = result.Remove(result.Length - 1); // remove the trailing "."
-            return result;
+            return result.Remove(result.Length - 1);
         }
 
         public static Expression<Action<TEntity, TProperty>> CreateSetter<TEntity, TProperty>(this Expression<Func<TEntity, TProperty>> selector)

@@ -17,11 +17,6 @@ namespace Scaffold.MVVM
         }
         [SerializeField] private ViewType type = ViewType.Screen;
 
-        protected virtual void ToggleView(bool state)
-        {
-            gameObject.SetActive(state);
-        }
-
         void Navigation.IView.Close()
         {
             ToggleView(false);
@@ -51,6 +46,11 @@ namespace Scaffold.MVVM
         void Navigation.IView.Order(int viewOrder)
         {
             Order(viewOrder);
+        }
+
+        protected virtual void ToggleView(bool state)
+        {
+            gameObject.SetActive(state);
         }
 
         protected virtual void Order(int viewOrder)

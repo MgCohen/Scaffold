@@ -86,17 +86,17 @@ namespace Scaffold.Maps
             return data;
         }
 
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
+
         public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
         {
             foreach (KeyValuePair<TKey, Holder<TValue>> entry in data)
             {
                 yield return new KeyValuePair<TKey, TValue>(entry.Key, entry.Value.Value);
             }
-        }
-
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            return GetEnumerator();
         }
     }
 }

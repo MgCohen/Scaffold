@@ -46,12 +46,7 @@ namespace Scaffold.Maps.Tests
             Indexer<string, int, string> indexer = map.AddIndexer("MatheusAdults", MatchesMatheusAdult);
             map.Add("Matheus", 29, "Matheus-29");
             Index<string, int> index = new Index<string, int>("Matheus", 29);
-            map[index] = "inactive";
-            int countAfterInactive = indexer.Count;
-            map[index] = "active";
-            int countAfterActive = indexer.Count;
-            Assert.AreEqual(1, countAfterInactive);
-            Assert.AreEqual(1, countAfterActive);
+            AssertIndexerCountUnchangedByValueChange(map, indexer, index);
         }
 
         [Test]
@@ -83,6 +78,16 @@ namespace Scaffold.Maps.Tests
             HashSet<string> set = new HashSet<string>(values);
             bool hasValue = set.Contains(expected);
             return hasValue;
+        }
+
+        private void AssertIndexerCountUnchangedByValueChange(Map<string, int, string> map, Indexer<string, int, string> indexer, Index<string, int> index)
+        {
+            map[index] = "inactive";
+            int countAfterInactive = indexer.Count;
+            map[index] = "active";
+            int countAfterActive = indexer.Count;
+            Assert.AreEqual(1, countAfterInactive);
+            Assert.AreEqual(1, countAfterActive);
         }
     }
 }

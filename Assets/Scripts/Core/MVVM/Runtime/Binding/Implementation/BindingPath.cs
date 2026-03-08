@@ -9,16 +9,16 @@ namespace Scaffold.MVVM.Binding
             string[] paths = path.Split(".");
             BindingPath child = null;
             StringBuilder builder = new StringBuilder();
-            
-            foreach(var cPath in paths)
-            {
-                builder.Append(cPath);
-                var currentPath = builder.ToString();
-                child = new BindingPath(currentPath, child);
-                builder.Append(".");
-            }
-
+            foreach (var cPath in paths) { child = CreateStep(builder, cPath, child); }
             return child;
+        }
+
+        private static BindingPath CreateStep(StringBuilder builder, string cPath, BindingPath prev)
+        {
+            builder.Append(cPath);
+            var currentPath = builder.ToString();
+            builder.Append(".");
+            return new BindingPath(currentPath, prev);
         }
     }
 }

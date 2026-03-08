@@ -41,15 +41,15 @@ namespace Scaffold.Navigation
             return stack.LastOrDefault(point => point.ViewModel == controller);
         }
 
+        public List<IView> GetAllScreens(Func<NavigationPoint, bool> filter)
+        {
+            return GetAllStackedScreens(filter).Select(s => s.View).ToList();
+        }
+
         public List<NavigationPoint> GetAllStackedScreens(Func<NavigationPoint, bool> filter = null)
         {
             filter ??= (s) => true;
             return stack.Where(s => filter.Invoke(s)).ToList();
-        }
-
-        public List<IView> GetAllScreens(Func<NavigationPoint, bool> filter)
-        {
-            return GetAllStackedScreens(filter).Select(s => s.View).ToList();
         }
 
         public void AddToStack(NavigationPoint point)

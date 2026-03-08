@@ -26,28 +26,34 @@ namespace Scaffold.MVVM.Binding
         {
             foreach (var converter in converters)
             {
-                if (converter.CanConvert(source))
-                {
-                    target = converter.Convert(source);
-                    return true;
-                }
+                if (TryApplyConverter(converter, source, out target)) { return true; }
             }
             target = default;
             return false;
         }
 
+        private bool TryApplyConverter(Converter<TSource, TTarget> converter, TSource source, out TTarget target)
+        {
+            if (!converter.CanConvert(source)) { target = default; return false; }
+            target = converter.Convert(source);
+            return true;
+        }
+
         public bool TryAdapt(TTarget target, out TTarget newTarget)
         {
-            foreach(var adapter in adapters)
+            foreach (var adapter in adapters)
             {
-                if (adapter.CanAdapt(target))
-                {
-                    newTarget = adapter.Resolve(target);
-                    return true;
-                }
+                if (TryApplyAdapter(adapter, target, out newTarget)) { return true; }
             }
             newTarget = default;
             return false;
+        }
+
+        private bool TryApplyAdapter(Adapter<TTarget> adapter, TTarget target, out TTarget newTarget)
+        {
+            if (!adapter.CanAdapt(target)) { newTarget = default; return false; }
+            newTarget = adapter.Resolve(target);
+            return true;
         }
     }
 }

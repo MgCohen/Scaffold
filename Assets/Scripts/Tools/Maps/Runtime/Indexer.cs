@@ -50,10 +50,20 @@ namespace Scaffold.Maps
         internal void Track(Index<TPrimary, TSecondary> index, Holder<TValue> holder)
         {
             bool isMatch = predicate(index.Primary, index.Secondary);
+            AddToIndex(isMatch, holder);
+            RemoveFromIndex(isMatch, holder);
+        }
+
+        private void AddToIndex(bool isMatch, Holder<TValue> holder)
+        {
             if (isMatch && holders.Contains(holder) == false)
             {
                 holders.Add(holder);
             }
+        }
+
+        private void RemoveFromIndex(bool isMatch, Holder<TValue> holder)
+        {
             if (isMatch == false)
             {
                 holders.Remove(holder);

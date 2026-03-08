@@ -43,15 +43,16 @@ namespace Scaffold.MVVM
 
         #endregion
 
-        protected abstract string GetBindSourceName();
-
         protected virtual void OnViewModelChanged(object sender, PropertyChangedEventArgs e)
         {
-            Debug.Log("View element update : " + this.GetType().Name + " - " + e.PropertyName);
+            var elementTypeName = GetType().Name;
+            Debug.Log("View element update : " + elementTypeName + " - " + e.PropertyName);
             var bindSourceName = GetBindSourceName();
             var propertyFullName = string.Join('.', bindSourceName, e.PropertyName);
             bindings.UpdateBind(propertyFullName);
         }
+
+        protected abstract string GetBindSourceName();
 
         public virtual void Bind(IViewController viewModel)
         {
@@ -81,34 +82,40 @@ namespace Scaffold.MVVM
 
         public sealed override void Bind(IViewController viewController)
         {
-            if (viewController is not T vm)
-            {
-                if(viewController != default)
-                {
-                    throw new System.Exception($"Trying to bind view {GetType()} to controller of type {viewController.GetType()}, expected: {typeof(T)}");
-                }
-                vm = default;
-            }
-
+            var vm = GetViewModelOrDefault(viewController);
             Unbind();
             this.viewModel = vm;
             RegisterViewModel(vm);
             OnBind();
         }
 
+        private T GetViewModelOrDefault(IViewController viewController)
+        {
+            if (viewController is T vm) { return vm; }
+            if (viewController == default) { return default; }
+            var viewType = GetType();
+            var controllerType = viewController.GetType();
+            throw new System.Exception($"Trying to bind view {viewType} to controller of type {controllerType}, expected: {typeof(T)}");
+        }
+
         private void RegisterViewModel(T viewModel)
         {
-            Debug.Log("Registering view model " + GetType().Name + " - " + typeof(T).Name);
-            if (viewModel is INotifyPropertyChanged npc)
-            {
-                npc.PropertyChanged -= OnViewModelChanged;
-                npc.PropertyChanged += OnViewModelChanged;
-            }
+            var typeName = GetType().Name;
+            Debug.Log("Registering view model " + typeName + " - " + typeof(T).Name);
+            SubscribePropertyChanged(viewModel);
+            RegisterNestedProperties(viewModel);
+        }
 
-            if(viewModel is INestedObservableProperties nop)
-            {
-                nop.RegisterNestedProperties();
-            }
+        private void SubscribePropertyChanged(T viewModel)
+        {
+            if (viewModel is not INotifyPropertyChanged npc) { return; }
+            npc.PropertyChanged -= OnViewModelChanged;
+            npc.PropertyChanged += OnViewModelChanged;
+        }
+
+        private void RegisterNestedProperties(T viewModel)
+        {
+            if (viewModel is INestedObservableProperties nop) { nop.RegisterNestedProperties(); }
         }
 
         protected sealed override string GetBindSourceName()

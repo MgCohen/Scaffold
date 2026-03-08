@@ -44,15 +44,11 @@ namespace Scaffold.MVVM
 
         public void Raise(Transform transform, T evt)
         {
-            do
+            while (transform != null && !evt.IsConsumed)
             {
-                if (evt.IsConsumed)
-                {
-                    return;
-                }
                 RaiseAtTransform(transform, evt);
                 transform = transform.parent;
-            } while (transform != null);
+            }
         }
 
         private void RaiseAtTransform(Transform transform, T evt)
@@ -65,32 +61,29 @@ namespace Scaffold.MVVM
 
         private void TryRaiseCallbackList<T1>(List<Action<T1>> list, T1 evt) where T1 : ViewEvent
         {
-            if (list == null)
-            {
-                return;
-            }
+            if (list == null) { return; }
+            RaiseListCallbacks(list, evt);
+        }
 
+        private void RaiseListCallbacks<T1>(List<Action<T1>> list, T1 evt) where T1 : ViewEvent
+        {
             for (var i = list.Count - 1; i >= 0; i--)
             {
-                if (evt.IsConsumed)
-                {
-                    return;
-                }
+                if (evt.IsConsumed) { return; }
                 InvokeCallback(list[i], evt);
             }
         }
 
         private void InvokeCallback<T1>(Action<T1> action, T1 evt) where T1 : ViewEvent
         {
-            try
-            {
-                action?.Invoke(evt);
-            }
-            catch (Exception ex)
-            {
-                Debug.LogException(ex);
-                Debug.LogError($"Error on invoking callback for {typeof(T)}");
-            }
+            try { action?.Invoke(evt); }
+            catch (Exception ex) { LogCallbackError(ex); }
+        }
+
+        private void LogCallbackError(Exception ex)
+        {
+            Debug.LogException(ex);
+            Debug.LogError($"Error on invoking callback for {typeof(T)}");
         }
 
         private (List<Action<T>> typed, List<Action<ViewEvent>> generic) GetCallbackList(Transform transform, bool createIfMissing)

@@ -28,7 +28,6 @@ namespace Scaffold.Navigation
             middleware = new NavigationMiddleware(middlewares);
         }
 
-        #region Open
         public void Open<TController>(TController controller, bool closeCurrent = false, NavigationOptions options = null) where TController : IViewController
         {
             options ??= new NavigationOptions();
@@ -42,28 +41,34 @@ namespace Scaffold.Navigation
             point.ViewModel.Bind(this);
             GoTo(point, closeCurrent, options);
         }
-        #endregion
 
-        #region Close
         public void Close<TViewController>(TViewController controller) where TViewController : IViewController
         {
             var point = this.stack.Get(controller);
-
             if (point == null)
             {
                 Debug.LogWarning("Trying to close a view that is no longer in the stack");
                 return;
             }
+            ClosePoint(point);
+        }
 
+        private void ClosePoint(NavigationPoint point)
+        {
             if (point == CurrentPoint)
             {
                 Return();
             }
             else
             {
-                this.stack.RemoveFromStack(point);
-                ForceClosePoint(point);
+                ForceRemovePoint(point);
             }
+        }
+
+        private void ForceRemovePoint(NavigationPoint point)
+        {
+            this.stack.RemoveFromStack(point);
+            ForceClosePoint(point);
         }
 
         public IViewController Return()
@@ -84,6 +89,36 @@ namespace Scaffold.Navigation
             }
         }
 
+        private void GoTo(NavigationPoint point, bool closeCurrent, NavigationOptions options)
+        {
+            var from = this.CurrentPoint;
+            if (options.CloseAllViews.HasValue && options.CloseAllViews.Value)
+            {
+                CloseAll(from);
+            }
+            UpdateStack(point, closeCurrent);
+            ActivatePoint(from, point, closeCurrent);
+        }
+
+        private void UpdateStack(NavigationPoint point, bool closeCurrent)
+        {
+            if (closeCurrent && this.CurrentPoint != null)
+            {
+                this.stack.RemoveFromStack(this.CurrentPoint);
+            }
+            if (this.CurrentPoint != point)
+            {
+                this.stack.AddToStack(point);
+            }
+        }
+
+        private void ActivatePoint(NavigationPoint from, NavigationPoint point, bool closeCurrent)
+        {
+            var depth = this.stack.GetPointDepth(point);
+            point.SetDepth(depth, point.Options);
+            this.transitions.DoTransition(from, point, closeCurrent);
+        }
+
         private void CloseAll(NavigationPoint point)
         {
             var substack = stack.GetAllStackedScreens((p) => p != point);
@@ -92,30 +127,6 @@ namespace Scaffold.Navigation
                 stack.RemoveFromStack(oPoint);
                 oPoint.View.Close();
             }
-        }
-        #endregion
-
-        private void GoTo(NavigationPoint point, bool closeCurrent, NavigationOptions options)
-        {
-            var from = this.CurrentPoint;
-            if (options.CloseAllViews.HasValue && options.CloseAllViews.Value)
-            {
-                CloseAll(from);
-            }
-
-            if (closeCurrent && this.CurrentPoint != null)
-            {
-                this.stack.RemoveFromStack(this.CurrentPoint);
-            }
-
-            if (this.CurrentPoint != point) //in case we are returning to this screen
-            {
-                this.stack.AddToStack(point);
-            }
-
-            var depth = this.stack.GetPointDepth(point);
-            point.SetDepth(depth, point.Options);
-            this.transitions.DoTransition(from, point, closeCurrent);
         }
     }
 }

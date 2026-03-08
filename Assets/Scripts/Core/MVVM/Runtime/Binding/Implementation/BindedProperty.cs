@@ -17,17 +17,16 @@ namespace Scaffold.MVVM.Binding
         private Converter<TSource, TTarget> converter;
         private Adapter<TTarget> adapter;
 
-        public void Update(TSource value) 
+        public void Update(TSource value)
         {
-            try
-            {
-                var targetValue = ResolveValue(value);
-                setter(targetValue);
-            }
-            catch (Exception e)
-            {
-                Debug.LogException(e);
-            }
+            try { ApplyValue(value); }
+            catch (Exception e) { Debug.LogException(e); }
+        }
+
+        private void ApplyValue(TSource value)
+        {
+            var targetValue = ResolveValue(value);
+            setter(targetValue);
         }
 
         public IBindedProperty<TSource, TTarget> WithConverter(Converter<TSource, TTarget> converter)
@@ -50,31 +49,11 @@ namespace Scaffold.MVVM.Binding
 
         private TTarget Convert(TSource sourceValue)
         {
-            if (sourceValue is TTarget tv)
-            {
-                return tv;
-            }
-
-            if (sourceValue == null && typeof(TTarget) == typeof(TSource))
-            {
-                return (TTarget)(object)sourceValue;
-            }
-
-            if (converter != null && converter.CanConvert(sourceValue))
-            {
-                return converter.Convert(sourceValue);
-            }
-
-            if (binding.TryConvert(sourceValue, out TTarget cv))
-            {
-                return cv;
-            }
-
-            if (typeof(TTarget) == typeof(string) && sourceValue.ToString() is TTarget tt)
-            {
-                return tt;
-            }
-
+            if (sourceValue is TTarget tv) { return tv; }
+            if (sourceValue == null && typeof(TTarget) == typeof(TSource)) { return (TTarget)(object)sourceValue; }
+            if (converter != null && converter.CanConvert(sourceValue)) { return converter.Convert(sourceValue); }
+            if (binding.TryConvert(sourceValue, out TTarget cv)) { return cv; }
+            if (typeof(TTarget) == typeof(string) && sourceValue.ToString() is TTarget tt) { return tt; }
             throw new Exception($"No conversion method found for {typeof(TSource)} -> {typeof(TTarget)}");
         }
 

@@ -57,6 +57,11 @@ namespace Scaffold.Events
         private void UpdateOrRemoveAction(Type type, Action<ContextEvent> tempAction, Action<ContextEvent> action)
         {
             tempAction -= action;
+            ApplyOrRemoveAction(type, tempAction);
+        }
+
+        private void ApplyOrRemoveAction(Type type, Action<ContextEvent> tempAction)
+        {
             if (tempAction == null)
             {
                 events.Remove(type);

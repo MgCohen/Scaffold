@@ -37,8 +37,13 @@ namespace Scaffold.Navigation
                 controllerType = null;
                 return;
             }
+            SetTypeFromAsset();
+        }
+
+        private void SetTypeFromAsset()
+        {
 #if ADDRESSABLES
-        viewType = new TypeReference((asset?.editorAsset as GameObject)?.gameObject?.GetComponent<IScreen>()?.GetType());
+            viewType = new TypeReference((asset?.editorAsset as GameObject)?.gameObject?.GetComponent<IScreen>()?.GetType());
 #else
             viewType = new TypeReference(viewAsset?.GetComponent<IView>()?.GetType());
 #endif
@@ -50,13 +55,18 @@ namespace Scaffold.Navigation
         {
             try
             {
-                this.viewType = new TypeReference(viewType);
-                this.controllerType = new TypeReference(viewType.BaseType.GenericTypeArguments[0]);
+                ApplyViewType(viewType);
             }
             catch (Exception e)
             {
                 Debug.LogException(e);
             }
+        }
+
+        private void ApplyViewType(Type viewType)
+        {
+            this.viewType = new TypeReference(viewType);
+            this.controllerType = new TypeReference(viewType.BaseType.GenericTypeArguments[0]);
         }
     }
 }

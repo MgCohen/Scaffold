@@ -8,15 +8,15 @@ namespace Scaffold.MVVM
     {
         private static Dictionary<Type, IEventLedger> ledgers = new Dictionary<Type, IEventLedger>();
 
+        public static void Raise<TEvent>(MonoBehaviour source, TEvent evt) where TEvent : ViewEvent
+        {
+            Raise(source.transform, evt);
+        }
+
         public static void Raise<TEvent>(Transform source, TEvent evt) where TEvent : ViewEvent
         {
             var ledger = GetLedger<TEvent>(false);
             ledger?.Raise(source, evt);
-        }
-
-        public static void Raise<TEvent>(MonoBehaviour source, TEvent evt) where TEvent : ViewEvent
-        {
-            Raise(source.transform, evt);
         }
 
         public static void Raise(MonoBehaviour source, ViewEvent evt)

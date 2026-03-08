@@ -1,0 +1,21 @@
+{
+    "name": "Scaffold.Records.Tests",
+    "rootNamespace": "Scaffold.Records.Tests",
+    "references": [
+        "Scaffold.Records"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false,
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
+}

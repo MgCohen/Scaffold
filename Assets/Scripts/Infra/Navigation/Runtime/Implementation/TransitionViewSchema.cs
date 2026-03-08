@@ -23,19 +23,32 @@ namespace Scaffold.Navigation
             {
                 return false;
             }
+            return IsValidViewFilter(targetPoint);
+        }
 
-            bool contains = viewTypes.Any(vt => vt.Type == targetPoint?.Config.ViewType);
-            if (filter is ViewFilter.SpecificViews && !contains)
+        private bool IsValidViewFilter(NavigationPoint targetPoint)
+        {
+            bool contains = CheckContains(targetPoint);
+            if (IsBlockedBySpecificFilter(contains))
             {
                 return false;
             }
+            return !IsBlockedByAnyFilter(contains);
+        }
 
-            if (filter is ViewFilter.Any && contains)
-            {
-                return false;
-            }
+        private bool CheckContains(NavigationPoint targetPoint)
+        {
+            return viewTypes.Any(vt => vt.Type == targetPoint?.Config.ViewType);
+        }
 
-            return true;
+        private bool IsBlockedBySpecificFilter(bool contains)
+        {
+            return filter is ViewFilter.SpecificViews && !contains;
+        }
+
+        private bool IsBlockedByAnyFilter(bool contains)
+        {
+            return filter is ViewFilter.Any && contains;
         }
     }
 }

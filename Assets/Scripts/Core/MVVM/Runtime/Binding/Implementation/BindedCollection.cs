@@ -19,34 +19,44 @@ namespace Scaffold.MVVM.Binding
 
         public void Update(ICollection<TSource> value)
         {
-            if(source == value)
-            {
-                return;
-            }
-
-            if(source != null)
-            {
-                Dispose();
-            }
-            if(value != null)
-            {
-                FillInitialCollection(value);
-            }
+            if (source == value) { return; }
+            ReplaceSource(value);
             source = value;
+        }
+
+        private void ReplaceSource(ICollection<TSource> value)
+        {
+            if (source != null) { Dispose(); }
+            if (value != null) { FillInitialCollection(value); }
         }
 
         private void FillInitialCollection(IEnumerable<TSource> sourceCollection)
         {
-            if (sourceCollection is INotifyCollectionChanged ncc)
-            {
-                ncc.CollectionChanged -= HandleCollectionChanges;
-                ncc.CollectionChanged += HandleCollectionChanges;
-            }
+            SubscribeIfObservable(sourceCollection);
+            foreach (var s in sourceCollection) { AddItem(s); }
+        }
 
-            foreach (var source in sourceCollection)
-            {
-                AddItem(source);
-            }
+        private void SubscribeIfObservable(IEnumerable<TSource> sourceCollection)
+        {
+            if (sourceCollection is not INotifyCollectionChanged ncc) { return; }
+            ncc.CollectionChanged -= HandleCollectionChanges;
+            ncc.CollectionChanged += HandleCollectionChanges;
+        }
+
+        private void HandleCollectionChanges(object sender, NotifyCollectionChangedEventArgs e)
+        {
+            if (e.NewItems != null) { ProcessNewItems(e); }
+            if (e.OldItems != null) { ProcessOldItems(e); }
+        }
+
+        private void ProcessNewItems(NotifyCollectionChangedEventArgs e)
+        {
+            foreach (var item in e.NewItems) { AddItem((TSource)item); }
+        }
+
+        private void ProcessOldItems(NotifyCollectionChangedEventArgs e)
+        {
+            foreach (var item in e.OldItems) { RemoveItem((TSource)item); }
         }
 
         private void AddItem(TSource source)
@@ -71,52 +81,9 @@ namespace Scaffold.MVVM.Binding
             handler.Remove(item);
         }
 
-        private void HandleCollectionChanges(object sender, NotifyCollectionChangedEventArgs e)
-        {
-            if (e.NewItems != null)
-            {
-                foreach (var item in e.NewItems)
-                {
-                    AddItem((TSource)item);
-                }
-            }
-
-            if (e.OldItems != null)
-            {
-                foreach (var item in e.OldItems)
-                {
-                    RemoveItem((TSource)item);
-                }
-            }
-        }
-
-
         public void Update()
         {
             Debug.Log("Collection Changed");
-            //var source = getter();
-            //source.Clear();
-            //IEnumerable<TSource> sourceCollection = getter();
-            //if (sourceCollection is INotifyCollectionChanged ncc)
-            //{
-            //    ncc.CollectionChanged -= HandleCollectionChanges;
-            //    ncc.CollectionChanged += HandleCollectionChanges;
-            //}
-
-            ////remove all elements that are not present in the new list
-            //foreach (var kvp in lookup)
-            //{
-            //    var count = kvp.Value.Count;
-            //    for (int i = 0; i < count; i++)
-            //    {
-            //        RemoveItem(kvp.Key);
-            //    }
-            //}
-
-            //foreach (var source in sourceCollection)
-            //{
-            //    AddItem(source);
-            //}
         }
 
         public void Dispose()
@@ -126,6 +93,5 @@ namespace Scaffold.MVVM.Binding
                 ncc.CollectionChanged -= HandleCollectionChanges;
             }
         }
-
     }
 }

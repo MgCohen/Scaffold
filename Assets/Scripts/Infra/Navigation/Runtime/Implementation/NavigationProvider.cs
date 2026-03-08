@@ -42,8 +42,12 @@ namespace Scaffold.Navigation
             {
                 return new NavigationPoint(view, controller, config, true, options);
             }
+            return GetAssetNavigationPoint(config, controller, options);
+        }
 
-            if (TryGetAssetScreen(config, out view))
+        private NavigationPoint GetAssetNavigationPoint(ViewConfig config, IViewController controller, NavigationOptions options)
+        {
+            if (TryGetAssetScreen(config, out IView view))
             {
                 return new NavigationPoint(view, controller, config, false, options);
             }
@@ -54,16 +58,18 @@ namespace Scaffold.Navigation
         {
             if (options == null)
             {
-                if (config.TryGetSchema<NavigationOptionsSchema>(out var schema))
-                {
-                    options = schema.Options;
-                }
-                else
-                {
-                    options = new NavigationOptions();
-                }
+                options = ResolveDefaultOptions(config);
             }
             return options;
+        }
+
+        private NavigationOptions ResolveDefaultOptions(ViewConfig config)
+        {
+            if (config.TryGetSchema<NavigationOptionsSchema>(out var schema))
+            {
+                return schema.Options;
+            }
+            return new NavigationOptions();
         }
 
         private bool TryGetContextView(Type screenType, out IView screen)

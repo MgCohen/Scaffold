@@ -54,20 +54,23 @@ namespace Scaffold.Types
 
         private ConstructorInfo GetConstructorWithMostParameters(ConstructorInfo[] constructors)
         {
-            ConstructorInfo targetConstructor = null;
-            int maxParameters = -1;
-
-            foreach (var ctor in constructors)
+            ConstructorInfo best = null;
+            int maxCount = -1;
+            foreach (ConstructorInfo ctor in constructors)
             {
-                var parameters = ctor.GetParameters();
-                if (parameters.Length > maxParameters)
-                {
-                    targetConstructor = ctor;
-                    maxParameters = parameters.Length;
-                }
+                UpdateBestConstructor(ctor, ref best, ref maxCount);
             }
+            return best;
+        }
 
-            return targetConstructor;
+        private void UpdateBestConstructor(ConstructorInfo ctor, ref ConstructorInfo best, ref int maxCount)
+        {
+            int count = ctor.GetParameters().Length;
+            if (count > maxCount)
+            {
+                best = ctor;
+                maxCount = count;
+            }
         }
 
         private Type[] GetConstructorParameters(ConstructorInfo constructor)

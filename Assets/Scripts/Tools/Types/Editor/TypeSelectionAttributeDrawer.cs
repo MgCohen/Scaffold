@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
@@ -18,48 +17,71 @@ namespace Scaffold.Types.Editor
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
             float lineSize = EditorGUIUtility.singleLineHeight;
-
             EditorGUI.BeginProperty(position, label, property);
+            position = DrawBorder(position);
+            DerivedTypeDropdown selector = GetOrCreateSelector(property);
+            DrawSelector(position, property, selector, lineSize);
+            EditorGUI.EndProperty();
+        }
+
+        private Rect DrawBorder(Rect position)
+        {
+            Rect expanded = ExpandRect(position);
+            Color borderColor = new Color(0.28f, 0.28f, 0.28f);
+            EditorGUI.DrawRect(expanded, borderColor);
+            return position;
+        }
+
+        private Rect ExpandRect(Rect position)
+        {
             position.x -= spacing;
             position.width += spacing * 2.0f;
             position.y -= spacing;
             position.height += spacing * 2.0f;
+            return position;
+        }
 
-            var borderColor = new Color(0.28f, 0.28f, 0.28f);
-            EditorGUI.DrawRect(position, borderColor);
-            position.x += spacing;
-            position.y += spacing;
+        private DerivedTypeDropdown GetOrCreateSelector(SerializedProperty property)
+        {
+            Type selectType = GetSelectType();
+            DerivedTypeDropdown selector = EnsureSelectorExists(selectType);
+            selector.RefreshSelection(property.managedReferenceValue?.GetType());
+            return selector;
+        }
 
-            position.width -= spacing * 2.0f;
-            position.height -= spacing * 2.0f;
+        private Type GetSelectType()
+        {
+            TypeSelectionAttribute customAttribute = (TypeSelectionAttribute)attribute;
+            return customAttribute.BaseType;
+        }
 
-            var customAttribute = (TypeSelectionAttribute)attribute;
-
-            var selectType = customAttribute.BaseType;
-
+        private DerivedTypeDropdown EnsureSelectorExists(Type selectType)
+        {
             if (!selectorCache.TryGetValue(selectType, out DerivedTypeDropdown selector))
             {
                 selector = new DerivedTypeDropdown(selectType);
                 selectorCache.Add(selectType, selector);
             }
+            return selector;
+        }
 
-            selector.RefreshSelection(property.managedReferenceValue?.GetType());
-
+        private void DrawSelector(Rect position, SerializedProperty property, DerivedTypeDropdown selector, float lineSize)
+        {
             position.height = lineSize;
-
             if (selector.ChangeCheck(position))
             {
-                var newObj = selector.CreateInstance(property.managedReferenceValue);
-                property.managedReferenceValue = newObj;
-                property.serializedObject.ApplyModifiedProperties();
+                ApplyNewSelection(property, selector);
+                return;
             }
-            else
-            {
-                position.y += lineSize;
-                EditorGUI.PropertyField(position, property, true);
-            }
+            position.y += lineSize;
+            EditorGUI.PropertyField(position, property, true);
+        }
 
-            EditorGUI.EndProperty();
+        private void ApplyNewSelection(SerializedProperty property, DerivedTypeDropdown selector)
+        {
+            object newObj = selector.CreateInstance(property.managedReferenceValue);
+            property.managedReferenceValue = newObj;
+            property.serializedObject.ApplyModifiedProperties();
         }
 
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)

@@ -30,11 +30,16 @@ namespace Scaffold.Navigation
             View.Order(depth);
             if (options.RenderOverride.HasValue)
             {
-                var canvas = View.gameObject.GetComponentInParent<Canvas>(true);
-                if (canvas != null)
-                {
-                    canvas.renderMode = options.RenderOverride.Value;
-                }
+                ApplyRenderOverride(options.RenderOverride.Value);
+            }
+        }
+
+        private void ApplyRenderOverride(RenderMode renderMode)
+        {
+            var canvas = View.gameObject.GetComponentInParent<Canvas>(true);
+            if (canvas != null)
+            {
+                canvas.renderMode = renderMode;
             }
         }
 

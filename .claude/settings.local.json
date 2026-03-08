@@ -28,7 +28,8 @@
       "Bash(dotnet build \"C:/Users/user/Documents/Unity/Scaffold/Scaffold.sln\" --no-incremental)",
       "Bash(echo \"Exit: $?\")",
       "Bash(bash \"C:/Users/user/Documents/Unity/Scaffold/.agents/scripts/check-analyzers.sh\")",
-      "Bash(dotnet build \"Scaffold.sln\" --no-incremental)"
+      "Bash(dotnet build \"Scaffold.sln\" --no-incremental)",
+      "Bash(gh pr view 7 --json url)"
     ]
   }
 }
