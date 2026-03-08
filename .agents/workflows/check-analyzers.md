@@ -6,19 +6,24 @@ When invoked with `/check-analyzers`, run the build and report diagnostics only.
 
 ---
 
-## Step 1 — Run the Full Solution Build
+## Step 1 — Run the Script
 
 ```bash
-dotnet build "C:/Users/user/Documents/Unity/Scaffold/Scaffold.sln" 2>&1
+bash "C:/Users/user/Documents/Unity/Scaffold/.agents/scripts/check-analyzers.sh"
 ```
+
+The script builds with `--no-incremental`, deduplicates identical diagnostics (the same issue can appear twice when a project is compiled as both a standalone target and a dependency), and emits parseable lines:
+
+- `TOTAL:<n>`
+- `RULE:<code>:<count>`
+- `FILE:<relative-path>:<count>`
+- `BLOCKER:<raw error line>` — non-SCA build errors, if any
 
 ---
 
 ## Step 2 — Report Diagnostics
 
-Extract every line matching `: warning SCA\d+:` or `: error SCA\d+:` from the output.
-
-Report to the user:
+Format the script output for the user:
 
 ```
 Analyzer Diagnostics Report
@@ -35,6 +40,6 @@ Files affected:
 - ...
 ```
 
-If there are non-SCA build errors (e.g. CS0006), list them separately as build blockers.
+List any `BLOCKER:` lines separately as build blockers.
 
-If there are zero SCA diagnostics, report that the build is clean.
+If TOTAL is 0, report that the build is clean.

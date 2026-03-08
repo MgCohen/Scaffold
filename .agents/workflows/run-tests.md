@@ -8,29 +8,25 @@ When invoked with `/run-tests`, execute the following steps autonomously. Do not
 
 ---
 
-## Step 1 — Run the Full Solution Build
-
-Build the full solution and capture **all** output (stdout + stderr). This is what surfaces analyzer diagnostics:
+## Step 1 — Run the Script
 
 ```bash
-dotnet build "C:/Users/user/Documents/Unity/Scaffold/Scaffold.sln" 2>&1
+bash "C:/Users/user/Documents/Unity/Scaffold/.agents/scripts/check-analyzers.sh"
 ```
+
+The script builds with `--no-incremental` and emits deduplicated, parseable output (`TOTAL:`, `RULE:`, `FILE:`, `BLOCKER:` lines). Deduplication is required because the same diagnostic can appear twice when a project is compiled as both a standalone target and a dependency.
 
 ---
 
 ## Step 2 — Parse and Report Diagnostics
 
-From the captured output, extract every line matching the pattern:
-```
-: warning SCA\d+:
-: error SCA\d+:
-```
+From the script output, extract `RULE:` and `FILE:` lines.
 
-Do **not** count non-SCA build errors (e.g. CS0006, CS0246) in the analyzer report — treat those as build blockers and fix them first.
+Do **not** count `BLOCKER:` lines in the analyzer report — treat those as build blockers and fix them first.
 
 Compute:
-- **Total** SCA diagnostic count
-- **Per-rule** counts (e.g. `SCA0003`, `SCA0005`, `SCA0006`)
+- **Total** SCA diagnostic count (from `TOTAL:` line)
+- **Per-rule** counts (from `RULE:` lines)
 
 Report to the user in this format before fixing anything:
 
@@ -63,7 +59,7 @@ Group edits by file to minimise redundant reads. After processing all diagnostic
 
 ## Step 4 — Verify
 
-Re-run Step 1. Compare the new diagnostic count to the previous count.
+Re-run the script (Step 1). Compare the new `TOTAL:` count to the previous count.
 
 - If new SCA diagnostics remain, repeat Step 3 for only the remaining issues.
 - Repeat this loop until the build output contains **zero** SCA-prefixed diagnostics.
