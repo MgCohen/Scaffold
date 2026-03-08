@@ -17,7 +17,10 @@
       "Bash(powershell -File:*)",
       "Bash(dotnet build -v normal)",
       "Bash(\"c:/Users/user/Documents/Unity/Scaffold/TestAnalyzer/TestAnalyzer.csproj\":*)",
-      "Bash(cmd /c \"rmdir /s /q C:\\\\Users\\\\user\\\\Documents\\\\Unity\\\\Scaffold\\\\TestAnalyzer\")"
+      "Bash(cmd /c \"rmdir /s /q C:\\\\Users\\\\user\\\\Documents\\\\Unity\\\\Scaffold\\\\TestAnalyzer\")",
+      "Bash(dotnet build \"C:/Users/user/Documents/Unity/Scaffold/Scaffold.sln\"*)",
+      "Bash(dotnet build -c Release \"C:/Users/user/Documents/Unity/Scaffold/Analyzers/Scaffold/Scaffold.Analyzers/Scaffold.Analyzers.csproj\"*)",
+      "Bash(rm -f \"C:/Users/user/Documents/Unity/Scaffold/msbuild.binlog\")"
     ]
   }
 }
