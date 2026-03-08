@@ -13,7 +13,8 @@ namespace Scaffold.MVVM.Binding
             foreach(var cPath in paths)
             {
                 builder.Append(cPath);
-                child = new BindingPath(builder.ToString(), child);
+                var currentPath = builder.ToString();
+                child = new BindingPath(currentPath, child);
                 builder.Append(".");
             }
 

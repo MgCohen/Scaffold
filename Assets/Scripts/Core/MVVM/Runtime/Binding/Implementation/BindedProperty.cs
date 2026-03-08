@@ -44,7 +44,8 @@ namespace Scaffold.MVVM.Binding
 
         private TTarget ResolveValue(TSource sourceValue)
         {
-            return Adapt(Convert(sourceValue));
+            var converted = Convert(sourceValue);
+            return Adapt(converted);
         }
 
         private TTarget Convert(TSource sourceValue)

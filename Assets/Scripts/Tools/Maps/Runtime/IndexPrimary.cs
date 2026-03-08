@@ -4,16 +4,16 @@ namespace Scaffold.Maps
 {
     public readonly struct Index<TPrimary> : IEquatable<Index<TPrimary>>
     {
-        public readonly TPrimary primary;
+        public readonly TPrimary Primary;
 
         public Index(TPrimary primary)
         {
-            this.primary = primary;
+            this.Primary = primary;
         }
 
         public bool Equals(Index<TPrimary> other)
         {
-            return Equals(primary, other.primary);
+            return Equals(Primary, other.Primary);
         }
 
         public override bool Equals(object obj)
@@ -23,7 +23,7 @@ namespace Scaffold.Maps
 
         public override int GetHashCode()
         {
-            return primary != null ? primary.GetHashCode() : 0;
+            return Primary != null ? Primary.GetHashCode() : 0;
         }
 
         public static bool operator ==(Index<TPrimary> left, Index<TPrimary> right)

@@ -69,7 +69,8 @@ namespace Scaffold.Navigation
         public IViewController Return()
         {
             var targetPoint = this.stack.PreviousPoint;
-            GoTo(targetPoint, true, new NavigationOptions());
+            var defaultOptions = new NavigationOptions();
+            GoTo(targetPoint, true, defaultOptions);
             return targetPoint.ViewModel;
         }
 

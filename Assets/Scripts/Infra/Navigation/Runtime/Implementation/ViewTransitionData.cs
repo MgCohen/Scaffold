@@ -1,5 +1,5 @@
 using System;
-using System.Threading.Tasks;
+using UnityEngine;
 
 namespace Scaffold.Navigation
 {
@@ -9,9 +9,9 @@ namespace Scaffold.Navigation
         public NavigationPoint To { get; private set; }
         public bool CloseCurrent { get; private set; }
 
-        public Func<Task> ClosingSequence { get; set; }
-        public Func<Task> OpenningSequence { get; set; }
-        public Func<Task> HidingSequence { get; set; }
+        public Func<Awaitable> ClosingSequence { get; set; }
+        public Func<Awaitable> OpenningSequence { get; set; }
+        public Func<Awaitable> HidingSequence { get; set; }
 
         public ViewTransitionData(NavigationPoint from, NavigationPoint to, bool closeCurrent)
         {

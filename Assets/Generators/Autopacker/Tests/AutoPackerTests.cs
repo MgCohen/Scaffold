@@ -60,14 +60,12 @@ namespace Scaffold.Autopacker.Tests
 
         public const int VECTOR_HASH_OFFSET = 999;
     
-        // Pack: Vector2 -> Int
         public static int Resolve(this IPackingHandler handler, Vector2 source)
         {
             PackWasCalled = true;
             return (int)(source.x + source.y) + VECTOR_HASH_OFFSET;
         }
         
-        // Unpack: Int -> Vector2
         public static Vector2 Resolve(this IPackingHandler handler, int source)
         {
             UnpackWasCalled = true;
@@ -83,12 +81,7 @@ namespace Scaffold.Autopacker.Tests
         public void AutoPacker_Pack_GeneratesCorrectStructValues()
         {
             // Arrange
-            var originalState = new PlayerState
-            {
-                Health = 42,
-                Speed = 10.5f,
-                SpawnPoint = new Vector3(1, 2, 3)
-            };
+            var originalState = new PlayerState { Health = 42, Speed = 10.5f, SpawnPoint = new Vector3(1, 2, 3) };
 
             // Act
             IPackedStruct packedData = originalState.Pack(); 
@@ -97,19 +90,15 @@ namespace Scaffold.Autopacker.Tests
             // Assert
             Assert.AreEqual(42, concreteStruct.Health, "Health value should match the original struct.");
             Assert.AreEqual(10.5f, concreteStruct.Speed, "Speed value should match the original struct.");
-            Assert.AreEqual(new Vector3(1, 2, 3), concreteStruct.SpawnPoint, "SpawnPoint value should match the original struct.");
+            var expectedSpawnPoint = new Vector3(1, 2, 3);
+            Assert.AreEqual(expectedSpawnPoint, concreteStruct.SpawnPoint, "SpawnPoint value should match the original struct.");
         }
 
         [Test]
         public void AutoPacker_Unpack_RestoresObjectStateCorrectly()
         {
             // Arrange
-            var originalState = new PlayerState
-            {
-                Health = 99,
-                Speed = 1.0f,
-                TransientDescription = "Ignored Value"
-            };
+            var originalState = new PlayerState { Health = 99, Speed = 1.0f, TransientDescription = "Ignored Value" };
 
             IPackedStruct packedData = originalState.Pack(); 
 
@@ -189,7 +178,8 @@ namespace Scaffold.Autopacker.Tests
 
             // Assert
             Assert.IsTrue(TestPackingExtensions.UnpackWasCalled, "The unpacking extension method was not invoked.");
-            Assert.AreEqual(new Vector2(5, 5), restoredPayload.Coordinate, "Packer did not correctly invoke the implicitly bound extension method during Unpack.");
+            var expectedCoordinate = new Vector2(5, 5);
+            Assert.AreEqual(expectedCoordinate, restoredPayload.Coordinate, "Packer did not correctly invoke the implicitly bound extension method during Unpack.");
         }
     }
 }

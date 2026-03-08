@@ -49,7 +49,7 @@ namespace Scaffold.Maps
 
         internal void Track(Index<TPrimary, TSecondary> index, Holder<TValue> holder)
         {
-            bool isMatch = predicate(index.primary, index.secondary);
+            bool isMatch = predicate(index.Primary, index.Secondary);
             if (isMatch && holders.Contains(holder) == false)
             {
                 holders.Add(holder);

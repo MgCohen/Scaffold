@@ -142,7 +142,8 @@ namespace Scaffold.Maps
         private Indexer<TPrimary, TSecondary, TValue> CreateIndexer(string name, Func<TPrimary, TSecondary, bool> predicate)
         {
             Indexer<TPrimary, TSecondary, TValue> indexer = new Indexer<TPrimary, TSecondary, TValue>(name, predicate);
-            indexer.Rebuild(GetEntries());
+            var entries = GetEntries();
+            indexer.Rebuild(entries);
             return indexer;
         }
 

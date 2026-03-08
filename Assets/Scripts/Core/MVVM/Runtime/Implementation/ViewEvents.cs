@@ -21,7 +21,8 @@ namespace Scaffold.MVVM
 
         public static void Raise(MonoBehaviour source, ViewEvent evt)
         {
-            var ledger = GetLedger(evt.GetType(), false);
+            var evtType = evt.GetType();
+            var ledger = GetLedger(evtType, false);
             ledger?.Raise(source.transform, evt);
         }
 

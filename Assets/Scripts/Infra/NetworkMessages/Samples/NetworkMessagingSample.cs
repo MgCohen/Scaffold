@@ -67,11 +67,7 @@ namespace Scaffold.NetworkMessages.Samples
         {
             if (!IsSpawned || dispatcher == null) return;
 
-            var message = new SampleMessage
-            {
-                Id = ++messageCounter,
-                Timestamp = Time.time
-            };
+            var message = new SampleMessage { Id = ++messageCounter, Timestamp = Time.time };
 
             if (IsServer)
             {

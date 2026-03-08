@@ -29,7 +29,8 @@ namespace Scaffold.MVVM.Binding
         {
             var valueParam = Expression.Parameter(typeof(TProperty));
             var body = Expression.Assign(selector.Body, valueParam);
-            return Expression.Lambda<Action<TEntity, TProperty>>(body, selector.Parameters.Single(), valueParam);
+            var singleParameter = selector.Parameters.Single();
+            return Expression.Lambda<Action<TEntity, TProperty>>(body, singleParameter, valueParam);
         }
 
         public static Expression<Action<TProperty>> CreateSetter<TProperty>(this Expression<Func<TProperty>> selector)

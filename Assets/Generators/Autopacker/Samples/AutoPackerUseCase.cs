@@ -19,12 +19,7 @@ namespace Scaffold.Autopacker.Samples
         private void Start()
         {
             // 1. Create our object
-            var player = new PlayerData()
-            {
-                Health = 100,
-                Speed = 5.5f,
-                Position = new Vector3(10, 0, 5)
-            };
+            var player = new PlayerData() { Health = 100, Speed = 5.5f, Position = new Vector3(10, 0, 5) };
 
             Debug.Log($"Original Player: Health={player.Health}, Speed={player.Speed}, Position={player.Position}");
 

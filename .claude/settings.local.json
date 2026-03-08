@@ -26,7 +26,9 @@
       "Bash(grep -rl \"Assets\\\\\\\\Analyzers\\\\\\\\Scaffold.Analyzers.dll\" \"C:/Users/user/Documents/Unity/Scaffold/\" --include=\"*.csproj\")",
       "Bash(tee /tmp/scaffold_build.txt)",
       "Bash(dotnet build \"C:/Users/user/Documents/Unity/Scaffold/Scaffold.sln\" --no-incremental)",
-      "Bash(echo \"Exit: $?\")"
+      "Bash(echo \"Exit: $?\")",
+      "Bash(bash \"C:/Users/user/Documents/Unity/Scaffold/.agents/scripts/check-analyzers.sh\")",
+      "Bash(dotnet build \"Scaffold.sln\" --no-incremental)"
     ]
   }
 }

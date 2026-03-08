@@ -48,7 +48,8 @@ namespace Scaffold.MVVM
         protected virtual void OnViewModelChanged(object sender, PropertyChangedEventArgs e)
         {
             Debug.Log("View element update : " + this.GetType().Name + " - " + e.PropertyName);
-            var propertyFullName = string.Join('.', GetBindSourceName(), e.PropertyName);
+            var bindSourceName = GetBindSourceName();
+            var propertyFullName = string.Join('.', bindSourceName, e.PropertyName);
             bindings.UpdateBind(propertyFullName);
         }
 

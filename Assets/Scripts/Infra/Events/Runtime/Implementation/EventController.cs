@@ -69,7 +69,8 @@ namespace Scaffold.Events
 
         public void Raise(ContextEvent evt)
         {
-            if (events.TryGetValue(evt.GetType(), out var action))
+            var evtType = evt.GetType();
+            if (events.TryGetValue(evtType, out var action))
             {
                 action.Invoke(evt);
             }

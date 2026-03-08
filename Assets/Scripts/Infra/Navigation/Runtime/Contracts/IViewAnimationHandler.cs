@@ -1,9 +1,9 @@
-using System.Threading.Tasks;
+using UnityEngine;
 
 namespace Scaffold.Navigation
 {
     public interface IViewAnimationHandler
     {
-        Task AnimateView(AnimationType direction);
+        Awaitable AnimateView(AnimationType direction);
     }
 }

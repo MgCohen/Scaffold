@@ -16,9 +16,9 @@ SCA_LINES=$(echo "$OUT" | grep -E ": (warning|error) SCA[0-9]+" | sort -u)
 TOTAL=$(echo "$SCA_LINES" | grep -c "SCA" 2>/dev/null || echo 0)
 echo "TOTAL:$TOTAL"
 
-# Per-rule counts
+# Per-rule counts — extract only the first SCA code per line (appears twice in output)
 echo "$SCA_LINES" \
-  | grep -o "SCA[0-9]*" \
+  | sed -E 's/.*\s(SCA[0-9]+).*/\1/' \
   | sort | uniq -c | sort -rn \
   | awk '{print "RULE:"$2":"$1}'
 

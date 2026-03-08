@@ -15,35 +15,49 @@ namespace Scaffold.Containers
 
         public IRegistrationBuilder<T> Register<T>(ContainerLifetime lifetime)
         {
-            var registration = inner.Register<T>(ToVContainerLifetime(lifetime));
+            var vLifetime = ToVContainerLifetime(lifetime);
+            var registration = inner.Register<T>(vLifetime);
             return new VContainerRegistrationBuilder<T>(registration);
         }
 
         public IRegistrationBuilder<TService> Register<TService, TImpl>(ContainerLifetime lifetime)
             where TImpl : TService
         {
-            var registration = inner.Register<TService, TImpl>(ToVContainerLifetime(lifetime));
+            var vLifetime = ToVContainerLifetime(lifetime);
+            var registration = inner.Register<TService, TImpl>(vLifetime);
             return new VContainerRegistrationBuilder<TService>(registration);
         }
 
         public IRegistrationBuilder<T> Register<T>(Func<IContainerResolver, T> factory, ContainerLifetime lifetime)
         {
-            var registration = inner.Register(
-                (IObjectResolver vc) => factory(new VContainerResolver(vc)),
-                ToVContainerLifetime(lifetime));
+            var vLifetime = ToVContainerLifetime(lifetime);
+            var registration = inner.Register(vc => InvokeWithAdapter(factory, vc), vLifetime);
             return new VContainerRegistrationBuilder<T>(registration);
         }
 
         public IRegistrationBuilder<TEntryPoint> RegisterEntryPoint<TEntryPoint>(ContainerLifetime lifetime)
             where TEntryPoint : class
         {
-            inner.RegisterEntryPoint<TEntryPoint>(ToVContainerLifetime(lifetime));
+            var vLifetime = ToVContainerLifetime(lifetime);
+            inner.RegisterEntryPoint<TEntryPoint>(vLifetime);
             return new NoOpRegistrationBuilder<TEntryPoint>();
         }
 
         public void RegisterBuildCallback(Action<IContainerResolver> callback)
         {
-            inner.RegisterBuildCallback((IObjectResolver vc) => callback(new VContainerResolver(vc)));
+            inner.RegisterBuildCallback(vc => InvokeCallback(callback, vc));
+        }
+
+        private T InvokeWithAdapter<T>(Func<IContainerResolver, T> factory, IObjectResolver resolver)
+        {
+            var adapter = new VContainerResolver(resolver);
+            return factory(adapter);
+        }
+
+        private void InvokeCallback(Action<IContainerResolver> callback, IObjectResolver resolver)
+        {
+            var adapter = new VContainerResolver(resolver);
+            callback(adapter);
         }
 
         private static Lifetime ToVContainerLifetime(ContainerLifetime lifetime)

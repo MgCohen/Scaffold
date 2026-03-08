@@ -19,18 +19,23 @@ namespace Scaffold.Containers
 
         public void BuildChild(Container container, Context childContext, Transform holder)
         {
-            LifetimeScope childScope = scope.CreateChild(b =>
-            {
-                var registry = new VContainerRegistry(b);
-                registry.Register<IContext>(_ => childContext, ContainerLifetime.Scoped);
-                registry.Register<IContainerResolver>(resolver =>
-                {
-                    var objectResolver = resolver.Resolve<VContainer.IObjectResolver>();
-                    return new VContainerResolver(objectResolver);
-                }, ContainerLifetime.Scoped);
-                container.Build(registry, holder);
-            });
-            childContext.SetScope(new VContainerScope(childScope));
+            LifetimeScope childScope = scope.CreateChild(b => BuildChildScope(b, container, childContext, holder));
+            var childVContainerScope = new VContainerScope(childScope);
+            childContext.SetScope(childVContainerScope);
+        }
+
+        private void BuildChildScope(VContainer.IContainerBuilder b, Container container, Context childContext, Transform holder)
+        {
+            var registry = new VContainerRegistry(b);
+            registry.Register<IContext>(_ => childContext, ContainerLifetime.Scoped);
+            registry.Register<IContainerResolver>(resolver => CreateContainerResolver(resolver), ContainerLifetime.Scoped);
+            container.Build(registry, holder);
+        }
+
+        private IContainerResolver CreateContainerResolver(IContainerResolver resolver)
+        {
+            var objectResolver = resolver.Resolve<VContainer.IObjectResolver>();
+            return new VContainerResolver(objectResolver);
         }
 
         public void Dispose()

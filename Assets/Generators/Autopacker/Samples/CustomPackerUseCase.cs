@@ -42,7 +42,6 @@ namespace Scaffold.Autopacker.Samples
 
     public static class PackingExtensions
     {
-        //Id = handler.Resolve<int, int>(source.Id);
         public static int Resolve(this IPackingHandler handler, Vector2 source)
         {
             return default;
@@ -53,11 +52,7 @@ namespace Scaffold.Autopacker.Samples
     {
         private void Start()
         {
-            var data = new SecureData
-            {
-                Id = 1,
-                Secret = "MySuperSecretValue"
-            };
+            var data = new SecureData { Id = 1, Secret = "MySuperSecretValue" };
 
             Debug.Log($"[Original] Id={data.Id}, Secret={data.Secret}");
 

@@ -6,11 +6,11 @@ namespace Scaffold.Types
 {
     public class TypeSelectionAttribute : PropertyAttribute
     {
-        [NotNull] public Type baseType;
+        [NotNull] public Type BaseType;
 
         public TypeSelectionAttribute([NotNull] Type baseType)
         {
-            this.baseType = baseType;
+            this.BaseType = baseType;
         }
     }
 }

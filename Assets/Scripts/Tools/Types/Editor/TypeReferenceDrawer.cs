@@ -14,7 +14,7 @@ namespace Scaffold.Types.Editor
     {
         private static readonly HashSet<string> systemAssemblyNames = new HashSet<string> { "mscorlib", "System", "System.Core" };
         private static Dictionary<Type, GenericMenu> menus = new Dictionary<Type, GenericMenu>();
-        private static Action<Type> OnClickCallback;
+        private static Action<Type> onClickCallback;
 
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
@@ -32,17 +32,20 @@ namespace Scaffold.Types.Editor
             }
 
             Type currentType = (property.boxedValue as TypeReference).Type;
-            if (EditorGUI.DropdownButton(position, new GUIContent(currentType?.Name), FocusType.Passive))
+            var dropdownContent = new GUIContent(currentType?.Name);
+            if (EditorGUI.DropdownButton(position, dropdownContent, FocusType.Passive))
             {
-                OnClickCallback = (t) =>
-                {
-                    var serializedType = SerializeType(t);
-                    var serializedTypeProperty = property.FindPropertyRelative("serializedType");
-                    serializedTypeProperty.stringValue = serializedType;
-                    property.serializedObject.ApplyModifiedProperties();
-                };
+                onClickCallback = (t) => SetClickedType(t, property);
                 menus[filterType].ShowAsContext();
             }
+        }
+
+        private static void SetClickedType(Type t, SerializedProperty property)
+        {
+            var serializedType = SerializeType(t);
+            var serializedTypeProperty = property.FindPropertyRelative("serializedType");
+            serializedTypeProperty.stringValue = serializedType;
+            property.serializedObject.ApplyModifiedProperties();
         }
 
         private void BuildMenu(Type filterType)
@@ -50,20 +53,15 @@ namespace Scaffold.Types.Editor
             var typeOptions = new List<Type>();
             if (filterType != typeof(TypeReference))
             {
-                typeOptions = UnityEditor.TypeCache.GetTypesDerivedFrom(filterType)
-                    .Where(t => !t.IsAbstract 
-                                && !t.ContainsGenericParameters
-                                && !t.IsGenericTypeDefinition 
-                                && !t.FullName.Contains("<") 
-                                && !t.IsGenericType)
-                                .ToList();
+                typeOptions = UnityEditor.TypeCache.GetTypesDerivedFrom(filterType).Where(t => !t.IsAbstract && !t.ContainsGenericParameters && !t.IsGenericTypeDefinition && !t.FullName.Contains("<") && !t.IsGenericType).ToList();
             }
             else
             {
                 var assemblies = AppDomain.CurrentDomain.GetAssemblies().Where(a => !IsSystemAssembly(a));
                 foreach (var assemblie in assemblies)
                 {
-                    typeOptions.AddRange(assemblie.GetTypes().Where(t => !t.IsAbstract && !t.ContainsGenericParameters && !t.IsGenericTypeDefinition && !t.FullName.Contains("<") && !t.IsGenericType));
+                    var filteredTypes = assemblie.GetTypes().Where(t => !t.IsAbstract && !t.ContainsGenericParameters && !t.IsGenericTypeDefinition && !t.FullName.Contains("<") && !t.IsGenericType);
+                    typeOptions.AddRange(filteredTypes);
                 }
             }
             BuildMenu(filterType, typeOptions);
@@ -74,10 +72,11 @@ namespace Scaffold.Types.Editor
             GenericMenu menu = new GenericMenu();
             foreach (var type in typeOptions)
             {
-                GUIContent menuOption = new GUIContent(type.FullName.Replace('.', '/'));
+                var menuLabel = type.FullName.Replace('.', '/');
+                GUIContent menuOption = new GUIContent(menuLabel);
                 menu.AddItem(menuOption, false, () =>
                 {
-                    OnClickCallback.Invoke(type);
+                    onClickCallback.Invoke(type);
                 });
             }
             menus[filterType] = menu;
@@ -86,7 +85,8 @@ namespace Scaffold.Types.Editor
         private static bool IsSystemAssembly(Assembly assembly)
         {
             var referencedAssemblies = assembly.GetReferencedAssemblies();
-            return IsSystemAssembly(assembly.GetName()) || referencedAssemblies.Any(IsSystemAssembly);
+            var assemblyName = assembly.GetName();
+            return IsSystemAssembly(assemblyName) || referencedAssemblies.Any(IsSystemAssembly);
         }
 
         private static bool IsSystemAssembly(AssemblyName assemblyName)
@@ -99,6 +99,5 @@ namespace Scaffold.Types.Editor
             var settings = new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All };
             return JsonConvert.SerializeObject(type, settings);
         }
-
     }
 }

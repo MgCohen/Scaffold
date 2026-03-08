@@ -21,7 +21,14 @@ namespace Scaffold.Navigation
 
         public NavigationPoint Get(Type screenType)
         {
-            return stack.LastOrDefault(point => screenType.IsAssignableFrom(point.View.GetType()) || screenType.IsAssignableFrom(point.ViewModel.GetType()));
+            return stack.LastOrDefault(point => MatchesType(point, screenType));
+        }
+
+        private bool MatchesType(NavigationPoint point, Type screenType)
+        {
+            var viewType = point.View.GetType();
+            var vmType = point.ViewModel.GetType();
+            return screenType.IsAssignableFrom(viewType) || screenType.IsAssignableFrom(vmType);
         }
 
         public NavigationPoint Get(IView screen)

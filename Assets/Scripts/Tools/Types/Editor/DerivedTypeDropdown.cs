@@ -12,7 +12,14 @@ namespace Scaffold.Types.Editor
         private readonly string[] subTypeNames;
         private int selectedIndex = -1;
 
-        public Type SelectedType => subTypes.ElementAtOrDefault(Math.Max(0, selectedIndex));
+        public Type SelectedType
+        {
+            get
+            {
+                var safeIndex = Math.Max(0, selectedIndex);
+                return subTypes.ElementAtOrDefault(safeIndex);
+            }
+        }
 
         public DerivedTypeDropdown(Type targetType, Type currentType = null)
         {
@@ -24,7 +31,8 @@ namespace Scaffold.Types.Editor
 
             IEnumerable<Type> foundClasses = TypeCache.GetTypesDerivedFrom(targetType);
             var validTypes = foundClasses.Where(t => !t.ContainsGenericParameters);
-            subTypes.AddRange(validTypes.ToList());
+            var validTypesList = validTypes.ToList();
+            subTypes.AddRange(validTypesList);
             subTypeNames = subTypes.Select(x => x.Name).ToArray();
             selectedIndex = subTypes.IndexOf(currentType);
         }
@@ -37,7 +45,8 @@ namespace Scaffold.Types.Editor
         public bool ChangeCheck(Rect position)
         {
             int oldIndex = selectedIndex;
-            int newIndex = EditorGUI.Popup(position, Math.Max(0, selectedIndex), subTypeNames);
+            var safeIndex = Math.Max(0, selectedIndex);
+            int newIndex = EditorGUI.Popup(position, safeIndex, subTypeNames);
             selectedIndex = newIndex;
             return oldIndex != newIndex;
         }

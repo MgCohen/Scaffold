@@ -25,7 +25,8 @@ namespace Scaffold.Types.Editor
             position.y -= spacing;
             position.height += spacing * 2.0f;
 
-            EditorGUI.DrawRect(position, new Color(0.28f, 0.28f, 0.28f));
+            var borderColor = new Color(0.28f, 0.28f, 0.28f);
+            EditorGUI.DrawRect(position, borderColor);
             position.x += spacing;
             position.y += spacing;
 
@@ -34,7 +35,7 @@ namespace Scaffold.Types.Editor
 
             var customAttribute = (TypeSelectionAttribute)attribute;
 
-            var selectType = customAttribute.baseType;
+            var selectType = customAttribute.BaseType;
 
             if (!selectorCache.TryGetValue(selectType, out DerivedTypeDropdown selector))
             {

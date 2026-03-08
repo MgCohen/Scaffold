@@ -24,7 +24,8 @@ namespace Scaffold.Containers
 
         public IContext AddChild<T>() where T : Container, new()
         {
-            return AddChild(new T());
+            var container = new T();
+            return AddChild(container);
         }
 
         public IContext AddChild(Container container)
@@ -34,7 +35,8 @@ namespace Scaffold.Containers
 
         public IContext Append<T>() where T : Container, new()
         {
-            return Append(new T());
+            var container = new T();
+            return Append(container);
         }
 
         public IContext Append(Container container)
@@ -44,7 +46,8 @@ namespace Scaffold.Containers
 
         public IContext ChangeContext<T>() where T : Container, new()
         {
-            return ChangeContext(new T());
+            var container = new T();
+            return ChangeContext(container);
         }
 
         public IContext ChangeContext(Container container)
