@@ -6,7 +6,13 @@ This document describes the requirements for an execution plan ("ExecPlan"), a d
 
 When authoring an executable specification (ExecPlan), follow PLANS.md _to the letter_. If it is not in your context, refresh your memory by reading the entire PLANS.md file. Be thorough in reading (and re-reading) source material to produce an accurate specification. When creating a spec, start from the skeleton and flesh it out as you do your research.
 
-When implementing an executable specification (ExecPlan), do not prompt the user for "next steps"; simply proceed to the next milestone. Keep all sections up to date, add or split entries in the list at every stopping point to affirmatively state the progress made and next steps. Resolve ambiguities autonomously, and commit frequently.
+When implementing an executable specification (ExecPlan), use this flow:
+
+1. Create the plan file in `Plans/`.
+2. Save the plan file with the initial, self-contained milestones.
+3. Wait for explicit user input that identifies which module (or modules) to implement before executing plan milestones.
+
+After implementation starts, keep all sections up to date, add or split entries in the list at every stopping point to affirmatively state the progress made and next steps. Resolve ambiguities autonomously, and commit frequently.
 
 When discussing an executable specification (ExecPlan), record decisions in a log in the spec for posterity; it should be unambiguously clear why any change to the specification was made. ExecPlans are living documents, and it should always be possible to restart from _only_ the ExecPlan and no other work.
 

@@ -1,152 +1,225 @@
 # AutoPacker Module
 
-## Generator Architecture & Locations
+## Summary
 
-### Source Code
-The raw source code and C# project `AutoPackerGenerator.csproj` for the Roslyn analyzer is located outside the Unity Assets folder at:
-`[Repository Root]/Generators/AutoPacker/src`
+The AutoPacker module provides compile-time Roslyn generation of pack/unpack code for annotated types. Its main effect is reducing repetitive network/serialization boilerplate by generating a `Packed` struct, `Pack(...)` method, and unpack constructor based on `[AutoPack]` and `[Packed]` metadata.
 
-This contains the following structure:
-- **`AutoPackerContracts/`**: The interfaces (`IPackingHandler`, `IPackedStruct`) and Attributes (`[AutoPack]`, `[Packed]`). This is built into `Scaffold.AutoPacker.dll`.
-  - *WARNING: If you ever change the name of any types, interfaces, or attributes inside Contracts, you MUST remember to update the corresponding hardcoded parsing strings used within the Generator's `AutoPackSyntaxReceiver` and `Emitter` scripts!*
-- **`AutoPackerGenerator/`**: The Roslyn compiler plugins.
-  - `AutoPackSyntaxReceiver.cs`: The code scanner that walks over the Unity source code during compilation looking for the Attributes and custom `Resolve` extension methods.
-  - `Emitter.cs`: The string-builder that dynamically formats the C# struct code and generic assignments.
-  - `AutoPackerGenerator.cs`: The entrypoint bridging the SyntaxReceiver findings to the Emitter.
+Internally, the generator validates unmanaged packing constraints and emits registry/type conversion helpers during compilation.
 
-### Published DLLs
-When the `AutoPackerGenerator` is built (`dotnet publish -c Release`), the resulting compiled `AutoPackerGenerator.dll` and `Scaffold.AutoPacker.dll` must be exported back into the Unity project so the Unity Compiler can use them. 
+## Bird's Eye View
 
-The destination for these DLL files is:
-`[Repository Root]/Assets/Scripts/Tools/Autopacker/Runtime/`
+Module layout:
 
-## Overview
-**AutoPacker** is a custom Roslyn Source Generator that lives inside the `Generators/` directory of the Scaffold project. It actively listens to your Unity compilation process to dynamically construct underlying boilerplate code for structs and conversions, entirely removing the need for manual DTO (Data Transfer Object) writing, reflection, or data serialization boilerplate.
+- `Generators/AutoPacker/src/Contracts/`: public attributes/interfaces (`AutoPackAttribute`, `PackedAttribute`, `IPackingHandler`, `IPackable`, `IPackedStruct`).
+- `Generators/AutoPacker/src/AutoPackerGenerator/`: Roslyn generator pipeline (`AutoPackerGenerator`, `AutoPackSyntaxReceiver`, `Emitter`, `TypeConversions`).
+- `Generators/AutoPacker/`: generator project entry (`AutoPackerGenerator.csproj`).
+- `Docs/AutoPacker.md`: this module documentation.
 
-By applying simple attributes, developers can define robust zero-allocation packing and unpacking procedures. 
+External dependency graph:
 
-## Basic Usage
+```mermaid
+graph LR
+  AP["AutoPackerGenerator"] --> ROSLYN["Microsoft.CodeAnalysis"]
+  AP --> CONTRACTS["Scaffold.AutoPacker Contracts"]
+  CONTRACTS --> DOTNET["netstandard2.0"]
+```
 
-### The `[AutoPack]` and `[Packed]` Attributes
-To allow the generator to operate on a `class`, it must be declared as `partial` and decorated with the `[AutoPack]` attribute. Individual fields and properties that need to be packaged should receive the `[Packed]` attribute.
+Internal dependency graph:
+
+```mermaid
+graph TD
+  ATTR["[AutoPack] / [Packed]"] --> RX["AutoPackSyntaxReceiver"]
+  RX --> GEN["AutoPackerGenerator.Execute"]
+  GEN --> EMIT["Emitter.EmitSource / EmitRegistry"]
+  EMIT --> OUT["*.Packed.g.cs + AutoPackerRegistry.g.cs"]
+  EMIT --> CONV["TypeConversions"]
+  HANDLER["IPackingHandler"] --> PACK["Generated Pack/Unpack assignments"]
+```
+
+## Architecture and key behaviors
+
+### 1) Syntax discovery phase
+
+The receiver scans type/field/method syntax, collecting:
+
+- types marked with `[AutoPack]`
+- fields marked with `[Packed]`
+- extension methods named `Resolve(this IPackingHandler, ...)`
+
+```csharp
+if (!HasAttribute(containingType, nameof(AutoPackAttribute)))
+    continue;
+
+if (!HasAttribute(fieldSymbol, nameof(PackedAttribute)))
+    continue;
+```
+
+### 2) Validation phase
+
+Before generation, fields are validated as unmanaged (or mapped to unmanaged target type).
+
+```csharp
+if (!typeToCheck.IsUnmanagedType)
+{
+    var diagnostic = Diagnostic.Create(MustBeUnmanagedDiagnostic, location, fieldSymbol.Name, typeToCheck.ToDisplayString());
+    context.ReportDiagnostic(diagnostic);
+}
+```
+
+### 3) Emission phase
+
+For each valid type, generator emits partial source with:
+
+- default constructor (if needed)
+- unpack constructor (`Type(Packed packedData, IPackingHandler handler = null)`)
+- `Pack(...)` method
+- nested `Packed` struct implementing `IPackedStruct`
+
+```csharp
+context.AddSource($"{typeSymbol.Name}.Packed.g.cs", SourceText.From(source, Encoding.UTF8));
+```
+
+### 4) Registry generation
+
+The generator emits `AutoPackerRegistry.g.cs` mapping source type -> packed type.
+
+```csharp
+sb.AppendLine("    public static List<Dictionary<Type, Type>> GetPackableTypes() => _types;");
+```
+
+### 5) Conversion mapping
+
+`TypeConversions` supports known managed-to-packable transforms (for example `string` to `FixedString128Bytes`).
+
+```csharp
+private static readonly Dictionary<string, string> Map = new Dictionary<string, string>
+{
+    { "string", "Unity.Collections.FixedString128Bytes" },
+};
+```
+
+## How to use
+
+`AutoPacker` is usually consumed by other runtime services (networking, persistence, sync layers) as a conversion boundary between rich domain objects and compact packed payloads.
+
+### 1) Decorate domain types for generation
+
+Mark the source type with `[AutoPack]` and mark only transferable fields with `[Packed]`.
 
 ```csharp
 using Scaffold.AutoPacker;
-using UnityEngine;
 
 [AutoPack]
 public partial class PlayerState
 {
     [Packed] public int Health;
-    [Packed] public float Speed;
-    [Packed] public Vector3 SpawnPoint;
-    
-    // Values without [Packed] are completely ignored during the packaging process!
-    public string TransientDescription;
+    [Packed(typeof(int))] public string Alias;
 }
 ```
 
-### Auto-Generated Conversion
-The Roslyn generator will automatically output a new `PlayerState.Packed.g.cs` file at compile time containing a `struct Packed`.
-Additionally, it patches the base class with:
-- `public IPackedStruct Pack()` method handling extraction.
-- An unpacking constructor matching `PlayerState(PlayerState.Packed packedData)`.
-- A default constructor `PlayerState()` if you haven't explicitly declared one!
+### 2) Consume generated API from other services
 
-#### Example
-```csharp
-var state = new PlayerState { Health = 100, Speed = 5f, SpawnPoint = Vector3.zero };
-
-// Generated: Extracts the assigned variables into a zero-allocation struct representation!
-var networkData = state.Pack(); 
-
-// Generated: Re-creates the object locally from the structured layout!
-var restoredState = new PlayerState((PlayerState.Packed)networkData); 
-```
-
-## Advanced Features
-
-### Custom Packing Handlers (`IPackingHandler`)
-Sometimes you need precise control over how data is processed—such as encrypting a string, truncating floating-point precision, or serializing a complex object reference into a simple network ID hash.
-
-To achieve this, simply implement `IPackingHandler` and provide an overridden handler logic:
+A service can call `Pack()` before transport/storage and reconstruct later from the generated `Packed` struct.
 
 ```csharp
-[AutoPack]
-public partial class SecurePayload
+public class PlayerSyncService
 {
-    // A string is a managed type, which cannot exist inside unmanaged packed structs easily.
-    // By providing typeof(int), we force the struct generator to allocate an `int` for this value!
-    [Packed(typeof(int))] public string Secret; 
-}
+    public IPackedStruct ToPayload(PlayerState state)
+    {
+        return state.Pack();
+    }
 
-public class EncryptionPacker : IPackingHandler
+    public PlayerState FromPayload(PlayerState.Packed packed)
+    {
+        return new PlayerState(packed);
+    }
+}
+```
+
+### 3) Add custom conversion with `IPackingHandler`
+
+Use a custom handler when source and packed types need project-specific conversion rules.
+
+```csharp
+public class CustomPackingHandler : IPackingHandler
 {
     public TTarget Resolve<TSource, TTarget>(TSource source)
     {
         if (source == null) return default;
-        
-        // Intercept Pack (String -> Int)
-        if (source is string text && typeof(TTarget) == typeof(int))
-            return (TTarget)(object)text.GetHashCode();
-            
-        // Intercept Unpack (Int -> String)
-        if (source is int hash && typeof(TTarget) == typeof(string))
-            return (TTarget)(object)("Recreated_" + hash);
-
-        // Fallback for everything else
         if (source is TTarget target) return target;
-        return (TTarget)Convert.ChangeType(source, typeof(TTarget));
+        return (TTarget)System.Convert.ChangeType(source, typeof(TTarget));
     }
 }
 ```
 
-You can seamlessly insert your handler directly into the generator's hooks:
 ```csharp
-var payload = new SecurePayload { Secret = "Agent_47" };
-var encoder = new EncryptionPacker();
-
-var data = payload.Pack(encoder); // Hashed via the custom IPackingHandler!
-var result = new SecurePayload((SecurePayload.Packed)data, encoder); // Unhashed via the custom handler!
+var handler = new CustomPackingHandler();
+IPackedStruct packed = state.Pack(handler);
+var restored = new PlayerState((PlayerState.Packed)packed, handler);
 ```
 
-### Compile-Time Extension Methods
-AutoPacker features advanced compile-time dynamic discovery. 
-If your custom conversions don't cleanly fit inside a monolithic `Resolve<T, U>` switch statement, you can break them out into beautifully readable C# extension methods!
+### 4) Use extension `Resolve` methods for specific type pairs
+
+If you define an extension method named `Resolve(this IPackingHandler, SourceType)`, the generator can emit direct extension calls instead of generic `Resolve<TSource, TTarget>(...)` for matching type pairs.
 
 ```csharp
-public static class MyNetworkExtensions
+public static class PackingExtensions
 {
-    // The generator's SyntaxReceiver aggressively sweeps the codebase for any method
-    // named `Resolve` bearing `this IPackingHandler`.
-    public static int Resolve(this IPackingHandler handler, Vector2 source)
+    public static int Resolve(this IPackingHandler handler, UnityEngine.Vector2 source)
     {
-        return (int)source.x * 100;
+        return (int)source.x;
     }
 }
 ```
 
-The AutoPacker source generator watches your Unity codebase compilation. When it reaches a field designated for packing—e.g., `[Packed(typeof(int))] public Vector2 Coordinate;`—it cross-references your global project. When it explicitly recognizes your custom `public static int Resolve(this IPackingHandler handler, Vector2 source)` signature, it *conditionally rewrites its abstract assignment*.
+This is useful when another service expects a specific packed representation and you want explicit, discoverable conversion logic.
 
-Rather than generating a restricted generic definition: `Id = handler.Resolve<Vector2, int>(source.Coordinate);`
-It dynamically unbinds it to leverage implicit C# type matching: `Id = handler.Resolve(source.Coordinate);`
+## Internal Services
 
-This forces Unity to securely and cleanly inherit your targeted extension method dynamically during the local compilation procedure!
+### Syntax receiver
 
-## Unity Assembly Integration Requirements
+- Main type: `AutoPackSyntaxReceiver`.
+- Responsibility: collect candidate types/fields and compatible extension methods for generator emission.
 
-To successfully integrate the published `AutoPackerGenerator.dll` into the Unity compiler, we configured its Unity asset settings and surrounding Assembly Definitions as follows:
+### Source emitter
 
-- **DLL Asset Labels & Toggles:** 
-  - Added the `RoslynAnalyzer` label.
-  - Added the `RunOnlyOnAssembliesWithReference` and `SourceGenerator` labels.
-  - Disabled the "Any platform" and related checkboxes.
-  - Disabled the "Auto Reference" and "Validate References" checkboxes so Unity doesn't try assigning it as standard runtime logic.
-- **Generator Assembly Definition (.asmdef):**
-  - There must be an assembly definition file in the same or a parent folder as the generator DLL inside Unity.
-  - All references to Unity assemblies required by the generated code need to be explicitly included there (e.g. `Unity.Burst`, `Unity.Collections`, `Unity.Entities`, `Unity.Entities.Hybrid` if applicable to your project).
-  - The `.asmdef` folder needs an accompanying `AssemblyInfo.cs` file (even if it remains completely empty).
-- **Marker Attributes:**
-  - Static code like the marker attributes (`[AutoPack]`, `[Packed]`) and interfaces (`IPackingHandler`) are added to the Unity Assets directly (or as a separate C# class library referenced by the generator and included in Unity Assets). *Avoid using `IncrementalGeneratorInitializationContext.RegisterPostInitializationOutput` to output these marker attributes dynamically.*
-- **Correctness:** 
-  - Finally, always make sure the code the generator creates is syntactically valid C#!
+- Main type: `Emitter`.
+- Responsibility: produce generated partial code and registry code with assignment strategy and type conversions.
+
+### Conversion table
+
+- Main type: `TypeConversions`.
+- Responsibility: map field types to packed-target representations when direct unmanaged assignment is not available.
+
+## Public api
+
+- `AutoPackAttribute` (`Generators/AutoPacker/src/Contracts/AutoPackAttribute.cs`): marker attribute for source types that should receive generated pack/unpack code.
+- `PackedAttribute` (`Generators/AutoPacker/src/Contracts/PackedAttribute.cs`): marker attribute for fields to include in packed payload, with optional `TargetType` override.
+- `IPackingHandler` (`Generators/AutoPacker/src/Contracts/IPackingHandler.cs`): conversion contract used by generated assignments during pack/unpack.
+- `IPackable` (`Generators/AutoPacker/src/Contracts/IPackable.cs`): contract exposing generated `Pack(...)` behavior.
+- `IPackedStruct` (`Generators/AutoPacker/src/Contracts/IPackedStruct.cs`): contract for generated packed representations with runtime packed-type metadata.
+- `DefaultPackingHandler` (`Generators/AutoPacker/src/Contracts/DefaultPackingHandler.cs`): fallback conversion handler used when no custom handler is provided.
+
+## How to test
+
+From generator project root (`C:/Users/user/Documents/Unity/Scaffold/Generators/AutoPacker`):
+
+```powershell
+dotnet build -c Release
+```
+
+Expected result: build succeeds and generator/contracts assemblies compile cleanly.
+
+To validate generation behavior in the Unity project:
+
+1. Ensure annotated types exist in project code (`[AutoPack]` + `[Packed]`).
+2. Trigger a compile in Unity/IDE.
+3. Confirm generated files are produced by the source generator and diagnostics are clean for managed/unmanaged rules.
+
+## Related docs and modules
+
+- `Architecture.md`
+- `Docs/NetworkMessages.md` (packed payloads can be used in network message flows)
+- `Docs/Types.md` (type metadata and filtering patterns overlap with generator-driven workflows)
+- `Plans/create-module-documentation.md`
+- `Generators/AutoPacker/src/AutoPackerGenerator/AutoPackerGenerator.cs`
