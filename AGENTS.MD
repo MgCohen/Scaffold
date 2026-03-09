@@ -1,4 +1,4 @@
-# Scaffold — AI Agent Instructions
+﻿# Scaffold â€” AI Agent Instructions
 
 This is the **primary context file** for all AI coding agents in this repository. Read it fully before making any changes. It takes precedence over any other instructions.
 
@@ -18,8 +18,8 @@ Scaffold is a highly modularized Unity project (C#) built on MVVM architecture, 
 ## Directory Structure
 
 ```
-Doc/                    # Documentation — every module must have a .md here
-Plan/                   # All planning documents and ExecPlans
+Docs/                    # Documentation â€” every module must have a .md here
+Plans/                  # All planning documents and ExecPlans
 Assets/Scripts/
   Core/                 # Core application logic (MVVM base, domain)
   Infra/                # Containers, Events, Navigation, NetworkMessages
@@ -38,19 +38,19 @@ For full detail on modules and relationships, see [Architecture.md](Architecture
 2. **Modular Integrity**: Declare all dependencies explicitly via `.asmdef`/`.csproj`. Never bypass architectural boundaries.
 3. **No MonoBehaviours in Core**: MonoBehaviours are restricted to bootstrap and presentation layers only.
 4. **Mandatory Tests**: Every module must have tests.
-5. **Documentation**: Every module needs a `.md` file or folder under `Doc/`.
-6. **Plans go in `Plan/`**: All planning documents belong there.
+5. **Documentation**: Every module needs a `.md` file or folder under `Docs/`.
+6. **Plans go in `Plans/`**: All planning documents belong there.
 7. **New source generators go in `Generators/`**.
 8. **Analyzer compliance**: Fix all Roslyn analyzer warnings/errors before committing.
 
 ## How to Build
 
 - **Application**: Standard Unity Editor pipeline (`File > Build Settings`) or Unity CLI batch mode.
-- **Analyzers & Generators**: These are standard .NET projects. After modifying them, run `dotnet build -c Release` in their directory. The compiled DLL lands in `Analyzers/Output/` and is picked up by the IDE/language server via `Directory.Build.props` at the repo root. Unity does **not** run the analyzer — diagnostics surface directly in the IDE and to AI tooling.
+- **Analyzers & Generators**: These are standard .NET projects. After modifying them, run `dotnet build -c Release` in their directory. The compiled DLL lands in `Analyzers/Output/` and is picked up by the IDE/language server via `Directory.Build.props` at the repo root. Unity does **not** run the analyzer â€” diagnostics surface directly in the IDE and to AI tooling.
 
 ## How to Test
 
-- **Unity Test Runner**: `Window > General > Test Runner` — run both `EditMode` and `PlayMode` tests.
+- **Unity Test Runner**: `Window > General > Test Runner` â€” run both `EditMode` and `PlayMode` tests.
 - **Headless**: Unity CLI with `-runTests` flag.
 
 ## Workflows
@@ -63,24 +63,24 @@ Use the `/create-custom-analyzer` workflow (`.agents/workflows/create-custom-ana
 
 ## Where to Put Plans
 
-All planning documents are **ExecPlans** and live in `Plan/` as `.md` files. Never put plans anywhere else.
+All planning documents are **ExecPlans** and live in `Plans/` as `.md` files. Never put plans anywhere else.
 
-The full ExecPlan specification is in [PLANS.md](PLANS.md) — read it before authoring or executing any plan. Key rules:
+The full ExecPlan specification is in [PLANS.md](PLANS.md) â€” read it before authoring or executing any plan. Key rules:
 
-- One file per feature/task, named descriptively (e.g., `Plan/add-navigation-system.md`).
-- Every ExecPlan must be **self-contained** — a novice must be able to implement the feature end-to-end using only that file.
-- ExecPlans are **living documents** — update them continuously as work proceeds.
+- One file per feature/task, named descriptively (e.g., `Plans/add-navigation-system.md`).
+- Every ExecPlan must be **self-contained** â€” a novice must be able to implement the feature end-to-end using only that file.
+- ExecPlans are **living documents** â€” update them continuously as work proceeds.
 - Required sections: `Progress`, `Surprises & Discoveries`, `Decision Log`, `Outcomes & Retrospective`.
 - Do not prompt the user for next steps; proceed autonomously milestone to milestone.
 - Commit frequently.
 
 ## Where to Put Documentation
 
-All module documentation lives in `Doc/`. Every module **must** have a corresponding `.md` file or subfolder there. No exceptions.
+All module documentation lives in `Docs/`. Every module **must** have a corresponding `.md` file or subfolder there. No exceptions.
 
 Naming convention mirrors the module path:
-- A module at `Assets/Scripts/Infra/Events/` → document at `Doc/Infra/Events.md` (or `Doc/Infra/Events/`)
-- A new tool at `Assets/Scripts/Tools/Foo/` → document at `Doc/Tools/Foo.md`
+- A module at `Assets/Scripts/Infra/Events/` â†’ document at `Docs/Infra/Events.md` (or `Docs/Infra/Events/`)
+- A new tool at `Assets/Scripts/Tools/Foo/` â†’ document at `Docs/Tools/Foo.md`
 
 Documentation must cover: purpose, public API/interface, usage examples, and any non-obvious design decisions. Keep it up to date as the module evolves.
 
@@ -90,5 +90,7 @@ Documentation must cover: purpose, public API/interface, usage examples, and any
 - Read `PLANS.md` before authoring or executing any ExecPlan.
 - Always fix analyzer warnings before committing.
 - Prefer editing existing files over creating new ones.
-- Keep changes minimal and focused — no speculative abstractions or premature generalization.
+- Keep changes minimal and focused â€” no speculative abstractions or premature generalization.
 - Use existing modules as reference when unsure about patterns.
+
+

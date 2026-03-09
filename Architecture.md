@@ -1,4 +1,4 @@
-# Architecture
+﻿# Architecture
 
 This document describes the high-level architecture of the Scaffold project. It serves as a bird's-eye view for anyone looking to understand the project structure and contribute effectively.
 
@@ -21,8 +21,8 @@ The project relies on the following core technologies and patterns:
 
 The repository contains the following main directories:
 
-- `Doc/`: Documentation files for all project modules. Every module must have a `.md` document/folder here containing its logic.
-- `Plan/`: Contains all planning documents and files.
+- `Docs/`: Documentation files for all project modules. Every module must have a `.md` document/folder here containing its logic.
+- `Plans/`: Contains all planning documents and files.
 - `Assets/`: The main Unity directory.
   - `Scripts/`: Contains all the application source code divided into functional layers.
     - `Core/`: Core application logic.
@@ -61,8 +61,8 @@ The project follows a strict set of rules to maintain code quality:
 4. **Avoid MonoBehaviours for Core Logic**: MonoBehaviours must be avoided when writing core business logic.
 5. **Restrict MonoBehaviours**: Try, as much as possible, to leave MonoBehaviours only to bootstrap and presentation logic.
 6. **Mandatory Testing**: We must have tests in all modules.
-7. **Documentation**: All modules need a `.md` document or folder within the `Doc/` directory containing their logic documentation.
-8. **Plans**: All plan files must go into the `Plan/` directory.
+7. **Documentation**: All modules need a `.md` document or folder within the `Docs/` directory containing their logic documentation.
+8. **Plans**: All plan files must go into the `Plans/` directory.
 9. **Source Generators Location**: When creating new source generators, they should be placed in `Generators/`.
 
 If the custom analyzer reports a warning or error, you must fix it to comply with the project standards before committing code. 
@@ -76,3 +76,5 @@ When you need to create a new module, you must use the provided workflow. The `/
 
 ### Creating a Custom Analyzer Rule
 If you need to define or enforce a new architectural rule, you should use the custom analyzer workflow. Run the `/create-custom-analyzer` workflow, which guides you through creating a new custom Roslyn analyzer linter rule that runs securely across the codebase.
+
+

@@ -1,4 +1,5 @@
 using System;
+using UnityEngine;
 
 namespace Scaffold.Events.Samples
 {
@@ -11,6 +12,7 @@ namespace Scaffold.Events.Samples
             bus.AddListener<PlayerDiedEvent>(_ => received = true);
             var evt = new PlayerDiedEvent();
             bus.Raise(evt);
+            Debug.Log("Received: " + received);
         }
 
         public void UseCaseUnsubscribeFromEvent()
