@@ -51,6 +51,8 @@ For full detail on modules and relationships, see [Architecture.md](Architecture
 ## How to Test
 
 - **Headless EditMode**: Run `.agents/scripts/run-editmode-tests.ps1` from the repository root for the standard automated test path. The script prints a pass/fail report and deletes its temporary XML/log files before exiting.
+- **Analyzer diagnostics**: Run `.agents/scripts/check-analyzers.ps1` from the repository root to get deduplicated SCA diagnostics and blockers.
+- **Milestone quality gate**: Run `.agents/scripts/validate-milestone.ps1` to execute both tests and analyzer checks in one command.
 - **Script documentation**: See `Docs/Testing.md` for usage, behavior, parameters, and editing guidance.
 
 ## Workflows
@@ -61,6 +63,9 @@ Use the `/create-module` workflow (`.agents/workflows/create-module.md`). Do **n
 ### Creating a Custom Analyzer Rule
 Use the `/create-custom-analyzer` workflow (`.agents/workflows/create-custom-analyzer.md`).
 
+### Fixing Analyzer Diagnostics
+Use the `/fix-analyzers` workflow (`.agents/workflows/fix-analyzers.md`).
+
 ## Where to Put Plans
 
 All planning documents are **ExecPlans** and live in `Plans/` as `.md` files. Never put plans anywhere else.
@@ -68,11 +73,24 @@ All planning documents are **ExecPlans** and live in `Plans/` as `.md` files. Ne
 The full ExecPlan specification is in [PLANS.md](PLANS.md) — read it before authoring or executing any plan. Key rules:
 
 - One file per feature/task, named descriptively (e.g., `Plans/add-navigation-system.md`).
+- Start each ExecPlan implementation in a new worktree and branch. This is per ExecPlan, not per milestone.
 - Every ExecPlan must be **self-contained** — a novice must be able to implement the feature end-to-end using only that file.
 - ExecPlans are **living documents** — update them continuously as work proceeds.
 - Required sections: `Progress`, `Surprises & Discoveries`, `Decision Log`, `Outcomes & Retrospective`.
 - Do not prompt the user for next steps; proceed autonomously milestone to milestone.
 - Commit frequently.
+
+## Milestone Quality Loop
+
+For every milestone, follow this sequence before marking it complete:
+
+1. Check complexity first. If complex, write a mini milestone plan with concrete steps and sample inputs/outputs.
+2. Implement the milestone.
+3. Run `.agents/scripts/run-editmode-tests.ps1`.
+4. Run `.agents/scripts/check-analyzers.ps1`.
+5. Fix all failures and diagnostics.
+6. Re-run tests and analyzers until both are clean.
+7. Commit milestone changes.
 
 ## Where to Put Documentation
 

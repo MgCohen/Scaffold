@@ -8,9 +8,10 @@ When authoring an executable specification (ExecPlan), follow PLANS.md _to the l
 
 When implementing an executable specification (ExecPlan), use this flow:
 
-1. Create the plan file in `Plans/`.
-2. Save the plan file with the initial, self-contained milestones.
-3. Wait for explicit user input that identifies which module (or modules) to implement before executing plan milestones.
+1. Create a new git worktree and branch for the ExecPlan before implementation work starts. One ExecPlan should map to one worktree + one branch. Do not create a separate worktree per milestone.
+2. Create the plan file in `Plans/`.
+3. Save the plan file with the initial, self-contained milestones.
+4. Wait for explicit user input that identifies which module (or modules) to implement before executing plan milestones.
 
 After implementation starts, keep all sections up to date, add or split entries in the list at every stopping point to affirmatively state the progress made and next steps. Resolve ambiguities autonomously, and commit frequently.
 
@@ -61,6 +62,16 @@ Capture evidence. When your steps produce terminal output, short diffs, or logs,
 Milestones are narrative, not bureaucracy. If you break the work into milestones, introduce each with a brief paragraph that describes the scope, what will exist at the end of the milestone that did not exist before, the commands to run, and the acceptance you expect to observe. Keep it readable as a story: goal, work, result, proof. Progress and milestones are distinct: milestones tell the story, progress tracks granular work. Both must exist. Never abbreviate a milestone merely for the sake of brevity, do not leave out details that could be crucial to a future implementation.
 
 Each milestone must be independently verifiable and incrementally implement the overall goal of the execution plan.
+
+For this repository, every milestone must follow this execution loop before it is marked complete:
+
+1. Check complexity first. If the milestone is complex (multiple modules, unknown API design, non-trivial refactor, or unclear acceptance), add a mini milestone plan with concrete steps, sample inputs/outputs, and acceptance notes.
+2. Implement the milestone scope.
+3. Run `.agents/scripts/run-editmode-tests.ps1`.
+4. Run `.agents/scripts/check-analyzers.ps1`.
+5. Fix all failures and analyzer diagnostics.
+6. Re-run both scripts until tests pass and analyzer diagnostics are zero.
+7. Commit the milestone changes.
 
 ## Living plans and design decisions
 

@@ -6,6 +6,8 @@ This document explains how to run automated tests in Scaffold, how the headless 
 
 The primary automated path for Edit Mode tests is the repository script `.agents/scripts/run-editmode-tests.ps1`. It runs Unity in batch mode, collects the NUnit XML results, prints a short report to the terminal, and deletes the temporary files it created before exiting.
 
+Analyzer diagnostics are checked with `.agents/scripts/check-analyzers.ps1`, and the full milestone quality gate can be run with `.agents/scripts/validate-milestone.ps1`.
+
 ## Recommended Test Workflow
 
 ### Headless Edit Mode Tests
@@ -34,6 +36,43 @@ Skipped: 0
 ```
 
 If Unity cannot compile the project before tests start, the script prints a `Status: Blocked` report and includes the compiler errors from the Unity log tail.
+
+### Analyzer Diagnostics Check
+
+Run analyzer checks from the repository root:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File ".\.agents\scripts\check-analyzers.ps1"
+```
+
+The script outputs parseable lines:
+
+- `TOTAL:<n>` - total deduplicated SCA diagnostics
+- `RULE:<code>:<count>` - per-rule counts
+- `FILE:<relative-path>:<count>` - per-file counts
+- `BLOCKER:<raw error line>` - non-SCA build blockers
+
+`TOTAL:0` with no `BLOCKER:` lines means analyzer quality gates are clean.
+
+### Combined Milestone Validation
+
+For milestone completion checks, run:
+
+```powershell
+& ".\.agents\scripts\validate-milestone.ps1"
+```
+
+This script runs, in order:
+
+1. `.agents/scripts/run-editmode-tests.ps1`
+2. `.agents/scripts/check-analyzers.ps1`
+
+It then prints a combined summary and exits with:
+
+- `0` - tests pass and analyzer checks are clean
+- `1` - tests failed or were blocked
+- `2` - analyzer diagnostics remain or blockers were found
+- `3` - both test and analyzer gates failed
 
 ## Script Parameters
 
@@ -154,5 +193,7 @@ Fix:
 ## Related Files
 
 - `.agents/scripts/run-editmode-tests.ps1`
+- `.agents/scripts/check-analyzers.ps1`
+- `.agents/scripts/validate-milestone.ps1`
 - `Architecture.md`
 - `AGENTS.MD`
