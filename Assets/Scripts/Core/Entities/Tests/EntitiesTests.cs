@@ -53,13 +53,8 @@ namespace Scaffold.Entities.Tests
         {
             EntityDefinition definition = BuildDefinition("orc_definition", 5d, 3d);
             EntityInstance<EntityDefinition> instance = BuildInstance("orc_instance", definition);
-            AddAttributeModifier addModifier = new AddAttributeModifier { Amount = 3d };
-            RemoveAttributeModifier removeModifier = new RemoveAttributeModifier { Amount = 1d };
-            instance.AddModifier("Strength", addModifier);
-            instance.AddModifier("Strength", removeModifier);
-            bool found = instance.TryGetAttributeValue("Strength", out double value);
-            Assert.IsTrue(found);
-            Assert.AreEqual(7d, value);
+            AddStrengthModifiers(instance, 3d, 1d);
+            AssertStrengthValue(instance, 7d);
         }
 
         [Test]
@@ -70,10 +65,8 @@ namespace Scaffold.Entities.Tests
             AddAttributeModifier addModifier = new AddAttributeModifier { Amount = 2d };
             instance.AddModifier("Strength", addModifier);
             bool removed = instance.RemoveModifier("Strength", addModifier);
-            bool found = instance.TryGetAttributeValue("Strength", out double value);
             Assert.IsTrue(removed);
-            Assert.IsTrue(found);
-            Assert.AreEqual(5d, value);
+            AssertStrengthValue(instance, 5d);
         }
 
         [Test]
@@ -137,6 +130,21 @@ namespace Scaffold.Entities.Tests
             Assert.IsTrue(foundInstance);
             Assert.AreEqual("orc_definition", loadedDefinition.Id);
             Assert.AreEqual("orc_instance", loadedInstance.Id);
+        }
+
+        private void AddStrengthModifiers(EntityInstance<EntityDefinition> instance, double addAmount, double removeAmount)
+        {
+            AddAttributeModifier addModifier = new AddAttributeModifier { Amount = addAmount };
+            RemoveAttributeModifier removeModifier = new RemoveAttributeModifier { Amount = removeAmount };
+            instance.AddModifier("Strength", addModifier);
+            instance.AddModifier("Strength", removeModifier);
+        }
+
+        private void AssertStrengthValue(EntityInstance<EntityDefinition> instance, double expected)
+        {
+            bool found = instance.TryGetAttributeValue("Strength", out double value);
+            Assert.IsTrue(found);
+            Assert.AreEqual(expected, value);
         }
     }
 }
