@@ -4,7 +4,7 @@
 
 This document explains how to run automated tests in Scaffold, how the headless test script works, and how to safely edit that script. Scaffold uses an AI-first, automation-first testing workflow. Manually opening Unity is not part of the standard test path documented here.
 
-The primary automated path for Edit Mode tests is the repository script `run-editmode-tests.ps1`. It runs Unity in batch mode, collects the NUnit XML results, prints a short report to the terminal, and deletes the temporary files it created before exiting.
+The primary automated path for Edit Mode tests is the repository script `.agents/scripts/run-editmode-tests.ps1`. It runs Unity in batch mode, collects the NUnit XML results, prints a short report to the terminal, and deletes the temporary files it created before exiting.
 
 ## Recommended Test Workflow
 
@@ -15,7 +15,7 @@ Use the PowerShell script when you want to validate Edit Mode tests without open
 From the repository root:
 
 ```powershell
-& "C:\Users\user\.codex\worktrees\a3c9\Scaffold\run-editmode-tests.ps1"
+& ".\.agents\scripts\run-editmode-tests.ps1"
 ```
 
 Expected successful output looks like this:
@@ -49,7 +49,7 @@ The script accepts these parameters:
 Example:
 
 ```powershell
-& "C:\Users\user\.codex\worktrees\a3c9\Scaffold\run-editmode-tests.ps1" `
+& ".\.agents\scripts\run-editmode-tests.ps1" `
   -AssemblyNames "Scaffold.MVVM.Tests","Scaffold.Events.Tests"
 ```
 
@@ -88,7 +88,7 @@ The script uses these exit codes:
 
 ## How To Edit The Script
 
-Edit `run-editmode-tests.ps1` when you need to change headless Edit Mode test behavior.
+Edit `.agents/scripts/run-editmode-tests.ps1` when you need to change headless Edit Mode test behavior.
 
 The important sections are:
 
@@ -153,6 +153,6 @@ Fix:
 
 ## Related Files
 
-- `run-editmode-tests.ps1`
+- `.agents/scripts/run-editmode-tests.ps1`
 - `Architecture.md`
 - `AGENTS.MD`

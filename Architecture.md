@@ -1,4 +1,4 @@
-﻿# Architecture
+# Architecture
 
 This document describes the high-level architecture of the Scaffold project. It serves as a bird's-eye view for anyone looking to understand the project structure and contribute effectively.
 
@@ -73,12 +73,12 @@ Scaffold uses an AI-first, automation-first testing workflow. The standard test 
 
 ### Headless Edit Mode Testing
 
-Use the repository script `run-editmode-tests.ps1` when you want a repeatable command-line test run without opening the Unity Editor UI.
+Use the repository script `.agents/scripts/run-editmode-tests.ps1` when you want a repeatable command-line test run without opening the Unity Editor UI.
 
 Run it from the repository root:
 
 ```powershell
-& "C:\Users\user\.codex\worktrees\a3c9\Scaffold\run-editmode-tests.ps1"
+& ".\.agents\scripts\run-editmode-tests.ps1"
 ```
 
 This script:
