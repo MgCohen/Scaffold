@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Scaffold.Analyzers.Tests")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+eec5bde5489a749c41fb110d9c9a65f8ecce2bc4")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+4ee4eb3304c64a8a7d74158395fd2bdefda9d3fe")]
 [assembly: System.Reflection.AssemblyProductAttribute("Scaffold.Analyzers.Tests")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Scaffold.Analyzers.Tests")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

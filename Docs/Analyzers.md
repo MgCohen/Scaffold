@@ -284,6 +284,45 @@ public async Awaitable LoadSceneAsync(string name) { }
 
 ---
 
+### SCA0014 - Validate Invariants at Public Runtime Entry Points
+
+Public runtime API methods should validate invariants at the beginning of the method body.
+
+This rule analyzes public, non-override methods in `Runtime/` paths and skips `Tests/` and `Samples/`.
+
+The first executable statement (after leading local declarations) must be:
+- a guard clause (`if (...) return;` or `if (...) throw ...;`), or
+- a validation call whose method name starts with `Validate`, `TryValidate`, `Ensure`, or `Guard`.
+
+```csharp
+// VIOLATION
+public void Send(Message message)
+{
+    Publish(message);
+}
+
+// COMPLIANT - validation call
+public void Send(Message message)
+{
+    ValidateMessage(message);
+    Publish(message);
+}
+
+// COMPLIANT - guard clause
+public void Send(Message message)
+{
+    if (message == null) throw new ArgumentNullException(nameof(message));
+    Publish(message);
+}
+```
+
+**Optional configuration:** allow additional validation prefixes via `.editorconfig`:
+```ini
+scaffold.SCA0014.allowed_prefixes = CheckInvariant,AssertValid
+```
+
+---
+
 ## Configuration
 
 All rules support per-rule severity override via `.editorconfig`:
@@ -293,6 +332,7 @@ All rules support per-rule severity override via `.editorconfig`:
 dotnet_diagnostic.SCA0001.severity = none      # suppress
 dotnet_diagnostic.SCA0006.severity = error     # escalate to error
 dotnet_diagnostic.SCA0013.severity = suggestion
+dotnet_diagnostic.SCA0014.severity = warning
 ```
 
 Valid severity values: `error`, `warning`, `suggestion`, `info`, `hidden`, `silent`, `none`.
