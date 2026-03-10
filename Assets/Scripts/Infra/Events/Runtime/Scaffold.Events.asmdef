@@ -2,7 +2,8 @@
 	"name": "Scaffold.Events",
 	"rootNamespace": "",
 	"references": [
-		"GUID:b967d18ed9aae19488f12b55c25800dd"
+		"GUID:b967d18ed9aae19488f12b55c25800dd",
+		"GUID:f30ff1085e955d34794c55aab203d2bd"
 	],
 	"includePlatforms": [],
 	"excludePlatforms": [],

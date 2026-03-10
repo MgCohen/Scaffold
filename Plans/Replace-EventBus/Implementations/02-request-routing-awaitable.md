@@ -11,15 +11,24 @@ After this milestone, the new bus will support request/response messaging using 
 ## Progress
 
 - [x] (2026-03-10 00:00Z) Created implementation-focused ExecPlan for request routing with `Awaitable`.
-- [ ] Add request contracts and runtime storage for request handlers.
-- [ ] Implement `RequestAsync` using `Awaitable<TResponse>` with cancellation support.
-- [ ] Add tests for success, no-handler, and handler-failure paths.
-- [ ] Validate build and Events test pass status.
+- [x] (2026-03-10 14:00Z) Added request-handler runtime storage in `ScalableEventBus` using `Map<Type, long, RequestHandlerEntry>` plus generic/open-type registration tracking dictionaries.
+- [x] (2026-03-10 14:00Z) Implemented `RequestAsync<TResponse>` with exact request type routing, deterministic no-handler/multiple-handler errors, exception wrapping for handler failures, and cancellation-token support.
+- [x] (2026-03-10 14:00Z) Added `ScalableEventBusRequestTests` coverage for request success (generic and open-type), no-handler failure, handler-throws failure, cancellation, and idempotent add/remove behavior.
+- [x] (2026-03-10 14:00Z) Validated with `dotnet build Scaffold.Events.csproj -c Release`, `dotnet build Scaffold.Events.Tests.csproj -c Release`, and `.agents/scripts/check-analyzers.ps1`; Unity batch test invocation still exits without XML output in this environment.
 
 ## Surprises & Discoveries
 
-- Observation: Not started yet.
-  Evidence: No request-routing implementation changes have been made in this child milestone.
+- Observation: `Scaffold.Events` runtime asmdef was missing a `Scaffold.Maps` dependency and Unity compilation failed until it was added.
+  Evidence: `Logs/Events-RequestAwaitable.log` initially reported `ScalableEventBus.cs` namespace/type resolution errors for `Scaffold.Maps.Map<,,>`; resolved by adding `GUID:f30ff1085e955d34794c55aab203d2bd` to `Assets/Scripts/Infra/Events/Runtime/Scaffold.Events.asmdef`.
+
+- Observation: Unity compiler profile for this project does not support `ArgumentNullException.ThrowIfNull`.
+  Evidence: `Logs/Events-RequestAwaitable.log` reported `CS0117` for `ThrowIfNull` until explicit null checks were used.
+
+- Observation: Because `ContextRequest<TResponse>` is a record, derived request types in tests must also be records.
+  Evidence: Unity compilation reported `CS8865` ("Only records may inherit from records") when `PingRequest` was temporarily changed to class.
+
+- Observation: Unity batch test execution continues to complete without writing requested XML artifacts in this environment.
+  Evidence: `Logs/Events-RequestAwaitable.log` shows normal batch startup/shutdown lines plus licensing handshake errors, while `Logs/Events-RequestAwaitable.xml` is not created.
 
 ## Decision Log
 
@@ -31,9 +40,17 @@ After this milestone, the new bus will support request/response messaging using 
   Rationale: Exact routing is simpler, deterministic, and easier to validate for first release.
   Date/Author: 2026-03-10 / Codex
 
+- Decision: Keep request-handler registration idempotent per `(requestType, responseType, delegate)` and throw deterministic errors when multiple handlers match one request type at dispatch.
+  Rationale: This preserves existing add/remove idempotence semantics while preventing ambiguous request resolution.
+  Date/Author: 2026-03-10 / Codex
+
+- Decision: Wrap non-cancellation handler failures in `InvalidOperationException` with request type context.
+  Rationale: Callers get deterministic, diagnosable error messages while preserving original exception as `InnerException`.
+  Date/Author: 2026-03-10 / Codex
+
 ## Outcomes & Retrospective
 
-Not started yet. Update this section after request flow tests pass.
+Milestone 4 implementation is complete in code: `ScalableEventBus` now implements `IRequestBus`, request routing is exact-type and cancellation-aware, and request behavior is covered by dedicated tests. Build and analyzer checks pass for changed modules; Unity batch test artifact generation remains environment-blocked.
 
 ## Context and Orientation
 
@@ -124,4 +141,5 @@ Dependencies:
 Revision Note (2026-03-10): Initial request-routing implementation plan created as a child plan of `Replace-EventBus`.
 Revision Note (2026-03-10): Added explicit milestone gate requiring checks/tests/fixes before advancing.
 Revision Note (2026-03-10): Updated milestone gate to require committing changes immediately after successful validation/testing.
+Revision Note (2026-03-10): Implemented request routing in `ScalableEventBus`, added request-focused tests, and recorded asmdef/runtime compatibility fixes and persistent Unity batch test XML limitation.
 
