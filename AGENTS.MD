@@ -50,8 +50,8 @@ For full detail on modules and relationships, see [Architecture.md](Architecture
 
 ## How to Test
 
-- **Unity Test Runner**: `Window > General > Test Runner` â€” run both `EditMode` and `PlayMode` tests.
-- **Headless**: Unity CLI with `-runTests` flag.
+- **Headless EditMode**: Run `run-editmode-tests.ps1` from the repository root for the standard automated test path. The script prints a pass/fail report and deletes its temporary XML/log files before exiting.
+- **Script documentation**: See `Docs/Testing.md` for usage, behavior, parameters, and editing guidance.
 
 ## Workflows
 

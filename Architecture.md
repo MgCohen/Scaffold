@@ -67,6 +67,30 @@ The project follows a strict set of rules to maintain code quality:
 
 If the custom analyzer reports a warning or error, you must fix it to comply with the project standards before committing code. 
 
+## How to Test
+
+Scaffold uses an AI-first, automation-first testing workflow. The standard test path is the headless `EditMode` script, not manually opening Unity.
+
+### Headless Edit Mode Testing
+
+Use the repository script `run-editmode-tests.ps1` when you want a repeatable command-line test run without opening the Unity Editor UI.
+
+Run it from the repository root:
+
+```powershell
+& "C:\Users\user\.codex\worktrees\a3c9\Scaffold\run-editmode-tests.ps1"
+```
+
+This script:
+
+- detects the required Unity version from `ProjectSettings/ProjectVersion.txt`
+- launches Unity in batch mode for `EditMode` tests
+- prints a summary with passed, failed, and skipped counts
+- prints failed test names if any tests fail
+- deletes its temporary XML and log artifacts before exiting
+
+If the project cannot compile, the script reports a blocked run and prints the relevant Unity compiler errors.
+
 ## How to Create More Code
 
 To maintain structural consistency, you should not manually copy-paste folders to create new pieces of logic.
