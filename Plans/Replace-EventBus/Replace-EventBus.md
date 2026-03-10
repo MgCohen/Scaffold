@@ -1,4 +1,4 @@
-# Replace Legacy Event Bus with a Scalable Hierarchical Bus
+﻿# Replace-EventBus
 
 This ExecPlan is a living document. The sections `Progress`, `Surprises & Discoveries`, `Decision Log`, and `Outcomes & Retrospective` must be kept up to date as work proceeds.
 
@@ -11,30 +11,48 @@ After this work, Scaffold will have a replacement for `Assets/Scripts/Infra/Even
 A contributor will be able to verify success by running Events tests that prove:
 
 - Existing `AddListener`/`RemoveListener`/`Raise` flows still work.
-- New `Register`/`Unregister` APIs (generic and open-type) work.
+- Unified `AddListener`/`RemoveListener` APIs (generic and open-type) work.
 - Base-type listeners receive derived events.
 - Async requests succeed/fail correctly.
 - Middleware ordering and diagnostics hooks are deterministic.
 
+## Implementation Plan Index
+
+- Plans/Replace-EventBus/Implementations/01-hierarchy-listeners.md (Milestone 3)
+- Plans/Replace-EventBus/Implementations/02-request-routing-awaitable.md (Milestone 4)
+- Plans/Replace-EventBus/Implementations/03-middleware-diagnostics.md (Milestone 5)
+- Plans/Replace-EventBus/Implementations/04-container-switch-migration.md (Milestone 6)
 ## Progress
 
 - [x] (2026-03-09 00:00Z) Authored initial ExecPlan for replacing the current event bus implementation.
-- [ ] Baseline current Events module behavior with focused tests and fixture coverage.
+- [x] (2026-03-10 00:00Z) Updated plan direction to `Replace-EventBus`, unified on `AddListener`/`RemoveListener`, and removed standalone listener cache in favor of `Map` indexers.
+- [x] (2026-03-10 00:00Z) Baseline current Events module behavior validated with focused tests and fixture coverage (generic/open-type add-remove flows and idempotence).
 - [ ] Introduce expanded contracts and compatibility extensions.
-- [ ] Implement scalable runtime bus with hierarchy dispatch, async requests, and middleware.
+- [ ] Implement scalable runtime bus listener core with hierarchy dispatch.
+- [ ] Implement request routing on top of the listener core using `Awaitable`.
+- [ ] Add middleware and diagnostics-ready hooks.
 - [ ] Switch container wiring to new bus and retire `EventController` from active DI path.
-- [ ] Add diagnostics-ready hooks and finalize docs/tests.
+- [ ] Finalize docs and tests across hierarchy/listener/request/middleware flows.
 
 ## Surprises & Discoveries
 
 - Observation: Current `EventController` dispatches only exact runtime types; no inheritance traversal exists.
   Evidence: `Assets/Scripts/Infra/Events/Runtime/Implementation/EventController.cs` uses `events.TryGetValue(evt.GetType(), ...)` in `Raise`.
 
-- Observation: Current API names are `AddListener` and `RemoveListener`, while the requested target API names are `Register` and `Unregister`.
-  Evidence: `Assets/Scripts/Infra/Events/Runtime/Contracts/IEventBus.cs`.
+- Observation: `IEventBus` already exposes both generic and open-type variants using `AddListener` and `RemoveListener`, so adding `Register`/`Unregister` would duplicate API surface.
+  Evidence: `Assets/Scripts/Infra/Events/Runtime/Contracts/IEventBus.cs` includes `AddListener<T>`, `RemoveListener<T>`, `AddListener(Type, ...)`, and `RemoveListener(Type, ...)`.
 
 - Observation: `Scaffold.Maps` already provides indexed grouping that can reduce custom registry code and help future analytics aggregation.
   Evidence: `Docs/Maps.md` and `Assets/Scripts/Tools/Maps/Runtime/Map.cs`.
+
+
+- Observation: Bash-based analyzer workflow cannot run in this environment because `/bin/bash` is unavailable, so workflow-equivalent checks were run with direct PowerShell `dotnet build --no-incremental` commands.
+  Evidence: `bash ".../.agents/scripts/check-analyzers.sh"` failed with `CreateProcessCommon: execvpe(/bin/bash) failed: No such file or directory`.
+
+- Observation: Expanded Events baseline tests compile cleanly with zero SCA diagnostics in `Assets/Scripts/Infra/Events/Tests/EventsTests.cs`, while unrelated pre-existing SCA warnings remain in Autopacker sample/test projects.
+  Evidence: Scoped parser check returned `EVENTS_TESTS_SCA:0`; solution-level SCA output still references `Assets/Generators/Autopacker/...`.
+- Observation: Milestone 1 validation was confirmed by user after baseline test expansion.
+  Evidence: User message miletone 1 validated.
 
 ## Decision Log
 
@@ -42,7 +60,7 @@ A contributor will be able to verify success by running Events tests that prove:
   Rationale: This minimizes migration cost across existing modules while allowing API growth.
   Date/Author: 2026-03-09 / Codex
 
-- Decision: Avoid per-event DI registrations by using a single bus service with runtime type routing and cache invalidation.
+- Decision: Avoid per-event DI registrations by using a single bus service with runtime type routing.
   Rationale: This satisfies the explicit requirement and scales better as event types grow.
   Date/Author: 2026-03-09 / Codex
 
@@ -54,9 +72,28 @@ A contributor will be able to verify success by running Events tests that prove:
   Rationale: Reuses existing module primitives and reduces bespoke data-structure maintenance.
   Date/Author: 2026-03-09 / Codex
 
+- Decision: Keep `AddListener` and `RemoveListener` as the single listener API naming across generic and open-type flows, without introducing `Register`/`Unregister` aliases.
+  Rationale: The repository already uses `AddListener`/`RemoveListener`; unifying on one naming model minimizes cognitive load and migration churn.
+  Date/Author: 2026-03-10 / Codex
+
+- Decision: Resolve concrete and abstract/base dispatch using `Scaffold.Maps` indexers instead of a separate cache dictionary.
+  Rationale: `Map` already provides indexer lifecycle and synchronized tracking, so a second cache risks duplication and invalidation bugs.
+  Date/Author: 2026-03-10 / Codex
+- Decision: Use Unity `Awaitable` for request/response async signatures instead of `ValueTask`.
+  Rationale: This aligns request flow contracts with Unity-native async primitives already used in engine-facing code paths.
+  Date/Author: 2026-03-10 / Codex
+
+- Decision: Split implementation milestones so hierarchy listeners and request flow are delivered and validated independently before middleware and diagnostics.
+  Rationale: This reduces integration risk and makes regressions easier to isolate during migration.
+  Date/Author: 2026-03-10 / Codex
+
+
+- Decision: For Milestone 1, expand baseline tests first without changing runtime behavior.
+  Rationale: This creates a regression safety net before replacing `EventController` with scalable runtime implementation.
+  Date/Author: 2026-03-10 / Codex
 ## Outcomes & Retrospective
 
-Not started yet. Update this section at each milestone completion with achieved behaviors, remaining gaps, and lessons learned.
+Milestone 1 complete: baseline coverage in `Assets/Scripts/Infra/Events/Tests/EventsTests.cs` now includes generic/open-type add-remove flows and idempotence checks, and the milestone has been validated.
 
 ## Context and Orientation
 
@@ -77,6 +114,16 @@ Definitions used in this plan:
 - Middleware: small components that wrap publish/request execution to add behavior such as tracing, policy checks, or metrics without modifying handlers.
 - Request bus: a path where a request object expects a typed async response (for example `LoadProfileRequest -> PlayerProfile`).
 
+## Milestone Quality Gate
+
+Before moving from one milestone to the next, complete this gate for the current milestone:
+
+- Run build/lint/analyzer checks (dotnet build Scaffold.sln -c Release) and fix all warnings/errors introduced by the milestone.
+- Run milestone-relevant tests (at minimum Events tests; plus dependent smoke tests when the milestone affects wiring or integration).
+- Fix failures and regressions, then re-run checks until green.
+- Update Progress, Surprises & Discoveries, and Decision Log with what changed and what was verified.
+
+A milestone is not considered complete until this gate passes.
 ## Plan of Work
 
 ### Milestone 1: Baseline and compatibility safety net
@@ -84,8 +131,8 @@ Definitions used in this plan:
 First, lock down current behavior and add migration-oriented tests before changing runtime implementation. Expand `Assets/Scripts/Infra/Events/Tests/EventsTests.cs` (or split into focused test files) to include:
 
 - Existing listener behavior (subscribe, unsubscribe, clear).
-- Idempotent duplicate register/unregister scenarios.
-- Compatibility assertions that future `Register` wrappers behave like `AddListener`.
+- Idempotent duplicate add/remove scenarios.
+- Compatibility assertions that generic and open-type `AddListener`/`RemoveListener` calls behave consistently.
 
 This milestone produces a trusted regression suite so the replacement can proceed safely.
 
@@ -94,49 +141,61 @@ This milestone produces a trusted regression suite so the replacement can procee
 Edit contracts under `Assets/Scripts/Infra/Events/Runtime/Contracts/`:
 
 1. Keep `IEventBus` methods intact for existing consumers.
-2. Add a new interface `IEventBusV2` (name may be `IEventBusEx` if team prefers) with:
-   - `void Register<TEvent>(Action<TEvent> handler) where TEvent : ContextEvent;`
-   - `void Unregister<TEvent>(Action<TEvent> handler) where TEvent : ContextEvent;`
-   - `void Register(Type eventType, Action<ContextEvent> handler);`
-   - `void Unregister(Type eventType, Action<ContextEvent> handler);`
-   - `void Raise(ContextEvent evt);`
-   - `void Clear();`
+2. Keep listener API naming unified as `AddListener` and `RemoveListener` (generic and open-type). Do not introduce `Register`/`Unregister` aliases.
 3. Add request abstractions:
    - `abstract record ContextRequest<TResponse>;`
-   - `interface IRequestBus` with generic and open-type async registration/unregistration and `ValueTask<TResponse> RequestAsync<TResponse>(ContextRequest<TResponse> request, CancellationToken cancellationToken = default);`
+   - `interface IRequestBus` with generic and open-type async registration/unregistration and `Awaitable<TResponse> RequestAsync<TResponse>(ContextRequest<TResponse> request, CancellationToken cancellationToken = default);`
 4. Add middleware abstractions:
    - `IEventMiddleware`
    - `IRequestMiddleware`
-5. Add extension methods in a new file (for example `IEventBusExtensions.cs`) that map:
-   - `AddListener` -> `Register`
-   - `RemoveListener` -> `Unregister`
-   This preserves familiar API names while exposing requested naming.
+5. Ensure docs and samples demonstrate both generic and open-type `AddListener`/`RemoveListener` flows explicitly so contributors follow one consistent path.
 
 This milestone keeps existing call sites compiling while introducing the expanded API surface.
 
-### Milestone 3: Implement scalable replacement runtime
+### Milestone 3: Implement listener runtime with hierarchy dispatch
 
-Create a new runtime implementation in `Assets/Scripts/Infra/Events/Runtime/Implementation/` (for example `ScalableEventBus.cs`) that implements `IEventBus`, `IEventBusV2`, and `IRequestBus`.
+Execution plan: Plans/Replace-EventBus/Implementations/01-hierarchy-listeners.md.
+
+Create a new runtime implementation in `Assets/Scripts/Infra/Events/Runtime/Implementation/` (for example `ScalableEventBus.cs`) that first implements `IEventBus`.
 
 Core implementation requirements:
 
 - No per-event container registration.
-- Generic + open-type listener registration.
+- Generic + open-type listener registration via `AddListener`/`RemoveListener`.
 - Hierarchy dispatch using assignability checks (`registeredType.IsAssignableFrom(actualType)`).
-- Async request routing with strongly typed response.
-- Middleware pipelines around publish and request paths.
+- Middleware hook points can exist as no-op placeholders at this stage, but listener publish behavior must be complete and testable.
 
 Scalability design:
 
 - Use `Map<Type, long, ListenerEntry>` (from `Scaffold.Maps`) for listener storage, where primary key is declared event type and secondary key is subscription id.
-- Use `Map<Type, long, RequestHandlerEntry>` for request handlers.
-- Maintain cache `Dictionary<Type, ListenerEntry[]>` that stores resolved listeners for a concrete published type; invalidate cache on register/unregister/clear.
-- Keep lock scope limited to registry and cache mutation; invoke handlers outside locks.
-- Ensure clear error behavior:
-  - Publish path: continue other listeners when one fails; report failure to diagnostics sink.
-  - Request path: fail returned `ValueTask` when no handler exists or handler throws.
+- Use `Map` indexers to resolve exact and hierarchy listener sets for a concrete published type (for example an exact indexer where `declaredType == actualType` and a hierarchy indexer where `declaredType.IsAssignableFrom(actualType)` and `declaredType != actualType`).
+- Do not maintain a standalone listener cache dictionary; rely on `Map` and its indexer registry as the single source of truth.
+- Keep lock scope limited to registry and map/indexer mutation; invoke handlers outside locks.
+- Ensure clear error behavior on publish: continue other listeners when one fails, and report failure to diagnostics.
 
-### Milestone 4: Diagnostics and analytics-ready extension points
+### Milestone 4: Implement request routing using `Awaitable`
+
+Execution plan: Plans/Replace-EventBus/Implementations/02-request-routing-awaitable.md.
+
+Extend `ScalableEventBus` (or a tightly coupled companion class in the same module) to implement `IRequestBus` after hierarchy listeners are already working.
+
+Core implementation requirements:
+
+- Store request handlers in `Map<Type, long, RequestHandlerEntry>` with the same registration/unregistration guarantees used for listeners.
+- Route requests by exact request runtime type unless an explicit hierarchy policy is added and documented.
+- `RequestAsync` must return `Awaitable<TResponse>` and support cancellation.
+- Request error behavior must be deterministic:
+  - No handler: fail the returned `Awaitable` with a clear exception.
+  - Handler failure: fail the returned `Awaitable` and report through diagnostics hooks.
+
+Acceptance focus for this milestone:
+
+- Request success path works with typed response.
+- No-handler and handler-throws paths are both covered by tests and produce expected failures.
+
+### Milestone 5: Diagnostics and analytics-ready extension points
+
+Execution plan: Plans/Replace-EventBus/Implementations/03-middleware-diagnostics.md.
 
 Add new contracts in `Runtime/Contracts/`:
 
@@ -153,12 +212,14 @@ Runtime behavior:
 - Keep instrumentation cheap (minimal allocations, reuse metadata where safe).
 - Expose middleware hooks with deterministic ordering and documented execution model.
 
-### Milestone 5: Container switch and migration completion
+### Milestone 6: Container switch and migration completion
+
+Execution plan: Plans/Replace-EventBus/Implementations/04-container-switch-migration.md.
 
 Edit `Assets/Scripts/Infra/Events/Container/EventsInstaller.cs`:
 
 - Register new implementation as the scoped service for `IEventBus`.
-- Register `IEventBusV2` and `IRequestBus` to the same scoped instance.
+- Register `IRequestBus` to the same scoped instance.
 - Register diagnostics sink default implementation (no-op) and middleware collection support.
 
 Migration completion:
@@ -167,11 +228,11 @@ Migration completion:
 - Mark `EventController` obsolete first, then remove from active DI path.
 - Keep backward compatibility methods available so existing modules do not need immediate changes.
 
-### Milestone 6: Documentation and final validation
+### Milestone 7: Documentation and final validation
 
 Update `Docs/Events.md` to describe:
 
-- New contracts (`IEventBusV2`, `IRequestBus`, middleware, diagnostics sink).
+- New contracts (`IRequestBus`, middleware, diagnostics sink).
 - Hierarchy dispatch semantics.
 - Async request lifecycle.
 - Middleware order and error behavior.
@@ -180,7 +241,7 @@ Update `Docs/Events.md` to describe:
 Also create or update tests in `Assets/Scripts/Infra/Events/Tests/` for:
 
 - Hierarchy dispatch (abstract/base handlers receiving derived events).
-- Open-type register/unregister.
+- Open-type `AddListener`/`RemoveListener`.
 - Async request success and failure.
 - Middleware wrapping order.
 - Diagnostics hook invocation.
@@ -197,7 +258,7 @@ Run all commands from repository root: `C:/Users/user/Documents/Unity/Scaffold`.
     Get-Content Assets/Scripts/Infra/Events/Container/EventsInstaller.cs
     Get-Content Assets/Scripts/Infra/Events/Tests/EventsTests.cs
 
-2. Implement milestones in order: contracts/extensions, runtime, installer, tests, docs.
+2. Implement milestones in order: contracts/extensions in this parent plan, then execute child plans for Milestones 3-6 (`01-hierarchy-listeners.md`, `02-request-routing-awaitable.md`, `03-middleware-diagnostics.md`, `04-container-switch-migration.md`), then finalize tests/docs.
 
 3. Build solution-level C# projects to catch compile issues early.
 
@@ -222,7 +283,7 @@ Expected indicators of success:
 This work is accepted only when all conditions are true:
 
 1. `EventsInstaller` resolves `IEventBus` to the new scalable implementation; no per-event DI registration exists.
-2. API supports `Register`/`Unregister`/`Raise` in generic and open-type forms.
+2. API supports `AddListener`/`RemoveListener`/`Raise` in generic and open-type forms.
 3. Existing `AddListener`/`RemoveListener` consumers continue working unchanged.
 4. Hierarchy dispatch is implemented and proven by tests.
 5. Async requests are implemented with success and failure path tests.
@@ -235,9 +296,9 @@ This work is accepted only when all conditions are true:
 
 This migration is designed to be safe and incremental:
 
-- Milestones 1-4 are additive and can be rerun without data loss.
-- If replacement runtime fails during Milestone 5, temporarily revert only `EventsInstaller` binding to `EventController` while keeping new contracts/tests in place.
-- Re-running register/unregister tests must remain deterministic and prove idempotence.
+- Milestones 1-5 are additive and can be rerun without data loss.
+- If replacement runtime fails during Milestone 6, temporarily revert only `EventsInstaller` binding to `EventController` while keeping new contracts/tests in place.
+- Re-running `AddListener`/`RemoveListener` tests must remain deterministic and prove idempotence.
 - Avoid deleting legacy files until replacement tests are stable and passing.
 
 ## Artifacts and Notes
@@ -257,7 +318,6 @@ Interfaces expected at completion:
 
 - Existing: `Scaffold.Events.IEventBus` (unchanged for backward compatibility).
 - New/expanded:
-  - `Scaffold.Events.IEventBusV2` (or `IEventBusEx`, pick one stable name and use consistently).
   - `Scaffold.Events.ContextRequest<TResponse>`.
   - `Scaffold.Events.IRequestBus`.
   - `Scaffold.Events.IEventMiddleware`.
@@ -277,3 +337,11 @@ Dependencies:
 ---
 
 Revision Note (2026-03-09): Initial plan created for replacing `IEventBus` implementation with a scalable, hierarchy-aware, middleware-enabled, async-capable event bus while preserving compatibility and enabling future diagnostics/analytics.
+Revision Note (2026-03-10): Renamed plan to `Replace-EventBus`, standardized listener API naming on `AddListener`/`RemoveListener`, and removed standalone listener cache dictionary in favor of `Scaffold.Maps` indexer-driven concrete and hierarchy dispatch.
+Revision Note (2026-03-10): Replaced `ValueTask` request signatures with Unity `Awaitable` and split runtime implementation milestones into listener hierarchy dispatch, then request routing, then middleware/diagnostics.
+Revision Note (2026-03-10): Clarified that Milestones 3-6 are executed through child plans in Plans/Replace-EventBus/Implementations/ and updated concrete execution order accordingly.
+Revision Note (2026-03-10): Added explicit per-milestone quality gate requiring build/lint/analyzer checks, tests, fixes, and living-section updates before proceeding.
+Revision Note (2026-03-10): Implemented Milestone 1 test expansion, documented environment limitations for workflow/test execution, and recorded remaining verification step for Unity EditMode output confirmation.
+Revision Note (2026-03-10): Milestone 1 marked validated based on user confirmation after baseline test expansion.
+Revision Note (2026-03-10): Updated milestone flow to require a commit immediately after validation/testing gate passes.
+

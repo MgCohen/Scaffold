@@ -11,8 +11,18 @@ namespace Scaffold.Events.Tests
             EventController bus = new EventController();
             bool called = false;
             bus.AddListener<TestEvent>(_ => called = true);
-            var evt = new TestEvent();
-            bus.Raise(evt);
+            RaiseTestEvent(bus);
+            Assert.IsTrue(called);
+        }
+
+        [Test]
+        public void AddListener_OpenTypeWithSubscriber_CallsSubscriberOnRaise()
+        {
+            EventController bus = new EventController();
+            bool called = false;
+            Action<ContextEvent> handler = _ => called = true;
+            bus.AddListener(typeof(TestEvent), handler);
+            RaiseTestEvent(bus);
             Assert.IsTrue(called);
         }
 
@@ -24,9 +34,71 @@ namespace Scaffold.Events.Tests
             Action<TestEvent> handler = _ => callCount++;
             bus.AddListener(handler);
             bus.RemoveListener(handler);
-            var evt = new TestEvent();
-            bus.Raise(evt);
+            RaiseTestEvent(bus);
             Assert.AreEqual(0, callCount);
+        }
+
+        [Test]
+        public void RemoveListener_OpenTypeAfterSubscribing_StopsReceivingEvents()
+        {
+            EventController bus = new EventController();
+            int callCount = 0;
+            Action<ContextEvent> handler = _ => callCount++;
+            bus.AddListener(typeof(TestEvent), handler);
+            bus.RemoveListener(typeof(TestEvent), handler);
+            RaiseTestEvent(bus);
+            Assert.AreEqual(0, callCount);
+        }
+
+        [Test]
+        public void AddListener_GenericDuplicate_IsIdempotent()
+        {
+            EventController bus = new EventController();
+            int callCount = 0;
+            Action<TestEvent> handler = _ => callCount++;
+            bus.AddListener(handler);
+            bus.AddListener(handler);
+            RaiseTestEvent(bus);
+            Assert.AreEqual(1, callCount);
+        }
+
+        [Test]
+        public void RemoveListener_GenericDuplicate_IsIdempotent()
+        {
+            EventController bus = new EventController();
+            int callCount = 0;
+            Action<TestEvent> handler = _ => callCount++;
+            bus.AddListener(handler);
+            bus.RemoveListener(handler);
+            bus.RemoveListener(handler);
+            RaiseTestEvent(bus);
+            Assert.AreEqual(0, callCount);
+        }
+
+        [Test]
+        public void SingleAddRaiseRemove_GenericFlow_CallsOnceAcrossLifecycle()
+        {
+            EventController bus = new EventController();
+            int callCount = 0;
+            Action<TestEvent> handler = _ => callCount++;
+            bus.AddListener(handler);
+            RaiseTestEvent(bus);
+            bus.RemoveListener(handler);
+            RaiseTestEvent(bus);
+            Assert.AreEqual(1, callCount);
+        }
+
+        [Test]
+        public void SingleAddRaiseRemove_OpenTypeFlow_CallsOnceAcrossLifecycle()
+        {
+            EventController bus = new EventController();
+            int callCount = 0;
+            Action<ContextEvent> handler = _ => callCount++;
+            bus.AddListener(typeof(TestEvent), handler);
+            RaiseTestEvent(bus);
+            bus.RemoveListener(typeof(TestEvent), handler);
+            RaiseTestEvent(bus);
+            Assert.AreEqual(1, callCount);
         }
 
         [Test]
@@ -36,9 +108,14 @@ namespace Scaffold.Events.Tests
             bool called = false;
             bus.AddListener<TestEvent>(_ => called = true);
             bus.Clear();
-            var evt = new TestEvent();
-            bus.Raise(evt);
+            RaiseTestEvent(bus);
             Assert.IsFalse(called);
+        }
+
+        private static void RaiseTestEvent(EventController bus)
+        {
+            TestEvent evt = new TestEvent();
+            bus.Raise(evt);
         }
 
         private record TestEvent : ContextEvent;
