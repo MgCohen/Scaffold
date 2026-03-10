@@ -30,7 +30,7 @@ A contributor will be able to verify success by running Events tests that prove:
 - [x] (2026-03-10 11:00Z) Completed Milestone 2 by adding request/middleware contracts (`ContextRequest<TResponse>`, `IRequestBus`, `IEventMiddleware`, `IRequestMiddleware`) while keeping `IEventBus` backward-compatible; updated sample/docs to explicitly show generic and open-type `AddListener`/`RemoveListener` flows; validated with `dotnet build Scaffold.sln -c Release` and focused `Scaffold.Events` project builds.
 - [x] (2026-03-10 12:00Z) Completed Milestone 3 listener runtime by adding `ScalableEventBus` with `Map<Type, long, ListenerEntry>` storage, exact+hierarchy indexer dispatch, idempotent generic/open-type add/remove flows, and continue-on-failure listener invocation; added `ScalableEventBusTests` for hierarchy/idempotence/failure behavior and validated with focused builds plus analyzer workflow checks.
 - [x] (2026-03-10 14:00Z) Completed Milestone 4 by implementing `IRequestBus` in `ScalableEventBus` with `Map<Type, long, RequestHandlerEntry>` storage, exact-type `RequestAsync` routing, deterministic no-handler/multiple-handler/failure behavior, and cancellation support; added `ScalableEventBusRequestTests` and fixed Unity integration blockers (Events asmdef missing Maps reference, Unity runtime `ThrowIfNull` incompatibility).
-- [ ] Add middleware and diagnostics-ready hooks.
+- [x] (2026-03-10 16:00Z) Completed Milestone 5 by adding diagnostics contracts (`IEventDiagnosticsSink`, `EventDispatchContext`), no-op diagnostics runtime, deterministic middleware execution in `ScalableEventBus` for event/request paths, and `ScalableEventBusMiddlewareDiagnosticsTests`; validated via focused builds + analyzer workflow, with Unity batch XML output still environment-blocked.
 - [ ] Switch container wiring to new bus and retire `EventController` from active DI path.
 - [ ] Finalize docs and tests across hierarchy/listener/request/middleware flows.
 
@@ -65,6 +65,10 @@ A contributor will be able to verify success by running Events tests that prove:
   Evidence: `Logs/Events-RequestAwaitable.log` reported `CS0117` on `ThrowIfNull` calls before replacement.
 - Observation: For tests deriving from `ContextRequest<TResponse>`, the derived request type must remain a record type.
   Evidence: Unity compile produced `CS8865` when `PingRequest` was temporarily converted to class.
+- Observation: `check-analyzers.ps1` currently reports remaining SCA findings in pre-existing Events test files (`ScalableEventBusRequestTests.cs`, `ScalableEventBusTests.cs`) and Autopacker sample/test files, while Milestone 5 runtime/new test additions are clean.
+  Evidence: Post-milestone analyzer run returned `TOTAL:25` with file counts focused on those existing files.
+- Observation: Unity CLI invocation in this environment requires explicit full editor path because `Unity.exe` is not on `PATH`.
+  Evidence: `Unity.exe` command failed with `CommandNotFoundException`, while full-path invocation succeeded.
 
 ## Decision Log
 
@@ -121,6 +125,8 @@ Milestone 2 complete: Events contracts now include request and middleware extens
 Milestone 3 complete: hierarchy-aware listener runtime exists in `ScalableEventBus` with tests covering base/derived dispatch, open-type idempotence, invalid type guardrails, and listener-failure isolation. Quality gate builds and analyzer checks passed for changed projects; Unity batch Events test output remains blocked by the known environment licensing handshake issue.
 
 Milestone 4 complete: request routing now exists in `ScalableEventBus` through `IRequestBus` with exact-type dispatch, cancellation support, and deterministic failure semantics; request-focused tests are in place for success/no-handler/throws/cancel/idempotence. Validation builds and analyzer checks passed; Unity batch test XML generation remains blocked in this environment even after compile blockers were resolved.
+
+Milestone 5 complete: middleware and diagnostics extension points are implemented in the scalable runtime with deterministic order guarantees and instrumentation callbacks, and dedicated middleware/diagnostics tests are added. Build and analyzer workflow checks were run and milestone-introduced runtime/new-test SCA findings were addressed; Unity batch invocation still does not emit requested XML artifacts in this environment.
 
 ## Context and Orientation
 
@@ -374,4 +380,5 @@ Revision Note (2026-03-10): Updated milestone flow to require a commit immediate
 Revision Note (2026-03-10): Completed Milestone 2 contract expansion and compatibility documentation/sample updates, and recorded Unity batch test XML generation limitation observed during milestone gate execution.
 Revision Note (2026-03-10): Completed Milestone 3 scalable hierarchy listener runtime and tests, and recorded repeated Unity batch test XML output limitation in this environment.
 Revision Note (2026-03-10): Completed Milestone 4 request routing implementation/tests and recorded Unity integration fixes (asmdef dependency and runtime compatibility guards) plus persistent batch test XML limitation.
+Revision Note (2026-03-10): Completed Milestone 5 middleware/diagnostics contracts + runtime + tests, including analyzer cleanup for newly introduced files and explicit Unity editor-path validation update.
 

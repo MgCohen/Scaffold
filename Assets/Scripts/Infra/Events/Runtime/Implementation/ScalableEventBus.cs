@@ -3,14 +3,15 @@ using System.Collections.Generic;
 using System.Threading;
 using Scaffold.Maps;
 using UnityEngine;
+using Stopwatch = System.Diagnostics.Stopwatch;
 
 namespace Scaffold.Events
 {
     public class ScalableEventBus : IEventBus, IRequestBus
     {
-        private const string ExactIndexerPrefix = "exact:";
-        private const string HierarchyIndexerPrefix = "hierarchy:";
-        private const string RequestIndexerPrefix = "request:";
+        private const string exactIndexerPrefix = "exact:";
+        private const string hierarchyIndexerPrefix = "hierarchy:";
+        private const string requestIndexerPrefix = "request:";
 
         private readonly object sync = new object();
         private readonly Map<Type, long, ListenerEntry> listeners = new Map<Type, long, ListenerEntry>();
@@ -19,24 +20,33 @@ namespace Scaffold.Events
         private readonly Dictionary<ListenerRegistrationKey, long> listenerIds = new Dictionary<ListenerRegistrationKey, long>();
         private readonly Dictionary<Delegate, GenericRequestRegistration> genericRequestRegistrations = new Dictionary<Delegate, GenericRequestRegistration>();
         private readonly Dictionary<RequestRegistrationKey, long> requestHandlerIds = new Dictionary<RequestRegistrationKey, long>();
+        private readonly List<IEventMiddleware> eventMiddlewares;
+        private readonly List<IRequestMiddleware> requestMiddlewares;
+        private readonly IEventDiagnosticsSink diagnosticsSink;
 
         private long nextListenerId = 1;
         private long nextRequestHandlerId = 1;
 
+        public ScalableEventBus()
+            : this(null, null, null)
+        {
+        }
+
+        public ScalableEventBus(IEnumerable<IEventMiddleware> eventMiddlewares, IEnumerable<IRequestMiddleware> requestMiddlewares, IEventDiagnosticsSink diagnosticsSink)
+        {
+            this.eventMiddlewares = CopyMiddlewares(eventMiddlewares);
+            this.requestMiddlewares = CopyMiddlewares(requestMiddlewares);
+            this.diagnosticsSink = ResolveDiagnosticsSink(diagnosticsSink);
+        }
+
         public void AddListener<T>(Action<T> evt) where T : ContextEvent
         {
             EnsureNotNull(evt, nameof(evt));
+            Type eventType = typeof(T);
 
             lock (sync)
             {
-                if (genericRegistrations.ContainsKey(evt))
-                {
-                    return;
-                }
-
-                Action<ContextEvent> adapter = e => evt((T)e);
-                AddListenerInternal(typeof(T), adapter);
-                genericRegistrations.Add(evt, new GenericRegistration(typeof(T), adapter));
+                AddGenericListenerIfMissing(eventType, evt);
             }
         }
 
@@ -46,13 +56,7 @@ namespace Scaffold.Events
 
             lock (sync)
             {
-                if (!genericRegistrations.TryGetValue(evt, out GenericRegistration registration))
-                {
-                    return;
-                }
-
-                RemoveListenerInternal(registration.EventType, registration.Listener);
-                genericRegistrations.Remove(evt);
+                RemoveGenericListenerIfRegistered(evt);
             }
         }
 
@@ -79,24 +83,18 @@ namespace Scaffold.Events
         public void Raise(ContextEvent evt)
         {
             EnsureNotNull(evt, nameof(evt));
-
             Type actualType = evt.GetType();
-            List<Action<ContextEvent>> dispatch = CaptureDispatch(actualType);
-            InvokeDispatch(dispatch, evt);
+            List<ListenerEntry> dispatch = CaptureDispatch(actualType);
+            EventDispatchContext context = EventDispatchContext.ForEvent(actualType);
+            diagnosticsSink.OnEventPublished(context, dispatch.Count);
+            ExecuteEventPipeline(evt, dispatch, context, 0);
         }
 
         public void Clear()
         {
             lock (sync)
             {
-                listeners.Clear();
-                requestHandlers.Clear();
-                genericRegistrations.Clear();
-                listenerIds.Clear();
-                genericRequestRegistrations.Clear();
-                requestHandlerIds.Clear();
-                nextListenerId = 1;
-                nextRequestHandlerId = 1;
+                ResetState();
             }
         }
 
@@ -104,17 +102,12 @@ namespace Scaffold.Events
             where TRequest : ContextRequest<TResponse>
         {
             EnsureNotNull(handler, nameof(handler));
+            Type requestType = typeof(TRequest);
+            Type responseType = typeof(TResponse);
 
             lock (sync)
             {
-                if (genericRequestRegistrations.ContainsKey(handler))
-                {
-                    return;
-                }
-
-                Func<object, CancellationToken, Awaitable<object>> adapter = CreateGenericRequestAdapter(handler);
-                AddRequestHandlerInternal(typeof(TRequest), typeof(TResponse), adapter);
-                genericRequestRegistrations.Add(handler, new GenericRequestRegistration(typeof(TRequest), typeof(TResponse), adapter));
+                AddGenericRequestHandlerIfMissing(handler, requestType, responseType);
             }
         }
 
@@ -125,13 +118,7 @@ namespace Scaffold.Events
 
             lock (sync)
             {
-                if (!genericRequestRegistrations.TryGetValue(handler, out GenericRequestRegistration registration))
-                {
-                    return;
-                }
-
-                RemoveRequestHandlerInternal(registration.RequestType, registration.ResponseType, registration.Handler);
-                genericRequestRegistrations.Remove(handler);
+                RemoveGenericRequestHandlerIfRegistered(handler);
             }
         }
 
@@ -159,33 +146,142 @@ namespace Scaffold.Events
         {
             EnsureNotNull(request, nameof(request));
             cancellationToken.ThrowIfCancellationRequested();
-
             Type requestType = request.GetType();
-            RequestHandlerEntry handler = ResolveRequestHandler(requestType, typeof(TResponse));
+            EventDispatchContext context = EventDispatchContext.ForRequest(requestType);
+            TResponse response = await ExecuteRequestWithDiagnostics(request, cancellationToken, requestType, context);
+            return response;
+        }
 
-            try
+        private void AddGenericListenerIfMissing<T>(Type eventType, Action<T> evt) where T : ContextEvent
+        {
+            bool exists = genericRegistrations.ContainsKey(evt);
+            if (exists)
             {
-                object response = await handler.Handler(request, cancellationToken);
-                return CastResponse<TResponse>(response, requestType);
+                return;
             }
-            catch (OperationCanceledException)
+
+            Action<ContextEvent> adapter = CreateListenerAdapter(evt);
+            RegisterGenericListener(evt, eventType, adapter);
+        }
+
+        private static Action<ContextEvent> CreateListenerAdapter<T>(Action<T> evt) where T : ContextEvent
+        {
+            Action<ContextEvent> adapter = e => evt((T)e);
+            return adapter;
+        }
+
+        private void RegisterGenericListener<T>(Action<T> original, Type eventType, Action<ContextEvent> adapter) where T : ContextEvent
+        {
+            AddListenerInternal(eventType, adapter);
+            GenericRegistration registration = new GenericRegistration(eventType, adapter);
+            genericRegistrations.Add(original, registration);
+        }
+
+        private void RemoveGenericListenerIfRegistered(Delegate evt)
+        {
+            bool found = genericRegistrations.TryGetValue(evt, out GenericRegistration registration);
+            if (!found)
             {
-                throw;
+                return;
             }
-            catch (Exception ex)
+
+            RemoveListenerInternal(registration.EventType, registration.Listener);
+            genericRegistrations.Remove(evt);
+        }
+
+        private void AddGenericRequestHandlerIfMissing<TRequest, TResponse>(Func<TRequest, CancellationToken, Awaitable<TResponse>> handler, Type requestType, Type responseType)
+            where TRequest : ContextRequest<TResponse>
+        {
+            bool exists = genericRequestRegistrations.ContainsKey(handler);
+            if (exists)
             {
-                throw new InvalidOperationException($"Request handler failed for '{requestType.FullName}'.", ex);
+                return;
             }
+
+            Func<object, CancellationToken, Awaitable<object>> adapter = CreateGenericRequestAdapter(handler);
+            RegisterGenericRequestHandler(handler, requestType, responseType, adapter);
+        }
+
+        private void RegisterGenericRequestHandler<TRequest, TResponse>(Func<TRequest, CancellationToken, Awaitable<TResponse>> original, Type requestType, Type responseType, Func<object, CancellationToken, Awaitable<object>> adapter)
+            where TRequest : ContextRequest<TResponse>
+        {
+            AddRequestHandlerInternal(requestType, responseType, adapter);
+            GenericRequestRegistration registration = new GenericRequestRegistration(requestType, responseType, adapter);
+            genericRequestRegistrations.Add(original, registration);
+        }
+
+        private void RemoveGenericRequestHandlerIfRegistered(Delegate handler)
+        {
+            bool found = genericRequestRegistrations.TryGetValue(handler, out GenericRequestRegistration registration);
+            if (!found)
+            {
+                return;
+            }
+
+            RemoveRequestHandlerInternal(registration.RequestType, registration.ResponseType, registration.Handler);
+            genericRequestRegistrations.Remove(handler);
+        }
+
+        private void ResetState()
+        {
+            listeners.Clear();
+            requestHandlers.Clear();
+            genericRegistrations.Clear();
+            listenerIds.Clear();
+            genericRequestRegistrations.Clear();
+            requestHandlerIds.Clear();
+            nextListenerId = 1;
+            nextRequestHandlerId = 1;
+        }
+
+        private async Awaitable<TResponse> ExecuteRequestWithDiagnostics<TResponse>(ContextRequest<TResponse> request, CancellationToken cancellationToken, Type requestType, EventDispatchContext context)
+        {
+            Stopwatch stopwatch = Stopwatch.StartNew();
+            TResponse response = await ExecuteRequestAndReport(request, cancellationToken, requestType, context, stopwatch);
+            return response;
+        }
+
+        private async Awaitable<TResponse> ExecuteRequestAndReport<TResponse>(ContextRequest<TResponse> request, CancellationToken cancellationToken, Type requestType, EventDispatchContext context, Stopwatch stopwatch)
+        {
+            try { return await ExecuteSuccessfulRequest(request, cancellationToken, requestType, context, stopwatch); }
+            catch { ReportRequestCompletion(context, false, stopwatch); throw; }
+        }
+
+        private async Awaitable<TResponse> ExecuteSuccessfulRequest<TResponse>(ContextRequest<TResponse> request, CancellationToken cancellationToken, Type requestType, EventDispatchContext context, Stopwatch stopwatch)
+        {
+            TResponse response = await ExecuteRequestCore(request, cancellationToken, requestType);
+            ReportRequestCompletion(context, true, stopwatch);
+            return response;
+        }
+
+        private async Awaitable<TResponse> ExecuteRequestCore<TResponse>(ContextRequest<TResponse> request, CancellationToken cancellationToken, Type requestType)
+        {
+            RequestHandlerEntry handler = ResolveRequestHandler(requestType, typeof(TResponse));
+            TResponse response = await ExecuteRequestPipeline(request, cancellationToken, handler, requestType, 0);
+            return response;
+        }
+
+        private void ReportRequestCompletion(EventDispatchContext context, bool success, Stopwatch stopwatch)
+        {
+            stopwatch.Stop();
+            double durationMs = ToMilliseconds(stopwatch);
+            diagnosticsSink.OnRequestCompleted(context, success, durationMs);
         }
 
         private void AddListenerInternal(Type type, Action<ContextEvent> evt)
         {
             ListenerRegistrationKey key = new ListenerRegistrationKey(type, evt);
-            if (listenerIds.ContainsKey(key))
+            bool exists = listenerIds.ContainsKey(key);
+            if (exists)
             {
                 return;
             }
 
+            RegisterListener(type, evt, key);
+        }
+
+        private void RegisterListener(Type type, Action<ContextEvent> evt, ListenerRegistrationKey key)
+        {
             long listenerId = nextListenerId++;
             ListenerEntry entry = new ListenerEntry(type, listenerId, evt);
             listeners.Add(type, listenerId, entry);
@@ -195,11 +291,17 @@ namespace Scaffold.Events
         private void RemoveListenerInternal(Type type, Action<ContextEvent> evt)
         {
             ListenerRegistrationKey key = new ListenerRegistrationKey(type, evt);
-            if (!listenerIds.TryGetValue(key, out long listenerId))
+            bool found = listenerIds.TryGetValue(key, out long listenerId);
+            if (!found)
             {
                 return;
             }
 
+            RemoveRegisteredListener(type, key, listenerId);
+        }
+
+        private void RemoveRegisteredListener(Type type, ListenerRegistrationKey key, long listenerId)
+        {
             listeners.Remove(type, listenerId);
             listenerIds.Remove(key);
         }
@@ -207,11 +309,17 @@ namespace Scaffold.Events
         private void AddRequestHandlerInternal(Type requestType, Type responseType, Func<object, CancellationToken, Awaitable<object>> handler)
         {
             RequestRegistrationKey key = new RequestRegistrationKey(requestType, responseType, handler);
-            if (requestHandlerIds.ContainsKey(key))
+            bool exists = requestHandlerIds.ContainsKey(key);
+            if (exists)
             {
                 return;
             }
 
+            RegisterRequestHandler(requestType, responseType, handler, key);
+        }
+
+        private void RegisterRequestHandler(Type requestType, Type responseType, Func<object, CancellationToken, Awaitable<object>> handler, RequestRegistrationKey key)
+        {
             long handlerId = nextRequestHandlerId++;
             RequestHandlerEntry entry = new RequestHandlerEntry(requestType, responseType, handlerId, handler);
             requestHandlers.Add(requestType, handlerId, entry);
@@ -221,87 +329,142 @@ namespace Scaffold.Events
         private void RemoveRequestHandlerInternal(Type requestType, Type responseType, Func<object, CancellationToken, Awaitable<object>> handler)
         {
             RequestRegistrationKey key = new RequestRegistrationKey(requestType, responseType, handler);
-            if (!requestHandlerIds.TryGetValue(key, out long handlerId))
+            bool found = requestHandlerIds.TryGetValue(key, out long handlerId);
+            if (!found)
             {
                 return;
             }
 
+            RemoveRegisteredRequestHandler(requestType, key, handlerId);
+        }
+
+        private void RemoveRegisteredRequestHandler(Type requestType, RequestRegistrationKey key, long handlerId)
+        {
             requestHandlers.Remove(requestType, handlerId);
             requestHandlerIds.Remove(key);
         }
-
-        private List<Action<ContextEvent>> CaptureDispatch(Type actualType)
+        private List<ListenerEntry> CaptureDispatch(Type actualType)
         {
             lock (sync)
             {
                 IReadOnlyCollection<ListenerEntry> exactListeners = GetExactListeners(actualType);
                 IReadOnlyCollection<ListenerEntry> hierarchyListeners = GetHierarchyListeners(actualType);
-                int capacity = exactListeners.Count + hierarchyListeners.Count;
-                List<Action<ContextEvent>> dispatch = new List<Action<ContextEvent>>(capacity);
-                AddHandlers(dispatch, exactListeners);
-                AddHandlers(dispatch, hierarchyListeners);
+                List<ListenerEntry> dispatch = CreateDispatchList(exactListeners, hierarchyListeners);
                 return dispatch;
             }
         }
 
+        private static List<ListenerEntry> CreateDispatchList(IReadOnlyCollection<ListenerEntry> exactListeners, IReadOnlyCollection<ListenerEntry> hierarchyListeners)
+        {
+            int capacity = exactListeners.Count + hierarchyListeners.Count;
+            List<ListenerEntry> dispatch = new List<ListenerEntry>(capacity);
+            AddEntries(dispatch, exactListeners);
+            AddEntries(dispatch, hierarchyListeners);
+            return dispatch;
+        }
+
         private IReadOnlyCollection<ListenerEntry> GetExactListeners(Type actualType)
         {
-            string indexerName = BuildIndexerName(ExactIndexerPrefix, actualType);
+            string indexerName = BuildIndexerName(exactIndexerPrefix, actualType);
             Func<Type, long, bool> predicate = (declaredType, _) => declaredType == actualType;
-            return GetIndexedListeners(indexerName, predicate);
+            IReadOnlyCollection<ListenerEntry> entries = GetIndexedListeners(indexerName, predicate);
+            return entries;
         }
 
         private IReadOnlyCollection<ListenerEntry> GetHierarchyListeners(Type actualType)
         {
-            string indexerName = BuildIndexerName(HierarchyIndexerPrefix, actualType);
+            string indexerName = BuildIndexerName(hierarchyIndexerPrefix, actualType);
             Func<Type, long, bool> predicate = (declaredType, _) => declaredType != actualType && declaredType.IsAssignableFrom(actualType);
-            return GetIndexedListeners(indexerName, predicate);
+            IReadOnlyCollection<ListenerEntry> entries = GetIndexedListeners(indexerName, predicate);
+            return entries;
         }
 
         private IReadOnlyCollection<ListenerEntry> GetIndexedListeners(string indexerName, Func<Type, long, bool> predicate)
         {
-            if (!listeners.TryGetIndexer(indexerName, out _))
-            {
-                listeners.AddIndexer(indexerName, predicate);
-            }
-
-            return listeners.GetIndexedValues(indexerName);
+            EnsureListenerIndexer(indexerName, predicate);
+            IReadOnlyCollection<ListenerEntry> entries = listeners.GetIndexedValues(indexerName);
+            return entries;
         }
 
-        private static void AddHandlers(List<Action<ContextEvent>> dispatch, IReadOnlyCollection<ListenerEntry> entries)
+        private void EnsureListenerIndexer(string indexerName, Func<Type, long, bool> predicate)
+        {
+            bool exists = listeners.TryGetIndexer(indexerName, out _);
+            if (exists)
+            {
+                return;
+            }
+
+            listeners.AddIndexer(indexerName, predicate);
+        }
+
+        private static void AddEntries(List<ListenerEntry> dispatch, IReadOnlyCollection<ListenerEntry> entries)
         {
             foreach (ListenerEntry entry in entries)
             {
-                dispatch.Add(entry.Listener);
+                dispatch.Add(entry);
             }
         }
 
-        private static void InvokeDispatch(List<Action<ContextEvent>> dispatch, ContextEvent evt)
+        private void ExecuteEventPipeline(ContextEvent evt, List<ListenerEntry> dispatch, EventDispatchContext context, int middlewareIndex)
         {
-            foreach (Action<ContextEvent> listener in dispatch)
+            bool atEnd = middlewareIndex >= eventMiddlewares.Count;
+            if (atEnd)
             {
-                TryInvokeListener(listener, evt);
+                InvokeDispatch(dispatch, evt, context);
+                return;
+            }
+
+            InvokeEventMiddleware(evt, dispatch, context, middlewareIndex);
+        }
+
+        private void InvokeEventMiddleware(ContextEvent evt, List<ListenerEntry> dispatch, EventDispatchContext context, int middlewareIndex)
+        {
+            IEventMiddleware middleware = eventMiddlewares[middlewareIndex];
+            int nextIndex = middlewareIndex + 1;
+            Action next = () => ExecuteEventPipeline(evt, dispatch, context, nextIndex);
+            middleware.Invoke(evt, next);
+        }
+
+        private void InvokeDispatch(List<ListenerEntry> dispatch, ContextEvent evt, EventDispatchContext context)
+        {
+            foreach (ListenerEntry entry in dispatch)
+            {
+                TryInvokeListener(entry, evt, context);
             }
         }
 
-        private static void TryInvokeListener(Action<ContextEvent> listener, ContextEvent evt)
+        private void TryInvokeListener(ListenerEntry entry, ContextEvent evt, EventDispatchContext context)
         {
-            try
-            {
-                listener.Invoke(evt);
-            }
-            catch (Exception ex)
-            {
-                Debug.LogException(ex);
-            }
+            Stopwatch stopwatch = Stopwatch.StartNew();
+            InvokeListenerSafely(entry, evt, context);
+            ReportListenerInvoked(context, entry.EventType, stopwatch);
+        }
+
+        private void InvokeListenerSafely(ListenerEntry entry, ContextEvent evt, EventDispatchContext context)
+        {
+            try { entry.Listener.Invoke(evt); }
+            catch (Exception ex) { HandleListenerFailure(context, ex); }
+        }
+
+        private void HandleListenerFailure(EventDispatchContext context, Exception exception)
+        {
+            diagnosticsSink.OnListenerFailed(context, exception);
+            UnityEngine.Debug.LogException(exception);
+        }
+
+        private void ReportListenerInvoked(EventDispatchContext context, Type declaredType, Stopwatch stopwatch)
+        {
+            stopwatch.Stop();
+            double durationMs = ToMilliseconds(stopwatch);
+            diagnosticsSink.OnListenerInvoked(context, declaredType, durationMs);
         }
 
         private static void ValidateOpenTypeArguments(Type type, Action<ContextEvent> evt)
         {
             EnsureNotNull(type, nameof(type));
             EnsureNotNull(evt, nameof(evt));
-
-            if (!typeof(ContextEvent).IsAssignableFrom(type))
+            bool valid = typeof(ContextEvent).IsAssignableFrom(type);
+            if (!valid)
             {
                 throw new ArgumentException($"Type '{type.FullName}' must inherit from {nameof(ContextEvent)}.", nameof(type));
             }
@@ -309,8 +472,24 @@ namespace Scaffold.Events
 
         private static string BuildIndexerName(string prefix, Type type)
         {
-            string name = type.AssemblyQualifiedName ?? type.FullName ?? type.Name;
+            string name = type.AssemblyQualifiedName;
+            if (name == null)
+            {
+                name = ResolveFallbackTypeName(type);
+            }
+
             return prefix + name;
+        }
+
+        private static string ResolveFallbackTypeName(Type type)
+        {
+            string name = type.FullName;
+            if (name != null)
+            {
+                return name;
+            }
+
+            return type.Name;
         }
 
         private static Func<object, CancellationToken, Awaitable<object>> CreateGenericRequestAdapter<TRequest, TResponse>(Func<TRequest, CancellationToken, Awaitable<TResponse>> handler)
@@ -324,61 +503,136 @@ namespace Scaffold.Events
             };
         }
 
+        private async Awaitable<TResponse> ExecuteRequestPipeline<TResponse>(ContextRequest<TResponse> request, CancellationToken cancellationToken, RequestHandlerEntry handler, Type requestType, int middlewareIndex)
+        {
+            if (middlewareIndex >= requestMiddlewares.Count) { return await InvokeRequestHandler(request, cancellationToken, handler, requestType); }
+            return await InvokeRequestMiddleware(request, cancellationToken, handler, requestType, middlewareIndex);
+        }
+
+        private async Awaitable<TResponse> InvokeRequestMiddleware<TResponse>(ContextRequest<TResponse> request, CancellationToken cancellationToken, RequestHandlerEntry handler, Type requestType, int middlewareIndex)
+        {
+            IRequestMiddleware middleware = requestMiddlewares[middlewareIndex];
+            int nextIndex = middlewareIndex + 1;
+            Func<ContextRequest<TResponse>, CancellationToken, Awaitable<TResponse>> next = (nextRequest, nextCancellationToken) => ExecuteRequestPipeline(nextRequest, nextCancellationToken, handler, requestType, nextIndex);
+            TResponse response = await middleware.Invoke(request, cancellationToken, next);
+            return response;
+        }
+
+        private async Awaitable<TResponse> InvokeRequestHandler<TResponse>(ContextRequest<TResponse> request, CancellationToken cancellationToken, RequestHandlerEntry handler, Type requestType)
+        {
+            try { return await InvokeRequestHandlerCore<TResponse>(request, cancellationToken, handler, requestType); }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex) { throw CreateHandlerFailureException(requestType, ex); }
+        }
+
+        private static async Awaitable<TResponse> InvokeRequestHandlerCore<TResponse>(ContextRequest<TResponse> request, CancellationToken cancellationToken, RequestHandlerEntry handler, Type requestType)
+        {
+            object response = await handler.Handler(request, cancellationToken);
+            TResponse typedResponse = CastResponse<TResponse>(response, requestType);
+            return typedResponse;
+        }
+
+        private static InvalidOperationException CreateHandlerFailureException(Type requestType, Exception exception)
+        {
+            string message = $"Request handler failed for '{requestType.FullName}'.";
+            InvalidOperationException wrapped = new InvalidOperationException(message, exception);
+            return wrapped;
+        }
+
         private RequestHandlerEntry ResolveRequestHandler(Type requestType, Type responseType)
         {
             lock (sync)
             {
                 IReadOnlyCollection<RequestHandlerEntry> candidates = GetRequestCandidates(requestType);
-                RequestHandlerEntry? match = null;
+                RequestHandlerEntry handler = SelectSingleRequestHandler(candidates, requestType, responseType);
+                return handler;
+            }
+        }
+        private static RequestHandlerEntry SelectSingleRequestHandler(IReadOnlyCollection<RequestHandlerEntry> candidates, Type requestType, Type responseType)
+        {
+            RequestHandlerEntry? match = FindMatchingHandler(candidates, requestType, responseType);
+            EnsureRequestHandlerFound(match, requestType);
+            return match.Value;
+        }
 
-                foreach (RequestHandlerEntry candidate in candidates)
-                {
-                    if (candidate.ResponseType != responseType)
-                    {
-                        continue;
-                    }
+        private static RequestHandlerEntry? FindMatchingHandler(IReadOnlyCollection<RequestHandlerEntry> candidates, Type requestType, Type responseType)
+        {
+            RequestHandlerEntry? match = null;
+            foreach (RequestHandlerEntry candidate in candidates) { match = TrySelectCandidate(match, candidate, requestType, responseType); }
+            return match;
+        }
 
-                    if (match.HasValue)
-                    {
-                        throw new InvalidOperationException($"Multiple request handlers registered for '{requestType.FullName}'.");
-                    }
+        private static RequestHandlerEntry? TrySelectCandidate(RequestHandlerEntry? current, RequestHandlerEntry candidate, Type requestType, Type responseType)
+        {
+            bool responseMatches = candidate.ResponseType == responseType;
+            if (!responseMatches)
+            {
+                return current;
+            }
 
-                    match = candidate;
-                }
+            EnsureSingleRequestHandler(current, requestType);
+            return candidate;
+        }
 
-                if (!match.HasValue)
-                {
-                    throw new InvalidOperationException($"No request handler registered for '{requestType.FullName}'.");
-                }
+        private static void EnsureSingleRequestHandler(RequestHandlerEntry? current, Type requestType)
+        {
+            bool hasExisting = current.HasValue;
+            if (hasExisting)
+            {
+                throw new InvalidOperationException($"Multiple request handlers registered for '{requestType.FullName}'.");
+            }
+        }
 
-                return match.Value;
+        private static void EnsureRequestHandlerFound(RequestHandlerEntry? match, Type requestType)
+        {
+            bool found = match.HasValue;
+            if (!found)
+            {
+                throw new InvalidOperationException($"No request handler registered for '{requestType.FullName}'.");
             }
         }
 
         private IReadOnlyCollection<RequestHandlerEntry> GetRequestCandidates(Type requestType)
         {
-            string indexerName = BuildIndexerName(RequestIndexerPrefix, requestType);
-            if (!requestHandlers.TryGetIndexer(indexerName, out _))
+            string indexerName = BuildIndexerName(requestIndexerPrefix, requestType);
+            EnsureRequestIndexer(indexerName, requestType);
+            IReadOnlyCollection<RequestHandlerEntry> entries = requestHandlers.GetIndexedValues(indexerName);
+            return entries;
+        }
+
+        private void EnsureRequestIndexer(string indexerName, Type requestType)
+        {
+            bool exists = requestHandlers.TryGetIndexer(indexerName, out _);
+            if (exists)
             {
-                requestHandlers.AddIndexer(indexerName, (declaredType, _) => declaredType == requestType);
+                return;
             }
 
-            return requestHandlers.GetIndexedValues(indexerName);
+            requestHandlers.AddIndexer(indexerName, (declaredType, _) => declaredType == requestType);
         }
 
         private static TResponse CastResponse<TResponse>(object response, Type requestType)
         {
-            if (response is TResponse typed)
+            bool matches = response is TResponse;
+            if (matches)
             {
+                TResponse typed = (TResponse)response;
                 return typed;
             }
 
-            if (response == null && default(TResponse) == null)
+            return CastOrDefaultResponse<TResponse>(response, requestType);
+        }
+
+        private static TResponse CastOrDefaultResponse<TResponse>(object response, Type requestType)
+        {
+            bool allowsNull = response == null && default(TResponse) == null;
+            if (allowsNull)
             {
                 return default;
             }
 
-            throw new InvalidCastException($"Request handler for '{requestType.FullName}' returned incompatible response type.");
+            string message = $"Request handler for '{requestType.FullName}' returned incompatible response type.";
+            throw new InvalidCastException(message);
         }
 
         private static void ValidateRequestHandlerArguments(Type requestType, Type responseType, Func<object, CancellationToken, Awaitable<object>> handler)
@@ -386,34 +640,55 @@ namespace Scaffold.Events
             EnsureNotNull(requestType, nameof(requestType));
             EnsureNotNull(responseType, nameof(responseType));
             EnsureNotNull(handler, nameof(handler));
+            Type declaredResponseType = ResolveDeclaredResponseType(requestType);
+            EnsureResponseTypeMatch(requestType, responseType, declaredResponseType);
+        }
 
-            if (!TryResolveContextRequestResponseType(requestType, out Type declaredResponseType))
-            {
-                throw new ArgumentException($"Type '{requestType.FullName}' must inherit from {nameof(ContextRequest<object>)}.", nameof(requestType));
-            }
+        private static Type ResolveDeclaredResponseType(Type requestType)
+        {
+            bool resolved = TryResolveContextRequestResponseType(requestType, out Type declaredResponseType);
+            if (resolved) { return declaredResponseType; }
+            throw CreateRequestTypeArgumentException(requestType);
+        }
 
-            if (declaredResponseType != responseType)
+        private static ArgumentException CreateRequestTypeArgumentException(Type requestType)
+        {
+            string message = $"Type '{requestType.FullName}' must inherit from {nameof(ContextRequest<object>)}.";
+            ArgumentException exception = new ArgumentException(message, nameof(requestType));
+            return exception;
+        }
+
+        private static void EnsureResponseTypeMatch(Type requestType, Type responseType, Type declaredResponseType)
+        {
+            bool matches = declaredResponseType == responseType;
+            if (!matches)
             {
-                throw new ArgumentException($"Request type '{requestType.FullName}' is bound to '{declaredResponseType.FullName}', not '{responseType.FullName}'.", nameof(responseType));
+                string message = $"Request type '{requestType.FullName}' is bound to '{declaredResponseType.FullName}', not '{responseType.FullName}'.";
+                throw new ArgumentException(message, nameof(responseType));
             }
         }
 
         private static bool TryResolveContextRequestResponseType(Type requestType, out Type responseType)
         {
-            Type current = requestType;
-            while (current != null)
-            {
-                if (current.IsGenericType && current.GetGenericTypeDefinition() == typeof(ContextRequest<>))
-                {
-                    responseType = current.GetGenericArguments()[0];
-                    return true;
-                }
+            return TryResolveFromTypeHierarchy(requestType, out responseType);
+        }
 
-                current = current.BaseType;
-            }
+        private static bool TryResolveFromTypeHierarchy(Type current, out Type responseType)
+        {
+            if (current == null) { responseType = null; return false; }
+            bool found = TryResolveCurrentResponseType(current, out responseType);
+            if (found) { return true; }
+            Type baseType = current.BaseType;
+            return TryResolveFromTypeHierarchy(baseType, out responseType);
+        }
 
-            responseType = null;
-            return false;
+        private static bool TryResolveCurrentResponseType(Type current, out Type responseType)
+        {
+            bool isContextRequest = current.IsGenericType && current.GetGenericTypeDefinition() == typeof(ContextRequest<>);
+            if (!isContextRequest) { responseType = null; return false; }
+            Type[] arguments = current.GetGenericArguments();
+            responseType = arguments[0];
+            return true;
         }
 
         private static void EnsureNotNull(object value, string paramName)
@@ -422,6 +697,45 @@ namespace Scaffold.Events
             {
                 throw new ArgumentNullException(paramName);
             }
+        }
+
+        private static List<TMiddleware> CopyMiddlewares<TMiddleware>(IEnumerable<TMiddleware> source)
+        {
+            List<TMiddleware> items = new List<TMiddleware>();
+            if (source == null)
+            {
+                return items;
+            }
+
+            AddNonNullMiddlewares(source, items);
+            return items;
+        }
+
+        private static void AddNonNullMiddlewares<TMiddleware>(IEnumerable<TMiddleware> source, List<TMiddleware> items)
+        {
+            foreach (TMiddleware middleware in source)
+            {
+                bool exists = middleware != null;
+                if (exists)
+                {
+                    items.Add(middleware);
+                }
+            }
+        }
+
+        private static IEventDiagnosticsSink ResolveDiagnosticsSink(IEventDiagnosticsSink diagnostics)
+        {
+            if (diagnostics != null)
+            {
+                return diagnostics;
+            }
+
+            return NoOpEventDiagnosticsSink.Instance;
+        }
+
+        private static double ToMilliseconds(Stopwatch stopwatch)
+        {
+            return stopwatch.Elapsed.TotalMilliseconds;
         }
 
         private readonly struct ListenerEntry
