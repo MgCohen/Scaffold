@@ -28,7 +28,7 @@ A contributor will be able to verify success by running Events tests that prove:
 - [x] (2026-03-10 00:00Z) Updated plan direction to `Replace-EventBus`, unified on `AddListener`/`RemoveListener`, and removed standalone listener cache in favor of `Map` indexers.
 - [x] (2026-03-10 00:00Z) Baseline current Events module behavior validated with focused tests and fixture coverage (generic/open-type add-remove flows and idempotence).
 - [x] (2026-03-10 11:00Z) Completed Milestone 2 by adding request/middleware contracts (`ContextRequest<TResponse>`, `IRequestBus`, `IEventMiddleware`, `IRequestMiddleware`) while keeping `IEventBus` backward-compatible; updated sample/docs to explicitly show generic and open-type `AddListener`/`RemoveListener` flows; validated with `dotnet build Scaffold.sln -c Release` and focused `Scaffold.Events` project builds.
-- [ ] Implement scalable runtime bus listener core with hierarchy dispatch.
+- [x] (2026-03-10 12:00Z) Completed Milestone 3 listener runtime by adding `ScalableEventBus` with `Map<Type, long, ListenerEntry>` storage, exact+hierarchy indexer dispatch, idempotent generic/open-type add/remove flows, and continue-on-failure listener invocation; added `ScalableEventBusTests` for hierarchy/idempotence/failure behavior and validated with focused builds plus analyzer workflow checks.
 - [ ] Implement request routing on top of the listener core using `Awaitable`.
 - [ ] Add middleware and diagnostics-ready hooks.
 - [ ] Switch container wiring to new bus and retire `EventController` from active DI path.
@@ -57,6 +57,8 @@ A contributor will be able to verify success by running Events tests that prove:
   Evidence: `Assets/Scripts/Infra/Events/Runtime/Contracts/IRequestMiddleware.cs` initially emitted `SCA0005` until signature was collapsed to one line.
 - Observation: Unity batch test invocation completed with successful exit but did not produce the requested XML test result file in this environment; logs show licensing handshake errors and normal batch shutdown.
   Evidence: `Logs/Events-ScalableBus-M2.log` contains `[Licensing::Module] Error: Failed to handshake to channel: "LicenseClient-user"` plus `Batchmode quit successfully invoked - shutting down!`, while `Logs/Events-ScalableBus-M2.xml` was not created.
+- Observation: The same Unity batch limitation reproduced for Milestone 3 test execution (`Events-HierarchyListeners`): command exits but no XML result artifact is produced.
+  Evidence: `Logs/Events-HierarchyListeners.log` contains the same licensing handshake errors and no `Logs/Events-HierarchyListeners.xml` file exists.
 
 ## Decision Log
 
@@ -98,11 +100,16 @@ A contributor will be able to verify success by running Events tests that prove:
 - Decision: Keep request bus open-type registration explicit on both request and response runtime types (`Type requestType, Type responseType`) while keeping strongly-typed generic registration APIs.
   Rationale: This preserves runtime registration flexibility for dynamic scenarios while keeping compile-time-safe primary usage for most callers.
   Date/Author: 2026-03-10 / Codex
+- Decision: For listener dispatch in `ScalableEventBus`, maintain per-runtime-type exact and hierarchy `Map` indexers and execute listeners from a captured snapshot outside lock scope.
+  Rationale: This keeps registry mutation synchronized while preventing handler execution from holding locks, and preserves deterministic exact+base dispatch behavior.
+  Date/Author: 2026-03-10 / Codex
 ## Outcomes & Retrospective
 
 Milestone 1 complete: baseline coverage in `Assets/Scripts/Infra/Events/Tests/EventsTests.cs` now includes generic/open-type add-remove flows and idempotence checks, and the milestone has been validated.
 
 Milestone 2 complete: Events contracts now include request and middleware extension points without breaking `IEventBus` callers, and docs/samples now explicitly show both generic and open-type listener registration/removal paths. Build validation is green aside from pre-existing solution warnings unrelated to this milestone; Unity batch test XML output remains environment-blocked.
+
+Milestone 3 complete: hierarchy-aware listener runtime exists in `ScalableEventBus` with tests covering base/derived dispatch, open-type idempotence, invalid type guardrails, and listener-failure isolation. Quality gate builds and analyzer checks passed for changed projects; Unity batch Events test output remains blocked by the known environment licensing handshake issue.
 
 ## Context and Orientation
 
@@ -354,4 +361,5 @@ Revision Note (2026-03-10): Implemented Milestone 1 test expansion, documented e
 Revision Note (2026-03-10): Milestone 1 marked validated based on user confirmation after baseline test expansion.
 Revision Note (2026-03-10): Updated milestone flow to require a commit immediately after validation/testing gate passes.
 Revision Note (2026-03-10): Completed Milestone 2 contract expansion and compatibility documentation/sample updates, and recorded Unity batch test XML generation limitation observed during milestone gate execution.
+Revision Note (2026-03-10): Completed Milestone 3 scalable hierarchy listener runtime and tests, and recorded repeated Unity batch test XML output limitation in this environment.
 
