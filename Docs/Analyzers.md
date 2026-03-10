@@ -284,6 +284,24 @@ public async Awaitable LoadSceneAsync(string name) { }
 
 ---
 
+### SCA0014 - No Single-Line Loops
+
+`for` and `foreach` loops must not be compressed into a single physical line. Keep loop headers and bodies expanded across multiple lines.
+
+```csharp
+// VIOLATION
+for (int i = 0; i < items.Count; i++) { Item item = items[i]; if (item != null) { return item; } }
+
+// COMPLIANT
+for (int i = 0; i < items.Count; i++)
+{
+    Item item = items[i];
+    if (item != null) { return item; }
+}
+```
+
+---
+
 ## Configuration
 
 All rules support per-rule severity override via `.editorconfig`:

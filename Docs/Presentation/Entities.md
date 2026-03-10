@@ -74,7 +74,7 @@ EntityDefinition loadedDefinition = definitionAsset;
 
 EntityInstance<EntityDefinition> instance = new EntityInstance<EntityDefinition>();
 instance.Id = "orc_instance";
-instance.DefinitionRef = loadedDefinition;
+instance.Definition = loadedDefinition;
 
 EntityInstanceAsset instanceAsset = instance;
 EntityInstance<EntityDefinition> loadedInstance = instanceAsset;

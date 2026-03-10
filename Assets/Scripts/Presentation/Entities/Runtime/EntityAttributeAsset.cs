@@ -6,7 +6,13 @@ namespace Scaffold.Presentation.Entities
     [CreateAssetMenu(menuName = "Scaffold/Entities/Attribute")]
     public sealed class EntityAttributeAsset : ScriptableObject
     {
-        public EntityAttribute Value = new EntityAttribute();
+        [SerializeField] private EntityAttribute value = new EntityAttribute();
+
+        public EntityAttribute Value
+        {
+            get { return value; }
+            set { this.value = value; }
+        }
 
         public static implicit operator EntityAttribute(EntityAttributeAsset asset)
         {

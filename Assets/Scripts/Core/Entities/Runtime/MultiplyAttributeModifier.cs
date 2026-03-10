@@ -3,7 +3,7 @@ using System;
 namespace Scaffold.Entities
 {
     [Serializable]
-    public sealed class MultiplyAttributeModifier : EntityModifier
+    public class MultiplyAttributeModifier : EntityModifier
     {
         public double Factor = 1d;
 

@@ -6,7 +6,13 @@ namespace Scaffold.Presentation.Entities
     [CreateAssetMenu(menuName = "Scaffold/Entities/Modifier")]
     public sealed class EntityModifierAsset : ScriptableObject
     {
-        [SerializeReference] public EntityModifier Value;
+        [SerializeReference] private EntityModifier value;
+
+        public EntityModifier Value
+        {
+            get { return value; }
+            set { this.value = value; }
+        }
 
         public static implicit operator EntityModifier(EntityModifierAsset asset)
         {

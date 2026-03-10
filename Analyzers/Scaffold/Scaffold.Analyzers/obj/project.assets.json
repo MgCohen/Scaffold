@@ -2068,11 +2068,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\user\\Documents\\Unity\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers\\Scaffold.Analyzers.csproj",
+      "projectUniqueName": "C:\\Users\\user\\.codex\\worktrees\\e901\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers\\Scaffold.Analyzers.csproj",
       "projectName": "Scaffold.Analyzers",
-      "projectPath": "C:\\Users\\user\\Documents\\Unity\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers\\Scaffold.Analyzers.csproj",
+      "projectPath": "C:\\Users\\user\\.codex\\worktrees\\e901\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers\\Scaffold.Analyzers.csproj",
       "packagesPath": "C:\\Users\\user\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\user\\Documents\\Unity\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers\\obj\\",
+      "outputPath": "C:\\Users\\user\\.codex\\worktrees\\e901\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

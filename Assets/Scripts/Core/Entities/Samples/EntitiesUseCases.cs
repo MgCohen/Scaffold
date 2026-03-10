@@ -19,9 +19,8 @@ namespace Scaffold.Entities.Samples
         {
             EntityDefinition definition = new EntityDefinition();
             definition.Id = "orc_definition";
-            definition.DisplayName = "Orc";
-            definition.Attributes = new List<EntityAttribute>();
-            definition.Attributes.Add(new EntityAttribute { Key = "Strength", Value = 5d });
+            definition.Attributes = new Dictionary<string, EntityAttribute>();
+            definition.Attributes["Strength"] = new EntityAttribute { Key = "Strength", Value = 5d };
             return definition;
         }
 
@@ -29,9 +28,9 @@ namespace Scaffold.Entities.Samples
         {
             EntityInstance<EntityDefinition> instance = new EntityInstance<EntityDefinition>();
             instance.Id = "orc_instance";
-            instance.DefinitionRef = definition;
-            instance.ModifiersRef = new List<EntityModifier>();
-            instance.ModifiersRef.Add(new AddAttributeModifier { Id = "buff_strength", TargetAttributeKey = "Strength", Amount = 1d, IsTemporary = true });
+            instance.Definition = definition;
+            AddAttributeModifier modifier = new AddAttributeModifier { Amount = 1d };
+            instance.AddModifier("Strength", modifier);
             return instance;
         }
     }

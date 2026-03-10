@@ -6,51 +6,92 @@ namespace Scaffold.Entities
     [Serializable]
     public sealed class EntityInstance<TDefinition> : IEntityInstance where TDefinition : EntityDefinition
     {
-        public string Id;
-        public TDefinition DefinitionRef;
-        public List<EntityModifier> ModifiersRef = new List<EntityModifier>();
+        public string Id { get; set; }
+        public TDefinition Definition;
+        private readonly Dictionary<string, AttributeModifierBucket> modifiers = new Dictionary<string, AttributeModifierBucket>();
 
-        string IEntityInstance.Id { get { return Id; } }
-        EntityDefinition IEntityInstance.Definition { get { return DefinitionRef; } }
-        IReadOnlyList<EntityModifier> IEntityInstance.Modifiers { get { return ModifiersRef; } }
+        public string DefinitionId { get { return Definition.Id; } }
 
         public bool TryGetAttributeValue(string key, out double value)
         {
             value = default;
-            bool hasBase = TryGetBaseValue(key, out double baseValue);
+            bool hasModifier = TryGetModifiers(key, out AttributeModifierBucket bucket);
+            if (!hasModifier) { return Definition.TryGetBaseAttributeValue(key, out value); }
+            bool hasBase = Definition.TryGetBaseAttributeValue(key, out double baseValue);
             if (!hasBase) { return false; }
-            bool hasModifier = HasModifierForKey(key);
-            if (!hasModifier) { value = baseValue; return true; }
-            value = ApplyModifiers(key, baseValue);
+            value = bucket.CalculateValue(baseValue);
             return true;
         }
 
-        private bool TryGetBaseValue(string key, out double baseValue)
+        public void AddModifier(string key, EntityModifier modifier)
         {
-            baseValue = default;
-            if (DefinitionRef == null) { return false; }
-            return DefinitionRef.TryGetBaseAttributeValue(key, out baseValue);
+            if (string.IsNullOrEmpty(key) || modifier == null) { return; }
+            AttributeModifierBucket bucket = EnsureBucket(key);
+            bucket.AddModifier(modifier);
         }
 
-        private bool HasModifierForKey(string key)
+        public bool RemoveModifier(string key, EntityModifier modifier)
         {
-            List<EntityModifier> modifiers = GetModifiers();
-            for (int index = 0; index < modifiers.Count; index++) { EntityModifier modifier = modifiers[index]; if (modifier != null && modifier.TargetsAttribute(key)) { return true; } }
-            return false;
+            bool hasBucket = modifiers.TryGetValue(key, out AttributeModifierBucket bucket);
+            if (!hasBucket || modifier == null) { return false; }
+            bool wasRemoved = bucket.RemoveModifier(modifier);
+            bool shouldRemoveBucket = wasRemoved && !bucket.HasModifiers;
+            if (shouldRemoveBucket) { modifiers.Remove(key); }
+            return wasRemoved;
         }
 
-        private double ApplyModifiers(string key, double baseValue)
+        private bool TryGetModifiers(string key, out AttributeModifierBucket bucket)
         {
-            double result = baseValue;
-            List<EntityModifier> modifiers = GetModifiers();
-            for (int index = 0; index < modifiers.Count; index++) { EntityModifier modifier = modifiers[index]; if (modifier != null && modifier.TargetsAttribute(key)) { result = modifier.Apply(result); } }
-            return result;
+            bool hasBucket = modifiers.TryGetValue(key, out bucket);
+            if (!hasBucket) { return false; }
+            return bucket.HasModifiers;
         }
 
-        private List<EntityModifier> GetModifiers()
+        private AttributeModifierBucket EnsureBucket(string key)
         {
-            if (ModifiersRef == null) { ModifiersRef = new List<EntityModifier>(); }
-            return ModifiersRef;
+            bool hasExisting = modifiers.TryGetValue(key, out AttributeModifierBucket existing);
+            if (hasExisting) { return existing; }
+            AttributeModifierBucket created = new AttributeModifierBucket();
+            modifiers[key] = created;
+            return created;
+        }
+
+        [Serializable]
+        private sealed class AttributeModifierBucket
+        {
+            private readonly List<EntityModifier> orderedModifiers = new List<EntityModifier>();
+            private bool hasModifiers;
+
+            public bool HasModifiers { get { return hasModifiers; } }
+
+            public void AddModifier(EntityModifier modifier)
+            {
+                orderedModifiers.Add(modifier);
+                RefreshState();
+            }
+
+            public bool RemoveModifier(EntityModifier modifier)
+            {
+                bool removed = orderedModifiers.Remove(modifier);
+                RefreshState();
+                return removed;
+            }
+
+            public double CalculateValue(double baseValue)
+            {
+                double result = baseValue;
+                for (int index = 0; index < orderedModifiers.Count; index++)
+                {
+                    EntityModifier modifier = orderedModifiers[index];
+                    if (modifier != null) { result = modifier.Apply(result); }
+                }
+                return result;
+            }
+
+            private void RefreshState()
+            {
+                hasModifiers = orderedModifiers.Count > 0;
+            }
         }
     }
 }

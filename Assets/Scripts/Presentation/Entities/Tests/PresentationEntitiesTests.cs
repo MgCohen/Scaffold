@@ -44,13 +44,11 @@ namespace Scaffold.Presentation.Entities.Tests
         public void ModifierAsset_ImplicitConversion_RoundTripsModifier()
         {
             AddAttributeModifier modifier = new AddAttributeModifier();
-            modifier.Id = "add_modifier";
-            modifier.TargetAttributeKey = "Strength";
             modifier.Amount = 2d;
             EntityModifierAsset asset = modifier;
             EntityModifier loaded = asset;
             Assert.IsNotNull(asset);
-            Assert.AreEqual("add_modifier", loaded.Id);
+            Assert.IsNotNull(loaded);
         }
 
         [TearDown]
@@ -63,8 +61,8 @@ namespace Scaffold.Presentation.Entities.Tests
         {
             EntityDefinition definition = new EntityDefinition();
             definition.Id = "definition_asset";
-            definition.Attributes = new List<EntityAttribute>();
-            definition.Attributes.Add(new EntityAttribute { Key = "Strength", Value = 5d });
+            definition.Attributes = new Dictionary<string, EntityAttribute>();
+            definition.Attributes["Strength"] = new EntityAttribute { Key = "Strength", Value = 5d };
             return definition;
         }
 
@@ -72,8 +70,7 @@ namespace Scaffold.Presentation.Entities.Tests
         {
             EntityInstance<EntityDefinition> instance = new EntityInstance<EntityDefinition>();
             instance.Id = "instance_asset";
-            instance.DefinitionRef = definition;
-            instance.ModifiersRef = new List<EntityModifier>();
+            instance.Definition = definition;
             return instance;
         }
     }

@@ -6,7 +6,13 @@ namespace Scaffold.Presentation.Entities
     [CreateAssetMenu(menuName = "Scaffold/Entities/Definition")]
     public sealed class EntityDefinitionAsset : ScriptableObject
     {
-        public EntityDefinition Value = new EntityDefinition();
+        [SerializeField] private EntityDefinition value = new EntityDefinition();
+
+        public EntityDefinition Value
+        {
+            get { return value; }
+            set { this.value = value; }
+        }
 
         public static implicit operator EntityDefinition(EntityDefinitionAsset asset)
         {

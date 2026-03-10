@@ -10,7 +10,9 @@ namespace Scaffold.Entities
 
         public bool RegisterDefinition(EntityDefinition definition)
         {
-            if (!TryGetDefinitionId(definition, out string id)) { return false; }
+            if (definition == null) { return false; }
+            string id = definition.Id;
+            if (string.IsNullOrEmpty(id)) { return false; }
             if (!TryRegisterId(id)) { return false; }
             definitions[id] = definition;
             return true;
@@ -18,8 +20,11 @@ namespace Scaffold.Entities
 
         public bool RegisterInstance(IEntityInstance instance)
         {
-            if (!TryGetInstanceId(instance, out string instanceId)) { return false; }
-            if (!HasRegisteredDefinition(instance)) { return false; }
+            if (instance == null) { return false; }
+            string instanceId = instance.Id;
+            if (string.IsNullOrEmpty(instanceId)) { return false; }
+            string definitionId = instance.DefinitionId;
+            if (!definitions.ContainsKey(definitionId)) { return false; }
             if (!TryRegisterId(instanceId)) { return false; }
             instances[instanceId] = instance;
             return true;
@@ -59,31 +64,6 @@ namespace Scaffold.Entities
             registeredIds.Clear();
         }
 
-        private bool TryGetDefinitionId(EntityDefinition definition, out string id)
-        {
-            id = null;
-            if (definition == null) { return false; }
-            id = definition.Id;
-            return !string.IsNullOrEmpty(id);
-        }
-
-        private bool TryGetInstanceId(IEntityInstance instance, out string id)
-        {
-            id = null;
-            if (instance == null) { return false; }
-            id = instance.Id;
-            return !string.IsNullOrEmpty(id);
-        }
-
-        private bool HasRegisteredDefinition(IEntityInstance instance)
-        {
-            EntityDefinition definition = instance.Definition;
-            if (definition == null) { return false; }
-            string definitionId = definition.Id;
-            if (string.IsNullOrEmpty(definitionId)) { return false; }
-            return definitions.ContainsKey(definitionId);
-        }
-
         private bool TryRegisterId(string id)
         {
             return registeredIds.Add(id);
@@ -91,7 +71,12 @@ namespace Scaffold.Entities
 
         private bool IsDefinitionReferenced(string definitionId)
         {
-            foreach (IEntityInstance instance in instances.Values) { EntityDefinition definition = instance.Definition; if (definition != null && definition.Id == definitionId) { return true; } }
+            foreach (KeyValuePair<string, IEntityInstance> pair in instances)
+            {
+                IEntityInstance instance = pair.Value;
+                bool isReference = instance.DefinitionId == definitionId;
+                if (isReference) { return true; }
+            }
             return false;
         }
     }

@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using Scaffold.Entities;
-using UnityEngine;
 
 namespace Scaffold.Presentation.Entities.Samples
 {
@@ -21,8 +20,8 @@ namespace Scaffold.Presentation.Entities.Samples
         {
             EntityDefinition definition = new EntityDefinition();
             definition.Id = "sample_definition";
-            definition.Attributes = new List<EntityAttribute>();
-            definition.Attributes.Add(new EntityAttribute { Key = "Strength", Value = 5d });
+            definition.Attributes = new Dictionary<string, EntityAttribute>();
+            definition.Attributes["Strength"] = new EntityAttribute { Key = "Strength", Value = 5d };
             return definition;
         }
 
@@ -30,8 +29,7 @@ namespace Scaffold.Presentation.Entities.Samples
         {
             EntityInstance<EntityDefinition> instance = new EntityInstance<EntityDefinition>();
             instance.Id = "sample_instance";
-            instance.DefinitionRef = definition;
-            instance.ModifiersRef = new List<EntityModifier>();
+            instance.Definition = definition;
             return instance;
         }
     }

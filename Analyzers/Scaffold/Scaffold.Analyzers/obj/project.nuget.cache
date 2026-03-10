@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "snE1CNKDBrs=",
+  "dgSpecHash": "RalJpg7K4P8=",
   "success": true,
-  "projectFilePath": "C:\\Users\\user\\Documents\\Unity\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers\\Scaffold.Analyzers.csproj",
+  "projectFilePath": "C:\\Users\\user\\.codex\\worktrees\\e901\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers\\Scaffold.Analyzers.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\user\\.nuget\\packages\\humanizer.core\\2.14.1\\humanizer.core.2.14.1.nupkg.sha512",
     "C:\\Users\\user\\.nuget\\packages\\microsoft.bcl.asyncinterfaces\\7.0.0\\microsoft.bcl.asyncinterfaces.7.0.0.nupkg.sha512",

@@ -50,8 +50,8 @@ public bool TryGetBaseAttributeValue(string key, out double value)
 public sealed class EntityInstance<TDefinition> : IEntityInstance where TDefinition : EntityDefinition
 {
     public string Id;
-    public TDefinition DefinitionRef;
-    public List<EntityModifier> ModifiersRef = new List<EntityModifier>();
+    public TDefinition Definition;
+    public string DefinitionId;
 }
 ```
 
@@ -91,12 +91,12 @@ return true;
 ```csharp
 EntityDefinition definition = new EntityDefinition();
 definition.Id = "orc_definition";
-definition.Attributes.Add(new EntityAttribute { Key = "Strength", Value = 5d });
+definition.Attributes["Strength"] = new EntityAttribute { Key = "Strength", Value = 5d };
 
 EntityInstance<EntityDefinition> instance = new EntityInstance<EntityDefinition>();
 instance.Id = "orc_instance";
-instance.DefinitionRef = definition;
-instance.ModifiersRef.Add(new AddAttributeModifier { TargetAttributeKey = "Strength", Amount = 1d });
+instance.Definition = definition;
+instance.AddModifier("Strength", new AddAttributeModifier { Amount = 1d });
 
 EntityRegistry registry = new EntityRegistry();
 registry.RegisterDefinition(definition);
@@ -109,9 +109,9 @@ Expected result for the sample above: `found == true` and `value == 6`.
 
 ## Internal Services
 
-### Modifier matching
+### Modifier grouping per attribute key
 
-`EntityModifier.TargetsAttribute(...)` centralizes attribute-key matching.
+Instances keep modifiers in a private dictionary keyed by attribute name, while each modifier only transforms a value.
 
 ### Registry id gate
 

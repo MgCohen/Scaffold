@@ -3,7 +3,7 @@ using System;
 namespace Scaffold.Entities
 {
     [Serializable]
-    public sealed class AddAttributeModifier : EntityModifier
+    public class AddAttributeModifier : EntityModifier
     {
         public double Amount;
 

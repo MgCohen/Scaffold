@@ -29,7 +29,8 @@ namespace Scaffold.Entities.Tests
         {
             EntityDefinition definition = BuildDefinition("orc_definition", 5d, 3d);
             EntityInstance<EntityDefinition> instance = BuildInstance("orc_instance", definition);
-            instance.ModifiersRef.Add(new AddAttributeModifier { Id = "add_strength", TargetAttributeKey = "Strength", Amount = 1d, IsTemporary = true });
+            AddAttributeModifier modifier = new AddAttributeModifier { Amount = 1d };
+            instance.AddModifier("Strength", modifier);
             bool found = instance.TryGetAttributeValue("Strength", out double value);
             Assert.IsTrue(found);
             Assert.AreEqual(6d, value);
@@ -40,7 +41,8 @@ namespace Scaffold.Entities.Tests
         {
             EntityDefinition definition = BuildDefinition("orc_definition", 5d, 3d);
             EntityInstance<EntityDefinition> instance = BuildInstance("orc_instance", definition);
-            instance.ModifiersRef.Add(new MultiplyAttributeModifier { Id = "mult_speed", TargetAttributeKey = "Speed", Factor = 2d, IsTemporary = true });
+            MultiplyAttributeModifier modifier = new MultiplyAttributeModifier { Factor = 2d };
+            instance.AddModifier("Speed", modifier);
             bool found = instance.TryGetAttributeValue("Speed", out double value);
             Assert.IsTrue(found);
             Assert.AreEqual(6d, value);
@@ -51,11 +53,27 @@ namespace Scaffold.Entities.Tests
         {
             EntityDefinition definition = BuildDefinition("orc_definition", 5d, 3d);
             EntityInstance<EntityDefinition> instance = BuildInstance("orc_instance", definition);
-            instance.ModifiersRef.Add(new AddAttributeModifier { Id = "add_strength", TargetAttributeKey = "Strength", Amount = 3d, IsTemporary = true });
-            instance.ModifiersRef.Add(new RemoveAttributeModifier { Id = "remove_strength", TargetAttributeKey = "Strength", Amount = 1d, IsTemporary = true });
+            AddAttributeModifier addModifier = new AddAttributeModifier { Amount = 3d };
+            RemoveAttributeModifier removeModifier = new RemoveAttributeModifier { Amount = 1d };
+            instance.AddModifier("Strength", addModifier);
+            instance.AddModifier("Strength", removeModifier);
             bool found = instance.TryGetAttributeValue("Strength", out double value);
             Assert.IsTrue(found);
             Assert.AreEqual(7d, value);
+        }
+
+        [Test]
+        public void Instance_RemoveModifier_RemovesItsEffect()
+        {
+            EntityDefinition definition = BuildDefinition("orc_definition", 5d, 3d);
+            EntityInstance<EntityDefinition> instance = BuildInstance("orc_instance", definition);
+            AddAttributeModifier addModifier = new AddAttributeModifier { Amount = 2d };
+            instance.AddModifier("Strength", addModifier);
+            bool removed = instance.RemoveModifier("Strength", addModifier);
+            bool found = instance.TryGetAttributeValue("Strength", out double value);
+            Assert.IsTrue(removed);
+            Assert.IsTrue(found);
+            Assert.AreEqual(5d, value);
         }
 
         [Test]
@@ -95,10 +113,9 @@ namespace Scaffold.Entities.Tests
         {
             EntityDefinition definition = new EntityDefinition();
             definition.Id = id;
-            definition.DisplayName = "Unit";
-            definition.Attributes = new List<EntityAttribute>();
-            definition.Attributes.Add(new EntityAttribute { Key = "Strength", Value = strength });
-            definition.Attributes.Add(new EntityAttribute { Key = "Speed", Value = speed });
+            definition.Attributes = new Dictionary<string, EntityAttribute>();
+            definition.Attributes["Strength"] = new EntityAttribute { Key = "Strength", Value = strength };
+            definition.Attributes["Speed"] = new EntityAttribute { Key = "Speed", Value = speed };
             return definition;
         }
 
@@ -106,8 +123,7 @@ namespace Scaffold.Entities.Tests
         {
             EntityInstance<EntityDefinition> instance = new EntityInstance<EntityDefinition>();
             instance.Id = id;
-            instance.DefinitionRef = definition;
-            instance.ModifiersRef = new List<EntityModifier>();
+            instance.Definition = definition;
             return instance;
         }
 
