@@ -4,13 +4,13 @@
 
 The Events module provides Scaffold's in-process event bus for decoupled communication between systems. Its main effect is that modules can publish and listen for strongly typed events (`ContextEvent` derivatives) without direct references to each other, reducing coupling and simplifying feature composition.
 
-Internally, the module maintains listener lookup structures and type-indexed callback routing so add/remove/raise operations stay consistent and predictable.
+Internally, the module maintains listener lookup structures and type-indexed callback routing so `AddListener`/`RemoveListener`/`Raise` operations stay consistent and predictable. The contracts also include request and middleware extension points used by the replacement bus milestones.
 
 ## Bird's Eye View
 
 Module layout (`Assets/Scripts/Infra/Events/`):
 
-- `Runtime/Contracts/`: event contracts (`ContextEvent`, `IEventBus`).
+- `Runtime/Contracts/`: event/request/middleware contracts (`ContextEvent`, `ContextRequest<TResponse>`, `IEventBus`, `IRequestBus`, `IEventMiddleware`, `IRequestMiddleware`).
 - `Runtime/Implementation/`: concrete bus implementation (`EventController`).
 - `Container/`: DI integration (`EventsInstaller`).
 - `Samples/`: publish/subscribe examples (`EventsUseCases.cs`).
@@ -93,7 +93,9 @@ public override void Install(IContainerRegistry registry, Transform holder)
 
 ## How to use
 
-Use `IEventBus`/`EventController` by defining a `ContextEvent` type, registering listeners, raising events, and unsubscribing when done:
+Use `IEventBus`/`EventController` by defining a `ContextEvent` type, registering listeners, raising events, and unsubscribing when done.
+
+Generic listener flow:
 
 ```csharp
 private record PlayerDiedEvent : ContextEvent;
@@ -105,7 +107,7 @@ bus.AddListener<PlayerDiedEvent>(_ => received = true);
 bus.Raise(new PlayerDiedEvent());
 ```
 
-Unsubscribe pattern:
+Generic unsubscribe pattern:
 
 ```csharp
 int count = 0;
@@ -113,6 +115,29 @@ Action<PlayerDiedEvent> handler = _ => count++;
 
 bus.AddListener(handler);
 bus.RemoveListener(handler);
+```
+
+Open-type listener flow:
+
+```csharp
+int openTypeCount = 0;
+Action<ContextEvent> openTypeHandler = _ => openTypeCount++;
+
+bus.AddListener(typeof(PlayerDiedEvent), openTypeHandler);
+bus.Raise(new PlayerDiedEvent());
+
+bus.RemoveListener(typeof(PlayerDiedEvent), openTypeHandler);
+```
+
+Request/middleware contract entry points introduced for the replacement milestones:
+
+```csharp
+public abstract record ContextRequest<TResponse>;
+
+public interface IRequestBus
+{
+    Awaitable<TResponse> RequestAsync<TResponse>(ContextRequest<TResponse> request, CancellationToken cancellationToken = default);
+}
 ```
 
 Reference sample: `Assets/Scripts/Infra/Events/Samples/EventsUseCases.cs`.
@@ -132,7 +157,11 @@ Reference sample: `Assets/Scripts/Infra/Events/Samples/EventsUseCases.cs`.
 ## Public api
 
 - `ContextEvent` (`Assets/Scripts/Infra/Events/Runtime/Contracts/ContextEvent.cs`): base event record type for all events routed by the bus.
+- `ContextRequest<TResponse>` (`Assets/Scripts/Infra/Events/Runtime/Contracts/ContextRequest.cs`): base request contract for typed async request/response flows.
 - `IEventBus` (`Assets/Scripts/Infra/Events/Runtime/Contracts/IEventBus.cs`): public contract for add/remove listeners, raising events, and clearing subscriptions.
+- `IRequestBus` (`Assets/Scripts/Infra/Events/Runtime/Contracts/IRequestBus.cs`): public contract for async request handler registration and `RequestAsync` dispatch.
+- `IEventMiddleware` (`Assets/Scripts/Infra/Events/Runtime/Contracts/IEventMiddleware.cs`): event pipeline extension point.
+- `IRequestMiddleware` (`Assets/Scripts/Infra/Events/Runtime/Contracts/IRequestMiddleware.cs`): request pipeline extension point.
 - `EventController` (`Assets/Scripts/Infra/Events/Runtime/Implementation/EventController.cs`): default in-memory implementation of `IEventBus` with typed and untyped registration paths.
 - `EventsInstaller` (`Assets/Scripts/Infra/Events/Container/EventsInstaller.cs`): container installer that registers `IEventBus` to `EventController`.
 

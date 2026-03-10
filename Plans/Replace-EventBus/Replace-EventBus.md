@@ -27,7 +27,7 @@ A contributor will be able to verify success by running Events tests that prove:
 - [x] (2026-03-09 00:00Z) Authored initial ExecPlan for replacing the current event bus implementation.
 - [x] (2026-03-10 00:00Z) Updated plan direction to `Replace-EventBus`, unified on `AddListener`/`RemoveListener`, and removed standalone listener cache in favor of `Map` indexers.
 - [x] (2026-03-10 00:00Z) Baseline current Events module behavior validated with focused tests and fixture coverage (generic/open-type add-remove flows and idempotence).
-- [ ] Introduce expanded contracts and compatibility extensions.
+- [x] (2026-03-10 11:00Z) Completed Milestone 2 by adding request/middleware contracts (`ContextRequest<TResponse>`, `IRequestBus`, `IEventMiddleware`, `IRequestMiddleware`) while keeping `IEventBus` backward-compatible; updated sample/docs to explicitly show generic and open-type `AddListener`/`RemoveListener` flows; validated with `dotnet build Scaffold.sln -c Release` and focused `Scaffold.Events` project builds.
 - [ ] Implement scalable runtime bus listener core with hierarchy dispatch.
 - [ ] Implement request routing on top of the listener core using `Awaitable`.
 - [ ] Add middleware and diagnostics-ready hooks.
@@ -53,6 +53,10 @@ A contributor will be able to verify success by running Events tests that prove:
   Evidence: Scoped parser check returned `EVENTS_TESTS_SCA:0`; solution-level SCA output still references `Assets/Generators/Autopacker/...`.
 - Observation: Milestone 1 validation was confirmed by user after baseline test expansion.
   Evidence: User message miletone 1 validated.
+- Observation: Multi-line generic method signatures can trigger SCA0005 in this repository and must stay on one line even when long.
+  Evidence: `Assets/Scripts/Infra/Events/Runtime/Contracts/IRequestMiddleware.cs` initially emitted `SCA0005` until signature was collapsed to one line.
+- Observation: Unity batch test invocation completed with successful exit but did not produce the requested XML test result file in this environment; logs show licensing handshake errors and normal batch shutdown.
+  Evidence: `Logs/Events-ScalableBus-M2.log` contains `[Licensing::Module] Error: Failed to handshake to channel: "LicenseClient-user"` plus `Batchmode quit successfully invoked - shutting down!`, while `Logs/Events-ScalableBus-M2.xml` was not created.
 
 ## Decision Log
 
@@ -91,9 +95,14 @@ A contributor will be able to verify success by running Events tests that prove:
 - Decision: For Milestone 1, expand baseline tests first without changing runtime behavior.
   Rationale: This creates a regression safety net before replacing `EventController` with scalable runtime implementation.
   Date/Author: 2026-03-10 / Codex
+- Decision: Keep request bus open-type registration explicit on both request and response runtime types (`Type requestType, Type responseType`) while keeping strongly-typed generic registration APIs.
+  Rationale: This preserves runtime registration flexibility for dynamic scenarios while keeping compile-time-safe primary usage for most callers.
+  Date/Author: 2026-03-10 / Codex
 ## Outcomes & Retrospective
 
 Milestone 1 complete: baseline coverage in `Assets/Scripts/Infra/Events/Tests/EventsTests.cs` now includes generic/open-type add-remove flows and idempotence checks, and the milestone has been validated.
+
+Milestone 2 complete: Events contracts now include request and middleware extension points without breaking `IEventBus` callers, and docs/samples now explicitly show both generic and open-type listener registration/removal paths. Build validation is green aside from pre-existing solution warnings unrelated to this milestone; Unity batch test XML output remains environment-blocked.
 
 ## Context and Orientation
 
@@ -344,4 +353,5 @@ Revision Note (2026-03-10): Added explicit per-milestone quality gate requiring 
 Revision Note (2026-03-10): Implemented Milestone 1 test expansion, documented environment limitations for workflow/test execution, and recorded remaining verification step for Unity EditMode output confirmation.
 Revision Note (2026-03-10): Milestone 1 marked validated based on user confirmation after baseline test expansion.
 Revision Note (2026-03-10): Updated milestone flow to require a commit immediately after validation/testing gate passes.
+Revision Note (2026-03-10): Completed Milestone 2 contract expansion and compatibility documentation/sample updates, and recorded Unity batch test XML generation limitation observed during milestone gate execution.
 
