@@ -1,4 +1,45 @@
-$Sln = "C:/Users/user/Documents/Unity/Scaffold/Scaffold.sln"
+[CmdletBinding()]
+param(
+    [string]$ProjectPath = (Get-Location).Path,
+    [string]$SolutionPath
+)
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
+
+function Resolve-SolutionPath {
+    param(
+        [string]$RequestedSolutionPath,
+        [string]$RequestedProjectPath
+    )
+
+    if ($RequestedSolutionPath) {
+        if (-not (Test-Path $RequestedSolutionPath)) {
+            throw "Solution path does not exist: '$RequestedSolutionPath'."
+        }
+
+        return (Resolve-Path $RequestedSolutionPath).Path
+    }
+
+    if (-not (Test-Path $RequestedProjectPath)) {
+        throw "Project path does not exist: '$RequestedProjectPath'."
+    }
+
+    $resolvedProjectPath = (Resolve-Path $RequestedProjectPath).Path
+    $preferred = Join-Path $resolvedProjectPath "Scaffold.sln"
+    if (Test-Path $preferred) {
+        return $preferred
+    }
+
+    $solutions = @(Get-ChildItem -Path $resolvedProjectPath -Filter *.sln -File)
+    if ($solutions.Count -eq 0) {
+        throw "No solution file found under '$resolvedProjectPath'."
+    }
+
+    return $solutions[0].FullName
+}
+
+$Sln = Resolve-SolutionPath -RequestedSolutionPath $SolutionPath -RequestedProjectPath $ProjectPath
 
 # Builds the solution and prints deduplicated SCA diagnostics.
 # Output format (parseable):
