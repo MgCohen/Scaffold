@@ -1,0 +1,17 @@
+{
+    "name": "Scaffold.Presentation.Entities.Samples",
+    "rootNamespace": "Scaffold.Presentation.Entities.Samples",
+    "references": [
+        "Scaffold.Presentation.Entities",
+        "Scaffold.Entities"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

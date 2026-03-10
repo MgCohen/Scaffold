@@ -28,16 +28,23 @@ Write-Host "Milestone validation started..."
 Write-Host ""
 Write-Host "[1/2] Running EditMode tests"
 
-$testArgs = @("-ProjectPath", $ProjectPath)
+if (-not (Test-Path $ProjectPath)) {
+    throw "Project path does not exist: '$ProjectPath'."
+}
+
+$testParams = @{
+    ProjectPath = $ProjectPath
+}
+
 if ($UnityPath) {
-    $testArgs += @("-UnityPath", $UnityPath)
+    $testParams.UnityPath = $UnityPath
 }
 
 if ($AssemblyNames -and $AssemblyNames.Count -gt 0) {
-    $testArgs += @("-AssemblyNames", $AssemblyNames)
+    $testParams.AssemblyNames = $AssemblyNames
 }
 
-& $runEditModeTestsPath @testArgs
+& $runEditModeTestsPath @testParams
 $testExitCode = [int]$LASTEXITCODE
 
 Write-Host ""

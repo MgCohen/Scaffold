@@ -39,6 +39,7 @@ The logic is split into several interconnected but distinct submodules located i
 
 ### Core
 - **MVVM**: Implements the Model-View-ViewModel architectural pattern. This module provides the foundation for data-binding and separating the UI logic from the presentation layer.
+- **Entities**: Defines serializable entity definitions, instances, attributes, modifiers, and global registry lookup without Unity dependencies.
 
 ### Infra
 - **Containers**: Dependency injection and inversion of control (IoC) resolution mechanisms to manage service lifecycles.
@@ -51,6 +52,9 @@ The logic is split into several interconnected but distinct submodules located i
 - **Maps**: Utilities mapped to data collections or routing maps.
 - **Records**: Tools relating to immutable data structures or state records.
 - **Types**: Custom type wrappers, extensions, and type-safety enforcers. 
+
+### Presentation
+- **Entities**: ScriptableObject wrappers around core entity classes for Unity authoring and serialization workflows.
 
 ## Basic Rules and Code Standards
 

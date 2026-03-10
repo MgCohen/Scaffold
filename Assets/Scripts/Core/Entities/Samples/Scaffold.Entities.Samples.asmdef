@@ -1,0 +1,16 @@
+{
+    "name": "Scaffold.Entities.Samples",
+    "rootNamespace": "Scaffold.Entities.Samples",
+    "references": [
+        "Scaffold.Entities"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}

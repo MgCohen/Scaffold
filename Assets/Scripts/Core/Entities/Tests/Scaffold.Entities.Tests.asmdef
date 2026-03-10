@@ -1,0 +1,21 @@
+{
+    "name": "Scaffold.Entities.Tests",
+    "rootNamespace": "Scaffold.Entities.Tests",
+    "references": [
+        "Scaffold.Entities"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false,
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
+}

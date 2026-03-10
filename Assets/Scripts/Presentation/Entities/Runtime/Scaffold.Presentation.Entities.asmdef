@@ -1,0 +1,16 @@
+{
+    "name": "Scaffold.Presentation.Entities",
+    "rootNamespace": "Scaffold.Presentation.Entities",
+    "references": [
+        "Scaffold.Entities"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
