@@ -4,6 +4,7 @@ using UnityEngine;
 
 namespace Scaffold.Events
 {
+    [Obsolete("EventController is kept only for migration. Resolve IEventBus/IRequestBus through EventsInstaller and ScalableEventBus.")]
     public class EventController : IEventBus
     {
         readonly Dictionary<Type, Action<ContextEvent>> events = new Dictionary<Type, Action<ContextEvent>>();

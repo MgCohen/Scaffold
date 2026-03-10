@@ -11,16 +11,18 @@ After this milestone, dependency injection wiring will resolve `IEventBus` (and 
 ## Progress
 
 - [x] (2026-03-10 00:00Z) Created implementation-focused ExecPlan for container switch and migration.
-- [ ] Update installer wiring to resolve the new implementation.
-- [ ] Register diagnostics default and middleware collection support.
-- [ ] Keep/mark legacy `EventController` as not active in DI path.
-- [ ] Update usage samples and migration documentation references.
-- [ ] Validate Events and dependent smoke tests.
+- [x] (2026-03-10 13:00Z) Updated `EventsInstaller` to register `ScalableEventBus` as scoped runtime, bind both `IEventBus` and `IRequestBus` to the same scoped instance, and register `IEventDiagnosticsSink` default as `NoOpEventDiagnosticsSink`.
+- [x] (2026-03-10 13:00Z) Added middleware collection resolution support in installer runtime factory with safe empty fallback when no middleware registrations exist.
+- [x] (2026-03-10 13:00Z) Marked `EventController` obsolete and removed it from active DI path while keeping class available for migration fallback.
+- [x] (2026-03-10 13:00Z) Updated `EventsUseCases` and `Docs/Events.md` to reflect scalable runtime wiring, request usage, middleware/diagnostics behavior, and migration guidance.
+- [x] (2026-03-10 13:00Z) Validation run completed: `dotnet build Scaffold.sln -c Release -p:UseSharedCompilation=false`, focused Events project builds, and Unity batch invocations for Events and Navigation test filters; Unity still does not emit requested XML artifacts in this environment.
 
 ## Surprises & Discoveries
 
-- Observation: Not started yet.
-  Evidence: Container wiring has not been updated in this child milestone yet.
+- Observation: Unity batch test invocations continue exiting successfully but do not create requested test result XML files.
+  Evidence: `Logs/Events-ContainerSwitch.log` and `Logs/Navigation-AfterEventBusSwitch.log` include `Batchmode quit successfully invoked` and `Exiting batchmode successfully now`, while `Logs/Events-ContainerSwitch.xml` and `Logs/Navigation-AfterEventBusSwitch.xml` are absent.
+- Observation: A second Unity batch invocation launched too quickly after the first can fail with an active-project lock.
+  Evidence: Initial Navigation invocation returned `Multiple Unity instances cannot open the same project`; rerun after completion succeeded.
 
 ## Decision Log
 
@@ -32,9 +34,17 @@ After this milestone, dependency injection wiring will resolve `IEventBus` (and 
   Rationale: This supports rollback and debugging without continuing legacy behavior by default.
   Date/Author: 2026-03-10 / Codex
 
+- Decision: Resolve middleware collections through container `IEnumerable<T>` and fall back to empty arrays when resolution throws.
+  Rationale: This keeps middleware composition extensible while preventing installer failures when no middleware has been registered.
+  Date/Author: 2026-03-10 / Codex
+
 ## Outcomes & Retrospective
 
-Not started yet. Update this section after installer switch and smoke tests succeed.
+Milestone completed: DI wiring now resolves both `IEventBus` and `IRequestBus` to one scoped `ScalableEventBus`, default diagnostics sink is registered, and legacy `EventController` is no longer in the active DI path.
+
+Migration documentation and sample usage were updated to show scalable bus flows (generic/open listener API and request usage) while preserving a legacy compatibility example.
+
+Validation commands succeeded for solution and focused project builds. Unity batch runs for Events and Navigation filters completed with successful process exit and shutdown logs, but this environment still did not generate requested XML result files.
 
 ## Context and Orientation
 

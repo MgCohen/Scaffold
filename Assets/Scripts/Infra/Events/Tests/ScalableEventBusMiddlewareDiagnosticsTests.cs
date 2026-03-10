@@ -125,7 +125,7 @@ namespace Scaffold.Events.Tests
 
         private static ScalableEventBus CreateBus(IEventMiddleware[] eventMiddlewares, IRequestMiddleware[] requestMiddlewares, IEventDiagnosticsSink diagnostics)
         {
-            return new ScalableEventBus(eventMiddlewares, requestMiddlewares, diagnostics);
+            return ScalableEventBusTestFactory.Create(eventMiddlewares, requestMiddlewares, diagnostics);
         }
 
         private static MiddlewareRequest CreateRequest(int value)

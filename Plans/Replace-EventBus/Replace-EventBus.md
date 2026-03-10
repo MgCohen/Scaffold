@@ -8,6 +8,8 @@ This document must be maintained in accordance with `PLANS.md` at the repository
 
 After this work, Scaffold will have a replacement for `Assets/Scripts/Infra/Events/Runtime/Contracts/IEventBus.cs` that keeps the familiar listener workflow while removing the need for per-event container registrations. The new bus will support both exact and hierarchy dispatch (base and abstract handlers receive derived events), async request/response flows, and middleware hooks for cross-cutting concerns.
 
+Before container wiring is switched over, the replacement bus will go through an explicit internal cleanup pass focused on maintainability. That pass keeps external behavior stable while reorganizing `ScalableEventBus` around capability-level concerns and unifying generic/open registration paths so the runtime is easier to evolve safely.
+
 A contributor will be able to verify success by running Events tests that prove:
 
 - Existing `AddListener`/`RemoveListener`/`Raise` flows still work.
@@ -21,7 +23,7 @@ A contributor will be able to verify success by running Events tests that prove:
 - Plans/Replace-EventBus/Implementations/01-hierarchy-listeners.md (Milestone 3)
 - Plans/Replace-EventBus/Implementations/02-request-routing-awaitable.md (Milestone 4)
 - Plans/Replace-EventBus/Implementations/03-middleware-diagnostics.md (Milestone 5)
-- Plans/Replace-EventBus/Implementations/04-container-switch-migration.md (Milestone 6)
+- Plans/Replace-EventBus/Implementations/04-container-switch-migration.md (Milestone 7)
 ## Progress
 
 - [x] (2026-03-09 00:00Z) Authored initial ExecPlan for replacing the current event bus implementation.
@@ -31,8 +33,9 @@ A contributor will be able to verify success by running Events tests that prove:
 - [x] (2026-03-10 12:00Z) Completed Milestone 3 listener runtime by adding `ScalableEventBus` with `Map<Type, long, ListenerEntry>` storage, exact+hierarchy indexer dispatch, idempotent generic/open-type add/remove flows, and continue-on-failure listener invocation; added `ScalableEventBusTests` for hierarchy/idempotence/failure behavior and validated with focused builds plus analyzer workflow checks.
 - [x] (2026-03-10 14:00Z) Completed Milestone 4 by implementing `IRequestBus` in `ScalableEventBus` with `Map<Type, long, RequestHandlerEntry>` storage, exact-type `RequestAsync` routing, deterministic no-handler/multiple-handler/failure behavior, and cancellation support; added `ScalableEventBusRequestTests` and fixed Unity integration blockers (Events asmdef missing Maps reference, Unity runtime `ThrowIfNull` incompatibility).
 - [x] (2026-03-10 16:00Z) Completed Milestone 5 by adding diagnostics contracts (`IEventDiagnosticsSink`, `EventDispatchContext`), no-op diagnostics runtime, deterministic middleware execution in `ScalableEventBus` for event/request paths, and `ScalableEventBusMiddlewareDiagnosticsTests`; validated via focused builds + analyzer workflow, with Unity batch XML output still environment-blocked.
-- [ ] Switch container wiring to new bus and retire `EventController` from active DI path.
-- [ ] Finalize docs and tests across hierarchy/listener/request/middleware flows.
+- [x] (2026-03-10 19:30Z) Completed Milestone 6 by reorganizing `ScalableEventBus` into Events/Requests/Middlewares/Diagnostics capability areas, unifying generic/open registration storage into shared subscription models per capability, removing the empty constructor, and switching scalable bus tests to a shared factory helper; validated with `dotnet build Scaffold.Events.csproj -c Release -p:UseSharedCompilation=false` and `dotnet build Scaffold.Events.Tests.csproj -c Release -p:UseSharedCompilation=false`.
+- [x] (2026-03-10 13:00Z) Completed Milestone 7 by switching `EventsInstaller` wiring to scoped `ScalableEventBus` for both `IEventBus` and `IRequestBus`, registering `NoOpEventDiagnosticsSink` default, adding middleware-collection resolution support with safe empty fallback, and marking `EventController` obsolete while removing it from active DI path.
+- [x] (2026-03-10 13:00Z) Completed Milestone 8 by updating Events docs/samples to the new runtime, aligning compatibility tests to validate `IEventBus` behaviors through the scalable runtime, and running final solution/focused build validations plus Unity batch Events/Navigation smoke runs (XML output still environment-blocked).
 
 ## Surprises & Discoveries
 
@@ -69,6 +72,18 @@ A contributor will be able to verify success by running Events tests that prove:
   Evidence: Post-milestone analyzer run returned `TOTAL:25` with file counts focused on those existing files.
 - Observation: Unity CLI invocation in this environment requires explicit full editor path because `Unity.exe` is not on `PATH`.
   Evidence: `Unity.exe` command failed with `CommandNotFoundException`, while full-path invocation succeeded.
+- Observation: `Map<Type, long, TValue>` remains sufficient for dispatch storage/indexing but still needs companion registration metadata because remove/idempotence operations arrive as delegates rather than generated ids.
+  Evidence: Milestone 6 cleanup unified generic/open registrations into shared subscription records, but `ScalableEventBus` still retains registration lookup tables keyed by type + original callback to support delegate-based removal.
+- Observation: The scalable bus test suite can use a shared construction helper instead of a production parameterless constructor without changing behavior.
+  Evidence: Milestone 6 replaced direct `new ScalableEventBus()` usage in `ScalableEventBusTests.cs` and `ScalableEventBusRequestTests.cs` with `ScalableEventBusTestFactory.Create(...)`, while focused Events runtime/test builds remained green.
+- Observation: `EventsInstaller.Install` exceeded repository analyzer method-length limit (`SCA0006`) after DI migration wiring and required extraction into helper methods.
+  Evidence: `dotnet build Scaffold.Events.Container.csproj -c Release -p:UseSharedCompilation=false` reported `SCA0006` on `EventsInstaller.Install` until registration logic was split across `RegisterDiagnosticsSink`, `RegisterScalableRuntime`, and `RegisterBusContracts`.
+- Observation: Sample updates triggered analyzer rule `SCA0003` for nested constructor/call arguments and required explicit local variables.
+  Evidence: `dotnet build Scaffold.sln -c Release -p:UseSharedCompilation=false` flagged `Assets/Scripts/Infra/Events/Samples/EventsUseCases.cs` until nested calls were extracted.
+- Observation: Unity batch runs for Milestones 7-8 still do not emit requested test XML files despite successful process exits and normal shutdown logs.
+  Evidence: `Logs/Events-ContainerSwitch.log` and `Logs/Navigation-AfterEventBusSwitch.log` include `Batchmode quit successfully invoked` and `Exiting batchmode successfully now`, while `Logs/Events-ContainerSwitch.xml` and `Logs/Navigation-AfterEventBusSwitch.xml` are absent.
+- Observation: Back-to-back Unity batch runs can temporarily fail with a project lock.
+  Evidence: First Navigation run returned `Multiple Unity instances cannot open the same project`; rerun after completion succeeded.
 
 ## Decision Log
 
@@ -116,6 +131,27 @@ A contributor will be able to verify success by running Events tests that prove:
 - Decision: Implement request routing in `ScalableEventBus` as exact runtime request-type matching with response-type verification and deterministic error paths for no-handler/multiple-handler/failure.
   Rationale: This satisfies Milestone 4 acceptance while keeping behavior explicit and extensible for future hierarchy or policy changes.
   Date/Author: 2026-03-10 / Codex
+- Decision: Refactor `ScalableEventBus` internals by main capability areas: Events, Requests, Middlewares, and Diagnostics.
+  Rationale: This keeps the runtime readable without spreading logic across many tiny helper types, while making future maintenance boundaries explicit.
+  Date/Author: 2026-03-10 / Codex
+- Decision: Keep the cleanup inside the existing `ScalableEventBus` class instead of introducing many new concrete helper classes.
+  Rationale: The current need is concern separation, not a broader object model; capability-level structure inside one class is the smallest change that improves clarity.
+  Date/Author: 2026-03-10 / Codex
+- Decision: Unify generic and open listener/request registrations behind one internal subscription model per capability.
+  Rationale: Both registration styles can share the same stored dispatch callback shape, which removes duplicate code paths while preserving public APIs.
+  Date/Author: 2026-03-10 / Codex
+- Decision: Remove the parameterless `ScalableEventBus` constructor and use shared test factories/helpers instead.
+  Rationale: Construction defaults are only needed in tests today, so test setup should own them rather than expanding the production API surface.
+  Date/Author: 2026-03-10 / Codex
+- Decision: Register `ScalableEventBus` as a concrete scoped service and bind both `IEventBus` and `IRequestBus` to that shared scoped instance in `EventsInstaller`.
+  Rationale: Sharing one runtime instance per scope keeps listener/request/diagnostics state coherent while satisfying migration requirements.
+  Date/Author: 2026-03-10 / Codex
+- Decision: Resolve middleware dependencies as `IEnumerable<T>` in installer factory with safe fallback to empty arrays.
+  Rationale: This supports future middleware composition while keeping runtime construction resilient when no middleware registrations exist.
+  Date/Author: 2026-03-10 / Codex
+- Decision: Mark `EventController` obsolete but keep it in source during migration.
+  Rationale: Contributors get explicit migration guidance without removing rollback/debug path abruptly.
+  Date/Author: 2026-03-10 / Codex
 ## Outcomes & Retrospective
 
 Milestone 1 complete: baseline coverage in `Assets/Scripts/Infra/Events/Tests/EventsTests.cs` now includes generic/open-type add-remove flows and idempotence checks, and the milestone has been validated.
@@ -127,6 +163,14 @@ Milestone 3 complete: hierarchy-aware listener runtime exists in `ScalableEventB
 Milestone 4 complete: request routing now exists in `ScalableEventBus` through `IRequestBus` with exact-type dispatch, cancellation support, and deterministic failure semantics; request-focused tests are in place for success/no-handler/throws/cancel/idempotence. Validation builds and analyzer checks passed; Unity batch test XML generation remains blocked in this environment even after compile blockers were resolved.
 
 Milestone 5 complete: middleware and diagnostics extension points are implemented in the scalable runtime with deterministic order guarantees and instrumentation callbacks, and dedicated middleware/diagnostics tests are added. Build and analyzer workflow checks were run and milestone-introduced runtime/new-test SCA findings were addressed; Unity batch invocation still does not emit requested XML artifacts in this environment.
+
+Cleanup milestone added next: before DI migration, `ScalableEventBus` will receive an internal maintainability pass that keeps public behavior stable while separating Events, Requests, Middlewares, and Diagnostics, unifying generic/open registration storage per capability, and moving default bus construction into test helpers.
+
+Milestone 6 complete: `ScalableEventBus` now separates its internal logic by Events, Requests, Middlewares, and Diagnostics while staying a single concrete runtime type. Generic/open listener and request registrations now converge into shared subscription models keyed by declared type plus original callback identity, the empty constructor has been removed, and scalable bus tests now create instances through a shared test factory. Focused `dotnet build` validation passed for `Scaffold.Events.csproj` and `Scaffold.Events.Tests.csproj`; remaining warnings were existing `MSB3277` reference conflicts outside this milestone path plus pre-existing async-without-await warnings in test helpers.
+
+Milestone 7 complete: container wiring now resolves `IEventBus` and `IRequestBus` to the same scoped `ScalableEventBus` instance, registers the no-op diagnostics sink default, and supports middleware collection injection with safe no-registration fallback. `EventController` remains available but is marked obsolete and removed from active DI binding.
+
+Milestone 8 complete: docs and samples now describe the scalable runtime architecture (hierarchy dispatch, request lifecycle, middleware order, diagnostics hooks, and migration guidance), and baseline compatibility tests were updated to assert generic/open `IEventBus` flows against the scalable runtime. Final validation commands were run (`dotnet build Scaffold.sln -c Release -p:UseSharedCompilation=false`, focused Events builds, and Unity batch Events/Navigation test invocations); Unity XML result output remains environment-blocked even when batch exits successfully.
 
 ## Context and Orientation
 
@@ -210,7 +254,7 @@ Scalability design:
 
 Execution plan: Plans/Replace-EventBus/Implementations/02-request-routing-awaitable.md.
 
-Extend `ScalableEventBus` (or a tightly coupled companion class in the same module) to implement `IRequestBus` after hierarchy listeners are already working.
+Extend `ScalableEventBus` to implement `IRequestBus` after hierarchy listeners are already working.
 
 Core implementation requirements:
 
@@ -245,7 +289,38 @@ Runtime behavior:
 - Keep instrumentation cheap (minimal allocations, reuse metadata where safe).
 - Expose middleware hooks with deterministic ordering and documented execution model.
 
-### Milestone 6: Container switch and migration completion
+### Milestone 6: Internal cleanup of `ScalableEventBus`
+
+This milestone is an internal-only cleanup pass that happens before DI migration. It does not change `IEventBus` or `IRequestBus`, and it does not introduce new user-visible behavior.
+
+Refactor `Assets/Scripts/Infra/Events/Runtime/Implementation/ScalableEventBus.cs` into four internal capability areas:
+
+- Events
+- Requests
+- Middlewares
+- Diagnostics
+
+Implementation requirements:
+
+- Keep `ScalableEventBus` as the only concrete runtime type.
+- Do not spread the cleanup across many small helper classes unless required to remove duplication.
+- Introduce one unified internal event subscription model that supports both `AddListener<T>(Action<T>)` and `AddListener(Type, Action<ContextEvent>)`.
+- Introduce one unified internal request subscription model that supports both generic request handlers and open-type request handlers.
+- Use a shared stored dispatch delegate shape per capability:
+  - events use `Action<ContextEvent>`
+  - requests use `Func<object, CancellationToken, Awaitable<object>>`
+- Retain registration metadata required for idempotence and removal, because `Map<Type, long, TValue>` cannot remove by original delegate alone.
+- Remove the parameterless constructor from `ScalableEventBus`.
+- Update Events tests to use a shared factory/helper that builds the bus with empty middleware collections and optional diagnostics.
+
+Acceptance focus for this milestone:
+
+- Existing listener/request/middleware/diagnostics tests still pass.
+- Generic and open registrations share the same internal storage path per capability.
+- Test code no longer uses `new ScalableEventBus()`.
+- No public contract changes are introduced.
+
+### Milestone 7: Container switch and migration completion
 
 Execution plan: Plans/Replace-EventBus/Implementations/04-container-switch-migration.md.
 
@@ -261,7 +336,7 @@ Migration completion:
 - Mark `EventController` obsolete first, then remove from active DI path.
 - Keep backward compatibility methods available so existing modules do not need immediate changes.
 
-### Milestone 7: Documentation and final validation
+### Milestone 8: Documentation and final validation
 
 Update `Docs/Events.md` to describe:
 
@@ -291,7 +366,7 @@ Run all commands from repository root: `C:/Users/user/Documents/Unity/Scaffold`.
     Get-Content Assets/Scripts/Infra/Events/Container/EventsInstaller.cs
     Get-Content Assets/Scripts/Infra/Events/Tests/EventsTests.cs
 
-2. Implement milestones in order: contracts/extensions in this parent plan, then execute child plans for Milestones 3-6 (`01-hierarchy-listeners.md`, `02-request-routing-awaitable.md`, `03-middleware-diagnostics.md`, `04-container-switch-migration.md`), then finalize tests/docs.
+2. Implement milestones in order: contracts/extensions in this parent plan, then execute child plans for listener/request/middleware milestones (`01-hierarchy-listeners.md`, `02-request-routing-awaitable.md`, `03-middleware-diagnostics.md`), then complete the parent-plan cleanup milestone for `ScalableEventBus`, then execute `04-container-switch-migration.md`, then finalize tests/docs.
 
 3. Build solution-level C# projects to catch compile issues early.
 
@@ -372,7 +447,7 @@ Dependencies:
 Revision Note (2026-03-09): Initial plan created for replacing `IEventBus` implementation with a scalable, hierarchy-aware, middleware-enabled, async-capable event bus while preserving compatibility and enabling future diagnostics/analytics.
 Revision Note (2026-03-10): Renamed plan to `Replace-EventBus`, standardized listener API naming on `AddListener`/`RemoveListener`, and removed standalone listener cache dictionary in favor of `Scaffold.Maps` indexer-driven concrete and hierarchy dispatch.
 Revision Note (2026-03-10): Replaced `ValueTask` request signatures with Unity `Awaitable` and split runtime implementation milestones into listener hierarchy dispatch, then request routing, then middleware/diagnostics.
-Revision Note (2026-03-10): Clarified that Milestones 3-6 are executed through child plans in Plans/Replace-EventBus/Implementations/ and updated concrete execution order accordingly.
+Revision Note (2026-03-10): Clarified that Milestones 3-5 and 7 are executed through child plans in Plans/Replace-EventBus/Implementations/, while the `ScalableEventBus` cleanup remains in the parent plan, and updated concrete execution order accordingly.
 Revision Note (2026-03-10): Added explicit per-milestone quality gate requiring build/lint/analyzer checks, tests, fixes, and living-section updates before proceeding.
 Revision Note (2026-03-10): Implemented Milestone 1 test expansion, documented environment limitations for workflow/test execution, and recorded remaining verification step for Unity EditMode output confirmation.
 Revision Note (2026-03-10): Milestone 1 marked validated based on user confirmation after baseline test expansion.
@@ -381,4 +456,6 @@ Revision Note (2026-03-10): Completed Milestone 2 contract expansion and compati
 Revision Note (2026-03-10): Completed Milestone 3 scalable hierarchy listener runtime and tests, and recorded repeated Unity batch test XML output limitation in this environment.
 Revision Note (2026-03-10): Completed Milestone 4 request routing implementation/tests and recorded Unity integration fixes (asmdef dependency and runtime compatibility guards) plus persistent batch test XML limitation.
 Revision Note (2026-03-10): Completed Milestone 5 middleware/diagnostics contracts + runtime + tests, including analyzer cleanup for newly introduced files and explicit Unity editor-path validation update.
+Revision Note (2026-03-10): Inserted a new Milestone 6 cleanup pass for `ScalableEventBus`, capturing the capability-based internal separation, unified generic/open subscription model, and test-factory constructor cleanup before container migration proceeds.
+Revision Note (2026-03-10): Completed Milestones 7 and 8 by migrating DI wiring to `ScalableEventBus`, marking `EventController` obsolete/off-path, refreshing Events docs/samples/tests for the new runtime, and recording final validation evidence plus persistent Unity XML output limitation.
 

@@ -2,190 +2,134 @@
 
 ## Summary
 
-The Events module provides Scaffold's in-process event bus for decoupled communication between systems. Its main effect is that modules can publish and listen for strongly typed events (`ContextEvent` derivatives) without direct references to each other, reducing coupling and simplifying feature composition.
-
-Internally, the module maintains listener lookup structures and type-indexed callback routing so `AddListener`/`RemoveListener`/`Raise` operations stay consistent and predictable. The contracts also include request and middleware extension points used by the replacement bus milestones.
+The Events module provides Scaffold's in-process message runtime for publish/subscribe events and async request/response flows. `EventsInstaller` now resolves both `IEventBus` and `IRequestBus` to one scoped `ScalableEventBus` instance, so modules can keep using `AddListener`/`RemoveListener`/`Raise` while also using `RequestAsync` without per-event DI registration.
 
 ## Bird's Eye View
 
 Module layout (`Assets/Scripts/Infra/Events/`):
 
-- `Runtime/Contracts/`: event/request/middleware contracts (`ContextEvent`, `ContextRequest<TResponse>`, `IEventBus`, `IRequestBus`, `IEventMiddleware`, `IRequestMiddleware`).
-- `Runtime/Implementation/`: concrete bus implementation (`EventController`).
+- `Runtime/Contracts/`: `ContextEvent`, `ContextRequest<TResponse>`, `IEventBus`, `IRequestBus`, middleware contracts, diagnostics contracts.
+- `Runtime/Implementation/`: `ScalableEventBus`, `NoOpEventDiagnosticsSink`, and migration-only `EventController`.
 - `Container/`: DI integration (`EventsInstaller`).
-- `Samples/`: publish/subscribe examples (`EventsUseCases.cs`).
-- `Tests/`: EditMode NUnit coverage (`EventsTests.cs`).
+- `Samples/`: usage examples (`EventsUseCases.cs`).
+- `Tests/`: EditMode coverage for listener compatibility, hierarchy dispatch, requests, middleware order, and diagnostics hooks.
 
 External dependency graph:
 
 ```mermaid
 graph LR
   EVENTS["Scaffold.Events"] --> UNITY["UnityEngine"]
+  EVENTS --> MAPS["Scaffold.Maps"]
   EVENTS_CONTAINER["Scaffold.Events.Container"] --> CONTAINERS["Scaffold.Containers"]
   EVENTS_CONTAINER --> EVENTS
 ```
 
-Internal dependency graph:
+## Runtime Behavior
 
-```mermaid
-graph TD
-  CE["ContextEvent"] --> IEB["IEventBus"]
-  IEB --> EC["EventController"]
-  EC --> EVT["events: Dictionary<Type, Action<ContextEvent>>"]
-  EC --> LOOK["eventLookups: Dictionary<Delegate, Action<ContextEvent>>"]
-  INST["EventsInstaller"] --> REG["IContainerRegistry"]
-  REG --> BIND["IEventBus -> EventController (Scoped)"]
-```
+### Listener dispatch (`IEventBus`)
 
-## Architecture and key behaviors
+`ScalableEventBus` supports generic and open-type registration through `AddListener`/`RemoveListener`. Dispatch is deterministic and includes:
 
-### 1) Strongly typed event contract
+- Exact handlers for the concrete runtime event type.
+- Hierarchy handlers where declared type is assignable from the runtime type (base/abstract listeners receive derived events).
 
-All domain events in this module derive from `ContextEvent`.
+If one listener throws, remaining listeners still run. Failures are reported through diagnostics.
 
-```csharp
-public abstract record ContextEvent;
-```
+### Request dispatch (`IRequestBus`)
 
-### 2) Typed listener registration
+`RequestAsync` routes by exact runtime request type. Handlers can be registered via generic or open-type APIs:
 
-`EventController` supports generic listener registration while internally adapting to a shared `ContextEvent` callback signature.
+- Generic: `AddRequestHandler<TRequest, TResponse>(...)`
+- Open-type: `AddRequestHandler(Type requestType, Type responseType, ...)`
 
-```csharp
-public void AddListener<T>(Action<T> evt) where T : ContextEvent
-{
-    if (eventLookups.ContainsKey(evt)) return;
+Error behavior is deterministic:
 
-    Action<ContextEvent> newAction = (e) => evt((T)e);
-    eventLookups[evt] = newAction;
-    AddListener(typeof(T), newAction);
-}
-```
+- No handler: throws `InvalidOperationException`.
+- Multiple handlers for one request+response: throws `InvalidOperationException`.
+- Handler failure: throws `InvalidOperationException` with inner exception.
+- Canceled token: throws `OperationCanceledException` before invoking handler.
 
-### 3) Listener removal and dictionary cleanup
+### Middleware and diagnostics
 
-When removing listeners, the implementation updates the delegate chain and removes empty event entries.
+`IEventMiddleware` and `IRequestMiddleware` wrap dispatch with stable ordering (first-registered wraps outermost). `IEventDiagnosticsSink` receives event/request instrumentation callbacks. `NoOpEventDiagnosticsSink` is the default registration.
 
-```csharp
-private void ApplyOrRemoveAction(Type type, Action<ContextEvent> tempAction)
-{
-    if (tempAction == null)
-    {
-        events.Remove(type);
-    }
-    else
-    {
-        events[type] = tempAction;
-    }
-}
-```
+## DI Wiring
 
-### 4) Scoped DI registration
+`Assets/Scripts/Infra/Events/Container/EventsInstaller.cs` registers:
 
-`EventsInstaller` binds `IEventBus` to `EventController` as scoped lifetime in container composition.
+- `IEventDiagnosticsSink -> NoOpEventDiagnosticsSink` (scoped default)
+- `ScalableEventBus` (scoped)
+- `IEventBus -> same scoped ScalableEventBus`
+- `IRequestBus -> same scoped ScalableEventBus`
+
+The installer resolves middleware collections (`IEnumerable<IEventMiddleware>` and `IEnumerable<IRequestMiddleware>`) when building the bus, so additional middleware registrations are automatically composed.
+
+## Usage
+
+Generic event listener:
 
 ```csharp
-public override void Install(IContainerRegistry registry, Transform holder)
-{
-    registry.Register<IEventBus, EventController>(ContainerLifetime.Scoped);
-}
-```
-
-## How to use
-
-Use `IEventBus`/`EventController` by defining a `ContextEvent` type, registering listeners, raising events, and unsubscribing when done.
-
-Generic listener flow:
-
-```csharp
-private record PlayerDiedEvent : ContextEvent;
-
-EventController bus = new EventController();
-bool received = false;
-
-bus.AddListener<PlayerDiedEvent>(_ => received = true);
+IEventBus bus = resolver.Resolve<IEventBus>();
+bus.AddListener<PlayerDiedEvent>(_ => Debug.Log("Player died"));
 bus.Raise(new PlayerDiedEvent());
 ```
 
-Generic unsubscribe pattern:
+Open-type listener:
 
 ```csharp
-int count = 0;
-Action<PlayerDiedEvent> handler = _ => count++;
-
-bus.AddListener(handler);
-bus.RemoveListener(handler);
+Action<ContextEvent> handler = _ => Debug.Log("Player died");
+bus.AddListener(typeof(PlayerDiedEvent), handler);
+bus.RemoveListener(typeof(PlayerDiedEvent), handler);
 ```
 
-Open-type listener flow:
+Request/response:
 
 ```csharp
-int openTypeCount = 0;
-Action<ContextEvent> openTypeHandler = _ => openTypeCount++;
-
-bus.AddListener(typeof(PlayerDiedEvent), openTypeHandler);
-bus.Raise(new PlayerDiedEvent());
-
-bus.RemoveListener(typeof(PlayerDiedEvent), openTypeHandler);
+IRequestBus requests = resolver.Resolve<IRequestBus>();
+requests.AddRequestHandler<LoadScoreRequest, int>((request, token) => Awaitable.FromResult(request.Score));
+int score = await requests.RequestAsync(new LoadScoreRequest(42));
 ```
 
-Request/middleware contract entry points introduced for the replacement milestones:
+Migration note:
 
-```csharp
-public abstract record ContextRequest<TResponse>;
-
-public interface IRequestBus
-{
-    Awaitable<TResponse> RequestAsync<TResponse>(ContextRequest<TResponse> request, CancellationToken cancellationToken = default);
-}
-```
+- `EventController` is marked obsolete and is kept only as a temporary compatibility type.
+- New and updated modules should resolve `IEventBus`/`IRequestBus` through DI instead of instantiating `EventController` directly.
 
 Reference sample: `Assets/Scripts/Infra/Events/Samples/EventsUseCases.cs`.
 
-## Internal Services
+## Public API
 
-### Listener lookup adapter map
+- `ContextEvent`: base event contract.
+- `ContextRequest<TResponse>`: base request contract.
+- `IEventBus`: listener add/remove, raise, clear.
+- `IRequestBus`: request handler add/remove and `RequestAsync`.
+- `IEventMiddleware`: event pipeline wrapper.
+- `IRequestMiddleware`: request pipeline wrapper.
+- `IEventDiagnosticsSink`: publish/listener/request diagnostics hooks.
 
-- Type: `eventLookups` in `EventController`.
-- Responsibility: maps original typed delegates to adapted `Action<ContextEvent>` delegates, enabling safe unsubscribe with the original handler reference.
-
-### Type-indexed dispatch map
-
-- Type: `events` in `EventController`.
-- Responsibility: stores combined delegate chains by concrete event `Type`, used during `Raise(...)` for targeted dispatch.
-
-## Public api
-
-- `ContextEvent` (`Assets/Scripts/Infra/Events/Runtime/Contracts/ContextEvent.cs`): base event record type for all events routed by the bus.
-- `ContextRequest<TResponse>` (`Assets/Scripts/Infra/Events/Runtime/Contracts/ContextRequest.cs`): base request contract for typed async request/response flows.
-- `IEventBus` (`Assets/Scripts/Infra/Events/Runtime/Contracts/IEventBus.cs`): public contract for add/remove listeners, raising events, and clearing subscriptions.
-- `IRequestBus` (`Assets/Scripts/Infra/Events/Runtime/Contracts/IRequestBus.cs`): public contract for async request handler registration and `RequestAsync` dispatch.
-- `IEventMiddleware` (`Assets/Scripts/Infra/Events/Runtime/Contracts/IEventMiddleware.cs`): event pipeline extension point.
-- `IRequestMiddleware` (`Assets/Scripts/Infra/Events/Runtime/Contracts/IRequestMiddleware.cs`): request pipeline extension point.
-- `EventController` (`Assets/Scripts/Infra/Events/Runtime/Implementation/EventController.cs`): default in-memory implementation of `IEventBus` with typed and untyped registration paths.
-- `EventsInstaller` (`Assets/Scripts/Infra/Events/Container/EventsInstaller.cs`): container installer that registers `IEventBus` to `EventController`.
-
-## How to test
+## Testing
 
 From Unity Editor:
 
 1. Open `Window > General > Test Runner`.
-2. Run EditMode tests for `Scaffold.Events.Tests`.
-3. Expected result: `EventsTests` passes for subscribe/publish, unsubscribe behavior, and clear behavior.
+2. Run EditMode tests in `Scaffold.Events.Tests`.
+3. Run dependent smoke tests in `Scaffold.Navigation.Tests`.
 
-From Unity CLI (headless pattern):
+From CLI (run at repository root):
 
 ```powershell
-# Run from repository root; adjust Unity executable path for your machine.
-Unity.exe -batchmode -quit -projectPath "C:\Users\user\Documents\Unity\Scaffold" -runTests -testPlatform EditMode -testResults "Logs\Events-TestResults.xml"
+"C:\Program Files\Unity\Hub\Editor\6000.3.6f1\Editor\Unity.exe" -batchmode -quit -projectPath "C:\Users\user\Documents\Unity\Scaffold" -runTests -testPlatform EditMode -testFilter "Scaffold.Events.Tests" -testResults "Logs\Events-TestResults.xml"
+"C:\Program Files\Unity\Hub\Editor\6000.3.6f1\Editor\Unity.exe" -batchmode -quit -projectPath "C:\Users\user\Documents\Unity\Scaffold" -runTests -testPlatform EditMode -testFilter "Scaffold.Navigation.Tests" -testResults "Logs\Navigation-AfterEventsSwitch.xml"
 ```
 
-Expected result: run completes successfully and results include passing tests for `Scaffold.Events.Tests`.
+Expected behavior:
+
+- Events tests confirm listener compatibility, hierarchy dispatch, request success/failure, middleware order, and diagnostics callbacks.
+- Navigation smoke tests continue passing without event-consumer API changes.
 
 ## Related docs and modules
 
 - `Architecture.md`
-- `Docs/Containers.md` (installer-based registration of event bus)
-- `Docs/MVVM.md` (MVVM view events complement infra event bus patterns)
-- `Docs/Navigation.md` (navigation transitions often emit/consume event signals)
-- `Docs/NetworkMessages.md` (event-driven integration patterns)
+- `Docs/Containers.md`
+- `Docs/Navigation.md`
+- `Docs/NetworkMessages.md`
