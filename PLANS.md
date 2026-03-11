@@ -9,9 +9,11 @@ When authoring an executable specification (ExecPlan), follow PLANS.md _to the l
 When implementing an executable specification (ExecPlan), use this flow:
 
 1. Create a new git worktree and branch for the ExecPlan before implementation work starts. One ExecPlan should map to one worktree + one branch. Do not create a separate worktree per milestone.
-2. Create the plan file in `Plans/`.
-3. Save the plan file with the initial, self-contained milestones.
-4. Wait for explicit user input that identifies which module (or modules) to implement before executing plan milestones.
+2. Create a feature-specific plan folder at `Plans/[FeatureName]/`.
+3. Create the main ExecPlan file at `Plans/[FeatureName]/ExecPlan.md`.
+4. If a milestone needs its own plan document, create it at `Plans/[FeatureName]/milestones/ExecPlan-Milestone-[x].md` (for example, `ExecPlan-Milestone-1.md`).
+5. Save the ExecPlan with the initial, self-contained milestones.
+6. Wait for explicit user input that identifies which module (or modules) to implement before executing plan milestones.
 
 After implementation starts, keep all sections up to date, add or split entries in the list at every stopping point to affirmatively state the progress made and next steps. Resolve ambiguities autonomously, and commit frequently.
 
@@ -28,10 +30,13 @@ NON-NEGOTIABLE REQUIREMENTS:
 * Every ExecPlan must enable a complete novice to implement the feature end-to-end without prior knowledge of this repo.
 * Every ExecPlan must produce a demonstrably working behavior, not merely code changes to "meet a definition".
 * Every ExecPlan must define every term of art in plain language or do not use it.
+* Every bug fix in an ExecPlan must include a regression test that reproduces the bug before the fix and passes after the fix.
 
 Purpose and intent come first. Begin by explaining, in a few sentences, why the work matters from a user's perspective: what someone can do after this change that they could not do before, and how to see it working. Then guide the reader through the exact steps to achieve that outcome, including what to edit, what to run, and what they should observe.
 
 The agent executing your plan can list files, read files, search, run the project, and run tests. It does not know any prior context and cannot infer what you meant from earlier milestones. Repeat any assumption you rely on. Do not point to external blogs or docs; if knowledge is required, embed it in the plan itself in your own words. If an ExecPlan builds upon a prior ExecPlan and that file is checked in, incorporate it by reference. If it is not, you must include all relevant context from that plan.
+
+ExecPlan file location is mandatory in this repository: use `Plans/[FeatureName]/ExecPlan.md` for the main plan and `Plans/[FeatureName]/milestones/ExecPlan-Milestone-[x].md` for milestone-specific plan files when needed.
 
 ## Formatting
 
@@ -66,12 +71,14 @@ Each milestone must be independently verifiable and incrementally implement the 
 For this repository, every milestone must follow this execution loop before it is marked complete:
 
 1. Check complexity first. If the milestone is complex (multiple modules, unknown API design, non-trivial refactor, or unclear acceptance), add a mini milestone plan with concrete steps, sample inputs/outputs, and acceptance notes.
-2. Implement the milestone scope.
-3. Run `.agents/scripts/run-editmode-tests.ps1`.
-4. Run `.agents/scripts/check-analyzers.ps1`.
-5. Fix all failures and analyzer diagnostics.
-6. Re-run both scripts until tests pass and analyzer diagnostics are zero.
-7. Commit the milestone changes.
+2. If the milestone includes a bug fix, add or update a regression test that reproduces the bug and confirm it fails before the fix.
+3. Implement the milestone scope.
+4. If you added a regression test, re-run it and confirm it passes after the fix.
+5. Run `.agents/scripts/run-editmode-tests.ps1`.
+6. Run `.agents/scripts/check-analyzers.ps1`.
+7. Fix all failures and analyzer diagnostics.
+8. Re-run both scripts until tests pass and analyzer diagnostics are zero.
+9. Commit the milestone changes.
 
 ## Living plans and design decisions
 

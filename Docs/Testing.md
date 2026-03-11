@@ -74,6 +74,26 @@ It then prints a combined summary and exits with:
 - `2` - analyzer diagnostics remain or blockers were found
 - `3` - both test and analyzer gates failed
 
+### Bug Fix Regression Protocol
+
+When a bug is found, treat regression coverage as mandatory.
+
+Use this sequence:
+
+1. Reproduce the bug with a new or updated automated test.
+2. Run the test and confirm it fails before the code fix.
+3. Implement the bug fix.
+4. Run the same test again and confirm it passes.
+5. Run the full milestone gate with:
+
+```powershell
+& ".\.agents\scripts\validate-milestone.ps1"
+```
+
+6. Only complete the milestone when the regression test is passing and the milestone gate is clean.
+
+This process prevents bug reintroduction and keeps fixes observable in CI-like local validation.
+
 ## Script Parameters
 
 The script accepts these parameters:

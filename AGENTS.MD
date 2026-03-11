@@ -42,6 +42,7 @@ For full detail on modules and relationships, see [Architecture.md](Architecture
 6. **Plans go in `Plans/`**: All planning documents belong there.
 7. **New source generators go in `Generators/`**.
 8. **Analyzer compliance**: Fix all Roslyn analyzer warnings/errors before committing.
+9. **Bugfixes require regression tests**: Every bug fix must add or update an automated test that fails before the fix and passes after it.
 
 ## How to Build
 
@@ -68,11 +69,12 @@ Use the `/fix-analyzers` workflow (`.agents/workflows/fix-analyzers.md`).
 
 ## Where to Put Plans
 
-All planning documents are **ExecPlans** and live in `Plans/` as `.md` files. Never put plans anywhere else.
+All planning documents are **ExecPlans** and live in feature-specific folders under `Plans/`. Never put plans anywhere else.
 
 The full ExecPlan specification is in [PLANS.md](PLANS.md) — read it before authoring or executing any plan. Key rules:
 
-- One file per feature/task, named descriptively (e.g., `Plans/add-navigation-system.md`).
+- For each feature/task, create `Plans/[FeatureName]/ExecPlan.md` as the main plan file.
+- For milestone-specific plan documents, create `Plans/[FeatureName]/milestones/ExecPlan-Milestone-[x].md`.
 - Start each ExecPlan implementation in a new worktree and branch. This is per ExecPlan, not per milestone.
 - Every ExecPlan must be **self-contained** — a novice must be able to implement the feature end-to-end using only that file.
 - ExecPlans are **living documents** — update them continuously as work proceeds.
@@ -85,12 +87,14 @@ The full ExecPlan specification is in [PLANS.md](PLANS.md) — read it before au
 For every milestone, follow this sequence before marking it complete:
 
 1. Check complexity first. If complex, write a mini milestone plan with concrete steps and sample inputs/outputs.
-2. Implement the milestone.
-3. Run `.agents/scripts/run-editmode-tests.ps1`.
-4. Run `.agents/scripts/check-analyzers.ps1`.
-5. Fix all failures and diagnostics.
-6. Re-run tests and analyzers until both are clean.
-7. Commit milestone changes.
+2. If a bug is discovered or reported, add/update a regression test that reproduces it and verify the test fails before the fix.
+3. Implement the milestone or bug fix.
+4. Re-run the same regression test and verify it now passes.
+5. Run `.agents/scripts/run-editmode-tests.ps1`.
+6. Run `.agents/scripts/check-analyzers.ps1`.
+7. Fix all failures and diagnostics.
+8. Re-run tests and analyzers until both are clean.
+9. Commit milestone changes.
 
 ## Where to Put Documentation
 
