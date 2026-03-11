@@ -1,8 +1,8 @@
-﻿# Implement Container Switch and Migration for Replace-EventBus
+# Implement Container Switch and Migration for Replace-EventBus
 
 This ExecPlan is a living document. The sections `Progress`, `Surprises & Discoveries`, `Decision Log`, and `Outcomes & Retrospective` must be kept up to date as work proceeds.
 
-This document must be maintained in accordance with `PLANS.md` at the repository root and `Plans/Replace-EventBus/Replace-EventBus.md`.
+This document must be maintained in accordance with `PLANS.md` at the repository root and `Plans/Replace-EventBus/ExecPlan.md`.
 
 ## Purpose / Big Picture
 
@@ -44,7 +44,7 @@ Relevant files for this milestone:
 - `Assets/Scripts/Infra/Events/Runtime/Implementation/EventController.cs`
 - `Assets/Scripts/Infra/Events/Runtime/Implementation/ScalableEventBus.cs`
 - `Assets/Scripts/Infra/Events/Samples/EventsUseCases.cs`
-- `Docs/Events.md`
+- `Docs/Infra/Events.md`
 
 This milestone should not introduce behavior changes in call sites; it should switch wiring and keep consumer code stable.
 

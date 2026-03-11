@@ -127,7 +127,7 @@ Add explicit extension points to `MessagePipeEventController`:
 
 These hooks must default to no-op and add near-zero overhead when not configured.
 
-Update `Docs/Events.md` to document replacement architecture, migration notes for existing API usage, and diagnostics hook integration.
+Update `Docs/Infra/Events.md` to document replacement architecture, migration notes for existing API usage, and diagnostics hook integration.
 
 ## Concrete Steps
 
@@ -167,7 +167,7 @@ Replacement is accepted only when all conditions hold:
 6. Middleware order and short-circuit behavior are deterministic and tested.
 7. Existing consumers still using `IEventBus.AddListener/RemoveListener` continue to pass tests through compatibility layer.
 8. Diagnostics sink hooks exist, are documented, and have test coverage for invocation.
-9. `Docs/Events.md` reflects replacement architecture and migration guidance.
+9. `Docs/Infra/Events.md` reflects replacement architecture and migration guidance.
 
 ## Idempotence and Recovery
 

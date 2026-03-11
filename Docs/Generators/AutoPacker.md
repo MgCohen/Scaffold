@@ -13,7 +13,7 @@ Module layout:
 - `Generators/AutoPacker/src/Contracts/`: public attributes/interfaces (`AutoPackAttribute`, `PackedAttribute`, `IPackingHandler`, `IPackable`, `IPackedStruct`).
 - `Generators/AutoPacker/src/AutoPackerGenerator/`: Roslyn generator pipeline (`AutoPackerGenerator`, `AutoPackSyntaxReceiver`, `Emitter`, `TypeConversions`).
 - `Generators/AutoPacker/`: generator project entry (`AutoPackerGenerator.csproj`).
-- `Docs/AutoPacker.md`: this module documentation.
+- `Docs/Generators/AutoPacker.md`: this module documentation.
 
 External dependency graph:
 
@@ -219,7 +219,7 @@ To validate generation behavior in the Unity project:
 ## Related docs and modules
 
 - `Architecture.md`
-- `Docs/NetworkMessages.md` (packed payloads can be used in network message flows)
-- `Docs/Types.md` (type metadata and filtering patterns overlap with generator-driven workflows)
-- `Plans/create-module-documentation.md`
+- `Docs/Infra/NetworkMessages.md` (packed payloads can be used in network message flows)
+- `Docs/Tools/Types.md` (type metadata and filtering patterns overlap with generator-driven workflows)
+- `Plans/Create-Module-Documentation/ExecPlan.md`
 - `Generators/AutoPacker/src/AutoPackerGenerator/AutoPackerGenerator.cs`

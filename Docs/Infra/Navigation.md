@@ -321,7 +321,7 @@ Expected result: run completes successfully and includes passing tests for `Scaf
 ## Related docs and modules
 
 - `Architecture.md`
-- `Docs/Containers.md` (navigation service registration through installers)
-- `Docs/Events.md` (transition pipeline publishes navigation lifecycle events)
-- `Docs/MVVM.md` (MVVM view/viewmodel lifecycle commonly driven via `INavigation`)
-- `Docs/NetworkMessages.md` (integration points where navigation can react to incoming messages)
+- `Docs/Infra/Containers.md` (navigation service registration through installers)
+- `Docs/Infra/Events.md` (transition pipeline publishes navigation lifecycle events)
+- `Docs/Core/MVVM.md` (MVVM view/viewmodel lifecycle commonly driven via `INavigation`)
+- `Docs/Infra/NetworkMessages.md` (integration points where navigation can react to incoming messages)

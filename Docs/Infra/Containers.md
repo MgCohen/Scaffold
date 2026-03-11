@@ -161,7 +161,7 @@ Expected result: run completes successfully and test results include passing `Sc
 ## Related docs and modules
 
 - `Architecture.md`
-- `Docs/MVVM.md` (MVVM installers and module composition)
-- `Docs/Events.md` (event infrastructure often installed through container)
-- `Docs/Navigation.md` (navigation services and installers)
-- `Docs/NetworkMessages.md` (dispatcher registration patterns)
+- `Docs/Core/MVVM.md` (MVVM installers and module composition)
+- `Docs/Infra/Events.md` (event infrastructure often installed through container)
+- `Docs/Infra/Navigation.md` (navigation services and installers)
+- `Docs/Infra/NetworkMessages.md` (dispatcher registration patterns)

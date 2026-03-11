@@ -176,7 +176,7 @@ Expected result: test run completes successfully and result XML reports all MVVM
 ## Related docs and modules
 
 - `Architecture.md`
-- `Docs/Containers.md` (DI integration layer for installers)
-- `Docs/Navigation.md` (MVVM contracts extend navigation contracts)
-- `Docs/Events.md` (event-driven coordination patterns)
-- `Docs/AutoPacker.md` (generator-based model packaging used by adjacent systems)
+- `Docs/Infra/Containers.md` (DI integration layer for installers)
+- `Docs/Infra/Navigation.md` (MVVM contracts extend navigation contracts)
+- `Docs/Infra/Events.md` (event-driven coordination patterns)
+- `Docs/Generators/AutoPacker.md` (generator-based model packaging used by adjacent systems)

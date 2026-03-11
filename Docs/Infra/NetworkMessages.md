@@ -183,7 +183,7 @@ Expected result: run completes successfully and includes passing tests for `Scaf
 ## Related docs and modules
 
 - `Architecture.md`
-- `Docs/Events.md` (event-driven orchestration often triggers message dispatch)
-- `Docs/Navigation.md` (message reception can drive navigation flows)
-- `Docs/Containers.md` (dispatcher lifecycle may be wired through DI)
-- `Docs/MVVM.md` (UI updates may react to network message handlers)
+- `Docs/Infra/Events.md` (event-driven orchestration often triggers message dispatch)
+- `Docs/Infra/Navigation.md` (message reception can drive navigation flows)
+- `Docs/Infra/Containers.md` (dispatcher lifecycle may be wired through DI)
+- `Docs/Core/MVVM.md` (UI updates may react to network message handlers)

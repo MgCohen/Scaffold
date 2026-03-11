@@ -10,26 +10,26 @@ After this work, every module listed in the `Architecture.md` "Modules" section 
 
 The user-visible outcome is nine module documentation files in `Docs/`:
 
-- `Docs/MVVM.md`
-- `Docs/Containers.md`
-- `Docs/Events.md`
-- `Docs/Navigation.md`
-- `Docs/NetworkMessages.md`
-- `Docs/AutoPacker.md` (refactor existing file)
-- `Docs/Maps.md`
-- `Docs/Records.md`
-- `Docs/Types.md`
+- `Docs/Core/MVVM.md`
+- `Docs/Infra/Containers.md`
+- `Docs/Infra/Events.md`
+- `Docs/Infra/Navigation.md`
+- `Docs/Infra/NetworkMessages.md`
+- `Docs/Generators/AutoPacker.md` (refactor existing file)
+- `Docs/Tools/Maps.md`
+- `Docs/Tools/Records.md`
+- `Docs/Tools/Types.md`
 
 ## Progress
 
-- [x] (2026-03-09 00:00Z) Created `Plans/create-module-documentation.md` with full execution scope and milestones.
+- [x] (2026-03-09 00:00Z) Created `Plans/Create-Module-Documentation/ExecPlan.md` with full execution scope and milestones.
 - [x] (2026-03-09 17:52Z) Run Milestone 0 (template and validation contract).
 - [x] (2026-03-09 18:05Z) Run Milestone 1 (MVVM planning + drafting).
 - [x] (2026-03-09 18:32Z) Refined the shared template contract after MVVM feedback (API-first usage, architecture section, Internal Services section, and dependency graph requirement).
 - [x] (2026-03-09 18:44Z) Run Milestone 2 (Containers planning + drafting).
 - [x] (2026-03-09 18:56Z) Run Milestone 3 (Events planning + drafting).
 - [x] (2026-03-09 19:10Z) Run Milestone 4 (Navigation planning + drafting).
-- [x] (2026-03-09 19:24Z) Expanded `Docs/Navigation.md` with stack/open-close-return behavior, lifecycle timing, view callbacks, `ViewConfig`, and transition handler details.
+- [x] (2026-03-09 19:24Z) Expanded `Docs/Infra/Navigation.md` with stack/open-close-return behavior, lifecycle timing, view callbacks, `ViewConfig`, and transition handler details.
 - [x] (2026-03-09 19:39Z) Run Milestone 5 (NetworkMessages planning + drafting).
 - [x] (2026-03-09 20:02Z) Run Milestone 6 (AutoPacker planning + drafting refactor).
 - [x] (2026-03-09 20:03Z) Run Milestone 7 (Maps planning + drafting).
@@ -58,7 +58,7 @@ The user-visible outcome is nine module documentation files in `Docs/`:
   Evidence: The public contract is a small `INetworkMessageDispatcher` interface, while implementation handles named routing, writer creation, and wrapper conversion.
 
 - Observation: Even very small modules (like Records) benefit from the full template because constraints and intent become explicit instead of implied.
-  Evidence: `Docs/Records.md` now clearly documents the `IsExternalInit` shim purpose, usage, and test behavior despite minimal runtime code.
+  Evidence: `Docs/Tools/Records.md` now clearly documents the `IsExternalInit` shim purpose, usage, and test behavior despite minimal runtime code.
 
 ## Decision Log
 
@@ -70,7 +70,7 @@ The user-visible outcome is nine module documentation files in `Docs/`:
   Rationale: User preference selected for this initiative.
   Date/Author: 2026-03-09 / planning
 
-- Decision: `Docs/AutoPacker.md` will be fully refactored and treated as a normal milestone.
+- Decision: `Docs/Generators/AutoPacker.md` will be fully refactored and treated as a normal milestone.
   Rationale: User requested AutoPacker to be used as an initial reference while still being refreshed to match the shared template.
   Date/Author: 2026-03-09 / planning
 
@@ -86,19 +86,19 @@ The user-visible outcome is nine module documentation files in `Docs/`:
   Rationale: This separates consumer guidance from internal implementation details while still documenting key internal systems clearly.
   Date/Author: 2026-03-09 / implementation
 
-- Decision: `Docs/Containers.md` documents `Bootstrap` in public API because it is a key consumer entrypoint, while keeping adapter internals in `Internal Services`.
+- Decision: `Docs/Infra/Containers.md` documents `Bootstrap` in public API because it is a key consumer entrypoint, while keeping adapter internals in `Internal Services`.
   Rationale: Consumers interact with startup composition through `Bootstrap`, but should not couple to `VContainer*` types.
   Date/Author: 2026-03-09 / implementation
 
-- Decision: `Docs/Events.md` treats `EventController` as the primary usage entry while still documenting `IEventBus` as the stable abstraction boundary.
+- Decision: `Docs/Infra/Events.md` treats `EventController` as the primary usage entry while still documenting `IEventBus` as the stable abstraction boundary.
   Rationale: Samples/tests instantiate `EventController` directly, but architectural coupling should target `IEventBus` where possible.
   Date/Author: 2026-03-09 / implementation
 
-- Decision: `Docs/Navigation.md` documents transition/middleware/stack subsystems in `Internal Services` and keeps `How to use` centered on `INavigation` and `IViewController` contracts.
+- Decision: `Docs/Infra/Navigation.md` documents transition/middleware/stack subsystems in `Internal Services` and keeps `How to use` centered on `INavigation` and `IViewController` contracts.
   Rationale: Consumers primarily interact with `INavigation`, while internals are essential for architecture understanding but secondary for day-to-day usage.
   Date/Author: 2026-03-09 / implementation
 
-- Decision: `Docs/NetworkMessages.md` emphasizes unmanaged payload constraints and lifecycle cleanup (`UnregisterHandler` + `Dispose`) in usage flow.
+- Decision: `Docs/Infra/NetworkMessages.md` emphasizes unmanaged payload constraints and lifecycle cleanup (`UnregisterHandler` + `Dispose`) in usage flow.
   Rationale: These constraints directly affect correctness and are easy to miss when only looking at handler registration examples.
   Date/Author: 2026-03-09 / implementation
 
@@ -112,7 +112,7 @@ Milestones 1-10 outcome: all 9 target module docs (`MVVM`, `Containers`, `Events
 
 ## Context and Orientation
 
-This repository is a modular Unity project where each module has isolated runtime, samples, and tests, usually with dedicated `.asmdef` and root `.csproj` entries. Existing module documentation coverage is incomplete: only `Docs/AutoPacker.md` existed before this plan.
+This repository is a modular Unity project where each module has isolated runtime, samples, and tests, usually with dedicated `.asmdef` and root `.csproj` entries. Existing module documentation coverage is incomplete: only `Docs/Generators/AutoPacker.md` existed before this plan.
 
 The module sources to inspect are:
 
@@ -193,55 +193,55 @@ Acceptance for Milestone 0 is a written template contract in this plan and a doc
 
 Planning: inspect `Assets/Scripts/Core/MVVM/Runtime`, `Samples`, `Tests`, and container installer integration. Identify binding contracts (`IBind*` family), view/viewmodel contracts, and core implementation classes (`ViewModel`, `View`, `BindedProperty`, `BindedCollection`, etc.).
 
-Drafting: author `Docs/MVVM.md` with required sections, concrete usage centered on `View`, `ViewModel`, and `Bind()` utilities, architecture/internal behavior sections for Binding and ViewEvents, public API list from contracts with one-liners, test instructions from `Tests/MVVMTests.cs`, and links to related modules (`Navigation`, `Events`, `Containers`).
+Drafting: author `Docs/Core/MVVM.md` with required sections, concrete usage centered on `View`, `ViewModel`, and `Bind()` utilities, architecture/internal behavior sections for Binding and ViewEvents, public API list from contracts with one-liners, test instructions from `Tests/MVVMTests.cs`, and links to related modules (`Navigation`, `Events`, `Containers`).
 
 ### Milestone 2: Containers (Planning then Drafting)
 
 Planning: inspect `Assets/Scripts/Infra/Containers/Runtime` contracts and implementations, container adapter pattern, installers, and use cases.
 
-Drafting: author `Docs/Containers.md` with required sections, showing registration/resolution flow, architecture/internal behaviors, public API list from `IContainer*` contracts and `Installer` with one-liners, and test guidance from `Tests/ContainersTests.cs`.
+Drafting: author `Docs/Infra/Containers.md` with required sections, showing registration/resolution flow, architecture/internal behaviors, public API list from `IContainer*` contracts and `Installer` with one-liners, and test guidance from `Tests/ContainersTests.cs`.
 
 ### Milestone 3: Events (Planning then Drafting)
 
 Planning: inspect event contracts (`ContextEvent`, `IEventBus`), controller implementation, installer, and sample use cases.
 
-Drafting: author `Docs/Events.md` with required sections, event publication/subscription usage, architecture/internal behavior coverage, public API list with one-liners, and test guidance from `Tests/EventsTests.cs`.
+Drafting: author `Docs/Infra/Events.md` with required sections, event publication/subscription usage, architecture/internal behavior coverage, public API list with one-liners, and test guidance from `Tests/EventsTests.cs`.
 
 ### Milestone 4: Navigation (Planning then Drafting)
 
 Planning: inspect navigation contracts, enums, controller/stack/transitions implementation, middleware interfaces, settings assets, and installer.
 
-Drafting: author `Docs/Navigation.md` with required sections, navigation lifecycle usage, architecture/internal behavior coverage, public API list with one-liners, and test guidance from `Tests/NavigationTests.cs`.
+Drafting: author `Docs/Infra/Navigation.md` with required sections, navigation lifecycle usage, architecture/internal behavior coverage, public API list with one-liners, and test guidance from `Tests/NavigationTests.cs`.
 
 ### Milestone 5: NetworkMessages (Planning then Drafting)
 
 Planning: inspect dispatcher contract/implementation, model wrappers, sample message flows, and tests.
 
-Drafting: author `Docs/NetworkMessages.md` with required sections, dispatch usage examples, architecture/internal behavior coverage, public API list with one-liners, and test guidance from `Tests/NetworkMessagesTests.cs`.
+Drafting: author `Docs/Infra/NetworkMessages.md` with required sections, dispatch usage examples, architecture/internal behavior coverage, public API list with one-liners, and test guidance from `Tests/NetworkMessagesTests.cs`.
 
 ### Milestone 6: AutoPacker (Planning then Drafting Refactor)
 
-Planning: inspect `Generators/AutoPacker/src` for contracts and generator internals, reconcile with current `Docs/AutoPacker.md`, and identify outdated statements.
+Planning: inspect `Generators/AutoPacker/src` for contracts and generator internals, reconcile with current `Docs/Generators/AutoPacker.md`, and identify outdated statements.
 
-Drafting: refactor `Docs/AutoPacker.md` into the shared section template while preserving useful existing examples. Ensure section names, architecture/internal behavior coverage, and testing instructions match this plan and include generator build/publish workflow.
+Drafting: refactor `Docs/Generators/AutoPacker.md` into the shared section template while preserving useful existing examples. Ensure section names, architecture/internal behavior coverage, and testing instructions match this plan and include generator build/publish workflow.
 
 ### Milestone 7: Maps (Planning then Drafting)
 
 Planning: inspect map/index runtime classes, samples, and tests for key patterns (`Map`, `Indexer`, and index flavors).
 
-Drafting: author `Docs/Maps.md` with required sections, map/index usage examples, architecture/internal behavior coverage, public API list with one-liners, and test guidance from `Tests/MapIndexerTests.cs`.
+Drafting: author `Docs/Tools/Maps.md` with required sections, map/index usage examples, architecture/internal behavior coverage, public API list with one-liners, and test guidance from `Tests/MapIndexerTests.cs`.
 
 ### Milestone 8: Records (Planning then Drafting)
 
 Planning: inspect module scope centered on record compatibility shim and sample/tests.
 
-Drafting: author `Docs/Records.md` with required sections, clear module purpose/effects first, architecture/internal behavior coverage, usage example from `Samples/RecordsUseCases.cs`, public API list with one-liners, and test guidance from `Tests/RecordsTests.cs`.
+Drafting: author `Docs/Tools/Records.md` with required sections, clear module purpose/effects first, architecture/internal behavior coverage, usage example from `Samples/RecordsUseCases.cs`, public API list with one-liners, and test guidance from `Tests/RecordsTests.cs`.
 
 ### Milestone 9: Types (Planning then Drafting)
 
 Planning: inspect runtime contracts/implementation, editor tooling, attributes, sample use cases, and tests.
 
-Drafting: author `Docs/Types.md` with required sections, runtime/editor boundaries, architecture/internal behavior coverage, public API list with one-liners, and test guidance from `Tests/TypesTests.cs`.
+Drafting: author `Docs/Tools/Types.md` with required sections, runtime/editor boundaries, architecture/internal behavior coverage, public API list with one-liners, and test guidance from `Tests/TypesTests.cs`.
 
 ### Milestone 10: Consolidation and Final Validation
 
@@ -269,7 +269,7 @@ Run commands from repository root `C:/Users/user/Documents/Unity/Scaffold`.
 
 3. Run structural validation for section headings.
 
-    $docs = @('Docs/MVVM.md','Docs/Containers.md','Docs/Events.md','Docs/Navigation.md','Docs/NetworkMessages.md','Docs/AutoPacker.md','Docs/Maps.md','Docs/Records.md','Docs/Types.md')
+    $docs = @('Docs/Core/MVVM.md','Docs/Infra/Containers.md','Docs/Infra/Events.md','Docs/Infra/Navigation.md','Docs/Infra/NetworkMessages.md','Docs/Generators/AutoPacker.md','Docs/Tools/Maps.md','Docs/Tools/Records.md','Docs/Tools/Types.md')
     $required = @('## Summary','## Bird''s Eye View','## Architecture and key behaviors','## How to use','## Internal Services','## Public api','## How to test','## Related docs and modules')
     foreach($doc in $docs){ foreach($h in $required){ if(-not (Select-String -Path $doc -Pattern [regex]::Escape($h) -Quiet)){ Write-Output "Missing '$h' in $doc" } } }
 
@@ -289,7 +289,7 @@ This plan is complete when all of the following are true:
 4. Every `How to use` section focuses on public API workflow (not internal details as the primary focus).
 5. Every `How to test` section provides executable commands and expected success behavior.
 6. Every `Related docs and modules` section contains at least two relevant links/references.
-7. `Docs/AutoPacker.md` is refactored into the shared template, not left in legacy structure.
+7. `Docs/Generators/AutoPacker.md` is refactored into the shared template, not left in legacy structure.
 8. `Progress`, `Surprises & Discoveries`, `Decision Log`, and `Outcomes & Retrospective` in this ExecPlan are updated to reflect final implementation reality.
 
 ## Idempotence and Recovery
@@ -317,15 +317,15 @@ Module dependencies and public API references must be derived from existing sour
 ---
 
 Revision Note (2026-03-09): Initial version created to execute repository-wide module documentation coverage for the nine architecture modules using a shared template and milestone-based planning+drafting flow.
-Revision Note (2026-03-09): Completed Milestone 1 by creating `Docs/MVVM.md` from inspected runtime contracts, samples, and tests, and updated living sections to reflect milestone evidence.
+Revision Note (2026-03-09): Completed Milestone 1 by creating `Docs/Core/MVVM.md` from inspected runtime contracts, samples, and tests, and updated living sections to reflect milestone evidence.
 Revision Note (2026-03-09): Refined template contract after MVVM feedback to enforce API-first usage and dedicated sections for architecture/internal behaviors.
-Revision Note (2026-03-09): Completed Milestone 2 by creating `Docs/Containers.md` using the upgraded template contract and module evidence from contracts, sample, and tests.
-Revision Note (2026-03-09): Completed Milestone 3 by creating `Docs/Events.md` using module contracts, implementation, installer wiring, samples, and tests.
-Revision Note (2026-03-09): Completed Milestone 4 by creating `Docs/Navigation.md` from navigation contracts, orchestration internals, installer wiring, samples, and tests.
-Revision Note (2026-03-09): Expanded `Docs/Navigation.md` with explicit stack behavior (open/close/return), operation timing, view lifecycle callback guidance, `ViewConfig` explanation, and transition handler setup details.
-Revision Note (2026-03-09): Completed Milestone 5 by creating `Docs/NetworkMessages.md` from contract, dispatcher implementation, serialization model, samples, and tests.
-Revision Note (2026-03-09): Completed Milestone 6 by refactoring `Docs/AutoPacker.md` into the upgraded template with generator internals and contract-based usage/test flow.
-Revision Note (2026-03-09): Completed Milestone 7 by creating `Docs/Maps.md` with index/indexer behavior, architecture snippets, and test guidance.
-Revision Note (2026-03-09): Completed Milestone 8 by creating `Docs/Records.md` with shim purpose, usage constraints, and test guidance.
-Revision Note (2026-03-09): Completed Milestone 9 by creating `Docs/Types.md` with runtime/editor architecture, usage patterns, and dependency extraction details.
+Revision Note (2026-03-09): Completed Milestone 2 by creating `Docs/Infra/Containers.md` using the upgraded template contract and module evidence from contracts, sample, and tests.
+Revision Note (2026-03-09): Completed Milestone 3 by creating `Docs/Infra/Events.md` using module contracts, implementation, installer wiring, samples, and tests.
+Revision Note (2026-03-09): Completed Milestone 4 by creating `Docs/Infra/Navigation.md` from navigation contracts, orchestration internals, installer wiring, samples, and tests.
+Revision Note (2026-03-09): Expanded `Docs/Infra/Navigation.md` with explicit stack behavior (open/close/return), operation timing, view lifecycle callback guidance, `ViewConfig` explanation, and transition handler setup details.
+Revision Note (2026-03-09): Completed Milestone 5 by creating `Docs/Infra/NetworkMessages.md` from contract, dispatcher implementation, serialization model, samples, and tests.
+Revision Note (2026-03-09): Completed Milestone 6 by refactoring `Docs/Generators/AutoPacker.md` into the upgraded template with generator internals and contract-based usage/test flow.
+Revision Note (2026-03-09): Completed Milestone 7 by creating `Docs/Tools/Maps.md` with index/indexer behavior, architecture snippets, and test guidance.
+Revision Note (2026-03-09): Completed Milestone 8 by creating `Docs/Tools/Records.md` with shim purpose, usage constraints, and test guidance.
+Revision Note (2026-03-09): Completed Milestone 9 by creating `Docs/Tools/Types.md` with runtime/editor architecture, usage patterns, and dependency extraction details.
 Revision Note (2026-03-09): Completed Milestone 10 consolidation by validating required headings and section consistency across all 9 target docs.

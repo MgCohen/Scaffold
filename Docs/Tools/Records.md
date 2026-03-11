@@ -109,7 +109,7 @@ Expected result: run completes successfully with passing `Scaffold.Records.Tests
 ## Related docs and modules
 
 - `Architecture.md`
-- `Docs/Types.md` (type metadata and reflection utilities can consume record-like models)
-- `Docs/Maps.md` (record-like values can be stored in map indexes)
-- `Plans/create-module-documentation.md`
+- `Docs/Tools/Types.md` (type metadata and reflection utilities can consume record-like models)
+- `Docs/Tools/Maps.md` (record-like values can be stored in map indexes)
+- `Plans/Create-Module-Documentation/ExecPlan.md`
 - `Assets/Scripts/Tools/Records/Tests/RecordsTests.cs`

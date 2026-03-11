@@ -1,4 +1,4 @@
-﻿# Replace-EventBus
+# Replace-EventBus
 
 This ExecPlan is a living document. The sections `Progress`, `Surprises & Discoveries`, `Decision Log`, and `Outcomes & Retrospective` must be kept up to date as work proceeds.
 
@@ -18,10 +18,10 @@ A contributor will be able to verify success by running Events tests that prove:
 
 ## Implementation Plan Index
 
-- Plans/Replace-EventBus/Implementations/01-hierarchy-listeners.md (Milestone 3)
-- Plans/Replace-EventBus/Implementations/02-request-routing-awaitable.md (Milestone 4)
-- Plans/Replace-EventBus/Implementations/03-middleware-diagnostics.md (Milestone 5)
-- Plans/Replace-EventBus/Implementations/04-container-switch-migration.md (Milestone 6)
+- Plans/Replace-EventBus/milestones/ExecPlan-Milestone-1.md (Milestone 3)
+- Plans/Replace-EventBus/milestones/ExecPlan-Milestone-2.md (Milestone 4)
+- Plans/Replace-EventBus/milestones/ExecPlan-Milestone-3.md (Milestone 5)
+- Plans/Replace-EventBus/milestones/ExecPlan-Milestone-4.md (Milestone 6)
 ## Progress
 
 - [x] (2026-03-09 00:00Z) Authored initial ExecPlan for replacing the current event bus implementation.
@@ -43,7 +43,7 @@ A contributor will be able to verify success by running Events tests that prove:
   Evidence: `Assets/Scripts/Infra/Events/Runtime/Contracts/IEventBus.cs` includes `AddListener<T>`, `RemoveListener<T>`, `AddListener(Type, ...)`, and `RemoveListener(Type, ...)`.
 
 - Observation: `Scaffold.Maps` already provides indexed grouping that can reduce custom registry code and help future analytics aggregation.
-  Evidence: `Docs/Maps.md` and `Assets/Scripts/Tools/Maps/Runtime/Map.cs`.
+  Evidence: `Docs/Tools/Maps.md` and `Assets/Scripts/Tools/Maps/Runtime/Map.cs`.
 
 
 - Observation: Bash-based analyzer workflow cannot run in this environment because `/bin/bash` is unavailable, so workflow-equivalent checks were run with direct PowerShell `dotnet build --no-incremental` commands.
@@ -154,7 +154,7 @@ This milestone keeps existing call sites compiling while introducing the expande
 
 ### Milestone 3: Implement listener runtime with hierarchy dispatch
 
-Execution plan: Plans/Replace-EventBus/Implementations/01-hierarchy-listeners.md.
+Execution plan: Plans/Replace-EventBus/milestones/ExecPlan-Milestone-1.md.
 
 Create a new runtime implementation in `Assets/Scripts/Infra/Events/Runtime/Implementation/` (for example `ScalableEventBus.cs`) that first implements `IEventBus`.
 
@@ -175,7 +175,7 @@ Scalability design:
 
 ### Milestone 4: Implement request routing using `Awaitable`
 
-Execution plan: Plans/Replace-EventBus/Implementations/02-request-routing-awaitable.md.
+Execution plan: Plans/Replace-EventBus/milestones/ExecPlan-Milestone-2.md.
 
 Extend `ScalableEventBus` (or a tightly coupled companion class in the same module) to implement `IRequestBus` after hierarchy listeners are already working.
 
@@ -195,7 +195,7 @@ Acceptance focus for this milestone:
 
 ### Milestone 5: Diagnostics and analytics-ready extension points
 
-Execution plan: Plans/Replace-EventBus/Implementations/03-middleware-diagnostics.md.
+Execution plan: Plans/Replace-EventBus/milestones/ExecPlan-Milestone-3.md.
 
 Add new contracts in `Runtime/Contracts/`:
 
@@ -214,7 +214,7 @@ Runtime behavior:
 
 ### Milestone 6: Container switch and migration completion
 
-Execution plan: Plans/Replace-EventBus/Implementations/04-container-switch-migration.md.
+Execution plan: Plans/Replace-EventBus/milestones/ExecPlan-Milestone-4.md.
 
 Edit `Assets/Scripts/Infra/Events/Container/EventsInstaller.cs`:
 
@@ -230,7 +230,7 @@ Migration completion:
 
 ### Milestone 7: Documentation and final validation
 
-Update `Docs/Events.md` to describe:
+Update `Docs/Infra/Events.md` to describe:
 
 - New contracts (`IRequestBus`, middleware, diagnostics sink).
 - Hierarchy dispatch semantics.
@@ -289,7 +289,7 @@ This work is accepted only when all conditions are true:
 5. Async requests are implemented with success and failure path tests.
 6. Middleware exists, is ordered deterministically, and is covered by tests.
 7. Diagnostics sink extension points exist and are tested for invocation.
-8. `Docs/Events.md` is updated to reflect the new architecture and migration guidance.
+8. `Docs/Infra/Events.md` is updated to reflect the new architecture and migration guidance.
 9. Analyzer warnings/errors introduced by this change are fixed before merge.
 
 ## Idempotence and Recovery
@@ -339,7 +339,7 @@ Dependencies:
 Revision Note (2026-03-09): Initial plan created for replacing `IEventBus` implementation with a scalable, hierarchy-aware, middleware-enabled, async-capable event bus while preserving compatibility and enabling future diagnostics/analytics.
 Revision Note (2026-03-10): Renamed plan to `Replace-EventBus`, standardized listener API naming on `AddListener`/`RemoveListener`, and removed standalone listener cache dictionary in favor of `Scaffold.Maps` indexer-driven concrete and hierarchy dispatch.
 Revision Note (2026-03-10): Replaced `ValueTask` request signatures with Unity `Awaitable` and split runtime implementation milestones into listener hierarchy dispatch, then request routing, then middleware/diagnostics.
-Revision Note (2026-03-10): Clarified that Milestones 3-6 are executed through child plans in Plans/Replace-EventBus/Implementations/ and updated concrete execution order accordingly.
+Revision Note (2026-03-10): Clarified that Milestones 3-6 are executed through child plans in `Plans/Replace-EventBus/milestones/` and updated concrete execution order accordingly.
 Revision Note (2026-03-10): Added explicit per-milestone quality gate requiring build/lint/analyzer checks, tests, fixes, and living-section updates before proceeding.
 Revision Note (2026-03-10): Implemented Milestone 1 test expansion, documented environment limitations for workflow/test execution, and recorded remaining verification step for Unity EditMode output confirmation.
 Revision Note (2026-03-10): Milestone 1 marked validated based on user confirmation after baseline test expansion.

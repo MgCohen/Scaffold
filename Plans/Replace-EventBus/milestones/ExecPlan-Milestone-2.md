@@ -1,8 +1,8 @@
-﻿# Implement Request Routing with Awaitable for Replace-EventBus
+# Implement Request Routing with Awaitable for Replace-EventBus
 
 This ExecPlan is a living document. The sections `Progress`, `Surprises & Discoveries`, `Decision Log`, and `Outcomes & Retrospective` must be kept up to date as work proceeds.
 
-This document must be maintained in accordance with `PLANS.md` at the repository root and `Plans/Replace-EventBus/Replace-EventBus.md`.
+This document must be maintained in accordance with `PLANS.md` at the repository root and `Plans/Replace-EventBus/ExecPlan.md`.
 
 ## Purpose / Big Picture
 

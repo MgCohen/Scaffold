@@ -156,7 +156,7 @@ Expected result: run completes successfully and results include passing tests fo
 ## Related docs and modules
 
 - `Architecture.md`
-- `Docs/Containers.md` (installer-based registration of event bus)
-- `Docs/MVVM.md` (MVVM view events complement infra event bus patterns)
-- `Docs/Navigation.md` (navigation transitions often emit/consume event signals)
-- `Docs/NetworkMessages.md` (event-driven integration patterns)
+- `Docs/Infra/Containers.md` (installer-based registration of event bus)
+- `Docs/Core/MVVM.md` (MVVM view events complement infra event bus patterns)
+- `Docs/Infra/Navigation.md` (navigation transitions often emit/consume event signals)
+- `Docs/Infra/NetworkMessages.md` (event-driven integration patterns)

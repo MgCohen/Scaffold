@@ -167,7 +167,7 @@ Expected result: run completes successfully with passing `Scaffold.Types.Tests`.
 ## Related docs and modules
 
 - `Architecture.md`
-- `Docs/Containers.md` (dependency extraction utilities are relevant to DI/composition)
-- `Docs/Navigation.md` (`ViewConfig` uses type reference patterns)
-- `Docs/AutoPacker.md` (generator/type metadata workflows)
-- `Plans/create-module-documentation.md`
+- `Docs/Infra/Containers.md` (dependency extraction utilities are relevant to DI/composition)
+- `Docs/Infra/Navigation.md` (`ViewConfig` uses type reference patterns)
+- `Docs/Generators/AutoPacker.md` (generator/type metadata workflows)
+- `Plans/Create-Module-Documentation/ExecPlan.md`

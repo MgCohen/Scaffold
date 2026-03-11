@@ -1,49 +1,49 @@
-﻿# Refactor All Assets/Scripts Modules: Add Tests, Samples, and Fix Analyzer Errors
+# Refactor All Assets/Scripts Modules: Add Tests, Samples, and Fix Analyzer Errors
 
 This ExecPlan is a living document. The sections `Progress`, `Surprises & Discoveries`, `Decision Log`, and `Outcomes & Retrospective` must be kept up to date as work proceeds.
 
 This document must be maintained in accordance with `PLANS.md` (at the repository root).
 
-The final artifact of this plan is the ExecPlan file itself, written to `Plans/refactor-modules.md` in the repository, plus all implementation changes.
+The final artifact of this plan is the ExecPlan file itself, written to `Plans/Refactor-Modules/ExecPlan.md` in the repository, plus all implementation changes.
 
 
 ## Purpose / Big Picture
 
 Every module in `Assets/Scripts/` must meet the project's three mandatory standards: automated tests, sample usage files, and zero Roslyn analyzer errors. Baseline was TOTAL:80. After this work, `check-analyzers.sh` will output TOTAL:0 (in-scope) and the Unity Test Runner will show all module tests passing.
 
-The canonical reference is `Assets/Scripts/Tools/Maps/` â€” all Tests and Samples must mirror its structure.
+The canonical reference is `Assets/Scripts/Tools/Maps/` — all Tests and Samples must mirror its structure.
 
 
 ## Progress
 
-- [x] Create ExecPlan file at `Plans/refactor-modules.md`
-- [x] Run baseline `check-analyzers.sh` â€” TOTAL:80
-- [x] Milestone 1: Maps â€” fix analyzer errors (tests and samples already existed)
-- [x] Milestone 2: Records â€” add Tests, add Samples, fix analyzer errors
-- [x] Milestone 3: Types â€” add Tests, add Samples, fix analyzer errors
-- [x] Milestone 4: Containers â€” add Tests, add Samples, fix analyzer errors
-- [x] Milestone 5: Events â€” add Tests, add Samples, fix analyzer errors
-- [x] Milestone 6: NetworkMessages â€” add Tests, fix analyzer errors (Samples already existed)
-- [x] Milestone 7: Navigation â€” add Tests, add Samples, fix analyzer errors
-- [x] Milestone 8: MVVM â€” add Tests, add Samples, fix analyzer errors
-- [x] Run final `check-analyzers.sh` â€” TOTAL:10, all 10 are out-of-scope AutoPacker. TOTAL:0 in-scope.
-- [ ] Run Unity Test Runner â€” confirm all tests pass
+- [x] Create ExecPlan file at `Plans/Refactor-Modules/ExecPlan.md`
+- [x] Run baseline `check-analyzers.sh` — TOTAL:80
+- [x] Milestone 1: Maps — fix analyzer errors (tests and samples already existed)
+- [x] Milestone 2: Records — add Tests, add Samples, fix analyzer errors
+- [x] Milestone 3: Types — add Tests, add Samples, fix analyzer errors
+- [x] Milestone 4: Containers — add Tests, add Samples, fix analyzer errors
+- [x] Milestone 5: Events — add Tests, add Samples, fix analyzer errors
+- [x] Milestone 6: NetworkMessages — add Tests, fix analyzer errors (Samples already existed)
+- [x] Milestone 7: Navigation — add Tests, add Samples, fix analyzer errors
+- [x] Milestone 8: MVVM — add Tests, add Samples, fix analyzer errors
+- [x] Run final `check-analyzers.sh` — TOTAL:10, all 10 are out-of-scope AutoPacker. TOTAL:0 in-scope.
+- [ ] Run Unity Test Runner — confirm all tests pass
 
 
 ## Surprises & Discoveries
 
-- **SCA0006 counting rule**: Lines counted are BETWEEN the outer `{` and `}` of the method body (exclusive of those brace lines). Blank lines and inner brace lines all count. â‰¤8 is compliant; 9+ is a violation.
+- **SCA0006 counting rule**: Lines counted are BETWEEN the outer `{` and `}` of the method body (exclusive of those brace lines). Blank lines and inner brace lines all count. ≤8 is compliant; 9+ is a violation.
 - **SCA0002 and delegates**: Only direct method calls trigger SCA0002 ordering. Method group assignments (`event += HandlerMethod`) do NOT trigger SCA0002 even if `HandlerMethod` appears before the event subscription line. This matters for `BindedCollection.HandleCollectionChanges`.
-- **NavigationTransitions.cs was the hardest single file**: 14 violations required a complete restructure â€” 37 methods in total, topologically sorted by call graph. Key technique: introduce `RunAnimationIfPresent` as an intermediary to break a SCA0002 chain where `DoCloseSequence`/`DoHideSequence`/`DoOpenSequence` all called `GetAnimationSchema` which appeared before them.
+- **NavigationTransitions.cs was the hardest single file**: 14 violations required a complete restructure — 37 methods in total, topologically sorted by call graph. Key technique: introduce `RunAnimationIfPresent` as an intermediary to break a SCA0002 chain where `DoCloseSequence`/`DoHideSequence`/`DoOpenSequence` all called `GetAnimationSchema` which appeared before them.
 - **ScriptableObject in tests**: Cannot use `new ScriptableObject()`. Must use `ScriptableObject.CreateInstance<T>()`. Applies to `ViewConfig` (a ScriptableObject subclass) in Navigation tests.
 - **INavigation interface must be fully implemented in stubs**: `INavigation` has a `NavigationPoint CurrentPoint { get; }` property that was initially omitted from the stub in `NavigationUseCases.cs`, causing a compile error. Always implement all interface members in stub inner classes.
 - **AutoPacker violations are out of scope**: `Assets/Generators/Autopacker/` has 10 violations (2 files). These are pre-existing and not part of this plan.
-- **Current analyzer state** after Milestones 1â€“7: TOTAL:30 (20 in-scope MVVM + 10 out-of-scope AutoPacker).
+- **Current analyzer state** after Milestones 1–7: TOTAL:30 (20 in-scope MVVM + 10 out-of-scope AutoPacker).
 
 
 ## Decision Log
 
-- Decision: Process modules in order of increasing complexity (Maps â†’ Records â†’ Types â†’ Containers â†’ Events â†’ NetworkMessages â†’ Navigation â†’ MVVM).
+- Decision: Process modules in order of increasing complexity (Maps → Records → Types → Containers → Events → NetworkMessages → Navigation → MVVM).
   Rationale: Simpler modules establish patterns. MVVM is last as the most complex.
   Date/Author: 2026-03-08 / planning
 
@@ -69,7 +69,7 @@ The canonical reference is `Assets/Scripts/Tools/Maps/` â€” all Tests and S
 (To be populated at completion.)
 
 
-## Milestone 8: MVVM â€” Remaining Work
+## Milestone 8: MVVM — Remaining Work
 
 **Module path**: `Assets/Scripts/Core/MVVM/`
 **asmdef name**: `Scaffold.MVVM` (at `Assets/Scripts/Core/MVVM/Runtime/Scaffold.MVVM.asmdef`)
@@ -78,7 +78,7 @@ The canonical reference is `Assets/Scripts/Tools/Maps/` â€” all Tests and S
 
 | File | Count | Violations |
 |------|-------|-----------|
-| `Runtime/Binding/Implementation/BindedCollection.cs` | 5 | 4Ã— SCA0006, 1Ã— SCA0002 |
+| `Runtime/Binding/Implementation/BindedCollection.cs` | 5 | 4× SCA0006, 1× SCA0002 |
 | `Runtime/Implementation/ViewElement.cs` | 3 | SCA0006 |
 | `Runtime/Implementation/EventLedger.cs` | 3 | SCA0006 |
 | `Runtime/Binding/Implementation/BindedProperty.cs` | 2 | SCA0006 |
@@ -113,7 +113,7 @@ The canonical reference is `Assets/Scripts/Tools/Maps/` â€” all Tests and S
 
 **File**: `Assets/Scripts/Core/MVVM/Tests/MVVMTests.cs`
 
-Focus: `BindedProperty<T>` change notification, `BindedCollection<T>` add/remove, `EventLedger` dispatch. All are pure C# â€” no Unity types needed.
+Focus: `BindedProperty<T>` change notification, `BindedCollection<T>` add/remove, `EventLedger` dispatch. All are pure C# — no Unity types needed.
 
 ### Samples to create
 

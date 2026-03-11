@@ -147,7 +147,7 @@ Expected result: run completes successfully with passing `Scaffold.Maps.Tests`.
 ## Related docs and modules
 
 - `Architecture.md`
-- `Docs/Types.md` (type-driven utility patterns often pair with indexed maps)
-- `Docs/Records.md` (immutable-style data can be indexed via map keys)
-- `Plans/create-module-documentation.md`
+- `Docs/Tools/Types.md` (type-driven utility patterns often pair with indexed maps)
+- `Docs/Tools/Records.md` (immutable-style data can be indexed via map keys)
+- `Plans/Create-Module-Documentation/ExecPlan.md`
 - `Assets/Scripts/Tools/Maps/Tests/MapIndexerTests.cs`
