@@ -1,4 +1,17 @@
-$Sln = "C:/Users/user/Documents/Unity/Scaffold/Scaffold.sln"
+[CmdletBinding()]
+param(
+    [string]$ProjectPath = (Get-Location).Path
+)
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
+
+$resolvedProjectPath = (Resolve-Path $ProjectPath).Path
+$sln = Join-Path $resolvedProjectPath "Scaffold.sln"
+
+if (-not (Test-Path $sln)) {
+    throw "Could not find solution file at '$sln'."
+}
 
 # Builds the solution and prints deduplicated SCA diagnostics.
 # Output format (parseable):
@@ -6,7 +19,7 @@ $Sln = "C:/Users/user/Documents/Unity/Scaffold/Scaffold.sln"
 #   RULE:<code>:<count>
 #   FILE:<relative-path>:<count>
 #   BLOCKER:<raw error line>
-$buildOutput = & dotnet build $Sln --no-incremental 2>&1 | ForEach-Object { "$_" }
+$buildOutput = & dotnet build $sln --no-incremental 2>&1 | ForEach-Object { "$_" }
 
 $scaLines = $buildOutput |
     Where-Object { $_ -match ": (warning|error) SCA[0-9]+" } |
