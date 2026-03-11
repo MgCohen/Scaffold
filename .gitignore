@@ -159,6 +159,7 @@ Utility/**/bin
 # But keep any .csproj/.sln under Analyzers/**
 !Analyzers/**/*.csproj
 !Analyzers/**/*.sln
+!/Generators/AutoPacker/src/Contracts/*.csproj
 Analyzers/**/bin
 Analyzers/**/obj
 

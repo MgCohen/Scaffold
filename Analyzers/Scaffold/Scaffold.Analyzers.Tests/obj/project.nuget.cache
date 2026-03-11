@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "czPVRAx/Bt4=",
+  "dgSpecHash": "CyGiBz5ajhk=",
   "success": true,
-  "projectFilePath": "C:\\Users\\user\\Documents\\Unity\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers.Tests\\Scaffold.Analyzers.Tests.csproj",
+  "projectFilePath": "C:\\Users\\user\\.codex\\worktrees\\7a04\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers.Tests\\Scaffold.Analyzers.Tests.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\user\\.nuget\\packages\\microsoft.codeanalysis.analyzers\\3.3.4\\microsoft.codeanalysis.analyzers.3.3.4.nupkg.sha512",
     "C:\\Users\\user\\.nuget\\packages\\microsoft.codeanalysis.common\\4.8.0\\microsoft.codeanalysis.common.4.8.0.nupkg.sha512",
