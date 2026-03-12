@@ -14,7 +14,7 @@ namespace Game.Ads.Endpoint
             {
                 Debug.Log($"Calling raw reward endpoint with user: {unityUserId}, adId: {rewardAdId}");
 
-                var payload = new RewardRequestPayload
+                RewardRequestPayload payload = new RewardRequestPayload
                 {
                     unityUserId = unityUserId,
                     rewardAdId = rewardAdId

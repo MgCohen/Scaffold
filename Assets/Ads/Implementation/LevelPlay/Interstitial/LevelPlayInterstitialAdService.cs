@@ -28,17 +28,17 @@ namespace Game.Ads.Services
 
         public void Initialize()
         {
-            var activePlacements = _configuration.GetInterstitialPlacements();
+            List<InterstitialAdConfig> activePlacements = _configuration.GetInterstitialPlacements();
             if (activePlacements != null)
             {
-                foreach (var placement in activePlacements)
+                foreach (InterstitialAdConfig placement in activePlacements)
                 {
                     string unitId = placement.adUnitId;
                     if (string.IsNullOrEmpty(unitId)) continue;
 
                     if (!_interstitialAds.ContainsKey(placement.placementKey))
                     {
-                        var ad = new LevelPlayInterstitialAd(unitId);
+                        LevelPlayInterstitialAd ad = new LevelPlayInterstitialAd(unitId);
                         string key = placement.placementKey;
 
                         ad.OnAdLoaded += (adInfo) => HandleAdLoadedSuccessfully(key, adInfo);
@@ -62,7 +62,7 @@ namespace Game.Ads.Services
 
             if (_interstitialAds.Count == 0) return false;
 
-            if (!string.IsNullOrEmpty(placementName) && _interstitialAds.TryGetValue(placementName, out var ad))
+            if (!string.IsNullOrEmpty(placementName) && _interstitialAds.TryGetValue(placementName, out LevelPlayInterstitialAd ad))
             {
                 return ad.IsAdReady();
             }

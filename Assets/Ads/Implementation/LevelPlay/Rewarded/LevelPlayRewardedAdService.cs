@@ -12,8 +12,11 @@ namespace Game.Ads.Services
     public class LevelPlayRewardedAdService : IRewardedAdService, IDisposable
     {
         private readonly LevelPlayAdConfigurationSO _configuration;
-        private readonly Dictionary<string, LevelPlayRewardedAd> _rewardedAds = new Dictionary<string, LevelPlayRewardedAd>();
+        private readonly Dictionary<string, LevelPlayRewardedAd> _adsByUnitId = new Dictionary<string, LevelPlayRewardedAd>();
+        private readonly Dictionary<string, string> _placementToUnitId = new Dictionary<string, string>();
         private readonly Dictionary<string, int> _loadRetryCounts = new Dictionary<string, int>();
+
+        private string _currentShowingPlacement;
 
         private const int MaxRetryAttempts = 3;
         private const float RetryDelaySeconds = 5f;
@@ -37,20 +40,21 @@ namespace Game.Ads.Services
                     string unitId = placement.adUnitId;
                     if (string.IsNullOrEmpty(unitId)) continue;
 
-                    if (!_rewardedAds.ContainsKey(placement.placementKey))
+                    _placementToUnitId[placement.placementKey] = unitId;
+
+                    if (!_adsByUnitId.ContainsKey(unitId))
                     {
                         var ad = new LevelPlayRewardedAd(unitId);
-                        string key = placement.placementKey;
 
-                        ad.OnAdLoaded += (adInfo) => HandleAdLoadedSuccessfully(key, adInfo);
-                        ad.OnAdLoadFailed += (error) => HandleAdLoadFailed(key, ad, error);
-                        ad.OnAdDisplayed += (adInfo) => HandleAdDisplayed(key, adInfo);
-                        ad.OnAdDisplayFailed += (adInfo, error) => HandleAdFailedToDisplay(key, adInfo, error);
-                        ad.OnAdRewarded += (adInfo, reward) => ProcessAdReward(key, adInfo, reward);
-                        ad.OnAdClosed += (adInfo) => HandleAdClosed(key, ad, adInfo);
+                        ad.OnAdLoaded += (adInfo) => HandleAdLoadedSuccessfully(unitId, adInfo);
+                        ad.OnAdLoadFailed += (error) => HandleAdLoadFailed(unitId, ad, error);
+                        ad.OnAdDisplayed += (adInfo) => HandleAdDisplayed(adInfo);
+                        ad.OnAdDisplayFailed += (adInfo, error) => HandleAdFailedToDisplay(adInfo, error);
+                        ad.OnAdRewarded += (adInfo, reward) => ProcessAdReward(adInfo, reward);
+                        ad.OnAdClosed += (adInfo) => HandleAdClosed(unitId, ad, adInfo);
 
-                        _rewardedAds[key] = ad;
-                        _loadRetryCounts[key] = 0;
+                        _adsByUnitId[unitId] = ad;
+                        _loadRetryCounts[unitId] = 0;
 
                         ad.LoadAd();
                     }
@@ -62,14 +66,20 @@ namespace Game.Ads.Services
         {
             await Task.Yield();
 
-            if (_rewardedAds.Count == 0) return false;
-
-            if (!string.IsNullOrEmpty(placementName) && _rewardedAds.TryGetValue(placementName, out var ad))
+            if (_adsByUnitId.Count == 0)
             {
-                return ad.IsAdReady();
+                return false;
             }
 
-            return _rewardedAds.Values.Any(x => x.IsAdReady());
+            if (!string.IsNullOrEmpty(placementName) && _placementToUnitId.TryGetValue(placementName, out var unitId))
+            {
+                if (_adsByUnitId.TryGetValue(unitId, out var ad))
+                {
+                    return ad.IsAdReady();
+                }
+            }
+
+            return _adsByUnitId.Values.Any(x => x.IsAdReady());
         }
 
         public async void ShowAd(string placementName = null)
@@ -77,17 +87,18 @@ namespace Game.Ads.Services
             bool canShow = await CanShowAd(placementName);
             LevelPlayRewardedAd targetAd = null;
 
-            if (!string.IsNullOrEmpty(placementName))
+            if (!string.IsNullOrEmpty(placementName) && _placementToUnitId.TryGetValue(placementName, out var unitId))
             {
-                _rewardedAds.TryGetValue(placementName, out targetAd);
+                _adsByUnitId.TryGetValue(unitId, out targetAd);
             }
-            else if (_rewardedAds.Count > 0)
+            else if (_adsByUnitId.Count > 0)
             {
-                targetAd = _rewardedAds.Values.First();
+                targetAd = _adsByUnitId.Values.First();
             }
 
             if (canShow && targetAd != null)
             {
+                _currentShowingPlacement = string.IsNullOrEmpty(placementName) ? "default" : placementName;
                 if (string.IsNullOrEmpty(placementName)) targetAd.ShowAd();
                 else targetAd.ShowAd(placementName);
             }
@@ -98,21 +109,26 @@ namespace Game.Ads.Services
             }
         }
 
-        private void HandleAdLoadedSuccessfully(string placementName, LevelPlayAdInfo adInfo)
+        private void HandleAdLoadedSuccessfully(string unitId, LevelPlayAdInfo adInfo)
         {
-            if (_loadRetryCounts.ContainsKey(placementName)) _loadRetryCounts[placementName] = 0;
+            if (_loadRetryCounts.ContainsKey(unitId)) _loadRetryCounts[unitId] = 0;
             AdAvailable?.Invoke(true);
-            Debug.Log($"Rewarded ad loaded for {placementName}: {adInfo.AdNetwork}");
+            Debug.Log($"Rewarded ad loaded for unitId {unitId}: {adInfo.AdNetwork}");
         }
 
-        private void HandleAdLoadFailed(string placementName, LevelPlayRewardedAd ad, LevelPlayAdError error)
+        private void HandleAdLoadFailed(string unitId, LevelPlayRewardedAd ad, LevelPlayAdError error)
         {
-            Debug.LogError($"Rewarded ad failed to load for {placementName}: {error.ErrorMessage}");
+            string errorReason = error.ErrorMessage;
+            if (errorReason.Contains("No fill", StringComparison.OrdinalIgnoreCase))
+            {
+                errorReason += " (This is normal during development or if networks have no inventory)";
+            }
+            Debug.LogWarning($"Rewarded ad failed to load for unitId {unitId}: {errorReason}");
 
-            if (!_loadRetryCounts.ContainsKey(placementName)) return;
+            if (!_loadRetryCounts.ContainsKey(unitId)) return;
 
-            _loadRetryCounts[placementName]++;
-            if (_loadRetryCounts[placementName] >= MaxRetryAttempts)
+            _loadRetryCounts[unitId]++;
+            if (_loadRetryCounts[unitId] >= MaxRetryAttempts)
             {
                 AdAvailable?.Invoke(false);
                 return;
@@ -125,24 +141,29 @@ namespace Game.Ads.Services
             });
         }
 
-        private void HandleAdDisplayed(string placementName, LevelPlayAdInfo adInfo)
+        private void HandleAdDisplayed(LevelPlayAdInfo adInfo)
         {
+            string placementName = _currentShowingPlacement ?? "default";
             Debug.Log($"Ad Displayed for {placementName}");
         }
 
-        private void HandleAdFailedToDisplay(string placementName, LevelPlayAdInfo adInfo, LevelPlayAdError error)
+        private void HandleAdFailedToDisplay(LevelPlayAdInfo adInfo, LevelPlayAdError error)
         {
+            string placementName = _currentShowingPlacement ?? "default";
             Debug.LogError($"Ad {adInfo.AdNetwork} failed to display for {placementName}: {error}");
             AdSuccessfullyCompleted?.Invoke(false, placementName);
+            _currentShowingPlacement = null;
         }
 
-        private void HandleAdClosed(string placementName, LevelPlayRewardedAd ad, LevelPlayAdInfo adInfo)
+        private void HandleAdClosed(string unitId, LevelPlayRewardedAd ad, LevelPlayAdInfo adInfo)
         {
             ad?.LoadAd();
+            _currentShowingPlacement = null;
         }
 
-        private void ProcessAdReward(string placementName, LevelPlayAdInfo adInfo, LevelPlayReward reward)
+        private void ProcessAdReward(LevelPlayAdInfo adInfo, LevelPlayReward reward)
         {
+            string placementName = _currentShowingPlacement ?? "default";
             Debug.Log($"Processing Ad Reward for {placementName}: {reward.Name} x{reward.Amount}");
             string token = $"{DateTime.UtcNow.Ticks}_{adInfo.InstanceId}_{adInfo.AdNetwork}_{reward.Name}_{reward.Amount}";
             AdSuccessfullyCompletedWithToken?.Invoke(true, placementName, token);
@@ -151,7 +172,8 @@ namespace Game.Ads.Services
 
         public void Dispose()
         {
-            _rewardedAds.Clear();
+            _adsByUnitId.Clear();
+            _placementToUnitId.Clear();
             _loadRetryCounts.Clear();
         }
     }

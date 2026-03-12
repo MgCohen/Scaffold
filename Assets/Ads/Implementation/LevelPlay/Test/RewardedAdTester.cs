@@ -1,7 +1,6 @@
 using System;
-using TMPro;
+using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UI;
 using Game.Ads.Managers;
 using Game.Ads.Configurations;
 
@@ -12,57 +11,145 @@ namespace Game.Ads.Test
         [Header("Ad System")]
         public AdManager adManager;
 
-        [Header("Rewarded Ads")]
-        public AdPlacementKeySO rewardedDefaultKey;
-        public AdPlacementKeySO rewardedAltKey;
-        public Button btnShowRewardedDefault;
-        public Button btnShowRewardedAlt;
-        public TextMeshProUGUI cooldownText;
-        public TextMeshProUGUI statusText;
+        [Header("Rewarded Ads Config")]
+        public List<RewardedAdPlacementUI> placements = new();
 
         private void Start()
         {
-            if (btnShowRewardedDefault != null) btnShowRewardedDefault.onClick.AddListener(() => ShowRewardedAd(rewardedDefaultKey));
-            if (btnShowRewardedAlt != null) btnShowRewardedAlt.onClick.AddListener(() => ShowRewardedAd(rewardedAltKey));
+            foreach (RewardedAdPlacementUI placement in placements)
+            {
+                if (placement.buttonShow != null)
+                {
+                    placement.buttonShow.onClick.AddListener(() => ShowRewardedAd(placement.key));
+                }
+
+                if (placement.buttonFetch != null)
+                {
+                    placement.buttonFetch.onClick.AddListener(() => FetchAdStatus(placement));
+                }
+            }
         }
 
-        public async void Update()
+        private void Update()
         {
-            if (adManager == null || adManager.RewardedAds == null) return;
-
-            if (cooldownText != null)
+            if (adManager == null || adManager.RewardedAds == null)
             {
-                float remaining = adManager.RewardedAds.GetRemainingCooldownSeconds();
+                return;
+            }
+
+            foreach (RewardedAdPlacementUI placement in placements)
+            {
+                UpdatePlacementUI(placement);
+            }
+        }
+
+        private void UpdatePlacementUI(RewardedAdPlacementUI entry)
+        {
+            if (entry.key == null) return;
+
+            // Update Cooldown Text
+            if (entry.cooldownText != null)
+            {
+                float remaining = adManager.RewardedAds.GetRemainingCooldownSeconds(entry.key);
                 if (remaining > 0)
                 {
                     TimeSpan t = TimeSpan.FromSeconds(remaining);
-                    cooldownText.text = $"Cooldown: {t.Hours:D2}:{t.Minutes:D2}:{t.Seconds:D2}";
+                    entry.cooldownText.text = $"Cooldown: {t.Hours:D2}:{t.Minutes:D2}:{t.Seconds:D2}";
                 }
                 else
                 {
-                    cooldownText.text = "Cooldown: Ready";
+                    entry.cooldownText.text = "Cooldown: Ready";
                 }
             }
 
-            if (statusText != null)
+            // Update Status Text and Button Interactivity
+            bool onCooldown = adManager.RewardedAds.GetRemainingCooldownSeconds(entry.key) > 0;
+            bool canShow = entry.isAdAvailable && !onCooldown;
+
+            if (entry.statusText != null)
             {
-                bool ready = await adManager.RewardedAds.CanShowAd();
-                statusText.text = ready ? "<color=green>READY</color>" : "<color=red>WAITING</color>";
+                if (onCooldown)
+                {
+                    entry.statusText.text = "<color=orange>COOLDOWN</color>";
+                }
+                else
+                {
+                    entry.statusText.text = entry.isAdAvailable ? "<color=green>READY</color>" : "<color=red>UNAVAILABLE</color>";
+                }
+            }
+
+            if (entry.buttonShow != null)
+            {
+                entry.buttonShow.interactable = canShow;
+            }
+
+            if (entry.buttonFetch != null)
+            {
+                entry.buttonFetch.interactable = !entry.isFetching && !entry.isAdAvailable;
+            }
+        }
+
+        private async void FetchAdStatus(RewardedAdPlacementUI entry)
+        {
+            if (adManager == null || adManager.RewardedAds == null || entry.key == null)
+            {
+                return;
+            }
+
+            entry.isFetching = true;
+            try
+            {
+                entry.isAdAvailable = await adManager.RewardedAds.CanShowAd(entry.key);
+            }
+            finally
+            {
+                entry.isFetching = false;
             }
         }
 
         private void OnDestroy()
         {
-            if (btnShowRewardedDefault != null) btnShowRewardedDefault.onClick.RemoveAllListeners();
-            if (btnShowRewardedAlt != null) btnShowRewardedAlt.onClick.RemoveAllListeners();
+            foreach (var placement in placements)
+            {
+                if (placement.buttonShow != null)
+                {
+                    placement.buttonShow.onClick.RemoveAllListeners();
+                }
+                if (placement.buttonFetch != null)
+                {
+                    placement.buttonFetch.onClick.RemoveAllListeners();
+                }
+            }
         }
 
         public void ShowRewardedAd(string placement)
         {
-            Debug.Log($"Test.ShowRewardedAd [{placement}] via new GlobalAdManager");
+            Debug.Log($"Test.ShowRewardedAd [{placement}] via GlobalAdManager");
             if (adManager != null && adManager.RewardedAds != null)
             {
                 adManager.RewardedAds.ClickShowAdReward(placement);
+            }
+        }
+
+        private void OnValidate()
+        {
+            if (placements == null) return;
+
+            HashSet<AdPlacementKeySO> seenKeys = new HashSet<AdPlacementKeySO>();
+            for (int i = 0; i < placements.Count; i++)
+            {
+                if (placements[i].key != null)
+                {
+                    if (seenKeys.Contains(placements[i].key))
+                    {
+                        Debug.LogWarning($"Duplicate AdPlacementKeySO found: {placements[i].key.name}. Please use unique keys.");
+                        placements[i].key = null;
+                    }
+                    else
+                    {
+                        seenKeys.Add(placements[i].key);
+                    }
+                }
             }
         }
     }

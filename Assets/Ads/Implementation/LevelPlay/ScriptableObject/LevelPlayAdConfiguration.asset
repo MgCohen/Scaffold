@@ -14,12 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   editorConfig:
     platform: 0
-    appKey: a9f3474559fa84dc64535da80e84cfa03f5dc8190afa698da326a3f55b2ba9b3
+    appKey: 25656ee3d
     rewardedPlacements:
-    - adUnitId: 6057491
+    - adUnitId: 8z40y76y1ngywppu
       placementKey: {fileID: 11400000, guid: 841831626886d47cd862ad070d6bc9ab, type: 2}
       rewardEndpointUrl: 
-    - adUnitId: 6057491
+    - adUnitId: fvwf7pbd1qthfa7i
       placementKey: {fileID: 11400000, guid: 10780803e665e4916aab65315b4ef159, type: 2}
       rewardEndpointUrl: 
     interstitialPlacements:
@@ -33,7 +33,7 @@ MonoBehaviour:
       bannerPosition: 0
   platformConfigs:
   - platform: 11
-    appKey: a9f3474559fa84dc64535da80e84cfa03f5dc8190afa698da326a3f55b2ba9b3
+    appKey: 25656ee3d
     rewardedPlacements:
     - adUnitId: 
       placementKey: {fileID: 11400000, guid: 841831626886d47cd862ad070d6bc9ab, type: 2}

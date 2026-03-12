@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using UnityEngine;
 using Game.Ads.Interfaces;
 using Game.Ads.Configurations;
@@ -15,7 +15,8 @@ namespace Game.Ads
         private AdConfigurationSO _adConfiguration;
 
         // Cooldown between rewarded ad completions
-        private const float k_RewardCooldownSeconds = 3;
+        private const float k_RewardCooldownSeconds = 10;
+        private const string k_DefaultPlacementKey = "default";
 
         // Dependencies
         private IRewardedAdService _adService;
@@ -23,7 +24,7 @@ namespace Game.Ads
 
         private string _unityUserId;
         private string _lastAdToken;
-        private DateTime _lastAdCompletionTime;
+        private System.Collections.Generic.Dictionary<string, DateTime> _lastAdCompletionTimes = new(StringComparer.OrdinalIgnoreCase);
 
         public event Action<bool, string> AdSuccessfullyCompleted;
         public event Action<bool> AdAvailable;
@@ -57,30 +58,40 @@ namespace Game.Ads
 
         public async void ClickShowAdReward(string placementName = null)
         {
-            bool canShow = await CanShowAd(placementName);
+            string key = string.IsNullOrEmpty(placementName) ? k_DefaultPlacementKey : placementName;
+            bool canShow = await CanShowAd(key);
             if (canShow)
             {
-                Debug.Log($"Showing ad with placement: {placementName ?? "default"}");
-                _adService.ShowAd(placementName);
+                Debug.Log($"Showing ad with placement: '{key}'");
+                _adService.ShowAd(key);
             }
             else
             {
-                Debug.LogWarning($"Cannot show ad for placement: {placementName ?? "default"}");
+                Debug.LogWarning($"Cannot show ad for placement: {key}");
             }
         }
 
         public async Awaitable<bool> CanShowAd(string placementName = null)
         {
-            if (!_isInitialized || _adService == null)
+            if (!_isInitialized)
             {
                 Debug.LogWarning("RewardedAdManager not initialized");
                 return false;
             }
 
-            bool isCooldownExpired = HasCooldownExpired();
-            bool isAdReady = await _adService.CanShowAd();
+            if (_adService == null)
+            {
+                Debug.LogWarning("_adService == null");
+                return false;
+            }
 
-            if (!isAdReady) Debug.LogWarning("Ad not ready - still loading or no inventory available");
+            bool isCooldownExpired = HasCooldownExpired(placementName);
+            bool isAdReady = await _adService.CanShowAd(placementName);
+
+            if (!isAdReady)
+            {
+                Debug.LogWarning($"Ad not ready for placement '{placementName ?? "default"}' - still loading or no inventory available");
+            }
 
             return isAdReady && isCooldownExpired;
         }
@@ -99,7 +110,7 @@ namespace Game.Ads
             if (!success) return;
 
             _lastAdToken = token;
-            _lastAdCompletionTime = DateTime.UtcNow;
+            RecordCompletionTime(placementName);
 
             if (_rewardEndpointClient == null)
             {
@@ -139,6 +150,10 @@ namespace Game.Ads
 
         private void HandleAdSuccessfullyCompleted(bool success, string placementName)
         {
+            if (success)
+            {
+                RecordCompletionTime(placementName);
+            }
             AdSuccessfullyCompleted?.Invoke(success, placementName);
         }
 
@@ -146,21 +161,30 @@ namespace Game.Ads
 
         #region Helper Methods
 
-        public float GetRemainingCooldownSeconds()
+        public float GetRemainingCooldownSeconds(string placementName = null)
         {
-            if (_lastAdCompletionTime == default) return 0f;
+            string key = string.IsNullOrEmpty(placementName) ? k_DefaultPlacementKey : placementName;
+            if (!_lastAdCompletionTimes.TryGetValue(key, out DateTime lastTime)) return 0f;
 
-            TimeSpan timeSinceLastAd = DateTime.UtcNow - _lastAdCompletionTime;
+            TimeSpan timeSinceLastAd = DateTime.UtcNow - lastTime;
             float remaining = k_RewardCooldownSeconds - (float)timeSinceLastAd.TotalSeconds;
             return Math.Max(0f, remaining);
         }
 
-        private bool HasCooldownExpired()
+        private void RecordCompletionTime(string placementName)
         {
-            float remaining = GetRemainingCooldownSeconds();
+            string key = string.IsNullOrEmpty(placementName) ? k_DefaultPlacementKey : placementName;
+            _lastAdCompletionTimes[key] = DateTime.UtcNow;
+            Debug.Log($"[RewardedAdManager] Recorded completion for '{key}' at {DateTime.UtcNow}");
+        }
+
+        private bool HasCooldownExpired(string placementName)
+        {
+            string key = string.IsNullOrEmpty(placementName) ? k_DefaultPlacementKey : placementName;
+            float remaining = GetRemainingCooldownSeconds(key);
             if (remaining > 0f)
             {
-                Debug.Log($"Ad still on cooldown for {remaining:F1} seconds");
+                Debug.Log($"Ad for placement '{key}' still on cooldown for {remaining:F1} seconds");
                 return false;
             }
             return true;
