@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace Scaffold.MVVM.Binding
 {
-    public class BindedCollection<TSource, TTarget> : IBindedCollection<TSource, TTarget>, IBind<ICollection<TSource>>
+    internal class BindedCollection<TSource, TTarget> : IBindedCollection<TSource, TTarget>, IBind<ICollection<TSource>>
     {
         public BindedCollection(BindSet<TSource, TTarget> binding, ICollectionHandler<TSource, TTarget> handler)
         {

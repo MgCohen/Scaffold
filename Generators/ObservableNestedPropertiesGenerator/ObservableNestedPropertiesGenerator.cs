@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis;
@@ -12,10 +11,12 @@ namespace ObservableNestedPropertiesGenerator
     {
         public const string ObservableAttribute = "CommunityToolkit.Mvvm.ComponentModel.ObservablePropertyAttribute";
         public const string ObservableNestedAttribute = "NestedObservableObjectAttribute";
-        public const string NestedPropertyAttribute = "MVVM.Binding.NestedPropertyAttribute";
+        public const string NestedPropertyAttribute = "Scaffold.MVVM.Binding.NestedPropertyAttribute";
         public const string ObservableNestedInterface = "INestedObservableProperties";
+        public const string BindSourceAttribute = "BindSourceAttribute";
+        public const string BindingsInterface = "Scaffold.MVVM.Binding.IBindings";
 
-        public static string GetUsingStatements()
+        public static string GetNestedUsingStatements()
         {
             return $@"
 using System.ComponentModel;
@@ -24,7 +25,7 @@ using Scaffold.MVVM.Binding;
 ";
         }
 
-        public static string GetSourceClassBody(INamedTypeSymbol classSymbol)
+        public static string GetNestedSourceClassBody(INamedTypeSymbol classSymbol)
         {
             return $@"
 public partial class {classSymbol.Name} : {Symbols.ObservableNestedInterface}
@@ -56,7 +57,7 @@ public partial class {classSymbol.Name} : {Symbols.ObservableNestedInterface}
 ";
         }
 
-        public static string GetChildClassBody(INamedTypeSymbol classSymbol)
+        public static string GetNestedChildClassBody(INamedTypeSymbol classSymbol)
         {
             return $@"
 public partial class {classSymbol.Name} 
@@ -72,6 +73,65 @@ public partial class {classSymbol.Name}
             return $@"
 namespace {classSymbol.ContainingNamespace.ToDisplayString()}
 {{
+";
+        }
+
+        public static string GetBindSourceUsingStatements()
+        {
+            return @"
+using System;
+using System.Collections.Generic;
+using System.Linq.Expressions;
+using Scaffold.MVVM.Binding;
+";
+        }
+
+        public static string GetBindSourceClassBody(INamedTypeSymbol classSymbol, string bindingType)
+        {
+            return $@"
+public partial class {classSymbol.Name}
+{{
+    private readonly {Symbols.BindingsInterface} __bindSourceBindings = new {bindingType}();
+
+    protected {Symbols.BindingsInterface} binder => __bindSourceBindings;
+    protected {Symbols.BindingsInterface} bindings => __bindSourceBindings;
+
+    protected IBindedProperty<TSource, TTarget> Bind<TSource, TTarget>(Expression<Func<TSource>> source, Expression<Func<TTarget>> target)
+    {{
+        return __bindSourceBindings.RegisterBind(source, target);
+    }}
+
+    protected IBindedProperty<TSource, TTarget> Bind<TSource, TTarget>(Expression<Func<TSource>> source, Action<TTarget> target)
+    {{
+        return __bindSourceBindings.RegisterBind(source, target);
+    }}
+
+    protected void BindConverter<TSource, TTarget>(Func<TSource, TTarget> converter)
+    {{
+        GenericConverter<TSource, TTarget> genericConverter = new GenericConverter<TSource, TTarget>(converter);
+        BindConverter(genericConverter);
+    }}
+
+    protected void BindConverter<TSource, TTarget>(Scaffold.MVVM.Binding.Converter<TSource, TTarget> converter)
+    {{
+        __bindSourceBindings.RegisterConverter(converter);
+    }}
+
+    protected void BindCollection<TSource, TTarget>(Expression<Func<ICollection<TSource>>> source, ICollectionHandler<TSource, TTarget> handler)
+    {{
+        __bindSourceBindings.RegisterBindCollection(source, handler);
+    }}
+
+    protected void UpdateBinding(string bindKey)
+    {{
+        __bindSourceBindings.UpdateBind(bindKey);
+    }}
+
+    protected void ClearBindings()
+    {{
+        __bindSourceBindings.Unbind();
+    }}
+}}
 ";
         }
     }
@@ -90,29 +150,52 @@ namespace {classSymbol.ContainingNamespace.ToDisplayString()}
                 return;
 
             var classGroups = receiver.Fields.GroupBy<IFieldSymbol, INamedTypeSymbol>(f => f.ContainingType, SymbolEqualityComparer.Default);
-            var baseClasses = receiver.Classes.Except(classGroups.Select(cg => cg.Key));
+            var baseClasses = receiver.Classes.Where(c => !classGroups.Any(g => SymbolEqualityComparer.Default.Equals(g.Key, c)));
 
             foreach (IGrouping<INamedTypeSymbol, IFieldSymbol> group in classGroups)
             {
-                var classSource = ProcessClass(group.Key, group);
+                var classSource = ProcessNestedClass(group.Key, group);
                 context.AddSource($"{group.Key.Name}_nested.g.cs", SourceText.From(classSource, Encoding.UTF8));
             }
 
             foreach (var baseClass in baseClasses)
             {
-                var classSource = ProcessClass(baseClass as INamedTypeSymbol, Enumerable.Empty<IFieldSymbol>());
+                var classSource = ProcessNestedClass(baseClass, Enumerable.Empty<IFieldSymbol>());
                 context.AddSource($"{baseClass.Name}_nested.g.cs", SourceText.From(classSource, Encoding.UTF8));
+            }
+
+            List<INamedTypeSymbol> bindSources = new List<INamedTypeSymbol>();
+            foreach (var bindSourceClass in receiver.BindSourceClasses)
+            {
+                if (bindSources.Any(existing => SymbolEqualityComparer.Default.Equals(existing, bindSourceClass)))
+                {
+                    continue;
+                }
+
+                bindSources.Add(bindSourceClass);
+            }
+
+            foreach (var bindSource in bindSources)
+            {
+                var bindingType = GetBindingType(bindSource);
+                if (bindingType == null)
+                {
+                    continue;
+                }
+
+                var classSource = ProcessBindSourceClass(bindSource, bindingType);
+                context.AddSource($"{bindSource.Name}_bindsource.g.cs", SourceText.From(classSource, Encoding.UTF8));
             }
         }
 
-        private string ProcessClass(INamedTypeSymbol classSymbol, IEnumerable<IFieldSymbol> fields)
+        private string ProcessNestedClass(INamedTypeSymbol classSymbol, IEnumerable<IFieldSymbol> fields)
         {
             //TODO check if we dont have nested attributes, as we only need to do this on the lowest level containing the attribute
             //TODO we should probably also check for direct implementations
             bool isNestedSource = classSymbol.GetAttributes().Any(a => a.AttributeClass.Name.Equals(Symbols.ObservableNestedAttribute));
             bool hasNamespace = classSymbol.ContainingNamespace.Name.Length > 0; //to avoid Global namespace weirdness
             var source = new StringBuilder();
-            source.AppendLine(Symbols.GetUsingStatements());
+            source.AppendLine(Symbols.GetNestedUsingStatements());
             if (hasNamespace)
             {
                 source.AppendLine(Symbols.GetNamespaceDefinition(classSymbol));
@@ -120,11 +203,11 @@ namespace {classSymbol.ContainingNamespace.ToDisplayString()}
 
             if (isNestedSource)
             {
-                source.AppendLine(Symbols.GetSourceClassBody(classSymbol));
+                source.AppendLine(Symbols.GetNestedSourceClassBody(classSymbol));
             }
             else
             {
-                source.AppendLine(Symbols.GetChildClassBody(classSymbol));
+                source.AppendLine(Symbols.GetNestedChildClassBody(classSymbol));
             }
 
             foreach (IFieldSymbol fieldSymbol in fields)
@@ -136,6 +219,27 @@ namespace {classSymbol.ContainingNamespace.ToDisplayString()}
             {
                 source.AppendLine("}");
             }
+            return source.ToString();
+        }
+
+        private string ProcessBindSourceClass(INamedTypeSymbol classSymbol, INamedTypeSymbol bindingType)
+        {
+            bool hasNamespace = classSymbol.ContainingNamespace.Name.Length > 0;
+            string bindingTypeName = bindingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+            var source = new StringBuilder();
+            source.AppendLine(Symbols.GetBindSourceUsingStatements());
+            if (hasNamespace)
+            {
+                source.AppendLine(Symbols.GetNamespaceDefinition(classSymbol));
+            }
+
+            source.AppendLine(Symbols.GetBindSourceClassBody(classSymbol, bindingTypeName));
+
+            if (hasNamespace)
+            {
+                source.AppendLine("}");
+            }
+
             return source.ToString();
         }
 
@@ -179,13 +283,33 @@ namespace {classSymbol.ContainingNamespace.ToDisplayString()}
             
             return result.ToString();
         }
+
+        private static INamedTypeSymbol GetBindingType(INamedTypeSymbol classSymbol)
+        {
+            var bindSourceAttribute = classSymbol.GetAttributes()
+                .FirstOrDefault(a => a.AttributeClass?.Name.Equals(Symbols.BindSourceAttribute) == true);
+
+            if (bindSourceAttribute == null || bindSourceAttribute.ConstructorArguments.Length != 1)
+            {
+                return null;
+            }
+
+            var firstArgument = bindSourceAttribute.ConstructorArguments[0];
+            if (firstArgument.Kind != TypedConstantKind.Type)
+            {
+                return null;
+            }
+
+            return firstArgument.Value as INamedTypeSymbol;
+        }
     }
 
 
     internal class ObservablesSyntaxReceiver : ISyntaxContextReceiver
     {
         public List<IFieldSymbol> Fields { get; } = new List<IFieldSymbol>();
-        public List<ISymbol> Classes { get; } = new List<ISymbol>();
+        public List<INamedTypeSymbol> Classes { get; } = new List<INamedTypeSymbol>();
+        public List<INamedTypeSymbol> BindSourceClasses { get; } = new List<INamedTypeSymbol>();
 
         private readonly IEnumerable<string> FieldAttributes = new List<string>()
         {
@@ -218,10 +342,20 @@ namespace {classSymbol.ContainingNamespace.ToDisplayString()}
 
             if (context.Node is ClassDeclarationSyntax classNode)
             {
-                ISymbol classSymbol = context.SemanticModel.GetDeclaredSymbol(classNode);
+                var classSymbol = context.SemanticModel.GetDeclaredSymbol(classNode) as INamedTypeSymbol;
+                if (classSymbol == null)
+                {
+                    return;
+                }
+
                 if (classSymbol.GetAttributes().Any(a => a.AttributeClass.Name.Equals(Symbols.ObservableNestedAttribute)))
                 {
                     Classes.Add(classSymbol);
+                }
+
+                if (classSymbol.GetAttributes().Any(a => a.AttributeClass?.Name.Equals(Symbols.BindSourceAttribute) == true))
+                {
+                    BindSourceClasses.Add(classSymbol);
                 }
             }
         }

@@ -40,24 +40,35 @@ graph TD
 
 ### 1) ViewModel lifecycle and navigation binding
 
-`ViewModel` is the default controller base. It receives navigation context with `Bind(INavigation)` and updates binds when observable properties change.
+`Model` is the domain-state base. Use it for observable business/domain data objects that must notify changes but do not own navigation or screen lifecycle behavior.
+
+```csharp
+public partial class PlayerModel : Model
+{
+    [ObservableProperty]
+    private int health;
+}
+```
+
+### 2) ViewModel lifecycle and navigation binding
+
+`ViewModel` is the default controller base. It receives navigation context with `Bind(INavigation)`, clears prior bindings, and updates binds when observable properties change.
 
 ```csharp
 public abstract partial class ViewModel : ObservableObject, IViewModel
 {
     protected INavigation navigation;
-    protected IBindings binder = new TreeBinding();
 
     public void Bind(INavigation navigation)
     {
-        binder.Unbind();
+        ClearBindings();
         this.navigation = navigation;
         Initialize();
     }
 }
 ```
 
-### 2) Typed view binding via `ViewElement<T>`
+### 3) Typed view binding via `ViewElement<T>`
 
 `ViewElement<T>` ensures views bind to the expected viewmodel type and wires property-change propagation.
 
@@ -72,20 +83,24 @@ public sealed override void Bind(IViewController viewController)
 }
 ```
 
-### 3) Public bind utility in views
+### 4) Generated bind utility in View and ViewModel
 
-Views use `Bind(...)` to connect viewmodel expressions to UI targets through the binding pipeline.
+`ViewElement` and `ViewModel` share bind utility methods through source generation with `[BindSource(typeof(TreeBinding))]`. This keeps MonoBehaviour and non-MonoBehaviour inheritance separated while reusing one binding API.
 
 ```csharp
+[BindSource(typeof(TreeBinding))]
+public abstract partial class ViewElement : MonoBehaviour, IBindSource
+{
 protected IBindedProperty<TSource, TTarget> Bind<TSource, TTarget>(
     Expression<Func<TSource>> source,
     Action<TTarget> target)
 {
     return bindings.RegisterBind(source, target);
 }
+}
 ```
 
-### 4) View-event bubbling
+### 5) View-event bubbling
 
 `ViewEvents` dispatches events by type and routes through typed ledgers.
 
@@ -99,19 +114,40 @@ public static void Raise<TEvent>(Transform source, TEvent evt) where TEvent : Vi
 
 ## How to use
 
-Use MVVM through its public view/viewmodel contracts and bind lifecycle:
+Use MVVM through `Model`, `ViewModel`, and `View`:
 
-1. Create a view model by extending `ViewModel` (or implementing `IViewModel` when needed).
-2. Create a view by extending `View<TViewModel>`.
-3. In the view, use `Bind(...)` and `BindCollection(...)` helpers (from `ViewElement`) in `OnBind()`.
-4. Bind navigation into the view model via `ViewModel.Bind(INavigation)` when the controller lifecycle starts.
+1. Create a `Model` when you need observable domain state.
+2. Create a `ViewModel` when you need screen/application orchestration, navigation, and model-to-view mapping.
+3. Create a `View<TViewModel>` (or `ViewElement<TViewModel>`) for UI binding in `OnBind()`.
+4. Use generated `Bind(...)` helpers in both view and viewmodel base classes.
+5. Bind navigation via `ViewModel.Bind(INavigation)` when lifecycle starts.
+
+When to use `Model` vs `ViewModel`:
+
+- Use `Model` for domain objects with observable properties (inventory item, player stats, mission state), even when there are no view events.
+- Use `ViewModel` for screen composition, navigation, and translating domain state into UI-focused properties.
 
 Minimal usage flow:
 
 ```csharp
-public class InventoryViewModel : ViewModel
+public partial class InventoryModel : Model
 {
-    public string Title { get; private set; } = "Inventory";
+    [ObservableProperty]
+    private int itemCount;
+}
+
+public partial class InventoryViewModel : ViewModel
+{
+    [ObservableProperty]
+    private InventoryModel model = new InventoryModel();
+
+    [ObservableProperty]
+    private string title = "Inventory";
+
+    protected override void Initialize()
+    {
+        Bind(() => Model.ItemCount, () => Title);
+    }
 }
 
 public class InventoryView : View<InventoryViewModel>
@@ -123,15 +159,15 @@ public class InventoryView : View<InventoryViewModel>
 }
 ```
 
-This section intentionally focuses on consumer-facing APIs (`ViewModel`, `View<T>`, `Bind(...)`) rather than internal binding implementation details.
+This section intentionally focuses on consumer-facing APIs (`Model`, `ViewModel`, `View<T>`, and generated `Bind(...)`) rather than low-level binding internals.
 
 ## Internal Services
 
 ### Binding subsystem
 
-- Main types: `IBindings`, `TreeBinding`, `BindSet<TSource, TTarget>`, `BindedProperty<TSource, TTarget>`, `BindedCollection<TSource, TTarget>`, `BindingPath`.
+- Main types: `IBindings`, `TreeBinding`, `IBindSource`, and generated bind helpers from `BindSourceAttribute`.
 - Responsibility: register source-target relationships, apply conversion/adaptation rules, and update bindings by key.
-- Note: this subsystem powers `Bind(...)` but should not replace public-API usage guidance.
+- Note: concrete low-level classes such as `BindSet` and `BindedProperty` are internal implementation details and not intended feature-level API.
 
 ### ViewEvents subsystem
 
@@ -144,11 +180,7 @@ This section intentionally focuses on consumer-facing APIs (`ViewModel`, `View<T
 - `IViewModel` (`Assets/Scripts/Core/MVVM/Runtime/Contracts/IViewModel.cs`): public contract for MVVM controllers used by views and navigation.
 - `IView` (`Assets/Scripts/Core/MVVM/Runtime/Contracts/IView.cs`): public view contract that bridges MVVM views to navigation view lifecycle.
 - `IEventLedger` (`Assets/Scripts/Core/MVVM/Runtime/Contracts/IEventLedger.cs`): public abstraction for register/raise/unregister event routing.
-- `IBind<TSource>` (`Assets/Scripts/Core/MVVM/Runtime/Binding/Contracts/IBind.cs`): public update contract used by bind pipeline participants.
-- `IBindings` (`Assets/Scripts/Core/MVVM/Runtime/Binding/Contracts/IBindings.cs`): public binding registry/update surface used by views/viewmodels.
-- `IBindSet<TSource, TTarget>` (`Assets/Scripts/Core/MVVM/Runtime/Binding/Contracts/IBindSet.cs`): public converter/adapter registration contract for typed binding sets.
-- `IBindedProperty<TSource, TTarget>` (`Assets/Scripts/Core/MVVM/Runtime/Binding/Contracts/IBindedProperty.cs`): public fluent API to attach converter/adapter behavior to property bindings.
-- `IBindedCollection<TSource, TTarget>` (`Assets/Scripts/Core/MVVM/Runtime/Binding/Contracts/IBindedCollection.cs`): public collection-binding handle with lifecycle/disposal behavior.
+- `Model` (`Assets/Scripts/Core/MVVM/Runtime/Implementation/Model.cs`): base class for observable domain objects.
 - `ViewModel` (`Assets/Scripts/Core/MVVM/Runtime/Implementation/ViewModel.cs`): default observable view model base with navigation and bind lifecycle hooks.
 - `View<T>` (`Assets/Scripts/Core/MVVM/Runtime/Implementation/View.cs`): generic view base that implements navigation-driven open/close/focus/hide behavior.
 - `ViewElement` / `ViewElement<T>` (`Assets/Scripts/Core/MVVM/Runtime/Implementation/ViewElement.cs`): base MonoBehaviour utility that exposes `Bind(...)`, `BindCollection(...)`, and typed viewmodel binding.
@@ -162,7 +194,7 @@ From Unity Editor:
 
 1. Open `Window > General > Test Runner`.
 2. Run EditMode tests for `Scaffold.MVVM.Tests`.
-3. Expected result: all tests in `MVVMTests` pass, including conversion (`int -> string`) and path creation checks.
+3. Expected result: all tests in `MVVMTests` pass, including model-to-viewmodel propagation, view bind updates, and binding-path checks.
 
 From Unity CLI (headless pattern):
 

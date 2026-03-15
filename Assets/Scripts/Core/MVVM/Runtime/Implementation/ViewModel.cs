@@ -6,15 +6,14 @@ using System.ComponentModel;
 namespace Scaffold.MVVM
 {
     [NestedObservableObject]
-    public abstract partial class ViewModel : ObservableObject, IViewModel
+    [BindSource(typeof(TreeBinding))]
+    public abstract partial class ViewModel : ObservableObject, IViewModel, IBindSource
     {
         protected INavigation navigation;
-        protected IBindings binder = new TreeBinding();
 
         public void Bind(INavigation navigation)
         {
-            binder.Unbind();
-
+            ClearBindings();
             this.navigation = navigation;
             this.Initialize();
         }
@@ -32,7 +31,7 @@ namespace Scaffold.MVVM
 
         protected override void OnPropertyChanged(PropertyChangedEventArgs e)
         {
-            binder.UpdateBind(e.PropertyName);
+            UpdateBinding(e.PropertyName);
             base.OnPropertyChanged(e);
         }
 

@@ -1,55 +1,20 @@
 using Scaffold.MVVM.Binding;
 using Scaffold.Navigation;
-using System;
-using System.Collections.Generic;
 using System.ComponentModel;
-using System.Linq.Expressions;
 using UnityEngine;
 
 namespace Scaffold.MVVM
 {
-    public abstract class ViewElement : MonoBehaviour
+    [BindSource(typeof(TreeBinding))]
+    public abstract partial class ViewElement : MonoBehaviour, IBindSource
     {
-        protected IBindings bindings = new TreeBinding();
-
-        #region Binding Utility
-
-        protected IBindedProperty<TSource, TTarget> Bind<TSource, TTarget>(Expression<Func<TSource>> source, Expression<Func<TTarget>> target)
-        {
-            return bindings.RegisterBind(source, target);
-        }
-
-        protected IBindedProperty<TSource, TTarget> Bind<TSource, TTarget>(Expression<Func<TSource>> source, Action<TTarget> target)
-        {
-            return bindings.RegisterBind(source, target);
-        }
-
-        protected void BindConverter<TSource, TTarget>(Func<TSource, TTarget> converter)
-        {
-            GenericConverter<TSource, TTarget> genericConverter = new GenericConverter<TSource, TTarget>(converter);
-            BindConverter(genericConverter);
-        }
-
-        protected void BindConverter<TSource, TTarget>(Binding.Converter<TSource, TTarget> converter)
-        {
-            bindings.RegisterConverter(converter);
-        }
-
-        protected void BindCollection<TSource, TTarget>(Expression<Func<ICollection<TSource>>> source, ICollectionHandler<TSource, TTarget> handler)
-        {
-            bindings.RegisterBindCollection(source, handler);
-        }
-
-
-        #endregion
-
         protected virtual void OnViewModelChanged(object sender, PropertyChangedEventArgs e)
         {
             var elementTypeName = GetType().Name;
             Debug.Log("View element update : " + elementTypeName + " - " + e.PropertyName);
             var bindSourceName = GetBindSourceName();
             var propertyFullName = string.Join('.', bindSourceName, e.PropertyName);
-            bindings.UpdateBind(propertyFullName);
+            UpdateBinding(propertyFullName);
         }
 
         protected abstract string GetBindSourceName();
@@ -65,7 +30,7 @@ namespace Scaffold.MVVM
 
         protected void Unbind()
         {
-            bindings.Unbind();
+            ClearBindings();
             OnUnbind();
         }
 

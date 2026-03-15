@@ -1844,24 +1844,19 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\user\\.nuget\\packages\\": {},
-    "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
+    "C:\\Users\\mtgco\\.nuget\\packages\\": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\user\\.codex\\worktrees\\7a04\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers.Tests\\Scaffold.Analyzers.Tests.csproj",
+      "projectUniqueName": "C:\\Unity\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers.Tests\\Scaffold.Analyzers.Tests.csproj",
       "projectName": "Scaffold.Analyzers.Tests",
-      "projectPath": "C:\\Users\\user\\.codex\\worktrees\\7a04\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers.Tests\\Scaffold.Analyzers.Tests.csproj",
-      "packagesPath": "C:\\Users\\user\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\user\\.codex\\worktrees\\7a04\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers.Tests\\obj\\",
+      "projectPath": "C:\\Unity\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers.Tests\\Scaffold.Analyzers.Tests.csproj",
+      "packagesPath": "C:\\Users\\mtgco\\.nuget\\packages\\",
+      "outputPath": "C:\\Unity\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers.Tests\\obj\\",
       "projectStyle": "PackageReference",
-      "fallbackFolders": [
-        "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
-      ],
       "configFilePaths": [
-        "C:\\Users\\user\\AppData\\Roaming\\NuGet\\NuGet.Config",
-        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+        "C:\\Users\\mtgco\\AppData\\Roaming\\NuGet\\NuGet.Config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],
       "originalTargetFrameworks": [
@@ -1875,8 +1870,8 @@
         "net9.0": {
           "targetAlias": "net9.0",
           "projectReferences": {
-            "C:\\Users\\user\\.codex\\worktrees\\7a04\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers\\Scaffold.Analyzers.csproj": {
-              "projectPath": "C:\\Users\\user\\.codex\\worktrees\\7a04\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers\\Scaffold.Analyzers.csproj"
+            "C:\\Unity\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers\\Scaffold.Analyzers.csproj": {
+              "projectPath": "C:\\Unity\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers\\Scaffold.Analyzers.csproj"
             }
           }
         }
@@ -1932,7 +1927,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.305/PortableRuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.312/PortableRuntimeIdentifierGraph.json"
       }
     }
   }

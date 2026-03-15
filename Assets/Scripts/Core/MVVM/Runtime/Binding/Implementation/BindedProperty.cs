@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace Scaffold.MVVM.Binding
 {
-    public class BindedProperty<TSource, TTarget> : IBind<TSource>, IBindedProperty<TSource, TTarget>
+    internal class BindedProperty<TSource, TTarget> : IBind<TSource>, IBindedProperty<TSource, TTarget>
     {
         public BindedProperty(BindSet<TSource, TTarget> binding, Action<TTarget> setter)
         {

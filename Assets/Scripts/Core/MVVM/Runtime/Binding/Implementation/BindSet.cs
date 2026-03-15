@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace Scaffold.MVVM.Binding
 {
-    public class BindSet<TSource, TTarget> : IBindSet<TSource, TTarget>
+    internal class BindSet<TSource, TTarget> : IBindSet<TSource, TTarget>
     {
         private readonly List<Converter<TSource, TTarget>> converters = new List<Converter<TSource, TTarget>>();
         private readonly List<Adapter<TTarget>> adapters = new List<Adapter<TTarget>>();

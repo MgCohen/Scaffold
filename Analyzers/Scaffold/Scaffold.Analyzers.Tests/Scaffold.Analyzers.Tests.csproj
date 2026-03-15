@@ -4,7 +4,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
-    <NoWarn>$(NoWarn);SCA0001;SCA0002;SCA0003;SCA0004;SCA0005;SCA0006;SCA0009;SCA0010;SCA0011;SCA0012;SCA0013;SCA0014</NoWarn>
+    <NoWarn>$(NoWarn);SCA0001;SCA0002;SCA0003;SCA0004;SCA0005;SCA0006;SCA0009;SCA0010;SCA0011;SCA0012;SCA0013;SCA0014;SCA0015;SCA0016</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
