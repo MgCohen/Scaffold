@@ -7,7 +7,7 @@ using UnityEngine;
 namespace Scaffold.MVVM
 {
     [BindSource(typeof(TreeBinding))]
-    public abstract partial class ViewElement : MonoBehaviour, IBindSource
+    public abstract partial class ViewElement : MonoBehaviour
     {
         protected virtual void OnViewModelChanged(object sender, PropertyChangedEventArgs e)
         {

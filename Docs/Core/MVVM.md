@@ -85,13 +85,13 @@ public sealed override void Bind(IViewController viewController)
 
 ### 4) Generated bind utility in View and ViewModel
 
-`ViewElement` and `ViewModel` share bind utility methods through source generation with `[BindSource(typeof(TreeBinding))]`. This keeps MonoBehaviour and non-MonoBehaviour inheritance separated while reusing one binding API.
+`ViewElement` and `ViewModel` share bind utility methods through source generation with `[BindSource(typeof(TreeBinding))]`. Any class annotated with `BindSource` automatically implements `IBindSource`, so you do not manually add that interface on the class declaration.
 
 ```csharp
 [BindSource(typeof(TreeBinding))]
-public abstract partial class ViewElement : MonoBehaviour, IBindSource
+public abstract partial class ViewElement : MonoBehaviour
 {
-protected IBindedProperty<TSource, TTarget> Bind<TSource, TTarget>(
+public IBindedProperty<TSource, TTarget> Bind<TSource, TTarget>(
     Expression<Func<TSource>> source,
     Action<TTarget> target)
 {

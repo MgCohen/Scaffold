@@ -218,6 +218,22 @@ namespace Scaffold.MVVM.Tests
         }
 
         [Test]
+        public void BindSource_AttributeOnlyClass_ImplementsInterfaceAndBinds()
+        {
+            GeneratedBindSourceProbe probe = new GeneratedBindSourceProbe
+            {
+                SourceValue = 4
+            };
+
+            IBindSource bindSource = (IBindSource)probe;
+            bindSource.Bind<int, int>(() => probe.SourceValue, () => probe.TargetValue);
+            probe.SourceValue = 11;
+            bindSource.UpdateBinding(ExpressionsUtility.GetPropertyName(() => probe.SourceValue));
+
+            Assert.AreEqual(11, probe.TargetValue);
+        }
+
+        [Test]
         public void EventLedger_Raise_BubblesFromChildToRoot()
         {
             using HierarchyFixture fixture = CreateHierarchyFixture();
@@ -683,6 +699,13 @@ namespace Scaffold.MVVM.Tests
     public class AdaptableBindingTarget
     {
         public string Label { get; set; }
+    }
+
+    [BindSource(typeof(TreeBinding))]
+    public partial class GeneratedBindSourceProbe
+    {
+        public int SourceValue { get; set; }
+        public int TargetValue { get; set; }
     }
 
     public class IncrementingStringConverter : Scaffold.MVVM.Binding.Converter<int, string>

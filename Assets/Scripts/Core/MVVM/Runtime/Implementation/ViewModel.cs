@@ -7,7 +7,7 @@ namespace Scaffold.MVVM
 {
     [NestedObservableObject]
     [BindSource(typeof(TreeBinding))]
-    public abstract partial class ViewModel : ObservableObject, IViewModel, IBindSource
+    public abstract partial class ViewModel : ObservableObject, IViewModel
     {
         protected INavigation navigation;
 

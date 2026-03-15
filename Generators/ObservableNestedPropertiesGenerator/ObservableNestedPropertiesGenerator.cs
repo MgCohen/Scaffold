@@ -15,6 +15,7 @@ namespace ObservableNestedPropertiesGenerator
         public const string ObservableNestedInterface = "INestedObservableProperties";
         public const string BindSourceAttribute = "BindSourceAttribute";
         public const string BindingsInterface = "Scaffold.MVVM.Binding.IBindings";
+        public const string BindSourceInterface = "Scaffold.MVVM.Binding.IBindSource";
 
         public static string GetNestedUsingStatements()
         {
@@ -86,50 +87,53 @@ using Scaffold.MVVM.Binding;
 ";
         }
 
-        public static string GetBindSourceClassBody(INamedTypeSymbol classSymbol, string bindingType)
+        public static string GetBindSourceClassBody(INamedTypeSymbol classSymbol, string bindingType, bool shouldImplementBindSource)
         {
+            var bindSourceClause = shouldImplementBindSource
+                ? $" : {Symbols.BindSourceInterface}"
+                : string.Empty;
+
             return $@"
-public partial class {classSymbol.Name}
+public partial class {classSymbol.Name}{bindSourceClause}
 {{
-    private readonly {Symbols.BindingsInterface} __bindSourceBindings = new {bindingType}();
+    private readonly {Symbols.BindingsInterface} _bindSourceBindings = new {bindingType}();
 
-    protected {Symbols.BindingsInterface} binder => __bindSourceBindings;
-    protected {Symbols.BindingsInterface} bindings => __bindSourceBindings;
+    protected {Symbols.BindingsInterface} bindings => _bindSourceBindings;
 
-    protected IBindedProperty<TSource, TTarget> Bind<TSource, TTarget>(Expression<Func<TSource>> source, Expression<Func<TTarget>> target)
+    public IBindedProperty<TSource, TTarget> Bind<TSource, TTarget>(Expression<Func<TSource>> source, Expression<Func<TTarget>> target)
     {{
-        return __bindSourceBindings.RegisterBind(source, target);
+        return _bindSourceBindings.RegisterBind(source, target);
     }}
 
-    protected IBindedProperty<TSource, TTarget> Bind<TSource, TTarget>(Expression<Func<TSource>> source, Action<TTarget> target)
+    public IBindedProperty<TSource, TTarget> Bind<TSource, TTarget>(Expression<Func<TSource>> source, Action<TTarget> target)
     {{
-        return __bindSourceBindings.RegisterBind(source, target);
+        return _bindSourceBindings.RegisterBind(source, target);
     }}
 
-    protected void BindConverter<TSource, TTarget>(Func<TSource, TTarget> converter)
+    public void BindConverter<TSource, TTarget>(Func<TSource, TTarget> converter)
     {{
         GenericConverter<TSource, TTarget> genericConverter = new GenericConverter<TSource, TTarget>(converter);
         BindConverter(genericConverter);
     }}
 
-    protected void BindConverter<TSource, TTarget>(Scaffold.MVVM.Binding.Converter<TSource, TTarget> converter)
+    public void BindConverter<TSource, TTarget>(Scaffold.MVVM.Binding.Converter<TSource, TTarget> converter)
     {{
-        __bindSourceBindings.RegisterConverter(converter);
+        _bindSourceBindings.RegisterConverter(converter);
     }}
 
-    protected void BindCollection<TSource, TTarget>(Expression<Func<ICollection<TSource>>> source, ICollectionHandler<TSource, TTarget> handler)
+    public void BindCollection<TSource, TTarget>(Expression<Func<ICollection<TSource>>> source, ICollectionHandler<TSource, TTarget> handler)
     {{
-        __bindSourceBindings.RegisterBindCollection(source, handler);
+        _bindSourceBindings.RegisterBindCollection(source, handler);
     }}
 
-    protected void UpdateBinding(string bindKey)
+    public void UpdateBinding(string bindKey)
     {{
-        __bindSourceBindings.UpdateBind(bindKey);
+        _bindSourceBindings.UpdateBind(bindKey);
     }}
 
-    protected void ClearBindings()
+    public void ClearBindings()
     {{
-        __bindSourceBindings.Unbind();
+        _bindSourceBindings.Unbind();
     }}
 }}
 ";
@@ -226,6 +230,9 @@ public partial class {classSymbol.Name}
         {
             bool hasNamespace = classSymbol.ContainingNamespace.Name.Length > 0;
             string bindingTypeName = bindingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+            bool implementsBindSource = classSymbol.AllInterfaces
+                .Any(i => i.ToDisplayString() == Symbols.BindSourceInterface);
+            bool shouldImplementBindSource = !implementsBindSource;
             var source = new StringBuilder();
             source.AppendLine(Symbols.GetBindSourceUsingStatements());
             if (hasNamespace)
@@ -233,7 +240,7 @@ public partial class {classSymbol.Name}
                 source.AppendLine(Symbols.GetNamespaceDefinition(classSymbol));
             }
 
-            source.AppendLine(Symbols.GetBindSourceClassBody(classSymbol, bindingTypeName));
+            source.AppendLine(Symbols.GetBindSourceClassBody(classSymbol, bindingTypeName, shouldImplementBindSource));
 
             if (hasNamespace)
             {
