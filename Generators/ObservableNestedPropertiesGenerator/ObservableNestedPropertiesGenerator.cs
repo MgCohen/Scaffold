@@ -258,6 +258,13 @@ public partial class {classSymbol.Name}{bindSourceClause}
                 source.AppendLine($@"        RefreshChildProperty(""{field.PropertyName}"", {field.PropertyName}, ref __{field.SafeName}ObservedChild, ref __{field.SafeName}PropertyChangedHandler);");
             }
 
+            List<TrackedFieldInfo> observableTrackedFields = trackedFields.Where(field => field.IsObservableProperty).ToList();
+            if (observableTrackedFields.Count > 0)
+            {
+                source.AppendLine();
+                source.AppendLine("        EnsureNestedRefreshHandlerRegistered();");
+            }
+
             source.AppendLine("    }");
 
             foreach (TrackedFieldInfo field in trackedFields)
@@ -265,15 +272,43 @@ public partial class {classSymbol.Name}{bindSourceClause}
                 source.AppendLine();
                 source.AppendLine($@"    private object __{field.SafeName}ObservedChild;");
                 source.AppendLine($@"    private PropertyChangedEventHandler __{field.SafeName}PropertyChangedHandler;");
+            }
 
-                if (field.IsObservableProperty)
+            if (observableTrackedFields.Count > 0)
+            {
+                source.AppendLine();
+                source.AppendLine("    private bool __nestedRefreshHandlerRegistered;");
+                source.AppendLine("    private PropertyChangedEventHandler __nestedRefreshHandler;");
+                source.AppendLine();
+                source.AppendLine("    private void EnsureNestedRefreshHandlerRegistered()");
+                source.AppendLine("    {");
+                source.AppendLine("        if (__nestedRefreshHandlerRegistered)");
+                source.AppendLine("        {");
+                source.AppendLine("            return;");
+                source.AppendLine("        }");
+                source.AppendLine();
+                source.AppendLine("        __nestedRefreshHandler = HandleNestedRefreshPropertyChanged;");
+                source.AppendLine("        PropertyChanged += __nestedRefreshHandler;");
+                source.AppendLine("        __nestedRefreshHandlerRegistered = true;");
+                source.AppendLine("    }");
+                source.AppendLine();
+                source.AppendLine("    private void HandleNestedRefreshPropertyChanged(object sender, PropertyChangedEventArgs args)");
+                source.AppendLine("    {");
+                source.AppendLine("        if (string.IsNullOrEmpty(args?.PropertyName))");
+                source.AppendLine("        {");
+                source.AppendLine("            return;");
+                source.AppendLine("        }");
+                source.AppendLine();
+                source.AppendLine("        switch (args.PropertyName)");
+                source.AppendLine("        {");
+                foreach (TrackedFieldInfo field in observableTrackedFields)
                 {
-                    source.AppendLine();
-                    source.AppendLine($@"    partial void On{field.PropertyName}Changed({field.TypeName} value)");
-                    source.AppendLine("    {");
-                    source.AppendLine($@"        RefreshChildProperty(""{field.PropertyName}"", value, ref __{field.SafeName}ObservedChild, ref __{field.SafeName}PropertyChangedHandler);");
-                    source.AppendLine("    }");
+                    source.AppendLine($@"            case nameof({field.PropertyName}):");
+                    source.AppendLine($@"                RefreshChildProperty(""{field.PropertyName}"", {field.PropertyName}, ref __{field.SafeName}ObservedChild, ref __{field.SafeName}PropertyChangedHandler);");
+                    source.AppendLine("                break;");
                 }
+                source.AppendLine("        }");
+                source.AppendLine("    }");
             }
 
             source.AppendLine();
