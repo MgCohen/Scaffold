@@ -11,30 +11,39 @@ namespace Scaffold.MVVM
     {
         public ViewEvent(PointerEventData pointer)
         {
-            PointerData = pointer;
+            if (pointer is null) { throw new ArgumentNullException(nameof(pointer)); }
+            pointerData = pointer;
         }
 
         public ViewEvent()
         {
         }
 
-        public PointerEventData PointerData { get; private set; }
+        public PointerEventData PointerData => pointerData;
+        [SerializeField] private PointerEventData pointerData;
 
-        public Transform Source { get; private set; }
-        public Transform Current { get; private set; }
-        public List<Transform> History { get; private set; } = new List<Transform>();
+        public Transform Source => source;
+        [SerializeField] private Transform source;
+        public Transform Current => current;
+        [SerializeField] private Transform current;
+        public List<Transform> History => history;
+        [SerializeField] private List<Transform> history = new();
 
-        public Transform Consumer { get; private set; }
-        public bool IsConsumed { get; private set; }
+        public Transform Consumer => consumer;
+        [SerializeField] private Transform consumer;
+        public bool IsConsumed => isConsumed;
+        [SerializeField] private bool isConsumed;
 
-        public int MaxRange { get; private set; } = -1;
+        public int MaxRange => maxRange;
+        [SerializeField] private int maxRange = -1;
 
         public void Consume()
         {
-            IsConsumed = true;
-            Consumer = Current;
+            GuardState();
+            isConsumed = true;
+            consumer = current;
             AddCurrentToHistoryIfNeeded();
-            Current = null;
+            current = null;
         }
 
         private void AddCurrentToHistoryIfNeeded()
@@ -47,19 +56,30 @@ namespace Scaffold.MVVM
 
         public void Restore()
         {
-            IsConsumed = false;
-            Current = null;
-            Consumer = null;
+            GuardState();
+            isConsumed = false;
+            current = null;
+            consumer = null;
             History.Clear();
         }
 
         public void LogNext(Transform next)
         {
+            if (next is null) { throw new ArgumentNullException(nameof(next)); }
+            GuardState();
             if (Current != null)
             {
                 History.Add(Current);
             }
-            Current = next;
+            current = next;
+        }
+
+        private void GuardState()
+        {
+            if (history == null)
+            {
+                history = new List<Transform>();
+            }
         }
     }
 }

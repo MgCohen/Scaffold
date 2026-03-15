@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 
 namespace Scaffold.MVVM.Binding
 {
@@ -6,6 +6,7 @@ namespace Scaffold.MVVM.Binding
     {
         public GenericConverter(Func<TSource, TTarget> converter)
         {
+            if (converter is null) { throw new ArgumentNullException(nameof(converter)); }
             this.converter = converter;
         }
 
@@ -26,3 +27,5 @@ namespace Scaffold.MVVM.Binding
         }
     }
 }
+
+

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 
 namespace Scaffold.MVVM.Binding
 {
@@ -11,3 +11,4 @@ namespace Scaffold.MVVM.Binding
         }
     }
 }
+

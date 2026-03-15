@@ -1,5 +1,4 @@
-using Mono.Cecil;
-using Scaffold.Maps;
+﻿using Scaffold.Maps;
 using System;
 
 namespace Scaffold.MVVM.Binding
@@ -40,3 +39,4 @@ namespace Scaffold.MVVM.Binding
 
     }
 }
+

@@ -1,4 +1,4 @@
-using Scaffold.MVVM.Binding;
+﻿using Scaffold.MVVM.Binding;
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
@@ -10,6 +10,8 @@ namespace Scaffold.MVVM.Binding
     {
         public BindedCollection(BindSet<TSource, TTarget> binding, ICollectionHandler<TSource, TTarget> handler)
         {
+            if (binding is null) { throw new ArgumentNullException(nameof(binding)); }
+            if (handler is null) { throw new ArgumentNullException(nameof(handler)); }
             this.handler = handler;
         }
 
@@ -83,11 +85,13 @@ namespace Scaffold.MVVM.Binding
 
         public void Update()
         {
+            if (source == null) { return; }
             Debug.Log("Collection Changed");
         }
 
         public void Dispose()
         {
+            if (source == null) { return; }
             if (source is INotifyCollectionChanged ncc)
             {
                 ncc.CollectionChanged -= HandleCollectionChanges;
@@ -95,3 +99,5 @@ namespace Scaffold.MVVM.Binding
         }
     }
 }
+
+

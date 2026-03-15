@@ -2,6 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq.Expressions;
 
+namespace Scaffold.MVVM.Binding.Contracts
+{
+}
+
 namespace Scaffold.MVVM.Binding
 {
     public interface IBindings
@@ -15,4 +19,3 @@ namespace Scaffold.MVVM.Binding
         public void Unbind();
     }
 }
-

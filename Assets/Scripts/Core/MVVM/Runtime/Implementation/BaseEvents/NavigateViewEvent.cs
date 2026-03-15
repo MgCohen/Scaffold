@@ -2,6 +2,10 @@ using Scaffold.Types;
 using System;
 using UnityEngine;
 
+namespace Scaffold.MVVM.BaseEvents
+{
+}
+
 namespace Scaffold.MVVM
 {
     [Serializable]
@@ -10,7 +14,7 @@ namespace Scaffold.MVVM
         public NavigationType Navigation => navigation;
         [SerializeField] private NavigationType navigation;
 
-        public Type View => view.Type;
+        public TypeReference View => view;
         [TypeReferenceFilter(typeof(IView))]
         [SerializeField] private TypeReference view;
 

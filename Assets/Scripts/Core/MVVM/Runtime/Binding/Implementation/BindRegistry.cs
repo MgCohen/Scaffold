@@ -1,4 +1,4 @@
-using Scaffold.Maps;
+﻿using Scaffold.Maps;
 using System;
 using System.Linq.Expressions;
 
@@ -8,6 +8,7 @@ namespace Scaffold.MVVM.Binding
     {
         public BindRegistry(BindGroups groups)
         {
+            if (groups is null) { throw new ArgumentNullException(nameof(groups)); }
             this.groups = groups;
         }
 
@@ -16,6 +17,7 @@ namespace Scaffold.MVVM.Binding
 
         public BindContext<TSource> GetContext<TSource>(Expression<Func<TSource>> source)
         {
+            if (source is null) { throw new ArgumentNullException(nameof(source)); }
             string path = GetBindKey(source);
             Type type = typeof(TSource);
             return GetContext(path, type, source);
@@ -59,3 +61,5 @@ namespace Scaffold.MVVM.Binding
         }
     }
 }
+
+

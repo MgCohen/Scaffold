@@ -13,9 +13,14 @@ namespace Scaffold.MVVM
 
         public void Bind(INavigation navigation)
         {
-            ClearBindings();
+            GuardBindingState();
             this.navigation = navigation;
-            this.Initialize();
+            Initialize();
+        }
+
+        private void GuardBindingState()
+        {
+            ClearBindings();
         }
 
         protected T BindChildViewModel<T>(T viewModel) where T: IViewModel
@@ -37,6 +42,7 @@ namespace Scaffold.MVVM
 
         public void Close()
         {
+            if (navigation == null) { return; }
             navigation.Close(this);
             OnClosed();
         }

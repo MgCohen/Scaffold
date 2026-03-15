@@ -1,5 +1,6 @@
 using Scaffold.MVVM.Binding;
 using Scaffold.Navigation;
+using System.Collections.Generic;
 using System.ComponentModel;
 using UnityEngine;
 
@@ -10,6 +11,7 @@ namespace Scaffold.MVVM
     {
         protected virtual void OnViewModelChanged(object sender, PropertyChangedEventArgs e)
         {
+            if (e == null) { return; }
             var elementTypeName = GetType().Name;
             Debug.Log("View element update : " + elementTypeName + " - " + e.PropertyName);
             var bindSourceName = GetBindSourceName();
@@ -21,6 +23,7 @@ namespace Scaffold.MVVM
 
         public virtual void Bind(IViewController viewModel)
         {
+            if (viewModel == null) { return; }
         }
 
         protected virtual void OnBind()
@@ -48,7 +51,10 @@ namespace Scaffold.MVVM
         public sealed override void Bind(IViewController viewController)
         {
             var vm = GetViewModelOrDefault(viewController);
-            Unbind();
+            if (!EqualityComparer<T>.Default.Equals(viewModel, default))
+            {
+                Unbind();
+            }
             this.viewModel = vm;
             RegisterViewModel(vm);
             OnBind();
@@ -95,6 +101,8 @@ namespace Scaffold.MVVM
 
         public void Bind(T parent, J viewModel)
         {
+            if (parent == null) { throw new System.ArgumentNullException(nameof(parent)); }
+            if (viewModel == null) { return; }
             this.parent = parent;
             Bind(viewModel);
         }

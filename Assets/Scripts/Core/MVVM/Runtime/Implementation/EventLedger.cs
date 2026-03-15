@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -11,24 +11,32 @@ namespace Scaffold.MVVM
 
         public void Register(Transform source, Action<T> evt)
         {
+            if (source is null) { throw new ArgumentNullException(nameof(source)); }
+            if (evt is null) { throw new ArgumentNullException(nameof(evt)); }
             var callbacks = GetCallbackList(source, true);
             callbacks.typed.Add(evt);
         }
 
         public void Register(Transform source, Action<ViewEvent> evt)
         {
+            if (source is null) { throw new ArgumentNullException(nameof(source)); }
+            if (evt is null) { throw new ArgumentNullException(nameof(evt)); }
             var callbacks = GetCallbackList(source, true);
             callbacks.generic.Add(evt);
         }
 
         public void Unregister(Transform source, Action<T> evt)
         {
+            if (source is null) { throw new ArgumentNullException(nameof(source)); }
+            if (evt is null) { throw new ArgumentNullException(nameof(evt)); }
             var callbacks = GetCallbackList(source, false);
             callbacks.typed?.Remove(evt);
         }
 
         public void Unregister(Transform source, Action<ViewEvent> evt)
         {
+            if (source is null) { throw new ArgumentNullException(nameof(source)); }
+            if (evt is null) { throw new ArgumentNullException(nameof(evt)); }
             var callbacks = GetCallbackList(source, false);
             callbacks.generic?.Remove(evt);
         }
@@ -44,46 +52,74 @@ namespace Scaffold.MVVM
 
         public void Raise(Transform transform, T evt)
         {
-            while (transform != null && !evt.IsConsumed)
-            {
-                RaiseAtTransform(transform, evt);
-                transform = transform.parent;
-            }
+            ValidateRaiseInput(transform, evt);
+            List<Exception> callbackExceptions = DispatchCallbacks(transform, evt);
+            HandleDispatchExceptions(callbackExceptions);
         }
 
-        private void RaiseAtTransform(Transform transform, T evt)
+        private void ValidateRaiseInput(Transform transform, T evt)
+        {
+            if (transform is null) { throw new ArgumentNullException(nameof(transform)); }
+            if (evt is null) { throw new ArgumentNullException(nameof(evt)); }
+        }
+
+        private List<Exception> DispatchCallbacks(Transform transform, T evt)
+        {
+            List<Exception> callbackExceptions = null;
+            while (transform != null && !evt.IsConsumed)
+            {
+                RaiseAtTransform(transform, evt, ref callbackExceptions);
+                transform = transform.parent;
+            }
+            return callbackExceptions;
+        }
+
+        private void HandleDispatchExceptions(List<Exception> callbackExceptions)
+        {
+            if (callbackExceptions == null || callbackExceptions.Count == 0) { return; }
+            if (ViewEvents.GetExceptionOptions().Mode != EventLedgerExceptionMode.ThrowAfterDispatch) { return; }
+            throw new AggregateException("One or more callbacks failed during dispatch.", callbackExceptions);
+        }
+
+        private void RaiseAtTransform(Transform transform, T evt, ref List<Exception> callbackExceptions)
         {
             evt.LogNext(transform);
             var callbacks = GetCallbackList(transform, false);
-            TryRaiseCallbackList(callbacks.typed, evt);
-            TryRaiseCallbackList(callbacks.generic, evt);
+            TryRaiseCallbackList(callbacks.typed, evt, ref callbackExceptions);
+            TryRaiseCallbackList(callbacks.generic, evt, ref callbackExceptions);
         }
 
-        private void TryRaiseCallbackList<T1>(List<Action<T1>> list, T1 evt) where T1 : ViewEvent
+        private void TryRaiseCallbackList<T1>(List<Action<T1>> list, T1 evt, ref List<Exception> callbackExceptions) where T1 : ViewEvent
         {
             if (list == null) { return; }
-            RaiseListCallbacks(list, evt);
+            RaiseListCallbacks(list, evt, ref callbackExceptions);
         }
 
-        private void RaiseListCallbacks<T1>(List<Action<T1>> list, T1 evt) where T1 : ViewEvent
+        private void RaiseListCallbacks<T1>(List<Action<T1>> list, T1 evt, ref List<Exception> callbackExceptions) where T1 : ViewEvent
         {
             for (var i = list.Count - 1; i >= 0; i--)
             {
                 if (evt.IsConsumed) { return; }
-                InvokeCallback(list[i], evt);
+                InvokeCallback(list[i], evt, ref callbackExceptions);
             }
         }
 
-        private void InvokeCallback<T1>(Action<T1> action, T1 evt) where T1 : ViewEvent
+        private void InvokeCallback<T1>(Action<T1> action, T1 evt, ref List<Exception> callbackExceptions) where T1 : ViewEvent
         {
             try { action?.Invoke(evt); }
-            catch (Exception ex) { LogCallbackError(ex); }
+            catch (Exception ex)
+            {
+                callbackExceptions ??= new List<Exception>();
+                callbackExceptions.Add(ex);
+                ReportCallbackException(ex);
+            }
         }
 
-        private void LogCallbackError(Exception ex)
+        private void ReportCallbackException(Exception ex)
         {
-            Debug.LogException(ex);
-            Debug.LogError($"Error on invoking callback for {typeof(T)}");
+            var options = ViewEvents.GetExceptionOptions();
+            try { options.Reporter?.Invoke(ex, typeof(T)); }
+            catch { }
         }
 
         private (List<Action<T>> typed, List<Action<ViewEvent>> generic) GetCallbackList(Transform transform, bool createIfMissing)
@@ -104,3 +140,4 @@ namespace Scaffold.MVVM
         }
     }
 }
+

@@ -1,6 +1,10 @@
 using System;
 using UnityEngine;
 
+namespace Scaffold.MVVM.Contracts
+{
+}
+
 namespace Scaffold.MVVM
 {
     public interface IEventLedger

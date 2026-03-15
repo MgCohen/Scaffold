@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 
 namespace Scaffold.MVVM.Binding
 {
@@ -7,9 +7,12 @@ namespace Scaffold.MVVM.Binding
     {
         public BindSourceAttribute(Type bindingType)
         {
+            if (bindingType is null) { throw new ArgumentNullException(nameof(bindingType)); }
             BindingType = bindingType;
         }
 
         public Type BindingType { get; }
     }
 }
+
+

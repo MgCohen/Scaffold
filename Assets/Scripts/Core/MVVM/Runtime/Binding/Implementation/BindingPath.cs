@@ -1,3 +1,4 @@
+﻿using System;
 using System.Text;
 
 namespace Scaffold.MVVM.Binding
@@ -6,6 +7,8 @@ namespace Scaffold.MVVM.Binding
     {
         public static BindingPath Create(string path)
         {
+            if (path is null) { throw new ArgumentNullException(nameof(path)); }
+            if (path.Length == 0) { throw new ArgumentException("Path cannot be empty.", nameof(path)); }
             string[] paths = path.Split(".");
             BindingPath child = null;
             StringBuilder builder = new StringBuilder();
@@ -22,3 +25,5 @@ namespace Scaffold.MVVM.Binding
         }
     }
 }
+
+

@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using Scaffold.MVVM.Binding;
 using UnityEngine;
 
@@ -20,17 +20,41 @@ namespace Scaffold.MVVM.Samples
             SampleViewModel viewModel = new SampleViewModel();
             viewModel.Bind(null);
             RegisterNested(viewModel);
+            using SampleViewHost host = CreateAndBindView(viewModel);
+            viewModel.SampleModel.Value = 9;
+            Debug.Log($"View rendered value: {host.View.LastValue}");
+        }
+
+        private void RegisterNested(INestedObservableProperties nested)
+        {
+            if (nested == null) { return; }
+            nested.RegisterNestedProperties();
+        }
+
+        private static SampleViewHost CreateAndBindView(SampleViewModel viewModel)
+        {
             GameObject host = new GameObject(nameof(SampleView));
             SampleView view = host.AddComponent<SampleView>();
             view.Bind(viewModel);
-            viewModel.SampleModel.Value = 9;
-            Debug.Log($"View rendered value: {view.LastValue}");
-            Object.Destroy(host);
+            return new SampleViewHost(host, view);
         }
 
-        private static void RegisterNested(INestedObservableProperties nested)
+        private sealed class SampleViewHost : System.IDisposable
         {
-            nested.RegisterNestedProperties();
+            private readonly GameObject host;
+
+            public SampleViewHost(GameObject host, SampleView view)
+            {
+                this.host = host;
+                View = view;
+            }
+
+            public SampleView View { get; }
+
+            public void Dispose()
+            {
+                Object.Destroy(host);
+            }
         }
     }
 

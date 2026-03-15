@@ -14,16 +14,20 @@ namespace Scaffold.MVVM.Binding
 
         public void RegisterConverter(Converter<TSource, TTarget> converter)
         {
+            if (converter is null) { throw new ArgumentNullException(nameof(converter)); }
             converters.Add(converter);
         }
 
         public void RegisterAdapter(Adapter<TTarget> adapter)
         {
+            if (adapter is null) { throw new ArgumentNullException(nameof(adapter)); }
             adapters.Add(adapter);
         }
 
         public bool TryConvert(TSource source, out TTarget target)
         {
+            GuardTryConvertInput(source);
+            if (converters.Count == 0) { target = default; return false; }
             foreach (var converter in converters)
             {
                 if (TryApplyConverter(converter, source, out target)) { return true; }
@@ -41,6 +45,8 @@ namespace Scaffold.MVVM.Binding
 
         public bool TryAdapt(TTarget target, out TTarget newTarget)
         {
+            GuardTryAdaptInput(target);
+            if (adapters.Count == 0) { newTarget = default; return false; }
             foreach (var adapter in adapters)
             {
                 if (TryApplyAdapter(adapter, target, out newTarget)) { return true; }
@@ -54,6 +60,14 @@ namespace Scaffold.MVVM.Binding
             if (!adapter.CanAdapt(target)) { newTarget = default; return false; }
             newTarget = adapter.Resolve(target);
             return true;
+        }
+
+        private void GuardTryConvertInput(TSource source)
+        {
+        }
+
+        private void GuardTryAdaptInput(TTarget target)
+        {
         }
     }
 }

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using UnityEngine;
 
 namespace Scaffold.MVVM.Binding
@@ -7,6 +7,8 @@ namespace Scaffold.MVVM.Binding
     {
         public BindedProperty(BindSet<TSource, TTarget> binding, Action<TTarget> setter)
         {
+            if (binding is null) { throw new ArgumentNullException(nameof(binding)); }
+            if (setter is null) { throw new ArgumentNullException(nameof(setter)); }
             this.binding = binding;
             this.setter = setter;
         }
@@ -19,6 +21,7 @@ namespace Scaffold.MVVM.Binding
 
         public void Update(TSource value)
         {
+            if (setter == null) { return; }
             try { ApplyValue(value); }
             catch (Exception e) { Debug.LogException(e); }
         }
@@ -31,12 +34,14 @@ namespace Scaffold.MVVM.Binding
 
         public IBindedProperty<TSource, TTarget> WithConverter(Converter<TSource, TTarget> converter)
         {
+            if (converter is null) { throw new ArgumentNullException(nameof(converter)); }
             this.converter = converter;
             return this;
         }
 
         public IBindedProperty<TSource, TTarget> WithAdapter(Adapter<TTarget> adapter)
         {
+            if (adapter is null) { throw new ArgumentNullException(nameof(adapter)); }
             this.adapter = adapter;
             return this;
         }
@@ -67,3 +72,5 @@ namespace Scaffold.MVVM.Binding
         }
     }
 }
+
+

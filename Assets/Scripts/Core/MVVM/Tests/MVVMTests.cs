@@ -5,9 +5,7 @@ using Scaffold.Navigation;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Text.RegularExpressions;
 using UnityEngine;
-using UnityEngine.TestTools;
 
 #pragma warning disable SCA0003
 #pragma warning disable SCA0005
@@ -72,13 +70,14 @@ namespace Scaffold.MVVM.Tests
         }
 
         [Test]
-        public void View_Bind_WithNullController_Throws()
+        public void ViewElement_Bind_FirstTime_WithNullController_DoesNotInvokeUnbind()
         {
-            GameObject gameObject = new GameObject(nameof(SampleView));
+            GameObject gameObject = new GameObject(nameof(GuardedViewElement));
             try
             {
-                SampleView view = gameObject.AddComponent<SampleView>();
-                Assert.Throws<NullReferenceException>(() => view.Bind(null));
+                GuardedViewElement view = gameObject.AddComponent<GuardedViewElement>();
+                Assert.DoesNotThrow(() => view.Bind(null));
+                Assert.IsFalse(view.UnbindCalled);
             }
             finally
             {
@@ -270,12 +269,66 @@ namespace Scaffold.MVVM.Tests
             using HierarchyFixture fixture = CreateHierarchyFixture();
             EventLedger<TestViewEvent> ledger = new EventLedger<TestViewEvent>();
             bool called = false;
-            LogAssert.Expect(LogType.Exception, new Regex("InvalidOperationException: boom"));
-            LogAssert.Expect(LogType.Error, new Regex("Error on invoking callback for Scaffold.MVVM.Tests.TestViewEvent"));
+            using IDisposable _ = ViewEvents.PushExceptionOptions(new EventLedgerExceptionOptions(EventLedgerExceptionMode.ReportAndContinue, null));
             ledger.Register(fixture.Child.transform, evt => throw new InvalidOperationException("boom"));
             ledger.Register(fixture.Child.transform, evt => called = true);
             ledger.Raise(fixture.Child.transform, new TestViewEvent());
             Assert.IsTrue(called);
+        }
+
+        [Test]
+        public void EventLedger_DefaultExceptionOptions_AreConfiguredForReportAndContinue()
+        {
+            EventLedgerExceptionOptions options = ViewEvents.GetExceptionOptions();
+            Assert.AreEqual(EventLedgerExceptionMode.ReportAndContinue, options.Mode);
+            Assert.IsNotNull(options.Reporter);
+        }
+
+        [Test]
+        public void EventLedger_ReportAndContinue_CapturesCallbackExceptionsWithoutThrowing()
+        {
+            using HierarchyFixture fixture = CreateHierarchyFixture();
+            EventLedger<TestViewEvent> ledger = new EventLedger<TestViewEvent>();
+            List<Exception> reported = new List<Exception>();
+            bool called = false;
+            using IDisposable _ = ViewEvents.PushExceptionOptions(new EventLedgerExceptionOptions(EventLedgerExceptionMode.ReportAndContinue, (ex, _) => reported.Add(ex)));
+            ledger.Register(fixture.Child.transform, evt => throw new InvalidOperationException("boom"));
+            ledger.Register(fixture.Child.transform, evt => called = true);
+            Assert.DoesNotThrow(() => ledger.Raise(fixture.Child.transform, new TestViewEvent()));
+            Assert.IsTrue(called);
+            Assert.AreEqual(1, reported.Count);
+            Assert.IsInstanceOf<InvalidOperationException>(reported[0]);
+        }
+
+        [Test]
+        public void EventLedger_ThrowAfterDispatch_ThrowsAggregateWithoutBreakingCallbackChain()
+        {
+            using HierarchyFixture fixture = CreateHierarchyFixture();
+            EventLedger<TestViewEvent> ledger = new EventLedger<TestViewEvent>();
+            bool called = false;
+            using IDisposable _ = ViewEvents.PushExceptionOptions(new EventLedgerExceptionOptions(EventLedgerExceptionMode.ThrowAfterDispatch, null));
+            ledger.Register(fixture.Child.transform, evt => throw new InvalidOperationException("boom"));
+            ledger.Register(fixture.Child.transform, evt => called = true);
+            AggregateException exception = Assert.Throws<AggregateException>(() => ledger.Raise(fixture.Child.transform, new TestViewEvent()));
+            Assert.IsTrue(called);
+            Assert.NotNull(exception);
+            Assert.AreEqual(1, exception.InnerExceptions.Count);
+            Assert.IsInstanceOf<InvalidOperationException>(exception.InnerExceptions[0]);
+        }
+
+        [Test]
+        public void ViewEvents_PushExceptionOptions_RestoresPreviousOptionsOnDispose()
+        {
+            EventLedgerExceptionOptions previous = ViewEvents.GetExceptionOptions();
+            using (ViewEvents.PushExceptionOptions(new EventLedgerExceptionOptions(EventLedgerExceptionMode.ThrowAfterDispatch, null)))
+            {
+                EventLedgerExceptionOptions active = ViewEvents.GetExceptionOptions();
+                Assert.AreEqual(EventLedgerExceptionMode.ThrowAfterDispatch, active.Mode);
+                Assert.IsNull(active.Reporter);
+            }
+
+            EventLedgerExceptionOptions restored = ViewEvents.GetExceptionOptions();
+            Assert.AreSame(previous, restored);
         }
 
         [Test]
@@ -490,6 +543,17 @@ namespace Scaffold.MVVM.Tests
         private void OnValueChanged(int value)
         {
             LastValue = value;
+        }
+    }
+
+    public class GuardedViewElement : ViewElement<IViewModel>
+    {
+        public bool UnbindCalled { get; private set; }
+
+        protected override void OnUnbind()
+        {
+            UnbindCalled = true;
+            _ = viewModel.ToString();
         }
     }
 
