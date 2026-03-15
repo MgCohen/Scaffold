@@ -272,8 +272,8 @@ namespace Scaffold.MVVM.Tests
             bool called = false;
             LogAssert.Expect(LogType.Exception, new Regex("InvalidOperationException: boom"));
             LogAssert.Expect(LogType.Error, new Regex("Error on invoking callback for Scaffold.MVVM.Tests.TestViewEvent"));
-            ledger.Register(fixture.Child.transform, evt => called = true);
             ledger.Register(fixture.Child.transform, evt => throw new InvalidOperationException("boom"));
+            ledger.Register(fixture.Child.transform, evt => called = true);
             ledger.Raise(fixture.Child.transform, new TestViewEvent());
             Assert.IsTrue(called);
         }
