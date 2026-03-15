@@ -218,6 +218,109 @@ namespace Scaffold.MVVM.Tests
         }
 
         [Test]
+        public void TreeBinding_RegisterBind_DefaultStrictMode_ThrowsForUnresolvedDeferredChain()
+        {
+            DeferredBindingState source = new DeferredBindingState();
+            BindingTarget target = new BindingTarget();
+            TreeBinding bindings = new TreeBinding();
+            Assert.Throws<NullReferenceException>(() => bindings.RegisterBind<int, int>(() => source.LateInstance.Value, value => target.Value = value));
+        }
+
+        [Test]
+        public void TreeBinding_RegisterBind_LazyMode_DefersEvaluationUntilChainResolves()
+        {
+            DeferredBindingState source = new DeferredBindingState();
+            int updateCalls = 0;
+            int lastValue = -1;
+            TreeBinding bindings = new TreeBinding();
+            bindings.RegisterBind<int, int>(() => source.LateInstance.Value, value =>
+            {
+                updateCalls++;
+                lastValue = value;
+            }, BindingOptions.Lazy);
+
+            Assert.AreEqual(0, updateCalls);
+
+            string deferredKey = ExpressionsUtility.GetPropertyName(() => source.LateInstance);
+            Assert.DoesNotThrow(() => bindings.UpdateBind(deferredKey));
+            Assert.AreEqual(0, updateCalls);
+
+            source.LateInstance = new DeferredNestedBindingState { Value = 23 };
+            bindings.UpdateBind(deferredKey);
+            Assert.AreEqual(1, updateCalls);
+            Assert.AreEqual(23, lastValue);
+        }
+
+        [Test]
+        public void TreeBinding_DisposePropertyBinding_DetachesOnlyDisposedBinding()
+        {
+            BindingState source = new BindingState { Value = 1 };
+            BindingTarget firstTarget = new BindingTarget();
+            BindingTarget secondTarget = new BindingTarget();
+            TreeBinding bindings = new TreeBinding();
+
+            IBindedProperty<int, int> first = bindings.RegisterBind(() => source.Value, () => firstTarget.Value);
+            IBindedProperty<int, int> second = bindings.RegisterBind(() => source.Value, () => secondTarget.Value);
+            string key = ExpressionsUtility.GetPropertyName(() => source.Value);
+
+            source.Value = 4;
+            bindings.UpdateBind(key);
+            Assert.AreEqual(4, firstTarget.Value);
+            Assert.AreEqual(4, secondTarget.Value);
+
+            first.Dispose();
+            Assert.DoesNotThrow(() => first.Dispose());
+
+            source.Value = 9;
+            bindings.UpdateBind(key);
+            Assert.AreEqual(4, firstTarget.Value);
+            Assert.AreEqual(9, secondTarget.Value);
+
+            second.Dispose();
+            Assert.DoesNotThrow(() => bindings.UpdateBind(key));
+        }
+
+        [Test]
+        public void TreeBinding_DisposeCollectionBinding_DetachesAndStopsFutureCollectionUpdates()
+        {
+            CollectionBindingState source = new CollectionBindingState();
+            source.Items.Add(1);
+            source.Items.Add(2);
+            TrackingCollectionHandler handler = new TrackingCollectionHandler();
+            TreeBinding bindings = new TreeBinding();
+
+            IBindedCollection<int, string> collectionBind = bindings.RegisterBindCollection(() => source.Items, handler);
+            string key = ExpressionsUtility.GetPropertyName(() => source.Items);
+            bindings.UpdateBind(key);
+            Assert.AreEqual(2, handler.AddCalls);
+
+            collectionBind.Dispose();
+            Assert.DoesNotThrow(() => collectionBind.Dispose());
+
+            source.Items.Add(3);
+            source.Items.Remove(1);
+            Assert.AreEqual(2, handler.AddCalls);
+            Assert.AreEqual(0, handler.RemoveCalls);
+            Assert.DoesNotThrow(() => bindings.UpdateBind(key));
+        }
+
+        [Test]
+        public void TreeBinding_DisposedLazyBinding_DoesNotUpdateAfterDeferredChainResolves()
+        {
+            DeferredBindingState source = new DeferredBindingState();
+            int updateCalls = 0;
+            TreeBinding bindings = new TreeBinding();
+
+            IBindedProperty<int, int> bind = bindings.RegisterBind<int, int>(() => source.LateInstance.Value, value => updateCalls++, BindingOptions.Lazy);
+            bind.Dispose();
+
+            source.LateInstance = new DeferredNestedBindingState { Value = 30 };
+            string deferredKey = ExpressionsUtility.GetPropertyName(() => source.LateInstance);
+            bindings.UpdateBind(deferredKey);
+            Assert.AreEqual(0, updateCalls);
+        }
+
+        [Test]
         public void BindSource_AttributeOnlyClass_ImplementsInterfaceAndBinds()
         {
             GeneratedBindSourceProbe probe = new GeneratedBindSourceProbe
@@ -231,6 +334,22 @@ namespace Scaffold.MVVM.Tests
             bindSource.UpdateBinding(ExpressionsUtility.GetPropertyName(() => probe.SourceValue));
 
             Assert.AreEqual(11, probe.TargetValue);
+        }
+
+        [Test]
+        public void BindSource_BindCollection_ReturnsDisposableHandle()
+        {
+            GeneratedBindSourceCollectionProbe probe = new GeneratedBindSourceCollectionProbe();
+            probe.SourceValues.Add(7);
+            IBindSource bindSource = (IBindSource)probe;
+            TrackingCollectionHandler handler = new TrackingCollectionHandler();
+
+            IBindedCollection<int, string> handle = bindSource.BindCollection(() => probe.SourceValues, handler);
+            Assert.NotNull(handle);
+            bindSource.UpdateBinding(ExpressionsUtility.GetPropertyName(() => probe.SourceValues));
+            Assert.AreEqual(1, handler.AddCalls);
+
+            handle.Dispose();
         }
 
         [Test]
@@ -664,6 +783,16 @@ namespace Scaffold.MVVM.Tests
         public NestedBindingState Nested { get; set; } = new NestedBindingState();
     }
 
+    public class DeferredBindingState
+    {
+        public DeferredNestedBindingState LateInstance { get; set; }
+    }
+
+    public class DeferredNestedBindingState
+    {
+        public int Value { get; set; }
+    }
+
     public class NestedBindingState
     {
         public int Value { get; set; }
@@ -706,6 +835,12 @@ namespace Scaffold.MVVM.Tests
     {
         public int SourceValue { get; set; }
         public int TargetValue { get; set; }
+    }
+
+    [BindSource(typeof(TreeBinding))]
+    public partial class GeneratedBindSourceCollectionProbe
+    {
+        public ObservableCollection<int> SourceValues { get; } = new ObservableCollection<int>();
     }
 
     public class IncrementingStringConverter : Scaffold.MVVM.Binding.Converter<int, string>

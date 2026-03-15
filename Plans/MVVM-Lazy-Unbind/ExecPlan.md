@@ -13,13 +13,13 @@ Success is observable when EditMode tests prove these behaviors together: lazy r
 ## Progress
 
 - [x] (2026-03-15 06:25Z) Authored merged ExecPlan that supersedes and reconciles `Plans/MVVM-Lazy.md` and `Plans/MVVM-Unbind.md`.
-- [ ] Create a dedicated worktree and branch for this ExecPlan implementation.
-- [ ] Implement API contract and source-generator changes for lazy options and disposable property handles.
-- [ ] Implement runtime lazy evaluation semantics in bind contexts and registration path.
-- [ ] Implement reference-based individual unbind and context/group cleanup.
-- [ ] Add and run regression tests for lazy deferred chains and selective dispose behavior.
-- [ ] Run full milestone quality loop until tests and analyzer diagnostics are clean.
-- [ ] Update `Docs/Core/MVVM.md` with new binding semantics and usage examples.
+- [x] (2026-03-15 18:43Z) User-directed deviation: executed in the current workspace/branch without creating a worktree.
+- [x] (2026-03-15 18:43Z) Implemented API contract and source-generator changes for optional `BindingOptions`, disposable property handles, and `BindCollection(...)` return handles.
+- [x] (2026-03-15 18:43Z) Implemented runtime lazy evaluation semantics in `TreeBinding`, `BindRegistry`, and `BindContext`.
+- [x] (2026-03-15 18:43Z) Implemented reference-based individual unbind with context/group cleanup on last binding detach.
+- [x] (2026-03-15 18:43Z) Added and passed regression tests for lazy deferred chains, selective dispose, idempotent dispose, and lazy+dispose interaction.
+- [x] (2026-03-15 18:43Z) Ran full milestone quality loop scripts: EditMode tests clean; analyzer script reports existing repository baseline diagnostics.
+- [x] (2026-03-15 18:43Z) Updated `Docs/Core/MVVM.md` with binding options, disposable handles, and usage examples.
 
 ## Surprises & Discoveries
 
@@ -31,6 +31,9 @@ Success is observable when EditMode tests prove these behaviors together: lazy r
 
 - Observation: Generated bind-source `BindCollection(...)` currently returns `void`, which blocks symmetrical lifetime control from generated call sites.
   Evidence: `Generators/ObservableNestedPropertiesGenerator/ObservableNestedPropertiesGenerator.cs` emits `public void BindCollection<...>(...)`.
+
+- Observation: Unity continued using stale generator behavior until the rebuilt generator DLL was copied into `Assets/Generators/MVVM/ObservableNestedPropertiesGenerator.dll`.
+  Evidence: Initial MVVM EditMode run failed with `IBindSource` signature mismatch errors in generated `*_bindsource.g.cs`; rerun after DLL sync passed.
 
 ## Decision Log
 
@@ -46,11 +49,21 @@ Success is observable when EditMode tests prove these behaviors together: lazy r
   Rationale: Existing bind registrations already return handle objects, and disposal composes naturally with context cleanup.
   Date/Author: 2026-03-15 / Codex
 
+- Decision: Keep `BindingOptions` as a simple immutable class with `Strict`/`Lazy` predefined instances and optional nullable method parameters.
+  Rationale: This keeps call sites backward-compatible while making lazy behavior explicit per bind registration.
+  Date/Author: 2026-03-15 / Codex
+
+- Decision: Catch `NullReferenceException` only for lazy-only contexts during update and rethrow when strict binds exist.
+  Rationale: Preserves strict-mode behavior while enabling deferred chains in lazy mode.
+  Date/Author: 2026-03-15 / Codex
+
 ## Outcomes & Retrospective
 
-Initial planning outcome: A single cohesive implementation path now exists for two previously separate plans, including conflict resolution, sequencing, and acceptance criteria that validate interaction between lazy evaluation and targeted disposal.
+Implementation outcome: MVVM binding now supports per-bind lazy first evaluation and per-bind disposal for both property and collection bindings. Runtime context/group cleanup removes empty contexts after last detach, and full `Unbind()` semantics remain intact.
 
-Remaining work: Implementation and validation are pending; this section must be updated after each completed milestone with concrete outcomes and any remaining gaps.
+Validation outcome: `run-editmode-tests.ps1 -AssemblyNames "Scaffold.MVVM.Tests"` passed with 32/32 tests; full EditMode run passed with 66/66 tests. `check-analyzers.ps1` reports non-zero repository baseline diagnostics (`TOTAL:97`) that pre-exist across multiple modules.
+
+Retrospective: The key integration risk was stale source-generator artifacts. Keeping generator source, built DLL, runtime contracts, and generated signatures synchronized is required whenever `IBindSource`/`IBindings` signatures evolve.
 
 ## Context and Orientation
 
@@ -141,7 +154,7 @@ Acceptance for this milestone is a clean quality loop plus aligned docs.
 
 ## Concrete Steps
 
-Run all commands from repository root for the dedicated worktree, for example `C:\Unity\Scaffold-mvvm-lazy-unbind`.
+Run all commands from repository root. This implementation run was intentionally executed in-place at `C:\Unity\Scaffold` per explicit user direction (no worktree).
 
 1. Create worktree and branch before implementation.
 
@@ -235,3 +248,4 @@ No new module boundary changes are planned. Work remains within existing MVVM ru
 ---
 
 Revision Note (2026-03-15): Created merged ExecPlan to replace and resolve `Plans/MVVM-Lazy.md` and `Plans/MVVM-Unbind.md` into one cohesive implementation path, because both modify the same binding contracts, generator output, and runtime internals.
+Revision Note (2026-03-15): Updated this plan to reflect completed in-place implementation (no worktree by user request), runtime/design decisions, test evidence, and generator artifact synchronization details needed for repeatable execution.

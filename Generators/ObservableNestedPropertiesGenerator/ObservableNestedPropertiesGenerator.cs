@@ -100,14 +100,14 @@ public partial class {classSymbol.Name}{bindSourceClause}
 
     protected {Symbols.BindingsInterface} bindings => _bindSourceBindings;
 
-    public IBindedProperty<TSource, TTarget> Bind<TSource, TTarget>(Expression<Func<TSource>> source, Expression<Func<TTarget>> target)
+    public IBindedProperty<TSource, TTarget> Bind<TSource, TTarget>(Expression<Func<TSource>> source, Expression<Func<TTarget>> target, BindingOptions options = null)
     {{
-        return _bindSourceBindings.RegisterBind(source, target);
+        return _bindSourceBindings.RegisterBind(source, target, options);
     }}
 
-    public IBindedProperty<TSource, TTarget> Bind<TSource, TTarget>(Expression<Func<TSource>> source, Action<TTarget> target)
+    public IBindedProperty<TSource, TTarget> Bind<TSource, TTarget>(Expression<Func<TSource>> source, Action<TTarget> target, BindingOptions options = null)
     {{
-        return _bindSourceBindings.RegisterBind(source, target);
+        return _bindSourceBindings.RegisterBind(source, target, options);
     }}
 
     public void BindConverter<TSource, TTarget>(Func<TSource, TTarget> converter)
@@ -121,9 +121,9 @@ public partial class {classSymbol.Name}{bindSourceClause}
         _bindSourceBindings.RegisterConverter(converter);
     }}
 
-    public void BindCollection<TSource, TTarget>(Expression<Func<ICollection<TSource>>> source, ICollectionHandler<TSource, TTarget> handler)
+    public IBindedCollection<TSource, TTarget> BindCollection<TSource, TTarget>(Expression<Func<ICollection<TSource>>> source, ICollectionHandler<TSource, TTarget> handler, BindingOptions options = null)
     {{
-        _bindSourceBindings.RegisterBindCollection(source, handler);
+        return _bindSourceBindings.RegisterBindCollection(source, handler, options);
     }}
 
     public void UpdateBinding(string bindKey)

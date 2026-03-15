@@ -5,16 +5,19 @@ namespace Scaffold.MVVM.Binding
 {
     internal class BindedProperty<TSource, TTarget> : IBind<TSource>, IBindedProperty<TSource, TTarget>
     {
-        public BindedProperty(BindSet<TSource, TTarget> binding, Action<TTarget> setter)
+        public BindedProperty(BindSet<TSource, TTarget> binding, Action<TTarget> setter, Action detach)
         {
             if (binding is null) { throw new ArgumentNullException(nameof(binding)); }
             if (setter is null) { throw new ArgumentNullException(nameof(setter)); }
             this.binding = binding;
             this.setter = setter;
+            this.detach = detach;
         }
 
         private BindSet<TSource, TTarget> binding;
         private Action<TTarget> setter;
+        private Action detach;
+        private bool disposed;
 
         private Converter<TSource, TTarget> converter;
         private Adapter<TTarget> adapter;
@@ -69,6 +72,15 @@ namespace Scaffold.MVVM.Binding
                 return adapter.Resolve(target);
             }
             return target;
+        }
+
+        public void Dispose()
+        {
+            if (disposed) { return; }
+            disposed = true;
+            detach?.Invoke();
+            detach = null;
+            setter = null;
         }
     }
 }

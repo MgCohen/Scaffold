@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Linq.Expressions;
 
 namespace Scaffold.MVVM.Binding
 {
@@ -13,6 +11,18 @@ namespace Scaffold.MVVM.Binding
         {
             BindingPath bindPath = BindingPath.Create(path);
             Register(bindPath, context);
+        }
+
+        internal void Unregister(string path, IBindContext context)
+        {
+            if (path is null) { throw new ArgumentNullException(nameof(path)); }
+            if (context is null) { throw new ArgumentNullException(nameof(context)); }
+            BindingPath bindPath = BindingPath.Create(path);
+            while (bindPath != null)
+            {
+                RemoveFromLookup(bindPath.Path, context);
+                bindPath = bindPath.Child;
+            }
         }
 
         private void Register(BindingPath path, IBindContext binding)
@@ -33,6 +43,16 @@ namespace Scaffold.MVVM.Binding
         private BindGroup GetGroup(BindingPath path)
         {
             return GetGroup(path.Path);
+        }
+
+        private void RemoveFromLookup(string path, IBindContext context)
+        {
+            if (groups.TryGetValue(path, out BindGroup group) == false) { return; }
+            group.Unbind(context);
+            if (group.IsEmpty)
+            {
+                groups.Remove(path);
+            }
         }
 
         internal BindGroup GetGroup(string path)

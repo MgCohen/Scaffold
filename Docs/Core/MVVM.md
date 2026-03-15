@@ -93,12 +93,28 @@ public abstract partial class ViewElement : MonoBehaviour
 {
 public IBindedProperty<TSource, TTarget> Bind<TSource, TTarget>(
     Expression<Func<TSource>> source,
-    Action<TTarget> target)
+    Action<TTarget> target,
+    BindingOptions options = null)
 {
-    return bindings.RegisterBind(source, target);
+    return bindings.RegisterBind(source, target, options);
 }
 }
 ```
+
+### 5) Binding options and bind lifetimes
+
+`BindingOptions` controls first-evaluation behavior:
+
+- default strict mode evaluates source expressions at registration time.
+- `BindingOptions.Lazy` defers first evaluation until `UpdateBinding(...)` runs.
+- lazy mode suppresses only `NullReferenceException` from unresolved deferred chains (for example a null intermediate object) and retries on later updates.
+
+Property and collection bind calls now return disposable handles:
+
+- `IBindedProperty<TSource, TTarget> : IDisposable`
+- `IBindedCollection<TSource, TTarget> : IDisposable`
+
+Disposing one handle detaches only that binding, while `ClearBindings()` still performs full teardown.
 
 ### 5) View-event bubbling
 
@@ -121,6 +137,7 @@ Use MVVM through `Model`, `ViewModel`, and `View`:
 3. Create a `View<TViewModel>` (or `ViewElement<TViewModel>`) for UI binding in `OnBind()`.
 4. Use generated `Bind(...)` helpers in both view and viewmodel base classes.
 5. Bind navigation via `ViewModel.Bind(INavigation)` when lifecycle starts.
+6. Store returned bind handles when you need selective teardown; dispose an individual handle to stop only that binding.
 
 When to use `Model` vs `ViewModel`:
 
@@ -146,7 +163,7 @@ public partial class InventoryViewModel : ViewModel
 
     protected override void Initialize()
     {
-        Bind(() => Model.ItemCount, () => Title);
+        Bind(() => Model.ItemCount, () => Title, BindingOptions.Lazy);
     }
 }
 
@@ -156,6 +173,22 @@ public class InventoryView : View<InventoryViewModel>
     {
         Bind(() => viewModel.Title, text => UnityEngine.Debug.Log(text));
     }
+}
+```
+
+Selective teardown example:
+
+```csharp
+private IBindedProperty<int, string> titleBind;
+
+protected override void OnBind()
+{
+    titleBind = Bind(() => viewModel.Model.ItemCount, text => label.text = text.ToString());
+}
+
+protected override void OnUnbind()
+{
+    titleBind?.Dispose();
 }
 ```
 

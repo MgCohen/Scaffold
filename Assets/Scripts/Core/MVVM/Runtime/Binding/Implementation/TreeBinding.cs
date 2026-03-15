@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq.Expressions;
 using UnityEngine;
@@ -7,10 +7,11 @@ namespace Scaffold.MVVM.Binding
 {
     public class TreeBinding : IBindings
     {
-        private BindSets bindSets;
-        private BindGroups groups;
-        private BindFactory factory;
-        private BindRegistry registry;
+        private readonly BindSets bindSets;
+        private readonly BindGroups groups;
+        private readonly BindFactory factory;
+        private readonly BindRegistry registry;
+        private bool isUnbinding;
 
         public TreeBinding()
         {
@@ -20,36 +21,48 @@ namespace Scaffold.MVVM.Binding
             registry = new BindRegistry(groups);
         }
 
-        public IBindedProperty<TSource, TTarget> RegisterBind<TSource, TTarget>(Expression<Func<TSource>> source, Expression<Func<TTarget>> target)
+        public IBindedProperty<TSource, TTarget> RegisterBind<TSource, TTarget>(Expression<Func<TSource>> source, Expression<Func<TTarget>> target, BindingOptions options = null)
         {
             if (source is null) { throw new ArgumentNullException(nameof(source)); }
             if (target is null) { throw new ArgumentNullException(nameof(target)); }
             Action<TTarget> targetSetter = target.CreateSetter().Compile();
-            return RegisterBind(source, targetSetter);
+            return RegisterBind(source, targetSetter, options);
         }
 
-        public IBindedProperty<TSource, TTarget> RegisterBind<TSource, TTarget>(Expression<Func<TSource>> source, Action<TTarget> target)
+        public IBindedProperty<TSource, TTarget> RegisterBind<TSource, TTarget>(Expression<Func<TSource>> source, Action<TTarget> target, BindingOptions options = null)
         {
             if (source is null) { throw new ArgumentNullException(nameof(source)); }
             if (target is null) { throw new ArgumentNullException(nameof(target)); }
-            BindedProperty<TSource, TTarget> bindedProp = factory.CreateBind<TSource, TTarget>(target);
-            RegisterBind(source, bindedProp);
+
+            RegistrationContext<TSource> registration = registry.GetOrCreateContext(source);
+            BindedProperty<TSource, TTarget> bindedProp = null;
+            bindedProp = factory.CreateBind<TSource, TTarget>(target, () => DetachBind(registration, bindedProp));
+            RegisterBind(registration, bindedProp, options);
             return bindedProp;
         }
 
-        public IBindedCollection<TSource, TTarget> RegisterBindCollection<TSource, TTarget>(Expression<Func<ICollection<TSource>>> source, ICollectionHandler<TSource, TTarget> handler)
+        public IBindedCollection<TSource, TTarget> RegisterBindCollection<TSource, TTarget>(Expression<Func<ICollection<TSource>>> source, ICollectionHandler<TSource, TTarget> handler, BindingOptions options = null)
         {
             if (source is null) { throw new ArgumentNullException(nameof(source)); }
             if (handler is null) { throw new ArgumentNullException(nameof(handler)); }
-            BindedCollection<TSource, TTarget> bindedProp = factory.CreateBind<TSource, TTarget>(handler);
-            RegisterBind(source, bindedProp);
+
+            RegistrationContext<ICollection<TSource>> registration = registry.GetOrCreateContext(source);
+            BindedCollection<TSource, TTarget> bindedProp = null;
+            bindedProp = factory.CreateBind<TSource, TTarget>(handler, () => DetachBind(registration, bindedProp));
+            RegisterBind(registration, bindedProp, options);
             return bindedProp;
         }
 
-        private void RegisterBind<TSource>(Expression<Func<TSource>> source, IBind<TSource> bindedProp)
+        private void RegisterBind<TSource>(RegistrationContext<TSource> registration, IBind<TSource> bindedProp, BindingOptions options)
         {
-            BindContext<TSource> context = registry.GetContext(source);
-            context.Bind(bindedProp);
+            registration.Context.Bind(bindedProp, options ?? BindingOptions.Strict);
+        }
+
+        private void DetachBind<TSource>(RegistrationContext<TSource> registration, IBind<TSource> bind)
+        {
+            if (isUnbinding) { return; }
+            registration.Context.Unbind(bind);
+            registry.RemoveIfEmpty(registration.Path, registration.SourceType, registration.Context);
         }
 
         public void UpdateBind(string bindKey)
@@ -71,14 +84,22 @@ namespace Scaffold.MVVM.Binding
             if (adapter is null) { throw new ArgumentNullException(nameof(adapter)); }
             bindSets.RegisterAdapter<TTarget>(adapter);
         }
+
         public void Unbind()
         {
             if (bindSets == null || groups == null || registry == null) { return; }
-            bindSets.Clear();
-            groups.Clear();
-            registry.Clear();
+
+            isUnbinding = true;
+            try
+            {
+                bindSets.Clear();
+                groups.Clear();
+                registry.Clear();
+            }
+            finally
+            {
+                isUnbinding = false;
+            }
         }
     }
 }
-
-

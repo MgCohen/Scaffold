@@ -8,16 +8,19 @@ namespace Scaffold.MVVM.Binding
 {
     internal class BindedCollection<TSource, TTarget> : IBindedCollection<TSource, TTarget>, IBind<ICollection<TSource>>
     {
-        public BindedCollection(BindSet<TSource, TTarget> binding, ICollectionHandler<TSource, TTarget> handler)
+        public BindedCollection(BindSet<TSource, TTarget> binding, ICollectionHandler<TSource, TTarget> handler, Action detach)
         {
             if (binding is null) { throw new ArgumentNullException(nameof(binding)); }
             if (handler is null) { throw new ArgumentNullException(nameof(handler)); }
             this.handler = handler;
+            this.detach = detach;
         }
 
         private Dictionary<TSource, List<TTarget>> lookup = new Dictionary<TSource, List<TTarget>>();
         private ICollectionHandler<TSource, TTarget> handler;
+        private Action detach;
         private ICollection<TSource> source;
+        private bool disposed;
 
         public void Update(ICollection<TSource> value)
         {
@@ -91,11 +94,15 @@ namespace Scaffold.MVVM.Binding
 
         public void Dispose()
         {
-            if (source == null) { return; }
+            if (disposed) { return; }
+            disposed = true;
             if (source is INotifyCollectionChanged ncc)
             {
                 ncc.CollectionChanged -= HandleCollectionChanges;
             }
+            source = null;
+            detach?.Invoke();
+            detach = null;
         }
     }
 }

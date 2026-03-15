@@ -5,7 +5,9 @@ namespace Scaffold.MVVM.Binding
 {
     internal class BindGroup
     {
-        private List<IBindContext> contexts = new List<IBindContext>();
+        private readonly List<IBindContext> contexts = new List<IBindContext>();
+
+        public bool IsEmpty => contexts.Count == 0;
 
         public void Bind(IBindContext context)
         {
@@ -20,6 +22,12 @@ namespace Scaffold.MVVM.Binding
             {
                 context.Update();
             }
+        }
+
+        public void Unbind(IBindContext context)
+        {
+            if (context is null) { throw new ArgumentNullException(nameof(context)); }
+            contexts.Remove(context);
         }
     }
 }

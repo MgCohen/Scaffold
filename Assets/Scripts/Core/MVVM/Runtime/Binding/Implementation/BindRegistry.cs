@@ -1,9 +1,23 @@
-﻿using Scaffold.Maps;
+using Scaffold.Maps;
 using System;
 using System.Linq.Expressions;
 
 namespace Scaffold.MVVM.Binding
 {
+    internal class RegistrationContext<TSource>
+    {
+        public RegistrationContext(string path, Type sourceType, BindContext<TSource> context)
+        {
+            Path = path;
+            SourceType = sourceType;
+            Context = context;
+        }
+
+        public string Path { get; }
+        public Type SourceType { get; }
+        public BindContext<TSource> Context { get; }
+    }
+
     internal class BindRegistry
     {
         public BindRegistry(BindGroups groups)
@@ -12,20 +26,16 @@ namespace Scaffold.MVVM.Binding
             this.groups = groups;
         }
 
-        private BindGroups groups;
-        private Map<string, Type, IBindContext> registeredContexts = new Map<string, Type, IBindContext>();
+        private readonly BindGroups groups;
+        private readonly Map<string, Type, IBindContext> registeredContexts = new Map<string, Type, IBindContext>();
 
-        public BindContext<TSource> GetContext<TSource>(Expression<Func<TSource>> source)
+        public RegistrationContext<TSource> GetOrCreateContext<TSource>(Expression<Func<TSource>> source)
         {
             if (source is null) { throw new ArgumentNullException(nameof(source)); }
-            string path = GetBindKey(source);
+            string path = source.GetPropertyName();
             Type type = typeof(TSource);
-            return GetContext(path, type, source);
-        }
-
-        private string GetBindKey<TSource>(Expression<Func<TSource>> source)
-        {
-            return source.GetPropertyName();
+            BindContext<TSource> context = GetContext(path, type, source);
+            return new RegistrationContext<TSource>(path, type, context);
         }
 
         private BindContext<TSource> GetContext<TSource>(string path, Type type, Expression<Func<TSource>> source)
@@ -34,21 +44,26 @@ namespace Scaffold.MVVM.Binding
             {
                 return context as BindContext<TSource>;
             }
-            return CreateContext(path, type, source);
+
+            Func<TSource> getter = source.Compile();
+            BindContext<TSource> createdContext = new BindContext<TSource>(getter);
+            registeredContexts.Add(path, type, createdContext);
+            groups.Register(path, createdContext);
+            return createdContext;
         }
 
-        private BindContext<TSource> CreateContext<TSource>(string path, Type type, Expression<Func<TSource>> source)
+        public void RemoveIfEmpty(string path, Type type, IBindContext context)
         {
-            Func<TSource> setter = source.Compile();
-            BindContext<TSource> context = new BindContext<TSource>(setter);
-            RegisterContext(path, type, context);
-            return context;
-        }
+            if (path is null) { throw new ArgumentNullException(nameof(path)); }
+            if (type is null) { throw new ArgumentNullException(nameof(type)); }
+            if (context is null) { throw new ArgumentNullException(nameof(context)); }
+            if (context.IsEmpty == false) { return; }
 
-        private void RegisterContext(string path, Type type, IBindContext context)
-        {
-            registeredContexts.Add(path, type, context);
-            groups.Register(path, context);
+            if (registeredContexts.TryGetValue(path, type, out IBindContext registered) == false) { return; }
+            if (ReferenceEquals(registered, context) == false) { return; }
+
+            groups.Unregister(path, context);
+            registeredContexts.Remove(path, type);
         }
 
         internal void Clear()
@@ -57,9 +72,8 @@ namespace Scaffold.MVVM.Binding
             {
                 context.Unbind();
             }
+
             registeredContexts.Clear();
         }
     }
 }
-
-

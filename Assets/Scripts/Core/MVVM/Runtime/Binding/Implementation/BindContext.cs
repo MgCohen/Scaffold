@@ -3,32 +3,95 @@ using System.Collections.Generic;
 
 namespace Scaffold.MVVM.Binding
 {
-    public class BindContext<T>: IBindContext
+    public class BindContext<T> : IBindContext
     {
+        private sealed class BindRegistration
+        {
+            public BindRegistration(IBind<T> bind, BindingOptions options)
+            {
+                Bind = bind;
+                Options = options ?? BindingOptions.Strict;
+            }
+
+            public IBind<T> Bind { get; }
+            public BindingOptions Options { get; }
+        }
+
         public BindContext(Func<T> getter)
         {
             if (getter is null) { throw new ArgumentNullException(nameof(getter)); }
-            this.source = getter;
-            this.currentValue = GetValue();
+            source = getter;
         }
 
         private Func<T> source;
-        private List<IBind<T>> binds = new List<IBind<T>>();
+        private readonly List<BindRegistration> binds = new List<BindRegistration>();
 
-        private T currentValue;
+        public bool IsEmpty => binds.Count == 0;
 
-        public void Bind(IBind<T> binding)
+        public void Bind(IBind<T> binding, BindingOptions options)
         {
             if (binding is null) { throw new ArgumentNullException(nameof(binding)); }
-            binds.Add(binding);
-            binding.Update(currentValue);
+            BindRegistration registration = new BindRegistration(binding, options);
+            binds.Add(registration);
+
+            if (registration.Options.LazyEvaluation)
+            {
+                return;
+            }
+
+            T value = GetValue();
+            binding.Update(value);
         }
 
         public void Update()
         {
-            if (source == null) { return; }
-            T value = GetValue();
-            UpdateSetters(value);
+            if (source == null || binds.Count == 0) { return; }
+
+            T value;
+            try
+            {
+                value = GetValue();
+            }
+            catch (NullReferenceException)
+            {
+                if (HasStrictBind())
+                {
+                    throw;
+                }
+
+                return;
+            }
+
+            foreach (BindRegistration bind in binds)
+            {
+                bind.Bind.Update(value);
+            }
+        }
+
+        public void Unbind(IBind<T> binding)
+        {
+            if (binding is null) { throw new ArgumentNullException(nameof(binding)); }
+            for (int i = binds.Count - 1; i >= 0; i--)
+            {
+                if (ReferenceEquals(binds[i].Bind, binding))
+                {
+                    binds.RemoveAt(i);
+                    break;
+                }
+            }
+        }
+
+        private bool HasStrictBind()
+        {
+            foreach (BindRegistration bind in binds)
+            {
+                if (bind.Options.LazyEvaluation == false)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private T GetValue()
@@ -36,24 +99,12 @@ namespace Scaffold.MVVM.Binding
             return source();
         }
 
-        private void UpdateSetters(T value)
-        {
-            foreach (var setter in binds)
-            {
-                Set(setter, value);
-            }
-        }
-
-        private void Set(IBind<T> binding, T value)
-        {
-            binding.Update(value);
-        }
-
         public void Unbind()
         {
             if (!CanUnbind()) { return; }
             source = null;
             DisposeBinds();
+            binds.Clear();
         }
 
         private bool CanUnbind()
@@ -63,9 +114,12 @@ namespace Scaffold.MVVM.Binding
 
         private void DisposeBinds()
         {
-            foreach (var setter in binds)
+            foreach (BindRegistration bind in binds)
             {
-                if (setter is IDisposable disposable) { disposable.Dispose(); }
+                if (bind.Bind is IDisposable disposable)
+                {
+                    disposable.Dispose();
+                }
             }
         }
     }
