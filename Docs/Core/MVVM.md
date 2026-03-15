@@ -194,16 +194,16 @@ From Unity Editor:
 
 1. Open `Window > General > Test Runner`.
 2. Run EditMode tests for `Scaffold.MVVM.Tests`.
-3. Expected result: all tests in `MVVMTests` pass, including model-to-viewmodel propagation, view bind updates, and binding-path checks.
+3. Expected result: all tests in `MVVMTests` pass, including model-to-viewmodel propagation, view bind updates, view lifecycle transitions, event bubbling/consume behavior, and `TreeBinding` path update coverage.
 
 From Unity CLI (headless pattern):
 
 ```powershell
-# Run from repository root; adjust Unity executable path for your machine.
-Unity.exe -batchmode -quit -projectPath "C:\Users\user\Documents\Unity\Scaffold" -runTests -testPlatform EditMode -testResults "Logs\MVVM-TestResults.xml"
+# Run from repository root (recommended script path).
+powershell -ExecutionPolicy Bypass -File ".\.agents\scripts\run-editmode-tests.ps1" -AssemblyNames "Scaffold.MVVM.Tests"
 ```
 
-Expected result: test run completes successfully and result XML reports all MVVM EditMode tests as passed.
+Expected result: terminal report shows all MVVM EditMode tests passed with zero failures.
 
 ## Related docs and modules
 
