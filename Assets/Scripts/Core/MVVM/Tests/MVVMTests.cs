@@ -5,6 +5,7 @@ using Scaffold.Navigation;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using UnityEngine;
 
 #pragma warning disable SCA0003
@@ -350,6 +351,56 @@ namespace Scaffold.MVVM.Tests
             Assert.AreEqual(1, handler.AddCalls);
 
             handle.Dispose();
+        }
+
+        [Test]
+        public void ViewModel_ReplacingNestedObservableProperty_RewiresNestedUpdates()
+        {
+            ReplacementAwareViewModel viewModel = new ReplacementAwareViewModel();
+            viewModel.Bind(null);
+            viewModel.RegisterNestedForTest();
+
+            Assert.AreEqual(1, viewModel.Value);
+
+            viewModel.Nested = new ReplacementNestedModel
+            {
+                Value = 5
+            };
+
+            viewModel.Nested.Value = 11;
+
+            Assert.AreEqual(11, viewModel.Value);
+        }
+
+        [Test]
+        public void ViewModel_ReplacingNestedObservableProperty_DetachesOldInstanceNotifications()
+        {
+            ReplacementAwareViewModel viewModel = new ReplacementAwareViewModel();
+            viewModel.Bind(null);
+            viewModel.RegisterNestedForTest();
+            ReplacementNestedModel previous = viewModel.Nested;
+
+            viewModel.Nested = new ReplacementNestedModel
+            {
+                Value = 10
+            };
+
+            int nestedValueNotifications = 0;
+            PropertyChangedEventHandler handler = (_, args) =>
+            {
+                if (args.PropertyName == "Nested.Value")
+                {
+                    nestedValueNotifications++;
+                }
+            };
+
+            viewModel.PropertyChanged += handler;
+            viewModel.Nested.Value = 21;
+            previous.Value = 999;
+            viewModel.PropertyChanged -= handler;
+
+            Assert.AreEqual(21, viewModel.Value);
+            Assert.AreEqual(1, nestedValueNotifications);
         }
 
         [Test]
@@ -781,6 +832,32 @@ namespace Scaffold.MVVM.Tests
     {
         public int Value { get; set; }
         public NestedBindingState Nested { get; set; } = new NestedBindingState();
+    }
+
+    public partial class ReplacementNestedModel : Model
+    {
+        [ObservableProperty]
+        private int value = 1;
+    }
+
+    public partial class ReplacementAwareViewModel : ViewModel
+    {
+        [ObservableProperty]
+        private ReplacementNestedModel nested = new ReplacementNestedModel();
+
+        [ObservableProperty]
+        private int value;
+
+        protected override void Initialize()
+        {
+            Bind(() => Nested.Value, () => Value);
+            Value = Nested.Value;
+        }
+
+        public void RegisterNestedForTest()
+        {
+            ((INestedObservableProperties)this).RegisterNestedProperties();
+        }
     }
 
     public class DeferredBindingState

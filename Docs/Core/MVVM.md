@@ -116,6 +116,12 @@ Property and collection bind calls now return disposable handles:
 
 Disposing one handle detaches only that binding, while `ClearBindings()` still performs full teardown.
 
+Nested reference replacement behavior is generator-driven:
+
+- when a nested `[ObservableProperty]` instance is replaced (for example `Player = new PlayerModel()`), generated code re-attaches nested change listeners to the new instance automatically.
+- old replaced instances are detached, so stale nested notifications no longer propagate through the parent path.
+- you should not need manual `RegisterChildProperty(...)` calls for standard `[ObservableProperty]` replacement flows.
+
 ### 5) View-event bubbling
 
 `ViewEvents` dispatches events by type and routes through typed ledgers.

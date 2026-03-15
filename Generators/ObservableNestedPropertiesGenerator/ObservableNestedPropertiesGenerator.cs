@@ -7,6 +7,21 @@ using Microsoft.CodeAnalysis.Text;
 
 namespace ObservableNestedPropertiesGenerator
 {
+    internal sealed class TrackedFieldInfo
+    {
+        public TrackedFieldInfo(string propertyName, string typeName, bool isObservableProperty)
+        {
+            PropertyName = propertyName;
+            TypeName = typeName;
+            IsObservableProperty = isObservableProperty;
+        }
+
+        public string PropertyName { get; }
+        public string TypeName { get; }
+        public bool IsObservableProperty { get; }
+        public string SafeName => PropertyName.Replace(".", string.Empty);
+    }
+
     internal static class Symbols
     {
         public const string ObservableAttribute = "CommunityToolkit.Mvvm.ComponentModel.ObservablePropertyAttribute";
@@ -45,10 +60,33 @@ public partial class {classSymbol.Name} : {Symbols.ObservableNestedInterface}
         }}
     }}
 
+    protected void RefreshChildProperty(string objName, object obj, ref object observedChild, ref PropertyChangedEventHandler propertyChangedHandler)
+    {{
+        if (propertyChangedHandler != null && observedChild is INotifyPropertyChanged previousObservable)
+        {{
+            previousObservable.PropertyChanged -= propertyChangedHandler;
+        }}
+
+        observedChild = obj;
+        propertyChangedHandler = null;
+
+        if (obj is INotifyPropertyChanged currentObservable)
+        {{
+            propertyChangedHandler = (s, p) => RaiseChildProperty(objName, obj, s, p);
+            currentObservable.PropertyChanged += propertyChangedHandler;
+        }}
+
+        if (obj is {Symbols.ObservableNestedInterface} nestedObservable)
+        {{
+            nestedObservable.RegisterNestedProperties();
+        }}
+    }}
+
     private void RaiseChildProperty(string objName, object parent, object sender, PropertyChangedEventArgs args)
     {{
-        string separator = parent is IEnumerable && args.PropertyName.StartsWith('[') ? """" : ""."";
-        string nestedPropertyPath = string.Join(separator, objName, args.PropertyName);
+        string childPropertyName = args?.PropertyName ?? string.Empty;
+        string separator = parent is IEnumerable && childPropertyName.StartsWith('[') ? """" : ""."";
+        string nestedPropertyPath = string.Join(separator, objName, childPropertyName);
         OnPropertyChanged(nestedPropertyPath);
         //OnPropertyChanged(objName);
     }}
@@ -196,6 +234,7 @@ public partial class {classSymbol.Name}{bindSourceClause}
         {
             //TODO check if we dont have nested attributes, as we only need to do this on the lowest level containing the attribute
             //TODO we should probably also check for direct implementations
+            List<TrackedFieldInfo> trackedFields = fields.Select(MapTrackedField).ToList();
             bool isNestedSource = classSymbol.GetAttributes().Any(a => a.AttributeClass.Name.Equals(Symbols.ObservableNestedAttribute));
             bool hasNamespace = classSymbol.ContainingNamespace.Name.Length > 0; //to avoid Global namespace weirdness
             var source = new StringBuilder();
@@ -214,11 +253,31 @@ public partial class {classSymbol.Name}{bindSourceClause}
                 source.AppendLine(Symbols.GetNestedChildClassBody(classSymbol));
             }
 
-            foreach (IFieldSymbol fieldSymbol in fields)
+            foreach (TrackedFieldInfo field in trackedFields)
             {
-                ProcessField(source, fieldSymbol);
+                source.AppendLine($@"        RefreshChildProperty(""{field.PropertyName}"", {field.PropertyName}, ref __{field.SafeName}ObservedChild, ref __{field.SafeName}PropertyChangedHandler);");
             }
-            source.AppendLine("    }\n\n}");
+
+            source.AppendLine("    }");
+
+            foreach (TrackedFieldInfo field in trackedFields)
+            {
+                source.AppendLine();
+                source.AppendLine($@"    private object __{field.SafeName}ObservedChild;");
+                source.AppendLine($@"    private PropertyChangedEventHandler __{field.SafeName}PropertyChangedHandler;");
+
+                if (field.IsObservableProperty)
+                {
+                    source.AppendLine();
+                    source.AppendLine($@"    partial void On{field.PropertyName}Changed({field.TypeName} value)");
+                    source.AppendLine("    {");
+                    source.AppendLine($@"        RefreshChildProperty(""{field.PropertyName}"", value, ref __{field.SafeName}ObservedChild, ref __{field.SafeName}PropertyChangedHandler);");
+                    source.AppendLine("    }");
+                }
+            }
+
+            source.AppendLine();
+            source.AppendLine("}");
             if (hasNamespace)
             {
                 source.AppendLine("}");
@@ -250,11 +309,12 @@ public partial class {classSymbol.Name}{bindSourceClause}
             return source.ToString();
         }
 
-        private void ProcessField(StringBuilder source, IFieldSymbol fieldSymbol)
+        private TrackedFieldInfo MapTrackedField(IFieldSymbol fieldSymbol)
         {
-            bool changeFieldName = fieldSymbol.GetAttributes().Any(ad => ad.AttributeClass.ToDisplayString() == Symbols.ObservableAttribute);
-            var fieldName = changeFieldName ? ToPascalCase(fieldSymbol.Name) : fieldSymbol.Name;
-            source.AppendLine($@"        RegisterChildProperty(""{fieldName}"",{fieldName});");
+            bool isObservableProperty = fieldSymbol.GetAttributes().Any(ad => ad.AttributeClass.ToDisplayString() == Symbols.ObservableAttribute);
+            string propertyName = isObservableProperty ? ToPascalCase(fieldSymbol.Name) : fieldSymbol.Name;
+            string typeName = fieldSymbol.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+            return new TrackedFieldInfo(propertyName, typeName, isObservableProperty);
         }
 
         private static string ToPascalCase(string input)
