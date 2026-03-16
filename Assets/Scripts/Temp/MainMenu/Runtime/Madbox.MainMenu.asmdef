@@ -1,0 +1,23 @@
+{
+    "name": "Madbox.MainMenu",
+    "rootNamespace": "Madbox.App.MainMenu",
+    "references": [
+        "Scaffold.MVVM",
+        "Scaffold.Navigation",
+        "Madbox.Level",
+        "Madbox.Gold",
+        "Madbox.GameEngine",
+        "CommunityToolkit.Mvvm",
+        "Unity.TextMeshPro",
+        "VContainer"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

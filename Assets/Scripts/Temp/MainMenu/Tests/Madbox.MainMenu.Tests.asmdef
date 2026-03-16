@@ -1,0 +1,29 @@
+{
+    "name": "Madbox.MainMenu.Tests",
+    "rootNamespace": "Madbox.App.MainMenu.Tests",
+    "references": [
+        "Madbox.MainMenu",
+        "Scaffold.MVVM",
+        "Madbox.Level",
+        "Madbox.Gold",
+        "Madbox.GameEngine",
+        "CommunityToolkit.Mvvm",
+        "Scaffold.Navigation"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "CommunityToolkit.Mvvm.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false,
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
+}
