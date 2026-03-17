@@ -1,6 +1,6 @@
-using UnityEngine;
+using System.Threading.Tasks;
 
-namespace Scaffold.LifeCycle
+namespace Scaffold.Infra.LifeCycle
 {
     /// <summary>
     /// Represents the disposal phase of a lifecycle component.
@@ -14,6 +14,6 @@ namespace Scaffold.LifeCycle
         /// The main goal is to clean up resources asynchronously.
         /// It is used when a system shuts down or is destroyed.
         /// </summary>
-        public Awaitable Dispose();
+        public Task Dispose();
     }
 }

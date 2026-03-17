@@ -1,6 +1,6 @@
-using UnityEngine;
+using System.Threading.Tasks;
 
-namespace Scaffold.LifeCycle
+namespace Scaffold.Infra.LifeCycle
 {
     /// <summary>
     /// Represents the initialization phase of a lifecycle component.
@@ -14,6 +14,6 @@ namespace Scaffold.LifeCycle
         /// The main goal is to trigger setup operations asynchronously.
         /// It is used during the bootstrap phase of the game module or system.
         /// </summary>
-        public Awaitable Initialize();
+        public Task Initialize();
     }
 }

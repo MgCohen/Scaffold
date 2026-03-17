@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace Scaffold.LifeCycle
+namespace Scaffold.Infra.LifeCycle
 {
     /// <summary>
     /// Represents the execution phase of a lifecycle component.

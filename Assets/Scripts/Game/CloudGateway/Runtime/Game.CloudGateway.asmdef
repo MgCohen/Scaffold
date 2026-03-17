@@ -1,0 +1,24 @@
+{
+    "name": "Game.CloudGateway",
+    "rootNamespace": "Scaffold",
+    "references": [
+        "GUID:b0214a6008ed146ff8f122a6a9c2f6cc",
+        "GUID:f220a277eefae4d3aa9e31c2b43bb307",
+        "GUID:fe25561d224ed4743af4c60938a59d0b",
+        "GUID:a4964a138ecfb47498532df4b3ecd8ad",
+        "GUID:92ff106a7865e487ca972ac9c1523e1a",
+        "GUID:c3088aa60ae8cfb489f4d39ee00a5d8c",
+        "GUID:a005e84a2643d41ff80257546e865cac",
+        "GUID:0a6d0ee47ca0d466aadd3a6d0705978e",
+        "GUID:7b12f473b7b334af2a1cd077dcfc7740"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

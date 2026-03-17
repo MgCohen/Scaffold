@@ -1,4 +1,4 @@
-namespace Scaffold.LifeCycle
+namespace Scaffold.Infra.LifeCycle
 {
     /// <summary>
     /// Serves as the base contract for system controllers that require both initialization and disposal capabilities.
