@@ -6,7 +6,7 @@ using System.Numerics;
 using UnityEngine;
 using UnityEngine.Assertions;
 
-namespace Scaffold.Game.Stack
+namespace Scaffold.Stack
 {
     public class Main
     {

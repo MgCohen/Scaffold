@@ -2,7 +2,7 @@ using Scaffold.States;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Scaffold.Game.Stack
+namespace Scaffold.Stack
 {
 
 
@@ -99,7 +99,7 @@ namespace Scaffold.Game.Stack
     //GamePhase opens main window
     //---- opens reaction window
 
-    //Quem valida se uma ação pode ser feita?
-    //Quem diz que uma ação foi feita?
-    //Quem diz que uma ação terminou?
+    //Quem valida se uma aï¿½ï¿½o pode ser feita?
+    //Quem diz que uma aï¿½ï¿½o foi feita?
+    //Quem diz que uma aï¿½ï¿½o terminou?
 }

@@ -1,7 +1,7 @@
 using System;
 using System.Threading.Tasks;
 
-namespace Scaffold.Infra.AwaitableRetry
+namespace Scaffold.AwaitableRetry
 {
     /// <summary>
     /// Provides extension methods for adding retry logic to Task and Task<T> delegates.

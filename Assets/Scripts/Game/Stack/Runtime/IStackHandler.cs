@@ -2,7 +2,7 @@ using Scaffold.States;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Scaffold.Game.Stack
+namespace Scaffold.Stack
 {
 
 

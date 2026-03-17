@@ -1,6 +1,6 @@
 //Checks for player-actions, Like Playing / Passing / Moving / Activating / Drawing
 //This is not effects, commands or parts of it - but more high level, closer to inputs but not necessarily player initiated
-namespace Scaffold.Game.Stack
+namespace Scaffold.Stack
 {
 
 

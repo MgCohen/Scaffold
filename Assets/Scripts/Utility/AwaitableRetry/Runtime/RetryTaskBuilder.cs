@@ -1,7 +1,7 @@
 using System;
 using System.Threading.Tasks;
 
-namespace Scaffold.Infra.AwaitableRetry
+namespace Scaffold.AwaitableRetry
 {
     /// <summary>
     /// Configures and executes an asynchronous task with predefined retry and delay policies, returning a result.

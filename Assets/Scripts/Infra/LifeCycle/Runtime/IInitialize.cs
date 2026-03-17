@@ -1,6 +1,6 @@
 using System.Threading.Tasks;
 
-namespace Scaffold.Infra.LifeCycle
+namespace Scaffold.LifeCycle
 {
     /// <summary>
     /// Represents the initialization phase of a lifecycle component.

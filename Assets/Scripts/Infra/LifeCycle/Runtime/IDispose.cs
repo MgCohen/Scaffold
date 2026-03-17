@@ -1,6 +1,6 @@
 using System.Threading.Tasks;
 
-namespace Scaffold.Infra.LifeCycle
+namespace Scaffold.LifeCycle
 {
     /// <summary>
     /// Represents the disposal phase of a lifecycle component.

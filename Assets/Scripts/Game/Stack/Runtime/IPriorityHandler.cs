@@ -2,7 +2,7 @@ using Scaffold.States;
 using System.Collections;
 using System.Collections.Generic;
 
-namespace Scaffold.Game.Stack
+namespace Scaffold.Stack
 {
 
     public interface IPriorityHandler

@@ -1,4 +1,4 @@
-namespace Scaffold.Infra.LifeCycle
+namespace Scaffold.LifeCycle
 {
     /// <summary>
     /// Represents the activation phase of a lifecycle component.
