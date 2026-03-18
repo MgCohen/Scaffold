@@ -13,7 +13,7 @@ using GameModule.Modules.Ads;
 using GameModule.Modules.Gold;
 using GameModule.Modules.Level;
 using GameModule.Modules.Tutorial;
-
+using GameModule.ModuleFetchData.Http;
 
 /// <summary>
 /// Configures the dependency injection container for cloud code execution.
@@ -35,7 +35,8 @@ public partial class ModuleConfig : ICloudCodeSetup
 
         RegisterScoped<IPlayerData, UnityPlayerData>(config);
         RegisterScoped<IGameState, UnityGameState>(config);
-        RegisterScoped<IRemoteConfig, UnityRemoteConfig>(config);
+        //RegisterScoped<IRemoteConfig, UnityRemoteConfig>(config);
+        RegisterScoped<IRemoteConfig, HttpRemoteConfig>(config);
 
         RegisterScoped<AuthenticationModule>(config);
         RegisterScoped<UnityConfigFetcher>(config);
