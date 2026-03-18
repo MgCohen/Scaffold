@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using GameModuleDTO.GameModule;
 using Newtonsoft.Json;
 
@@ -28,6 +30,17 @@ namespace GameModuleDTO.Modules.Common
         public void SetActive(bool value)
         {
             _isActive = value;
+        }
+
+        public ModuleProgress GetProgress(string id)
+        {
+            return _progress.FirstOrDefault(p => p.Id == id);
+        }
+
+        public bool IsCompleted(string id)
+        {
+            ModuleProgress progress = GetProgress(id);
+            return progress != null && progress.Status == ModuleStatus.Completed;
         }
 
         public virtual void SetProgress(string id, ModuleStatus status, ModuleProgressState state = ModuleProgressState.Default)

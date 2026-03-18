@@ -47,8 +47,8 @@ namespace GameModule.Modules.Gold
 
             if (amount == 0)
             {
-                GoldRewardModuleData serverData = await playerData.GetOrSet(context, new GoldRewardModuleData());
-                amount = serverData.Reward;
+                GoldRewardModuleData configData = await remoteConfig.Get(context, new GoldRewardModuleData());
+                amount = configData.Reward;
             }
 
             GoldModuleData goldData = await playerData.GetOrSet(context, new GoldModuleData());

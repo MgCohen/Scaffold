@@ -1,6 +1,6 @@
 {
   "AdsConfigData": {
-    "_isEnabled": true,
+    "_isActive": true,
     "_cooldown": 20
   }
 }

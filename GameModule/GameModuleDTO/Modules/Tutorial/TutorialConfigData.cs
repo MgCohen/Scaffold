@@ -8,9 +8,20 @@ namespace GameModuleDTO.Modules.Tutorial
     /// <summary>
     /// Configuration data for the Tutorial module.
     /// </summary>
-    public class TutorialConfigData : BaseModuleConfigData
+    public class TutorialConfigData : IGameModuleData, IIsActive
     {
-        public override string Key { get { return GameDataExtensions.GetKey<TutorialConfigData>(); } }
+        public string Key { get { return GameDataExtensions.GetKey<TutorialConfigData>(); } }
+
+        [JsonProperty]
+        private bool _isActive = true;
+
+        [JsonIgnore]
+        public bool IsActive => _isActive;
+
+        public void SetActive(bool value)
+        {
+            _isActive = value;
+        }
 
         [JsonProperty]
         private long _reward = 300;

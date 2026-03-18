@@ -16,5 +16,14 @@ namespace Scaffold.GameModules
             GameDebug.Log("Global Config data updated.", "GlobalConfigController");
             await Task.Yield();
         }
+
+        public string Version => Data.Version;
+        public string Environment => Data.Environment;
+        public int BeeEasyAttack => Data.BeeEasyAttack;
+
+        public T GetValue<T>(string key, T defaultValue = default)
+        {
+            return Data.GetValue<T>(key, defaultValue);
+        }
     }
 }

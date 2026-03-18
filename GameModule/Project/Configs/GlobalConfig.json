@@ -1,6 +1,6 @@
 {
   "GlobalConfigData": {
-    "_isEnabled": true,
+    "_isActive": true,
     "_values": {
       "key": "value",
       "number": 6,

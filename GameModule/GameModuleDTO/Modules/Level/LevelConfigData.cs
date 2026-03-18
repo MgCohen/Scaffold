@@ -8,9 +8,20 @@ namespace GameModuleDTO.Modules.Level
     /// <summary>
     /// Configuration data for the Level module.
     /// </summary>
-    public class LevelConfigData : BaseModuleConfigData
+    public class LevelConfigData : IGameModuleData, IIsActive
     {
-        public override string Key { get { return GameDataExtensions.GetKey<LevelConfigData>(); } }
+        public string Key { get { return GameDataExtensions.GetKey<LevelConfigData>(); } }
+
+        [JsonProperty]
+        private bool _isActive = true;
+
+        [JsonIgnore]
+        public bool IsActive => _isActive;
+
+        public void SetActive(bool value)
+        {
+            _isActive = value;
+        }
 
         [JsonProperty]
         private long _reward = 200;

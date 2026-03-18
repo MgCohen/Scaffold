@@ -8,9 +8,20 @@ namespace GameModuleDTO.Modules.Global
     /// <summary>
     /// Configuration data for global game settings.
     /// </summary>
-    public class GlobalConfigData : BaseModuleConfigData
+    public class GlobalConfigData : IGameModuleData, IIsActive
     {
-        public override string Key { get { return GameDataExtensions.GetKey<GlobalConfigData>(); } }
+        public string Key { get { return GameDataExtensions.GetKey<GlobalConfigData>(); } }
+
+        [JsonProperty]
+        private bool _isActive = true;
+
+        [JsonIgnore]
+        public bool IsActive => _isActive;
+
+        public void SetActive(bool value)
+        {
+            _isActive = value;
+        }
 
         [JsonProperty]
         private Dictionary<string, object> _values = new Dictionary<string, object>();
