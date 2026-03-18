@@ -1,5 +1,6 @@
 using GameModuleDTO.GameModule;
 using GameModuleDTO.Modules.Common;
+using System.Collections.Generic;
 using Newtonsoft.Json;
 
 namespace GameModuleDTO.Modules.Global

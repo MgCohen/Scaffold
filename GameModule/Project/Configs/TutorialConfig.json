@@ -1,0 +1,7 @@
+{
+  "TutorialConfigData": {
+    "_isEnabled": true,
+    "_reward": 300,
+    "_tutorials": [1, 2, 3]
+  }
+}

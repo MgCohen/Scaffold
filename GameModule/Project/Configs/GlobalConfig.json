@@ -1,0 +1,14 @@
+{
+  "GlobalConfigData": {
+    "_isEnabled": true,
+    "_values": {
+      "key": "value",
+      "number": 6,
+      "bool": true,
+      "string": "hello",
+      "version": "1.0.0",
+      "environment": "Production",
+      "bee_easy_attack": 10
+    }
+  }
+}

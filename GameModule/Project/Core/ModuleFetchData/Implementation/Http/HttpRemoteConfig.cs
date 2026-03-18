@@ -20,7 +20,7 @@ namespace GameModule.ModuleFetchData.Http
         // Caching locally fetched data
         private Dictionary<string, object> _cache = new Dictionary<string, object>();
         private bool _isFetched = false;
-        private string _configUrl = "https://example.com/api/config"; // Placeholder URL
+        private string _configUrl = "https://script.googleusercontent.com/macros/echo?user_content_key=AWDtjMUjq9_1oDbExHAJBNYPSvrYcdnF5g9qZ466VkjNd8BD4Y133XW4-byG_3P5jjnZM8f22J24vxs-KmhC5khcX8eLufYQ50eKya9Np3NJKyVgwFItr8Q1JuIVlmSLtU9FVjFhBPg3nO337peKpDylWk_mjuNy4bJJsT2hNyqKVsBZ6_iktSPT2ab1X5AB3kjCFZNJ_jezs-INQU53YVmSNOVSNfxbkEa0-yTNXLGGmF2m6HQka9qHLYEEdo1j-2aagDJt-PZlS926pb4f2_2ckzAAUYmB3pk1InKpJzJsnXK06kxsJl3tCnXyj7wJQCl-ERBZ3ikKOACJtyXg90IeQS7zg2X0GELEJ55d7uSL&lib=MvkPUsZBzdDehtZWzqKcfcf-qERZM9JSA"; // Placeholder URL
 
         public HttpRemoteConfig(ILogger<HttpRemoteConfig> logger)
         {
@@ -43,7 +43,7 @@ namespace GameModule.ModuleFetchData.Http
                 response.EnsureSuccessStatusCode();
                 string json = await response.Content.ReadAsStringAsync();
 
-                var data = JsonConvert.DeserializeObject<Dictionary<string, object>>(json);
+                Dictionary<string, object>? data = JsonConvert.DeserializeObject<Dictionary<string, object>>(json);
                 if (data != null)
                 {
                     _cache = data;
@@ -83,7 +83,7 @@ namespace GameModule.ModuleFetchData.Http
         {
             await FetchIfNeeded();
             Dictionary<string, T> results = new Dictionary<string, T>();
-            foreach (var kvp in _cache)
+            foreach (KeyValuePair<string, object> kvp in _cache)
             {
                 try
                 {
@@ -93,7 +93,7 @@ namespace GameModule.ModuleFetchData.Http
                     }
                     else
                     {
-                        var val = JsonConvert.DeserializeObject<T>(kvp.Value?.ToString() ?? "");
+                        T? val = JsonConvert.DeserializeObject<T>(kvp.Value?.ToString() ?? "");
                         if (val != null) results[kvp.Key] = val;
                     }
                 }
