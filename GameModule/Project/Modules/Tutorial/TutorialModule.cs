@@ -68,7 +68,7 @@ namespace GameModule.Modules.Tutorial
             data.SetProgress(request.TutorialId.ToString(), ModuleStatus.Completed);
             playerData.AddToCache(data);
 
-            await _goldModule.AddGoldToPlayer(context, playerData, config.Reward);
+            await _goldModule.AddGoldToPlayer(context, playerData, remoteConfig, config.Reward);
             _logger.LogInformation("[TutorialModule] Tutorial step {TutorialId} completed successfully for player {PlayerId}", request.TutorialId, context.PlayerId);
 
             CompleteTutorialResponse response = new CompleteTutorialResponse(data);
