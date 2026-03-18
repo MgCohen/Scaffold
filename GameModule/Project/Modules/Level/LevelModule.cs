@@ -57,7 +57,7 @@ namespace GameModule.Modules.Level
             data.SetProgress(levelId.ToString(), ModuleStatus.Completed);
             playerData.AddToCache(data);
 
-            await _goldServerModule.AddGoldToPlayer(context, playerData, context.PlayerId, config.Reward);
+            await _goldModule.AddGoldToPlayer(context, playerData, config.Reward);
             _logger.LogInformation("[LevelModule] Level {LevelId} completed successfully for player {PlayerId}", levelId, context.PlayerId);
         }
     }

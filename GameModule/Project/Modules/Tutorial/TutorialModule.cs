@@ -57,7 +57,7 @@ namespace GameModule.Modules.Tutorial
             data.SetProgress(tutorialId.ToString(), ModuleStatus.Completed);
             playerData.AddToCache(data);
 
-            await _goldServerModule.AddGoldToPlayer(context, playerData, context.PlayerId, config.Reward);
+            await _goldModule.AddGoldToPlayer(context, playerData, config.Reward);
             _logger.LogInformation("[TutorialModule] Tutorial step {TutorialId} completed successfully for player {PlayerId}", tutorialId, context.PlayerId);
         }
     }

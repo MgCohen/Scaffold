@@ -26,7 +26,7 @@ namespace GameModule.Modules.Gold
 
         public override async Task<IGameModuleData> Initialize(IExecutionContext context, IPlayerData playerData, IGameState gameState, IRemoteConfig remoteConfig)
         {
-            _logger.LogInformation("Initializing GoldClientModule");
+            _logger.LogInformation("Initializing GoldModule");
 
             GoldConfigData config = await remoteConfig.Get(context, new GoldConfigData());
             GoldModuleData data = await playerData.GetOrSet(context, new GoldModuleData());
@@ -39,6 +39,22 @@ namespace GameModule.Modules.Gold
             }
 
             return data;
+        }
+
+        public async Task AddGoldToPlayer(IExecutionContext context, IPlayerData playerData, long amount = 0)
+        {
+            _logger.LogInformation("[GoldModule] Rewarding player {PlayerId}", context.PlayerId);
+
+            if (amount == 0)
+            {
+                GoldRewardModuleData serverData = await playerData.GetOrSet(context, new GoldRewardModuleData());
+                amount = serverData.Reward;
+            }
+
+            GoldModuleData goldData = await playerData.GetOrSet(context, new GoldModuleData());
+            goldData.SetCurrent(goldData.Current + amount);
+            playerData.AddToCache(goldData);
+            _logger.LogInformation("[GoldModule] Added {Amount} gold to player {PlayerId}. New total: {Total}", amount, context.PlayerId, goldData.Current);
         }
     }
 }

@@ -9,7 +9,6 @@ using Unity.Services.CloudCode.Shared;
 using Unity.Services.CloudSave.Model;
 using Utility.Encode;
 
-
 namespace GameModule.ModuleFetchData.Unity
 {
     /// <summary>

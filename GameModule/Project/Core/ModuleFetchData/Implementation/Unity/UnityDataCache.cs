@@ -203,6 +203,11 @@ namespace GameModule.ModuleFetchData
             }
         }
 
+        public virtual void AddToCache(IGameModuleData moduleData)
+        {
+            AddToCache(moduleData.Key);
+        }
+
         public virtual async Task SaveCache(IExecutionContext context)
         {
             if (_objectsToSave.Any())
