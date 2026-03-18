@@ -41,7 +41,7 @@ namespace GameModule.Modules.Gold
             return data;
         }
 
-        public async Task AddGoldToPlayer(IExecutionContext context, IPlayerData playerData, long amount = 0)
+        public async Task AddGoldToPlayer(IExecutionContext context, IPlayerData playerData, IRemoteConfig remoteConfig, long amount = 0)
         {
             _logger.LogInformation("[GoldModule] Rewarding player {PlayerId}", context.PlayerId);
 
