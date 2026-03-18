@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Unity.Services.CloudCode.Core;
 
+
 namespace GameModule.Authentication
 {
     /// <summary>
@@ -39,7 +40,7 @@ namespace GameModule.Authentication
         /// <param name="gameState">The active configuration storage.</param>
         /// <returns>The encoded string configured securely.</returns>
         /// <exception cref="Exception">Thrown if keys resolve missing representations.</exception>
-        public async Task<string> GetBase64EncodedApiKey(IExecutionContext context, GameState gameState)
+        public async Task<string> GetBase64EncodedApiKey(IExecutionContext context, IGameState gameState)
         {
             if (!string.IsNullOrEmpty(_base64EncodedApiKey))
             {
@@ -80,7 +81,7 @@ namespace GameModule.Authentication
         /// <param name="gameState">The active environment data component.</param>
         /// <returns>The active stateless string format representation.</returns>
         /// <exception cref="Exception">Thrown matching failed REST transactions.</exception>
-        public async Task<string> GetStatelessToken(IExecutionContext context, GameState gameState)
+        public async Task<string> GetStatelessToken(IExecutionContext context, IGameState gameState)
         {
             if (!string.IsNullOrEmpty(_statelessToken))
             {

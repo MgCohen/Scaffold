@@ -17,7 +17,7 @@ namespace GameModule.AccessKey
         /// <param name="context">The active session context instance.</param>
         /// <param name="gameState">The current remote game tracking configuration.</param>
         /// <returns>A string payload containing the authorized token explicitly.</returns>
-        public static async Task<string> GetUnityAuth(this IExecutionContext context, GameState gameState)
+        public static async Task<string> GetUnityAuth(this IExecutionContext context, IGameState gameState)
         {
             return await gameState.GetUnityAuth(context);
         }
@@ -29,7 +29,7 @@ namespace GameModule.AccessKey
         /// <param name="gameState">The target configuration parameters container.</param>
         /// <param name="auth">The token passed explicitly for verification.</param>
         /// <returns>True if the provided credential string matches successfully.</returns>
-        public static async Task<bool> GetValidAuth(this IExecutionContext context, GameState gameState, string auth)
+        public static async Task<bool> GetValidAuth(this IExecutionContext context, IGameState gameState, string auth)
         {
             if (string.IsNullOrEmpty(auth))
             {
@@ -48,7 +48,7 @@ namespace GameModule.AccessKey
         /// <param name="auth">The input token verifying access correctly.</param>
         /// <returns>True seamlessly validating execution flows.</returns>
         /// <exception cref="UnauthorizedAccessException">Thrown when token validation actively fails.</exception>
-        public static async Task<bool> ValidateAuth(this IExecutionContext context, GameState gameState, string auth)
+        public static async Task<bool> ValidateAuth(this IExecutionContext context, IGameState gameState, string auth)
         {
             bool valid = await context.GetValidAuth(gameState, auth);
             return valid ? true : throw new UnauthorizedAccessException("Not Authorized");

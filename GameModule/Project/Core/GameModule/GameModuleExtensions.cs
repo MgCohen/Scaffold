@@ -4,6 +4,7 @@ using GameModuleDTO.Keys;
 using System.Threading.Tasks;
 using Unity.Services.CloudCode.Core;
 
+
 namespace GameModule.GameModule
 {
     /// <summary>
@@ -19,7 +20,7 @@ namespace GameModule.GameModule
         /// <param name="gameState">The target configuration execution instance.</param>
         /// <param name="context">The underlying execution framework instance.</param>
         /// <returns>A predefined authorization payload correctly.</returns>
-        public static async Task<string> GetUnityAuth(this GameState gameState, IExecutionContext context)
+        public static async Task<string> GetUnityAuth(this IGameState gameState, IExecutionContext context)
         {
             return await gameState.GetAllGameValue<string>(context, ModuleKeys.Auth, ModuleKeys.UnityToken);
         }
@@ -30,7 +31,7 @@ namespace GameModule.GameModule
         /// <param name="gameState">The active database instance map.</param>
         /// <param name="context">The active session processing instance details.</param>
         /// <returns>An extracted identification definition explicitly securely.</returns>
-        public static async Task<string> GetAdminFunctionsKeyId(this GameState gameState, IExecutionContext context)
+        public static async Task<string> GetAdminFunctionsKeyId(this IGameState gameState, IExecutionContext context)
         {
             return await gameState.GetAllGameValue<string>(context, ModuleKeys.Auth, ModuleKeys.AdminFunctionsKey);
         }
@@ -41,7 +42,7 @@ namespace GameModule.GameModule
         /// <param name="gameState">The tracking identifier.</param>
         /// <param name="context">The operating instance.</param>
         /// <returns>A specific payload directly.</returns>
-        public static async Task<string> GetAdminFunctionsSecretKey(this GameState gameState, IExecutionContext context)
+        public static async Task<string> GetAdminFunctionsSecretKey(this IGameState gameState, IExecutionContext context)
         {
             return await gameState.GetAllGameValue<string>(context, ModuleKeys.Auth, ModuleKeys.AdminFunctionsSecretKey);
         }

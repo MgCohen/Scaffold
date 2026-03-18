@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Unity.Services.CloudCode.Core;
 
-namespace GameModule.ModuleFetchData
+namespace GameModule.ModuleFetchData.Unity
 {
     /// <summary>
     /// Handles requests to Unity Remote Config directly fetching game configurations parameters.
@@ -18,7 +18,7 @@ namespace GameModule.ModuleFetchData
         private readonly ILogger _logger;
         private readonly HttpClient _httpClient = new HttpClient();
         private readonly AuthenticationModule _authModule;
-        private readonly GameState _gameState;
+        private readonly IGameState _gameState;
 
         /// <summary>
         /// Initializes the fetcher module cleanly.
@@ -26,7 +26,7 @@ namespace GameModule.ModuleFetchData
         /// <param name="logger">Core logging dependency.</param>
         /// <param name="authModule">Authentication flow routine.</param>
         /// <param name="gameState">Data representation model.</param>
-        public ConfigFetcher(ILogger<ConfigFetcher> logger, AuthenticationModule authModule, GameState gameState)
+        public ConfigFetcher(ILogger<ConfigFetcher> logger, AuthenticationModule authModule, IGameState gameState)
         {
             _logger = logger;
             _authModule = authModule;

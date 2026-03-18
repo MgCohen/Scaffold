@@ -1,6 +1,7 @@
 using System.Threading.Tasks;
 using GameModule.GameModule;
 using GameModule.ModuleFetchData;
+
 using GameModuleDTO.GameModule;
 using Unity.Services.CloudCode.Core;
 
@@ -35,6 +36,6 @@ namespace GameModule.GameModule
         /// <param name="gameState">The game state logic wrapper.</param>
         /// <param name="remoteConfig">The remote configuration dependencies.</param>
         /// <returns>A mapped execution promise payload.</returns>
-        public abstract Task<IGameModuleData> Initialize(IExecutionContext context, PlayerData playerData, GameState gameState, RemoteConfig remoteConfig);
+        public abstract Task<IGameModuleData> Initialize(IExecutionContext context, IPlayerData playerData, IGameState gameState, IRemoteConfig remoteConfig);
     }
 }

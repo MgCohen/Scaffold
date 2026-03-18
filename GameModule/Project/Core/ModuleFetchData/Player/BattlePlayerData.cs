@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+using System.Threading.Tasks;
+using GameModule.ModuleFetchData.Unity;
 using Microsoft.Extensions.Logging;
 using Unity.Services.CloudCode.Apis;
 using Unity.Services.CloudCode.Core;
@@ -8,11 +9,11 @@ namespace GameModule.ModuleFetchData
     /// <summary>
     /// Subclass handling player fighting states.
     /// </summary>
-    public class BattlePlayerData : PlayerData
+    public class BattlePlayerData : UnityPlayerData
     {
         private bool _initialized;
 
-        public BattlePlayerData(ILogger<BattlePlayerData> logger, IGameApiClient gameApiClient, string playerId) : base(logger, gameApiClient)
+        public BattlePlayerData(ILogger<BattlePlayerData> logger, IGameApiClient gameApiClient, string playerId) : base(logger, gameApiClient, playerId)
         {
             _logger = logger;
             _gameApiClient = gameApiClient;

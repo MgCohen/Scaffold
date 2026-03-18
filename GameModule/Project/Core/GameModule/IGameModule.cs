@@ -1,5 +1,6 @@
-﻿using GameModuleDTO.GameModule;
+using GameModuleDTO.GameModule;
 using GameModule.ModuleFetchData;
+
 using System.Threading.Tasks;
 using Unity.Services.CloudCode.Core;
 
@@ -27,6 +28,6 @@ namespace GameModule.GameModule
         /// <param name="gameState">The current game state.</param>
         /// <param name="remoteConfig">The remote configuration settings.</param>
         /// <returns>The populated module data.</returns>
-        public Task<IGameModuleData> Initialize(IExecutionContext context, PlayerData playerData, GameState gameState, RemoteConfig remoteConfig);
+        public Task<IGameModuleData> Initialize(IExecutionContext context, IPlayerData playerData, IGameState gameState, IRemoteConfig remoteConfig);
     }
 }

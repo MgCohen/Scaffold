@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -10,6 +10,7 @@ using GameModuleDTO.ModuleRequests;
 using Microsoft.Extensions.Logging;
 using Unity.Services.CloudCode.Core;
 
+
 namespace GameModule.GameModule
 {
     /// <summary>
@@ -19,8 +20,8 @@ namespace GameModule.GameModule
     {
         private readonly ILogger<GameModulesController> _logger;
         private readonly ModuleRequestHandler _moduleRequestHandler;
-        private readonly PlayerData _playerData;
-        private readonly RemoteConfig _remoteConfig;
+        private readonly IPlayerData _playerData;
+        private readonly IRemoteConfig _remoteConfig;
 
         /// <summary>
         /// Initializes the central processing router correctly.
@@ -32,8 +33,8 @@ namespace GameModule.GameModule
         public GameModulesController(
             ILogger<GameModulesController> logger,
             ModuleRequestHandler moduleRequestHandler,
-            PlayerData playerData,
-            RemoteConfig remoteConfig)
+            IPlayerData playerData,
+            IRemoteConfig remoteConfig)
         {
             _logger = logger;
             _moduleRequestHandler = moduleRequestHandler;
@@ -50,7 +51,7 @@ namespace GameModule.GameModule
         /// <param name="modules">The full list of available runtime features.</param>
         /// <returns>A mapped execution completion state object dynamically securely.</returns>
         [CloudCodeFunction(nameof(InitializeGameModulesRequest))]
-        public async Task<GameDataResponse> InitializeModules(IExecutionContext context, GameState gameState, InitializeGameModulesRequest request, IEnumerable<IGameModule> modules)
+        public async Task<GameDataResponse> InitializeModules(IExecutionContext context, IGameState gameState, InitializeGameModulesRequest request, IEnumerable<IGameModule> modules)
         {
             _logger.LogInformation("[InitializeModules] Starting");
             return await ProcessModulesSequentially(context, gameState, modules, request);
@@ -65,7 +66,7 @@ namespace GameModule.GameModule
         /// <param name="modules">Module array data.</param>
         /// <returns>Data response dynamically.</returns>
         [CloudCodeFunction(nameof(GameDataRequest))]
-        public async Task<GameDataResponse> GetGameModulesRequest(IExecutionContext context, GameState gameState, GameDataRequest request, IEnumerable<IGameModule> modules)
+        public async Task<GameDataResponse> GetGameModulesRequest(IExecutionContext context, IGameState gameState, GameDataRequest request, IEnumerable<IGameModule> modules)
         {
             _logger.LogInformation("[GetGameModulesRequest] Starting");
             return await ProcessModulesSequentially(context, gameState, modules, request, request.ModuleKeys);
@@ -73,7 +74,7 @@ namespace GameModule.GameModule
 
         private async Task<T> ProcessModulesSequentially<T>(
             IExecutionContext context,
-            GameState gameState,
+            IGameState gameState,
             IEnumerable<IGameModule> modules,
             ModuleRequest<T> request,
             IReadOnlyCollection<string> filterKeys = null) where T : ModuleResponse

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -8,22 +8,23 @@ using Unity.Services.CloudCode.Core;
 using Unity.Services.CloudCode.Shared;
 using Unity.Services.CloudSave.Model;
 
-namespace GameModule.ModuleFetchData
+
+namespace GameModule.ModuleFetchData.Unity
 {
     /// <summary>
     /// Orchestrates user profile details gracefully.
     /// </summary>
-    public class PlayerData : DataCache
+    public class UnityPlayerData : UnityDataCache, IPlayerData
     {
         protected Dictionary<string, string> _writeLockCache = new Dictionary<string, string>();
 
-        public PlayerData(ILogger<PlayerData> logger, IGameApiClient gameApiClient) : base(logger, gameApiClient)
+        public UnityPlayerData(ILogger<UnityPlayerData> logger, IGameApiClient gameApiClient) : base(logger, gameApiClient)
         {
             _logger = logger;
             _gameApiClient = gameApiClient;
         }
 
-        public PlayerData(ILogger<PlayerData> logger, IGameApiClient gameApiClient, string playerId) : base(logger, gameApiClient, playerId)
+        public UnityPlayerData(ILogger<UnityPlayerData> logger, IGameApiClient gameApiClient, string playerId) : base(logger, gameApiClient, playerId)
         {
             _logger = logger;
             _gameApiClient = gameApiClient;
@@ -87,9 +88,10 @@ namespace GameModule.ModuleFetchData
             await _gameApiClient.CloudSaveData.DeleteProtectedItemAsync(context, context.ServiceToken, context.ProjectId, _playerId, key);
         }
 
-        public async Task Delete(IExecutionContext context, string key)
+        public override async Task Delete(IExecutionContext context, string key)
         {
-            await DeleteData(context, key);
+            _writeLockCache.Remove(key);
+            await base.Delete(context, key);
         }
 
         public string GetWriteLock(string key)

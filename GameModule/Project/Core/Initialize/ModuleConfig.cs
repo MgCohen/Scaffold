@@ -1,9 +1,10 @@
-﻿using GameModule.Authentication;
+using GameModule.Authentication;
 using GameModule.GameModule;
 using GameModule.Initialize;
-using GameModule.ModuleFetchData;
 using GameModule.Response;
 using GameModule.Sample;
+using GameModule.ModuleFetchData;
+using GameModule.ModuleFetchData.Unity;
 using Microsoft.Extensions.DependencyInjection;
 using Unity.Services.CloudCode.Apis;
 using Unity.Services.CloudCode.Core;
@@ -27,16 +28,16 @@ public partial class ModuleConfig : ICloudCodeSetup
         PushClient pushClient = PushClient.Create();
         config.Dependencies.AddSingleton(pushClient);
 
-        RegisterScoped<PlayerData>(config);
-        RegisterScoped<GameState>(config);
-        RegisterScoped<RemoteConfig>(config);
+        RegisterScoped<IPlayerData, UnityPlayerData>(config);
+        RegisterScoped<IGameState, UnityGameState>(config);
+        RegisterScoped<IRemoteConfig, UnityRemoteConfig>(config);
 
         RegisterScoped<AuthenticationModule>(config);
         RegisterScoped<ConfigFetcher>(config);
 
         RegisterScoped<SignalModule>(config);
         RegisterScoped<ModuleRequestHandler>(config);
-        
+
         RegisterModuleScoped<SimpleModule>(config);
         RegisterModuleScoped<ReactiveModule>(config);
         RegisterModuleScoped<CounterModule>(config);
@@ -50,6 +51,13 @@ public partial class ModuleConfig : ICloudCodeSetup
     private void RegisterScoped<T>(ICloudCodeConfig config) where T : class
     {
         config.Dependencies.AddScoped<T>();
+    }
+
+    private void RegisterScoped<TInterface, TImplementation>(ICloudCodeConfig config)
+        where TInterface : class
+        where TImplementation : class, TInterface
+    {
+        config.Dependencies.AddScoped<TInterface, TImplementation>();
     }
 
     private void RegisterModuleScoped<T>(ICloudCodeConfig config) where T : class, IGameModule

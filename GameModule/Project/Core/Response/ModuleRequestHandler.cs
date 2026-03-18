@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Unity.Services.CloudCode.Core;
 using GameModule.ModuleFetchData;
 
+
 namespace GameModule.Response
 {
     /// <summary>
@@ -12,14 +13,14 @@ namespace GameModule.Response
     /// </summary>
     public class ModuleRequestHandler
     {
-        public ModuleRequestHandler(SignalModule signalModule, PlayerData playerData) //TODO: Add gameData
+        public ModuleRequestHandler(SignalModule signalModule, IPlayerData playerData) //TODO: Add gameData
         {
             _signalModule = signalModule;
             _playerData = playerData;
         }
 
         private readonly SignalModule _signalModule;
-        private readonly PlayerData _playerData;
+        private readonly IPlayerData _playerData;
         public ModuleRequest Request { get; private set; }
         public List<ModuleResponse> Responses { get; protected set; } = new List<ModuleResponse>();
 
@@ -37,7 +38,7 @@ namespace GameModule.Response
             _signalModule.Push(request);
         }
 
-        public async Task<T> ResolveResponse<T>(ModuleRequest<T> request, T response, IExecutionContext context, PlayerData playerData = null) where T : ModuleResponse
+        public async Task<T> ResolveResponse<T>(ModuleRequest<T> request, T response, IExecutionContext context, IPlayerData playerData = null) where T : ModuleResponse
         {
             if (request == null || context == null)
             {

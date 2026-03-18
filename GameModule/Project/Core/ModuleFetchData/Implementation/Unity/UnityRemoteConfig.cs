@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -9,17 +9,17 @@ using Unity.Services.CloudCode.Shared;
 using Unity.Services.CloudSave.Model;
 using Unity.Services.RemoteConfig.Model;
 
-namespace GameModule.ModuleFetchData
+namespace GameModule.ModuleFetchData.Unity
 {
     /// <summary>
     /// Connects to Remote Config to fetch server parameters.
     /// </summary>
-    public class RemoteConfig : DataCache
+    public class UnityRemoteConfig : UnityDataCache, IRemoteConfig
     {
-        public static RemoteConfig Instance { get; private set; }
+        public static UnityRemoteConfig Instance { get; private set; }
         protected ConfigFetcher _configFetcher;
 
-        public RemoteConfig(ILogger<DataCache> logger, IGameApiClient gameApiClient, ConfigFetcher configFetcher) : base(logger, gameApiClient)
+        public UnityRemoteConfig(ILogger<UnityDataCache> logger, IGameApiClient gameApiClient, ConfigFetcher configFetcher) : base(logger, gameApiClient)
         {
             Instance = this;
             _configFetcher = configFetcher;

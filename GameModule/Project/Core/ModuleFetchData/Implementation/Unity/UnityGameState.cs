@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -9,17 +9,18 @@ using Unity.Services.CloudCode.Shared;
 using Unity.Services.CloudSave.Model;
 using Utility.Encode;
 
-namespace GameModule.ModuleFetchData
+
+namespace GameModule.ModuleFetchData.Unity
 {
     /// <summary>
     /// Represents server data configurations explicitly.
     /// </summary>
-    public class GameState : DataCache
+    public class UnityGameState : UnityDataCache, IGameState
     {
-        public static GameState Instance { get; private set; }
+        public static UnityGameState Instance { get; private set; }
         private string _key = ModuleKeys.GameState;
 
-        public GameState(ILogger<DataCache> logger, IGameApiClient gameApiClient) : base(logger, gameApiClient)
+        public UnityGameState(ILogger<UnityDataCache> logger, IGameApiClient gameApiClient) : base(logger, gameApiClient)
         {
             _logger = logger;
             _gameApiClient = gameApiClient;
@@ -29,6 +30,11 @@ namespace GameModule.ModuleFetchData
         public override string GetDebugKey(string key)
         {
             return $"'{_key}'.'{key}'";
+        }
+
+        protected override string SanitizeKey(string key)
+        {
+            return EncodeExtensions.SanitizeKey(key);
         }
 
         protected override async Task InitializeData(IExecutionContext context)
@@ -104,8 +110,7 @@ namespace GameModule.ModuleFetchData
         public async Task Delete(IExecutionContext context, string databaseKey, string key)
         {
             _key = databaseKey;
-            key = EncodeExtensions.SanitizeKey(key);
-            await DeleteData(context, key);
+            await Delete(context, key);
         }
 
         protected override async Task SaveBatchData(IExecutionContext context, List<SetItemBody> values, bool useWriteLock)
@@ -152,8 +157,7 @@ namespace GameModule.ModuleFetchData
         public async Task Set(IExecutionContext context, string databaseKey, string key, object value, bool useWriteLock = false)
         {
             _key = databaseKey;
-            key = EncodeExtensions.SanitizeKey(key);
-            await base.Set(context, key, value, useWriteLock);
+            await Set(context, key, value, useWriteLock);
         }
     }
 }
