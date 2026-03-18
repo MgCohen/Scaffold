@@ -48,7 +48,7 @@ namespace GameModule.Modules.Tutorial
             if (!config.Tutorials.Contains(request.TutorialId))
             {
                 _logger.LogWarning("[TutorialModule] Attempted to complete tutorial step {AttemptedStep} but it is not in the valid tutorials list", request.TutorialId);
-                return await _moduleRequestHandler.ResolveResponse(request, new CompleteTutorialResponse(data), context, playerData);
+                return await _moduleRequestHandler.ResolveResponse(context, request, new CompleteTutorialResponse(data));
             }
 
             int currentTutorialStep = 1;
@@ -62,7 +62,7 @@ namespace GameModule.Modules.Tutorial
             if (request.TutorialId != currentTutorialStep)
             {
                 _logger.LogWarning("[TutorialModule] Attempted to complete tutorial step {AttemptedStep} but current step is {CurrentStep}", request.TutorialId, currentTutorialStep);
-                return await _moduleRequestHandler.ResolveResponse(request, new CompleteTutorialResponse(data), context, playerData);
+                return await _moduleRequestHandler.ResolveResponse(context, request, new CompleteTutorialResponse(data));
             }
 
             data.SetProgress(request.TutorialId.ToString(), ModuleStatus.Completed);
@@ -72,7 +72,7 @@ namespace GameModule.Modules.Tutorial
             _logger.LogInformation("[TutorialModule] Tutorial step {TutorialId} completed successfully for player {PlayerId}", request.TutorialId, context.PlayerId);
 
             CompleteTutorialResponse response = new CompleteTutorialResponse(data);
-            return await _moduleRequestHandler.ResolveResponse(request, response, context, playerData);
+            return await _moduleRequestHandler.ResolveResponse(context, request, response);
         }
     }
 }

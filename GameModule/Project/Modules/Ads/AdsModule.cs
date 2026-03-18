@@ -51,7 +51,7 @@ namespace GameModule.Modules.Ads
             }
 
             WatchAdResponse response = new WatchAdResponse(data);
-            return await _moduleRequestHandler.ResolveResponse(request, response, context, playerData);
+            return await _moduleRequestHandler.ResolveResponse(context, request, response);
         }
     }
 }

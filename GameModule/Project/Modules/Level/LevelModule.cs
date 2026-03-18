@@ -35,7 +35,6 @@ namespace GameModule.Modules.Level
 
         public override async Task<IGameModuleData> Initialize(IExecutionContext context, IPlayerData playerData, IGameState gameState, IRemoteConfig remoteConfig)
         {
-            await remoteConfig.Get(context, new LevelConfigData());
             return await playerData.GetOrSet(context, new LevelModuleData());
         }
 
@@ -48,7 +47,7 @@ namespace GameModule.Modules.Level
             if (!config.Levels.Contains(request.LevelId))
             {
                 _logger.LogWarning("[LevelModule] Attempted to complete level {AttemptedLevel} but it is not in the valid levels list", request.LevelId);
-                return await _moduleRequestHandler.ResolveResponse(request, new CompleteLevelResponse(data), context, playerData);
+                return await _moduleRequestHandler.ResolveResponse(context, request, new CompleteLevelResponse(data));
             }
 
             int currentLevel = 1;
@@ -62,7 +61,7 @@ namespace GameModule.Modules.Level
             if (request.LevelId != currentLevel)
             {
                 _logger.LogWarning("[LevelModule] Attempted to complete level {AttemptedLevel} but current level is {CurrentLevel}", request.LevelId, currentLevel);
-                return await _moduleRequestHandler.ResolveResponse(request, new CompleteLevelResponse(data), context, playerData);
+                return await _moduleRequestHandler.ResolveResponse(context, request, new CompleteLevelResponse(data));
             }
 
             data.SetProgress(request.LevelId.ToString(), ModuleStatus.Completed);
@@ -72,7 +71,7 @@ namespace GameModule.Modules.Level
             _logger.LogInformation("[LevelModule] Level {LevelId} completed successfully for player {PlayerId}", request.LevelId, context.PlayerId);
 
             CompleteLevelResponse response = new CompleteLevelResponse(data);
-            return await _moduleRequestHandler.ResolveResponse(request, response, context, playerData);
+            return await _moduleRequestHandler.ResolveResponse(context, request, response);
         }
     }
 }

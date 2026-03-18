@@ -38,7 +38,7 @@ namespace GameModule.Response
             _signalModule.Push(request);
         }
 
-        public async Task<T> ResolveResponse<T>(ModuleRequest<T> request, T response, IExecutionContext context, IPlayerData playerData = null) where T : ModuleResponse
+        public async Task<T> ResolveResponse<T>(IExecutionContext context, ModuleRequest<T> request, T response, IPlayerData playerData = null) where T : ModuleResponse
         {
             if (request == null || context == null)
             {

@@ -13,7 +13,7 @@ namespace Scaffold.CloudGateway
     /// </summary>
     public interface ICloudService
     {
-        public CompositeTaskQueueEvent<ModuleResponse> OnResponseReceived { get; }
+        public CompositeTaskQueueEvent<ModuleResponse> TaskQueueHandler { get; }
 
         public Action RequestError { get; }
 

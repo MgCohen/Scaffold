@@ -8,7 +8,6 @@ using GameModuleDTO.Sample.CounterModule;
 using Microsoft.Extensions.Logging;
 using Unity.Services.CloudCode.Core;
 
-
 namespace GameModule.Sample
 {
     /// <summary>
@@ -45,7 +44,7 @@ namespace GameModule.Sample
             int valueToIncrement = 1;
             counterData.IncreaseValue(valueToIncrement);
             IncrementCounterResponse incrementCounterResponse = new IncrementCounterResponse(valueToIncrement);
-            return await _moduleRequestHandler.ResolveResponse(request, incrementCounterResponse, context, playerData);
+            return await _moduleRequestHandler.ResolveResponse(context, request, incrementCounterResponse);
         }
     }
 }

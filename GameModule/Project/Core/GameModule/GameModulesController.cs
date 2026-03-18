@@ -120,7 +120,7 @@ namespace GameModule.GameModule
             {
                 throw new InvalidOperationException($"[ProcessModulesSequentially] Could not cast GameDataResponse to expected type '{typeof(T).Name}'.");
             }
-            return await _moduleRequestHandler.ResolveResponse(request, response, context, _playerData);
+            return await _moduleRequestHandler.ResolveResponse(context, request, response);
         }
     }
 }
