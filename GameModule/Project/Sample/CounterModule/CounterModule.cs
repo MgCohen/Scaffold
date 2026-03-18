@@ -30,7 +30,7 @@ namespace GameModule.Sample
 
         public override async Task<IGameModuleData> Initialize(IExecutionContext context, PlayerData playerData, GameState gameState, RemoteConfig remoteConfig)
         {
-            return await playerData.GetOrSet<CounterModuleData>(context);
+            return await playerData.GetOrSet<CounterModuleData>(context, new CounterModuleData());
         }
         #endregion
 
@@ -38,7 +38,7 @@ namespace GameModule.Sample
         public async Task<IncrementCounterResponse> IncrementCounter(IExecutionContext context, PlayerData playerData, IncrementCounterRequest request)
         {
             _logger.LogInformation("[IncrementCounterRequest] Starting");
-            CounterModuleData counterData = await playerData.GetOrSet<CounterModuleData>(context);
+            CounterModuleData counterData = await playerData.GetOrSet<CounterModuleData>(context, new CounterModuleData());
             playerData.AddToCache(counterData);
 
             int valueToIncrement = 1;

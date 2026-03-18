@@ -1,4 +1,6 @@
+using System;
 using Newtonsoft.Json;
+using Scaffold.Logging;
 using Utility.Json;
 
 namespace Scaffold.CloudGateway
@@ -40,8 +42,9 @@ namespace Scaffold.CloudGateway
                 };
                 return JsonConvert.DeserializeObject<T>(json, settings);
             }
-            catch
+            catch (Exception ex)
             {
+                GameDebug.LogException(ex, "JsonExtensions");
                 return default;
             }
         }

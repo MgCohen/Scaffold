@@ -3,6 +3,7 @@ using GameModule.GameModule;
 using GameModule.Initialize;
 using GameModule.ModuleFetchData;
 using GameModule.Response;
+using GameModule.Sample;
 using Microsoft.Extensions.DependencyInjection;
 using Unity.Services.CloudCode.Apis;
 using Unity.Services.CloudCode.Core;
@@ -35,6 +36,10 @@ public partial class ModuleConfig : ICloudCodeSetup
 
         RegisterScoped<SignalModule>(config);
         RegisterScoped<ModuleRequestHandler>(config);
+        
+        RegisterModuleScoped<SimpleModule>(config);
+        RegisterModuleScoped<ReactiveModule>(config);
+        RegisterModuleScoped<CounterModule>(config);
     }
 
     private void RegisterSingleton<T>(ICloudCodeConfig config) where T : class

@@ -51,6 +51,11 @@ namespace Scaffold.GameModules
         {
             InitializeGameModulesRequest request = new InitializeGameModulesRequest(CloudGatewayAuthKey.Guid);
             GameDataResponse response = await CloudService.CallEndpointAsync(request);
+            if (response == null)
+            {
+                GameDebug.LogError("Failed to initialize game modules: response is null", "GameModulesController");
+                return;
+            }
             GameData = response.GameData;
             Assert.IsNotNull(GameData);
             IEnumerable<Task> initializeTasks = modules

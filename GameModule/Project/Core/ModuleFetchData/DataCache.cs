@@ -208,7 +208,7 @@ namespace GameModule.ModuleFetchData
             return defaultValue;
         }
 
-        public async Task<T> GetOrSet<T>(IExecutionContext context, T defaultValue = default, bool useWriteLock = false) where T : IGameModuleData
+        public async Task<T> GetOrSet<T>(IExecutionContext context, T defaultValue, bool useWriteLock = false) where T : IGameModuleData
         {
             string key = GameDataExtensions.GetKey<T>();
             if (await Exists(context, key))

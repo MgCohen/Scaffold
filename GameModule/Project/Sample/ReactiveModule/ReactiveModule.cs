@@ -38,12 +38,12 @@ namespace GameModule.Sample
         public override async Task<IGameModuleData> Initialize(IExecutionContext context, PlayerData playerData, GameState gameState, RemoteConfig remoteConfig)
         {
             _signalModule.Subscribe<IncrementCounterRequest>(OnCounterRequestResolve);
-            return await playerData.GetOrSet<ReactiveModuleData>(context);
+            return await playerData.GetOrSet<ReactiveModuleData>(context, new ReactiveModuleData());
         }
 
         private async void OnCounterRequestResolve(IncrementCounterRequest request)
         {
-            ReactiveModuleData reactiveModuleData = await _playerData.GetOrSet<ReactiveModuleData>(_context);
+            ReactiveModuleData reactiveModuleData = await _playerData.GetOrSet<ReactiveModuleData>(_context, new ReactiveModuleData());
             _playerData.AddToCache(reactiveModuleData);
 
             int valueToIncrement = 2;

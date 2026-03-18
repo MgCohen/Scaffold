@@ -17,7 +17,7 @@ namespace GameModuleDTO.GameModule
         /// <returns>Class name string mapping smoothly.</returns>
         public static string GetKey<T>() where T : IGameModuleData
         {
-            return nameof(T);
+            return typeof(T).Name;
         }
     }
 }

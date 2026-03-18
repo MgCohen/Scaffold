@@ -26,7 +26,7 @@ namespace GameModule.Sample
 
         public override async Task<IGameModuleData> Initialize(IExecutionContext context, PlayerData playerData, GameState gameState, RemoteConfig remoteConfig)
         {
-            return await playerData.GetOrSet<SimpleModuleData>(context, Key, default);
+            return await playerData.GetOrSet<SimpleModuleData>(context, new SimpleModuleData());
         }
         #endregion
     }
