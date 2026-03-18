@@ -15,7 +15,7 @@ namespace GameModuleDTO.Modules.Common
         private bool _isActive;
 
         [JsonProperty]
-        private List<ModuleProgress> _progress = new();
+        private List<ModuleProgress> _progress = new List<ModuleProgress>();
 
         /// <summary>Gets a value indicating whether the module is currently active.</summary>
         [JsonIgnore]
