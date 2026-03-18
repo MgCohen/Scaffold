@@ -14,6 +14,7 @@ using GameModule.Modules.Gold;
 using GameModule.Modules.Level;
 using GameModule.Modules.Tutorial;
 using GameModule.ModuleFetchData.Http;
+using GameModule.Modules.Global;
 
 /// <summary>
 /// Configures the dependency injection container for cloud code execution.
@@ -56,8 +57,8 @@ public partial class ModuleConfig : ICloudCodeSetup
         RegisterModuleScoped<LevelConfigModule>(config);
         RegisterModuleScoped<TutorialModule>(config);
         RegisterModuleScoped<TutorialConfigModule>(config);
+        RegisterModuleScoped<GlobalConfigModule>(config);
     }
-
 
     private void RegisterSingleton<T>(ICloudCodeConfig config) where T : class
     {
