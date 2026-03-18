@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Unity.Services.CloudCode.Core;
+using GameModuleDTO.GameModule;
 
 namespace GameModule.ModuleFetchData.Http
 {
@@ -71,6 +72,11 @@ namespace GameModule.ModuleFetchData.Http
                 }
             }
             return defaultValue;
+        }
+
+        public async Task<T> Get<T>(IExecutionContext context, T defaultValue) where T : IGameModuleData
+        {
+            return await Get(context, GameDataExtensions.GetKey<T>(), defaultValue);
         }
 
         public async Task<Dictionary<string, T>> GetAllValues<T>(IExecutionContext context)

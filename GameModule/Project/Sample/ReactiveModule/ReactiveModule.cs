@@ -4,7 +4,6 @@ using GameModule.ModuleFetchData;
 using GameModuleDTO.GameModule;
 using GameModuleDTO.Sample.ReactiveModule;
 using GameModule.Response;
-using GameModuleDTO.Sample.ReactiveModule;
 using GameModule.Signal;
 using Microsoft.Extensions.Logging;
 using Unity.Services.CloudCode.Core;

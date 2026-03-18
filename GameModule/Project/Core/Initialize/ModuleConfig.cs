@@ -9,6 +9,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Unity.Services.CloudCode.Apis;
 using Unity.Services.CloudCode.Core;
 using GameModule.Signal;
+using GameModule.Modules.Ads;
+using GameModule.Modules.Gold;
+using GameModule.Modules.Level;
+using GameModule.Modules.Tutorial;
+
 
 /// <summary>
 /// Configures the dependency injection container for cloud code execution.
@@ -41,7 +46,17 @@ public partial class ModuleConfig : ICloudCodeSetup
         RegisterModuleScoped<SimpleModule>(config);
         RegisterModuleScoped<ReactiveModule>(config);
         RegisterModuleScoped<CounterModule>(config);
+
+        RegisterModuleScoped<AdsModule>(config);
+        RegisterModuleScoped<AdsConfigModule>(config);
+        RegisterModuleScoped<GoldModule>(config);
+        RegisterModuleScoped<GoldConfigModule>(config);
+        RegisterModuleScoped<LevelModule>(config);
+        RegisterModuleScoped<LevelConfigModule>(config);
+        RegisterModuleScoped<TutorialModule>(config);
+        RegisterModuleScoped<TutorialConfigModule>(config);
     }
+
 
     private void RegisterSingleton<T>(ICloudCodeConfig config) where T : class
     {

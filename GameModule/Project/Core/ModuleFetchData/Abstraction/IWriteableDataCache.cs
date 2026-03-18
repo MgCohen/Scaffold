@@ -13,6 +13,7 @@ namespace GameModule.ModuleFetchData
         Task Delete(IExecutionContext context, string key);
         Task SaveCache(IExecutionContext context);
         void AddToCache(params string[] moduleKeys);
+        void AddToCache(IGameModuleData moduleData);
         Task<T> GetOrSet<T>(IExecutionContext context, T defaultValue, bool useWriteLock = false) where T : IGameModuleData;
     }
 }

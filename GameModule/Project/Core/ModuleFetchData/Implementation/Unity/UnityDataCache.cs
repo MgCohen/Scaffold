@@ -13,7 +13,7 @@ namespace GameModule.ModuleFetchData
     /// <summary>
     /// Base abstraction for data structures.
     /// </summary>
-    public class UnityDataCache : IWriteableDataCache, IReadableDataCache
+    public abstract class UnityDataCache : IWriteableDataCache, IReadableDataCache
     {
         /// <summary>
         /// Instantiates cache instances.
@@ -48,10 +48,10 @@ namespace GameModule.ModuleFetchData
         protected Dictionary<string, object> _objectCache = new Dictionary<string, object>();
         protected List<string> _objectsToSave = new List<string>();
 
-        protected virtual Task<Dictionary<string, string>> FetchData(IExecutionContext context) => Task.FromResult(new Dictionary<string, string>());
-        protected virtual Task SaveData(IExecutionContext context, string key, object value, bool useWriteLock) => Task.CompletedTask;
-        protected virtual Task SaveBatchData(IExecutionContext context, List<SetItemBody> values, bool useWriteLock) => Task.CompletedTask;
-        protected virtual Task DeleteData(IExecutionContext context, string key) => Task.CompletedTask;
+        protected abstract Task<Dictionary<string, string>> FetchData(IExecutionContext context);
+        protected abstract Task SaveData(IExecutionContext context, string key, object value, bool useWriteLock);
+        protected abstract Task SaveBatchData(IExecutionContext context, List<SetItemBody> values, bool useWriteLock);
+        protected abstract Task DeleteData(IExecutionContext context, string key);
 
         public string PlayerId
         {
@@ -116,6 +116,11 @@ namespace GameModule.ModuleFetchData
             }
             _logger.LogInformation($"[{GetType().Name}.Get] Key {GetDebugKey(key)} for player: '{_playerId}' not found of type '{typeof(T).FullName}', returning default value.");
             return defaultValue;
+        }
+
+        public virtual async Task<T> Get<T>(IExecutionContext context, T defaultValue) where T : IGameModuleData
+        {
+            return await Get(context, GameDataExtensions.GetKey<T>(), defaultValue);
         }
 
         public virtual async Task<Dictionary<string, T>> GetAllValues<T>(IExecutionContext context)
