@@ -77,7 +77,7 @@ namespace GameModuleDTO.ModuleRequests
         /// </summary>
         /// <typeparam name="T">The targeted response generic classification.</typeparam>
         /// <returns>The extracted response natively cast successfully.</returns>
-        protected T GetModuleResponse<T>() where T : ModuleResponse
+        public T GetModuleResponse<T>() where T : ModuleResponse
         {
             return (T)Responses.FirstOrDefault(x => x.GetType() == typeof(T));
         }

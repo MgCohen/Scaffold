@@ -14,7 +14,6 @@ namespace GameModuleDTO.Modules.Gold
         public GoldResponse(long goldDelta)
         {
             GoldDelta = goldDelta;
-            SetResponse(ResponseStatusType.Success, "Gold added successfully.");
         }
 
         public long GoldDelta { get; set; }
