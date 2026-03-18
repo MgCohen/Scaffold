@@ -9,6 +9,7 @@ namespace Scaffold.Containers
         IRegistrationBuilder<T> WithParameter<TParam>(TParam value);
 
         IRegistrationBuilder<T> AsImplementedInterfaces();
+        IRegistrationBuilder<T> AsSelf();
     }
 }
 

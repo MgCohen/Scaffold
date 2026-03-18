@@ -11,5 +11,10 @@ namespace Scaffold.Containers
         {
             return this;
         }
+
+        public IRegistrationBuilder<T> AsSelf()
+        {
+            return this;
+        }
     }
 }

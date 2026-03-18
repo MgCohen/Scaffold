@@ -23,5 +23,11 @@ namespace Scaffold.Containers
             inner.AsImplementedInterfaces();
             return this;
         }
+
+        public IRegistrationBuilder<T> AsSelf()
+        {
+            inner.AsSelf();
+            return this;
+        }
     }
 }
