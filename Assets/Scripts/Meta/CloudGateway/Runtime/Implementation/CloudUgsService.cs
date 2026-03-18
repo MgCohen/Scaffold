@@ -18,7 +18,7 @@ namespace Scaffold.CloudGateway
     {
         public CloudUgsService(ITaskQueueHandler taskQueueHandler)
         {
-            OnResponseReceived = new CompositeTaskQueueEvent<ModuleResponse>(taskQueueHandler);
+            TaskQueueHandler = new CompositeTaskQueueEvent<ModuleResponse>(taskQueueHandler);
         }
 
         private ICloudCodeService CloudCodeUGSService
@@ -29,18 +29,18 @@ namespace Scaffold.CloudGateway
             }
         }
 
-        public CompositeTaskQueueEvent<ModuleResponse> OnResponseReceived { get; }
+        public CompositeTaskQueueEvent<ModuleResponse> TaskQueueHandler { get; }
 
         public Action RequestError { get; }
 
         public void SubscribeToResponse<TResponse>(Func<TResponse, Task> callback, bool immediate = false) where TResponse : ModuleResponse
         {
-            OnResponseReceived.Subscribe(callback, immediate);
+            TaskQueueHandler.Subscribe(callback, immediate);
         }
 
         public void UnsubscribeFromResponse<TResponse>(Func<TResponse, Task> callback, bool immediate = false) where TResponse : ModuleResponse
         {
-            OnResponseReceived.Unsubscribe(callback, immediate);
+            TaskQueueHandler.Unsubscribe(callback, immediate);
         }
 
         private static bool IsRetryableError(Exception ex)
@@ -118,7 +118,11 @@ namespace Scaffold.CloudGateway
         private async Task RaiseResponseEventDelayed(ModuleResponse response)
         {
             await Task.Yield();
-            await OnResponseReceived.InvokeAsync(response);
+            await TaskQueueHandler.InvokeAsync(response);
+            foreach (ModuleResponse responseResponse in response.Responses)
+            {
+                await RaiseResponseEventDelayed(responseResponse);
+            }
         }
     }
 }
