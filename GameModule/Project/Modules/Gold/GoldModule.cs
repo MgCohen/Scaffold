@@ -2,8 +2,10 @@ using System;
 using System.Threading.Tasks;
 using GameModule.GameModule;
 using GameModule.ModuleFetchData;
+using GameModule.Response;
 using GameModuleDTO.GameModule;
 using GameModuleDTO.Modules.Gold;
+using GameModuleDTO.ModuleRequests;
 using Microsoft.Extensions.Logging;
 using Unity.Services.CloudCode.Core;
 
@@ -15,10 +17,12 @@ namespace GameModule.Modules.Gold
     public class GoldModule : GameModule<GoldModuleData>
     {
         private readonly ILogger<GoldModule> _logger;
+        private readonly ModuleRequestHandler _handler;
 
-        public GoldModule(ILogger<GoldModule> logger)
+        public GoldModule(ILogger<GoldModule> logger, ModuleRequestHandler handler)
         {
             _logger = logger;
+            _handler = handler;
         }
 
         public override bool Client => true;
@@ -54,6 +58,8 @@ namespace GameModule.Modules.Gold
             GoldModuleData goldData = await playerData.GetOrSet(context, new GoldModuleData());
             goldData.SetCurrent(goldData.Current + amount);
             playerData.AddToCache(goldData);
+
+            _handler.AddResponse(new GoldResponse(amount));
             _logger.LogInformation("[GoldModule] Added {Amount} gold to player {PlayerId}. New total: {Total}", amount, context.PlayerId, goldData.Current);
         }
     }
