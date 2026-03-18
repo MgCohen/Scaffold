@@ -7,6 +7,11 @@ namespace GameModuleDTO.ModuleRequests
     /// </summary>
     public class CompleteTutorialRequest : ModuleRequest<CompleteTutorialResponse>
     {
+        public CompleteTutorialRequest(int tutorialId)
+        {
+            TutorialId = tutorialId;
+        }
+
         [JsonProperty]
         public int TutorialId { get; set; }
 

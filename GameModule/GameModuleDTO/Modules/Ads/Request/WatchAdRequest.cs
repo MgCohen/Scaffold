@@ -10,7 +10,6 @@ namespace GameModuleDTO.ModuleRequests
         /// </summary>
         public override void AssertModule()
         {
-
         }
     }
 }

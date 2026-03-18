@@ -7,6 +7,11 @@ namespace GameModuleDTO.ModuleRequests
     /// </summary>
     public class CompleteLevelRequest : ModuleRequest<CompleteLevelResponse>
     {
+        public CompleteLevelRequest(int levelId)
+        {
+            LevelId = levelId;
+        }
+
         [JsonProperty]
         public int LevelId { get; set; }
 
