@@ -17,12 +17,12 @@ namespace GameModule.Modules.Level
     public class LevelModule : GameModule<LevelModuleData>
     {
         private readonly ILogger<LevelModule> _logger;
-        private readonly GoldServerModule _goldServerModule;
+        private readonly GoldModule _goldModule;
 
-        public LevelModule(ILogger<LevelModule> logger, GoldServerModule goldServerModule)
+        public LevelModule(ILogger<LevelModule> logger, GoldModule goldModule)
         {
             _logger = logger;
-            _goldServerModule = goldServerModule;
+            _goldModule = goldModule;
         }
 
         public override bool Client => true;

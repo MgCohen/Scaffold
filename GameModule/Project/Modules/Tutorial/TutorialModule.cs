@@ -17,12 +17,12 @@ namespace GameModule.Modules.Tutorial
     public class TutorialModule : GameModule<TutorialModuleData>
     {
         private readonly ILogger<TutorialModule> _logger;
-        private readonly GoldServerModule _goldServerModule;
+        private readonly GoldModule _goldModule;
 
-        public TutorialModule(ILogger<TutorialModule> logger, GoldServerModule goldServerModule)
+        public TutorialModule(ILogger<TutorialModule> logger, GoldModule goldModule)
         {
             _logger = logger;
-            _goldServerModule = goldServerModule;
+            _goldModule = goldModule;
         }
 
         public override bool Client => true;
