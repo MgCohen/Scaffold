@@ -31,6 +31,7 @@ namespace Scaffold.Containers
                 var rootContext = new Context(rootScope);
                 var registry = new VContainerRegistry(builder);
                 registry.Register<IContext>(_ => rootContext, ContainerLifetime.Scoped);
+                registry.Register<IContainerResolver>(vc => vc, ContainerLifetime.Scoped);
                 registry.RegisterBuildCallback(_ => buildAction(rootContext));
             }
         }

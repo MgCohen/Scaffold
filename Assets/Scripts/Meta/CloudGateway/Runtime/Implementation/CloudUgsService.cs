@@ -16,13 +16,18 @@ namespace Scaffold.CloudGateway
     /// </summary>
     public class CloudUgsService : ICloudService
     {
-        public CloudUgsService(TaskQueueHandler taskQueueHandler)
+        public CloudUgsService(ITaskQueueHandler taskQueueHandler)
         {
-            cloudCodeUGSService = CloudCodeService.Instance;
             OnResponseReceived = new CompositeTaskQueueEvent<ModuleResponse>(taskQueueHandler);
         }
 
-        private ICloudCodeService cloudCodeUGSService { get; }
+        private ICloudCodeService CloudCodeUGSService
+        {
+            get
+            {
+                return CloudCodeService.Instance;
+            }
+        }
 
         public CompositeTaskQueueEvent<ModuleResponse> OnResponseReceived { get; }
 
@@ -62,8 +67,14 @@ namespace Scaffold.CloudGateway
 
             try
             {
+                if (CloudCodeUGSService == null)
+                {
+                    throw new Exception("CloudCodeService is not initialized or not available.");
+                }
+
                 Dictionary<string, object> finalPayload = payload ?? new Dictionary<string, object>();
-                RetryTaskBuilder<string> retryHandler = new Func<Task<string>>(() => cloudCodeUGSService.CallModuleEndpointAsync(module, endpoint, finalPayload))
+                GameDebug.Log($"Payload: {finalPayload.ToJson()}", debugName);
+                RetryTaskBuilder<string> retryHandler = new Func<Task<string>>(() => CloudCodeUGSService.CallModuleEndpointAsync(module, endpoint, finalPayload))
                     .Retry(maxRetries)
                     .WithDelay(retryCall)
                     .WithCondition(IsRetryableError)

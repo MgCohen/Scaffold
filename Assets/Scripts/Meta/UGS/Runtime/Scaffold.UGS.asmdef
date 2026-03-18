@@ -1,15 +1,12 @@
 {
-    "name": "Scaffold.GameModules",
+    "name": "Scaffold.UGS",
     "rootNamespace": "",
     "references": [
         "GUID:b0214a6008ed146ff8f122a6a9c2f6cc",
+        "GUID:fe25561d224ed4743af4c60938a59d0b",
+        "GUID:5540e30183c82e84b954c033c388e06c",
         "GUID:92ff106a7865e487ca972ac9c1523e1a",
-        "GUID:a4964a138ecfb47498532df4b3ecd8ad",
-        "GUID:c3088aa60ae8cfb489f4d39ee00a5d8c",
-        "GUID:a005e84a2643d41ff80257546e865cac",
-        "GUID:0a6d0ee47ca0d466aadd3a6d0705978e",
-        "GUID:dc53e6b09daf843f4b276b456cc144bc",
-        "GUID:f62d4c15aa2c049ab9c84914f935aa04"
+        "GUID:c3088aa60ae8cfb489f4d39ee00a5d8c"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

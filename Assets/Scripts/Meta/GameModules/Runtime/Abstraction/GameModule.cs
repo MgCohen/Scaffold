@@ -14,6 +14,10 @@ namespace Scaffold.GameModules
     /// </summary>
     public abstract class GameModule<T> : MonoBehaviour, IGameModule where T : IGameModuleData
     {
+
+        [Inject]
+        protected ICloudGatewayAuthKey cloudGatewayAuthKey;
+
         [Inject]
         [SerializeField]
         protected ICloudService cloudService;

@@ -17,6 +17,7 @@ namespace Scaffold.CloudGateway
                 .AsImplementedInterfaces();
 
             registry.Register<ICloudService, CloudUgsService>(ContainerLifetime.Singleton);
+            registry.Register<ICloudGatewayAuthKey, CloudGatewayAuthKey>(ContainerLifetime.Singleton);
         }
     }
 }

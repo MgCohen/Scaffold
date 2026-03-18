@@ -4,7 +4,8 @@ using System.Threading.Tasks;
 using GameModuleDTO.GameModule;
 using GameModuleDTO.ModuleRequests;
 using Scaffold.CloudGateway;
-using Scaffold.LifeCycle;
+using Scaffold.Containers;
+using Scaffold.Logging;
 using UnityEngine.Assertions;
 
 namespace Scaffold.GameModules
@@ -14,26 +15,29 @@ namespace Scaffold.GameModules
     /// The main goal is to orchestrate the backend fetching and localized data injection for each system.
     /// It is used primarily by the application's root controller to initialize systems sequentially.
     /// </summary>
-    public class GameModulesController : IGameModulesService, IController
+    public class GameModulesController : IGameModulesService
     {
-        public GameModulesController(ICloudGatewayAuthKey cloudGatewayAuthKey, ICloudService cloudService, List<IGameModule> modules)
+        public GameModulesController(ICloudGatewayAuthKey cloudGatewayAuthKey, ICloudService cloudService, IContainerResolver resolver)
         {
-            CloudGatewayAuthKey =  cloudGatewayAuthKey;
+            CloudGatewayAuthKey = cloudGatewayAuthKey;
             CloudService = cloudService;
-            Modules = modules;
+            Resolver = resolver;
         }
 
-        public ICloudGatewayAuthKey CloudGatewayAuthKey { get; }
-        
-        public ICloudService CloudService { get; }
+        public IContainerResolver Resolver { get; }
 
-        public List<IGameModule> Modules { get; }
+        public IEnumerable<IGameModule> Modules { get; private set; }
+
+        public ICloudGatewayAuthKey CloudGatewayAuthKey { get; }
+
+        public ICloudService CloudService { get; }
 
         public GameData GameData { get; protected set; }
 
         #region Implementation of IController
         public async Task Initialize()
         {
+            Modules = Resolver.Resolve<IEnumerable<IGameModule>>();
             await InitializeModules(Modules);
         }
 
@@ -43,7 +47,7 @@ namespace Scaffold.GameModules
         }
         #endregion
 
-        public async Task InitializeModules(List<IGameModule> modules)
+        public async Task InitializeModules(IEnumerable<IGameModule> modules)
         {
             InitializeGameModulesRequest request = new InitializeGameModulesRequest(CloudGatewayAuthKey.Guid);
             GameDataResponse response = await CloudService.CallEndpointAsync(request);
