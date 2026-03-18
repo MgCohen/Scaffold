@@ -13,7 +13,7 @@ namespace GameModule.ModuleFetchData.Unity
     /// <summary>
     /// Handles requests to Unity Remote Config directly fetching game configurations parameters.
     /// </summary>
-    public class ConfigFetcher
+    public class UnityConfigFetcher
     {
         private readonly ILogger _logger;
         private readonly HttpClient _httpClient = new HttpClient();
@@ -26,7 +26,7 @@ namespace GameModule.ModuleFetchData.Unity
         /// <param name="logger">Core logging dependency.</param>
         /// <param name="authModule">Authentication flow routine.</param>
         /// <param name="gameState">Data representation model.</param>
-        public ConfigFetcher(ILogger<ConfigFetcher> logger, AuthenticationModule authModule, IGameState gameState)
+        public UnityConfigFetcher(ILogger<UnityConfigFetcher> logger, AuthenticationModule authModule, IGameState gameState)
         {
             _logger = logger;
             _authModule = authModule;

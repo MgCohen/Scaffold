@@ -6,8 +6,8 @@ using Microsoft.Extensions.Logging;
 using Unity.Services.CloudCode.Apis;
 using Unity.Services.CloudCode.Core;
 using Unity.Services.CloudCode.Shared;
-using Unity.Services.CloudSave.Model;
 using Unity.Services.RemoteConfig.Model;
+using Unity.Services.CloudSave.Model;
 
 namespace GameModule.ModuleFetchData.Unity
 {
@@ -17,49 +17,57 @@ namespace GameModule.ModuleFetchData.Unity
     public class UnityRemoteConfig : UnityDataCache, IRemoteConfig
     {
         public static UnityRemoteConfig Instance { get; private set; }
-        protected ConfigFetcher _configFetcher;
+        protected UnityConfigFetcher _configFetcher;
+        protected LocalConfigProvider _localConfigProvider;
 
-        public UnityRemoteConfig(ILogger<UnityDataCache> logger, IGameApiClient gameApiClient, ConfigFetcher configFetcher) : base(logger, gameApiClient)
+        public UnityRemoteConfig(ILogger<UnityDataCache> logger, IGameApiClient gameApiClient, UnityConfigFetcher configFetcher) : base(logger, gameApiClient)
         {
             Instance = this;
             _configFetcher = configFetcher;
+            _localConfigProvider = new LocalConfigProvider(logger);
         }
 
         protected override async Task<Dictionary<string, string>> FetchData(IExecutionContext context)
         {
+            Dictionary<string, string>? remoteData = null;
             try
             {
                 // CASE A: Server/Trigger Context (No Player)
                 if (string.IsNullOrEmpty(context.PlayerId))
                 {
-                    _logger.LogInformation("[RemoteConfig] Fetching via Admin API (Server Context)...");
-                    return await _configFetcher.FetchAdminConfigs(context);
+                    _logger.LogInformation("[UnityRemoteConfig] Fetching via Admin API (Server Context)...");
+                    remoteData = await _configFetcher.FetchAdminConfigs(context);
                 }
-
-                // Player Context (SDK)
-                _logger.LogInformation($"[RemoteConfig] Fetching via SDK. PlayerId: {context.PlayerId}");
-                ApiResponse<SettingsDeliveryResponse> result = await _gameApiClient.RemoteConfigSettings.AssignSettingsGetAsync(context, context.AccessToken, context.ProjectId, context.EnvironmentId);
-
-                if (result.Data == null || result.Data.Configs == null || result.Data.Configs.Settings == null)
+                else
                 {
-                    return new Dictionary<string, string>();
-                }
+                    // Player Context (SDK)
+                    _logger.LogInformation($"[UnityRemoteConfig] Fetching via SDK. PlayerId: {context.PlayerId}");
+                    ApiResponse<SettingsDeliveryResponse> result = await _gameApiClient.RemoteConfigSettings.AssignSettingsGetAsync(context, context.AccessToken, context.ProjectId, context.EnvironmentId);
 
-                return result.Data.Configs.Settings.ToDictionary(
-                    item => item.Key,
-                    item => item.Value?.ToString() ?? string.Empty
-                );
-            }
-            catch (ApiException apiEx)
-            {
-                _logger.LogError($"[RemoteConfig] API Error: {apiEx.Response.StatusCode} - {apiEx.Message}");
-                throw;
+                    if (result.Data != null && result.Data.Configs != null && result.Data.Configs.Settings != null)
+                    {
+                        remoteData = result.Data.Configs.Settings.ToDictionary(
+                            item => item.Key,
+                            item => item.Value?.ToString() ?? string.Empty
+                        );
+                    }
+                }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"[RemoteConfig] General Error. PlayerId: '{context.PlayerId}'");
-                throw;
+                _logger.LogWarning(ex, "[UnityRemoteConfig] Fetch failed. Using local fallback.");
             }
+
+            Dictionary<string, string> localData = _localConfigProvider.FetchLocalConfigs();
+
+            if (remoteData == null)
+            {
+                _logger.LogInformation("[UnityRemoteConfig] No remote data found. Using {Count} local config entries.", localData.Count);
+                return localData;
+            }
+
+            _localConfigProvider.Merge(remoteData, localData);
+            return remoteData;
         }
 
         // --- Abstract Implementations ---

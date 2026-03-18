@@ -38,7 +38,7 @@ public partial class ModuleConfig : ICloudCodeSetup
         RegisterScoped<IRemoteConfig, UnityRemoteConfig>(config);
 
         RegisterScoped<AuthenticationModule>(config);
-        RegisterScoped<ConfigFetcher>(config);
+        RegisterScoped<UnityConfigFetcher>(config);
 
         RegisterScoped<SignalModule>(config);
         RegisterScoped<ModuleRequestHandler>(config);
