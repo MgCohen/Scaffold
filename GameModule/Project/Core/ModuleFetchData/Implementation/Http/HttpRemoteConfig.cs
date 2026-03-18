@@ -86,7 +86,7 @@ namespace GameModule.ModuleFetchData.Http
                 _localConfigProvider.Merge(_cache, localData);
             }
 
-            _logger.LogInformation("[HttpRemoteConfig] Initialization complete. Final cache size: {Count} keys.", _cache.Count);
+            _logger.LogInformation("[HttpRemoteConfig] Initialization complete. Final cache size: {Count} keys: {Keys}", _cache.Count, string.Join(", ", _cache.Keys));
             _isFetched = true;
         }
 

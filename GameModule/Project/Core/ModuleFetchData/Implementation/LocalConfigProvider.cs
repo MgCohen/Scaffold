@@ -14,7 +14,6 @@ namespace GameModule.ModuleFetchData
     public class LocalConfigProvider
     {
         private readonly ILogger _logger;
-        private readonly string[] _searchPaths = { "Configs", "Project/Configs", "Project/Project/Configs" };
 
         public LocalConfigProvider(ILogger logger)
         {
@@ -25,13 +24,27 @@ namespace GameModule.ModuleFetchData
         {
             var localConfigs = new Dictionary<string, string>();
 
-            foreach (var folder in _searchPaths)
+            // Search paths relative to current directory
+            string[] searchPaths = {
+                ".",
+                "Configs",
+                "Project/Configs",
+                "../Configs",
+                "../../Configs"
+            };
+
+            foreach (var folder in searchPaths)
             {
                 if (Directory.Exists(folder))
                 {
                     try
                     {
                         var files = Directory.GetFiles(folder, "*.json");
+                        if (files.Length > 0)
+                        {
+                            _logger.LogInformation("[LocalConfigProvider] Found {Count} config files in: {Path}", files.Length, Path.GetFullPath(folder));
+                        }
+
                         foreach (var file in files)
                         {
                             string content = File.ReadAllText(file);
@@ -54,7 +67,7 @@ namespace GameModule.ModuleFetchData
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogWarning(ex, "[LocalConfigProvider] Failed to read from local folder {Folder}", folder);
+                        _logger.LogWarning(ex, "[LocalConfigProvider] Error reading from folder {Folder}", folder);
                     }
                 }
             }
