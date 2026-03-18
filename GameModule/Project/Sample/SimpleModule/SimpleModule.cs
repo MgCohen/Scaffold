@@ -11,7 +11,7 @@ namespace GameModule.Sample
     /// <summary>
     /// Example system showcasing bare minimum implementations.
     /// </summary>
-    public class SimpleModule : GameModuleT<SimpleModuleData>
+    public class SimpleModule : GameModule<SimpleModuleData>
     {
         public SimpleModule(ILogger<SimpleModule> logger)
         {

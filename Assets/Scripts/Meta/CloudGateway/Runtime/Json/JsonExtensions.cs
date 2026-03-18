@@ -39,6 +39,7 @@ namespace Scaffold.CloudGateway
                 {
                     SerializationBinder = crossPlatformTypeBinder,
                     TypeNameHandling = TypeNameHandling.Auto,
+                    MetadataPropertyHandling = MetadataPropertyHandling.ReadAhead,
                 };
                 return JsonConvert.DeserializeObject<T>(json, settings);
             }

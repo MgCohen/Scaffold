@@ -10,7 +10,7 @@ namespace GameModule.GameModule
     /// Strongly-typed abstract base for game modules mapping a specific data type.
     /// </summary>
     /// <typeparam name="T">The module data type constrained to IGameModuleData implementations.</typeparam>
-    public abstract class GameModuleT<T> : IGameModule where T : IGameModuleData
+    public abstract class GameModule<T> : IGameModule where T : IGameModuleData
     {
         /// <summary>Gets a value indicating whether this module serves the client.</summary>
         public abstract bool Client { get; }
@@ -35,9 +35,6 @@ namespace GameModule.GameModule
         /// <param name="gameState">The game state logic wrapper.</param>
         /// <param name="remoteConfig">The remote configuration dependencies.</param>
         /// <returns>A mapped execution promise payload.</returns>
-        public virtual Task<IGameModuleData> Initialize(IExecutionContext context, PlayerData playerData, GameState gameState, RemoteConfig remoteConfig)
-        {
-            throw new System.NotImplementedException();
-        }
+        public abstract Task<IGameModuleData> Initialize(IExecutionContext context, PlayerData playerData, GameState gameState, RemoteConfig remoteConfig);
     }
 }

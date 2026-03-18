@@ -75,7 +75,7 @@ namespace GameModule.GameModule
             IExecutionContext context,
             GameState gameState,
             IEnumerable<IGameModule> modules,
-            ModuleRequestT<T> request,
+            ModuleRequest<T> request,
             IReadOnlyCollection<string> filterKeys = null) where T : ModuleResponse
         {
             request.AssertModule();

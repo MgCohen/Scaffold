@@ -14,7 +14,7 @@ namespace GameModule.Sample
     /// <summary>
     /// Example system demonstrating signal subscription capabilities.
     /// </summary>
-    public class ReactiveModule : GameModuleT<ReactiveModuleData>
+    public class ReactiveModule : GameModule<ReactiveModuleData>
     {
         public ReactiveModule(ILogger<ReactiveModule> logger, ModuleRequestHandler moduleRequestHandler, IExecutionContext context, PlayerData playerData, SignalModule signalModule)
         {

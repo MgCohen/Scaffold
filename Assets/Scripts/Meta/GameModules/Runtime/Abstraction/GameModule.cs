@@ -40,10 +40,17 @@ namespace Scaffold.GameModules
             get { return data; }
         }
 
+        public string Key
+        {
+            get;
+            protected set;
+        }
+
         public async Task Initialize(GameData gameModule)
         {
-            GameDebug.Log($"{GetType().Name}, Data: {typeof(T).Name}, null: {Data == null}", "Initializing GameModule");
+            Key =  GameDataExtensions.GetKey<T>();
             T moduleData = gameModule.GetModuleData<T>();
+            GameDebug.Log($"{GetType().Name}, Data: {Key}, null: '{moduleData == null}'", "Initializing GameModule");
             UpdateData(moduleData);
             await OnInitialize(moduleData);
         }

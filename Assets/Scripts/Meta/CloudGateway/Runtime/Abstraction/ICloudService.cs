@@ -23,7 +23,7 @@ namespace Scaffold.CloudGateway
 
         public Task<T> CallEndpointAsync<T>(string module, string endpoint, int maxRetry, int retryCall, Dictionary<string, object> payload = null);
 
-        public Task<TResponse> CallEndpointAsync<TResponse>(ModuleRequestT<TResponse> request)
+        public Task<TResponse> CallEndpointAsync<TResponse>(ModuleRequest<TResponse> request)
             where TResponse : ModuleResponse;
     }
 }

@@ -98,7 +98,7 @@ namespace Scaffold.CloudGateway
             }
         }
 
-        public async Task<TResponse> CallEndpointAsync<TResponse>(ModuleRequestT<TResponse> request)
+        public async Task<TResponse> CallEndpointAsync<TResponse>(ModuleRequest<TResponse> request)
             where TResponse : ModuleResponse
         {
             if (request == null)

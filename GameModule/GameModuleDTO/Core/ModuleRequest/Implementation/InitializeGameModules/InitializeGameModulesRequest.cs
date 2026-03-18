@@ -3,7 +3,7 @@ namespace GameModuleDTO.ModuleRequests
     /// <summary>
     /// Defines a request starting the lifecycle for the network modules specifically.
     /// </summary>
-    public class InitializeGameModulesRequest : ModuleRequestT<GameDataResponse>
+    public class InitializeGameModulesRequest : ModuleRequest<GameDataResponse>
     {
         /// <summary>
         /// Initializes the module startup explicitly.

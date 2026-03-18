@@ -1,6 +1,7 @@
-﻿namespace GameModuleDTO.GameModule
+namespace GameModuleDTO.GameModule
 {
     using System.Collections.Generic;
+    using Newtonsoft.Json;
 
     /// <summary>
     /// Acts as a central container holding multiple game module configurations.
@@ -14,6 +15,7 @@
         /// <summary>
         /// The active list of module data components.
         /// </summary>
+        [JsonProperty(ItemTypeNameHandling = TypeNameHandling.Auto)]
         public readonly List<IGameModuleData> ModulesData = new List<IGameModuleData>();
 
         /// <summary>
@@ -65,6 +67,18 @@
                 if (module is T moduleData)
                 {
                     return moduleData;
+                }
+            }
+            return default;
+        }
+
+        public T GetModuleData<T>(string key) where T : IGameModuleData
+        {
+            foreach (IGameModuleData module in ModulesData)
+            {
+                if (module.Key == key)
+                {
+                    return (T)module;
                 }
             }
             return default;

@@ -5,7 +5,7 @@ namespace GameModuleDTO.ModuleRequests
     /// <summary>
     /// Sample request initiating a numeric counter step progression correctly.
     /// </summary>
-    public class IncrementCounterRequest : ModuleRequestT<IncrementCounterResponse>
+    public class IncrementCounterRequest : ModuleRequest<IncrementCounterResponse>
     {
         /// <summary>
         /// Bootstraps the numeric step request efficiently directly.

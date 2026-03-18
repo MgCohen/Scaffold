@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using Newtonsoft.Json;
 
 namespace GameModuleDTO.ModuleRequests
 {
@@ -15,6 +16,7 @@ namespace GameModuleDTO.ModuleRequests
         public string Message { get; private set; } = string.Empty;
 
         /// <summary>Gets the collection of nested sub-responses.</summary>
+        [JsonProperty(ItemTypeNameHandling = TypeNameHandling.Auto)]
         public List<ModuleResponse> Responses { get; protected set; } = new List<ModuleResponse>();
 
         /// <summary>

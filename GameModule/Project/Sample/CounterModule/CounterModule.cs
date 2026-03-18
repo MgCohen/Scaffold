@@ -13,7 +13,7 @@ namespace GameModule.Sample
     /// <summary>
     /// Example system demonstrating client increment features.
     /// </summary>
-    public class CounterModule : GameModuleT<CounterModuleData>
+    public class CounterModule : GameModule<CounterModuleData>
     {
         public CounterModule(ILogger<CounterModule> logger, ModuleRequestHandler moduleRequestHandler)
         {

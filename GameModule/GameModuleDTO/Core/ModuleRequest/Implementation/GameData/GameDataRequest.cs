@@ -5,7 +5,7 @@ namespace GameModuleDTO.ModuleRequests
     /// <summary>
     /// Represents a network request asking for specific module data to execute logic.
     /// </summary>
-    public class GameDataRequest : ModuleRequestT<GameDataResponse>
+    public class GameDataRequest : ModuleRequest<GameDataResponse>
     {
         /// <summary>Gets the targeted keys associated with the loaded modules.</summary>
         public string[] ModuleKeys { get; private set; }
