@@ -45,6 +45,12 @@ namespace GameModule.Modules.Tutorial
             TutorialConfigData config = await remoteConfig.Get(context, new TutorialConfigData());
             TutorialModuleData data = await playerData.GetOrSet(context, new TutorialModuleData());
 
+            if (!config.Tutorials.Contains(request.TutorialId))
+            {
+                _logger.LogWarning("[TutorialModule] Attempted to complete tutorial step {AttemptedStep} but it is not in the valid tutorials list", request.TutorialId);
+                return await _moduleRequestHandler.ResolveResponse(request, new CompleteTutorialResponse(data), context, playerData);
+            }
+
             int currentTutorialStep = 1;
             List<ModuleProgress> completedSteps = data.Progress.Where(p => p.Status == ModuleStatus.Completed).ToList();
             if (completedSteps.Any())

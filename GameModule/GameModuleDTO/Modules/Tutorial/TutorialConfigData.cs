@@ -1,5 +1,6 @@
 using GameModuleDTO.GameModule;
 using GameModuleDTO.Modules.Common;
+using System.Collections.Generic;
 using Newtonsoft.Json;
 
 namespace GameModuleDTO.Modules.Tutorial
@@ -21,6 +22,18 @@ namespace GameModuleDTO.Modules.Tutorial
         public void SetReward(long value)
         {
             _reward = value;
+        }
+
+        [JsonProperty]
+        private List<int> _tutorials = new List<int>();
+
+        /// <summary>Gets the list of valid tutorial step IDs.</summary>
+        [JsonIgnore]
+        public List<int> Tutorials => _tutorials;
+
+        public void SetTutorials(List<int> value)
+        {
+            _tutorials = value;
         }
     }
 }

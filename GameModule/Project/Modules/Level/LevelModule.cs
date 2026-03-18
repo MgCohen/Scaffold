@@ -45,6 +45,12 @@ namespace GameModule.Modules.Level
             LevelConfigData config = await remoteConfig.Get(context, new LevelConfigData());
             LevelModuleData data = await playerData.GetOrSet(context, new LevelModuleData());
 
+            if (!config.Levels.Contains(request.LevelId))
+            {
+                _logger.LogWarning("[LevelModule] Attempted to complete level {AttemptedLevel} but it is not in the valid levels list", request.LevelId);
+                return await _moduleRequestHandler.ResolveResponse(request, new CompleteLevelResponse(data), context, playerData);
+            }
+
             int currentLevel = 1;
             List<ModuleProgress> completedLevels = data.Progress.Where(p => p.Status == ModuleStatus.Completed).ToList();
             if (completedLevels.Any())

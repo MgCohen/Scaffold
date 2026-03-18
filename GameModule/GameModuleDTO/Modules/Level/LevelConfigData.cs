@@ -1,5 +1,6 @@
 using GameModuleDTO.GameModule;
 using GameModuleDTO.Modules.Common;
+using System.Collections.Generic;
 using Newtonsoft.Json;
 
 namespace GameModuleDTO.Modules.Level
@@ -21,6 +22,18 @@ namespace GameModuleDTO.Modules.Level
         public void SetReward(long value)
         {
             _reward = value;
+        }
+
+        [JsonProperty]
+        private List<int> _levels = new List<int>();
+
+        /// <summary>Gets the list of valid level IDs.</summary>
+        [JsonIgnore]
+        public List<int> Levels => _levels;
+
+        public void SetLevels(List<int> value)
+        {
+            _levels = value;
         }
     }
 }
