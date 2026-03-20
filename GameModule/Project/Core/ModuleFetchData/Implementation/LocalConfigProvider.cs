@@ -24,11 +24,9 @@ namespace GameModule.ModuleFetchData
         {
             var localConfigs = new Dictionary<string, string>();
 
-            // Search paths relative to current directory
+            // Only search in folders named 'Configs' to avoid picking up system/build files
             string[] searchPaths = {
-                ".",
                 "Configs",
-                "Project/Configs",
                 "../Configs",
                 "../../Configs"
             };
@@ -47,6 +45,17 @@ namespace GameModule.ModuleFetchData
 
                         foreach (var file in files)
                         {
+                            string fileName = Path.GetFileName(file);
+                            // Avoid common system/build JSON files that are often in /app or build folders
+                            if (fileName.Contains(".deps.") || 
+                                fileName.Contains(".assets.") || 
+                                fileName.Contains(".packagespec.") || 
+                                fileName.Contains(".runtimeconfig.") ||
+                                fileName.StartsWith("project."))
+                            {
+                                continue;
+                            }
+
                             string content = File.ReadAllText(file);
                             try
                             {
