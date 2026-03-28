@@ -126,22 +126,238 @@ Reimporting the same authoring asset should overwrite or deterministically updat
 
 ## Artifacts and Notes
 
-Indented examples below are illustrative only; final names may differ if the Decision Log is updated.
+The **Snippets and API** section below is **indicative**. Exact type names, namespaces, and whether `Awaitable` versus `ValueTask` is used follow implementation choices recorded in the **Decision Log**.
 
-    // Handwritten definition (consumer assembly)
-    [GraphNodeDefinition]
-    public partial class AddNumbersDefinition : GraphNodeDefinitionBase<AddNumbersInstance>
+## Snippets and API (indicative)
+
+### Whole “Add” node example (definition + hand-written execution)
+
+The **definition** declares ports and flow pins. **Execution** lives in a hand-written `partial` method (or override) that the generator declares in a generated partial so signatures stay in sync.
+
+```csharp
+// Hand-written — consumer Runtime assembly, same file or AddNumbersDefinition.Execute.cs
+[GraphNodeDefinition]
+public partial class AddNumbersDefinition : GraphNodeDefinitionBase<AddNumbersInstance>
+{
+    public InputConnection<int> A;
+    public InputConnection<int> B;
+    public OutputConnection<int> Sum;
+    public FlowInput In;
+    public FlowOutput Out;
+}
+
+// Hand-written partial — logic only; generator supplies the rest of the partial class glue
+public partial class AddNumbersDefinition
+{
+    private static async ValueTask ExecuteCore(AddNumbersInstance instance, Flow flow, CancellationToken ct)
     {
-        public InputConnection<int> A;
-        public InputConnection<int> B;
-        public OutputConnection<int> Sum;
-        public FlowInput In;
-        public FlowOutput Out;
+        instance.Sum = instance.A + instance.B;
+        await default(ValueTask); // async shape even when trivial; sync nodes may use a different base
+    }
+}
+```
+
+### How the generated instance type may look
+
+The generator emits a **mutable per-visit** type with **one field per data port** on the definition (inputs and outputs as plain values the runner and `ExecuteCore` read/write). **Connection** fields from the definition do not appear on the instance.
+
+```csharp
+// Generated — AddNumbersInstance.g.cs (illustrative)
+namespace MyGame.GraphFlow.Nodes
+{
+    public sealed class AddNumbersInstance
+    {
+        public int A;
+        public int B;
+        public int Sum;
+    }
+}
+```
+
+Nodes **without** per-run state may use a generated empty instance, `GraphNodeDefinitionBase<VoidInstance>`, or a shared `VoidInstance` singleton policy—finalize in Milestone 0.
+
+### How the generated editor node may look
+
+Emitted in an **Editor** assembly: a Graph Toolkit `Node` subclass with **data** ports and **flow** ports matching the definition field names.
+
+```csharp
+// Generated — Editor assembly — AddNumbersDefinitionEditorNode.g.cs (illustrative)
+using System;
+using Unity.GraphToolkit.Editor;
+
+[Serializable]
+internal sealed class AddNumbersDefinitionEditorNode : Node
+{
+    protected override void OnDefinePorts(IPortDefinitionContext context)
+    {
+        context.AddInputPort<int>("A").Build();
+        context.AddInputPort<int>("B").Build();
+        context.AddOutputPort<int>("Sum").Build();
+        context.AddInputPort("In").Build();   // flow pin — type may be connection-only per Graph Toolkit
+        context.AddOutputPort("Out").Build();
+    }
+}
+```
+
+Flow pins may use **untyped** `AddInputPort` / `AddOutputPort` when the toolkit should treat them as **control-flow only**; exact pattern follows Graph Toolkit version and team convention.
+
+### How the instance is built and filled
+
+The **runner** (or a dedicated **binding** step) runs **after** the baked graph is loaded and **before** `ExecuteCore`:
+
+1. For the **current node id**, allocate or pool an **`AddNumbersInstance`** (or reset fields).
+2. For each **input data** port, copy a value from the **predecessor** node’s instance field (using the baked **edge** list and port names) or from a **graph blackboard** on `Flow` when the edge comes from an entry parameter.
+3. Call **Before** middleware with **`MiddlewareContext`** (includes `Flow`, current node id, definition type, instance reference).
+4. Call **`ExecuteCore`**.
+5. Call **After** middleware.
+6. Read **flow output** port name from bake (or branch outcome) to choose the **next node id**; copy **output** fields along edges when advancing.
+
+Indicative **internal** helper shape (names may differ):
+
+```csharp
+// Indicative — inside GraphRunner or GraphBinding
+void PopulateInstanceInputs(
+    RuntimeGraph.BakedNode node,
+    object instance,
+    Flow flow,
+    IReadOnlyDictionary<NodeId, object> priorOutputs);
+```
+
+The generator may emit **per-definition** static methods such as `AddNumbersDefinition.BindInputs(BakedEdge[] edges, …)` to avoid reflection at runtime.
+
+### Other important types (illustrative)
+
+```csharp
+// Root context for one graph run; child runs use Parent = current flow.
+public sealed class Flow
+{
+    public Flow Parent { get; }
+    public CancellationToken Cancellation { get; }
+    public GraphBlackboard Blackboard { get; }
+    public NodeId CurrentNodeId { get; internal set; }
+    public static Flow CreateRoot(CancellationToken ct) { throw new NotImplementedException(); }
+    public Flow CreateChild() { throw new NotImplementedException(); }
+}
+
+public sealed class GraphBlackboard
+{
+    // string/object or typed bags — decide in implementation
+}
+
+public readonly struct NodeId : IEquatable<NodeId>
+{
+    public Guid Value { get; }
+}
+
+// Baked asset produced by ScriptedImporter — summary shape
+public sealed class RuntimeGraph : ScriptableObject
+{
+    public IReadOnlyList<BakedNode> Nodes { get; }
+    public IReadOnlyList<BakedEdge> Edges { get; }
+    public IReadOnlyDictionary<string, EntryPoint> Entries { get; } // e.g. "Run", "Validate"
+}
+
+public sealed class BakedNode
+{
+    public NodeId Id { get; }
+    public string DefinitionTypeId { get; } // stable id from generator
+}
+
+public sealed class BakedEdge
+{
+    public NodeId FromNode { get; }
+    public string FromPort { get; }
+    public NodeId ToNode { get; }
+    public string ToPort { get; }
+}
+
+public sealed class EntryPoint
+{
+    public NodeId NodeId { get; }
+    public IReadOnlyDictionary<string, NodeId> NamedFlowExits { get; } // port name -> first node on that path
+}
+
+public readonly struct MiddlewareContext
+{
+    public Flow Flow { get; }
+    public NodeId NodeId { get; }
+    public Type DefinitionType { get; }
+    public object Instance { get; } // actual AddNumbersInstance, etc.
+}
+
+public delegate ValueTask GraphMiddleware(MiddlewareContext ctx, Func<ValueTask> next);
+
+public sealed class GraphRunner
+{
+    public GraphRunner(IEnumerable<GraphMiddleware> middleware, INodeExecutorRegistry registry) { }
+
+    /// <summary>Runs under the given <paramref name="flow"/> (root or child).</summary>
+    public ValueTask<GraphRunResult> RunAsync(
+        RuntimeGraph graph,
+        string entryName,
+        Flow flow,
+        CancellationToken ct = default)
+    {
+        throw new NotImplementedException();
     }
 
-    // Generated: Editor node with ports A, B, Sum, In, Out
-    // Generated: Runtime registration and port metadata
-    // Handwritten partial: Execute(AddNumbersInstance instance, Flow flow) { ... }
+    /// <summary>Convenience: allocates a child flow and runs under it (nested graph, middleware-spawned run).</summary>
+    public ValueTask<GraphRunResult> RunChildAsync(
+        RuntimeGraph graph,
+        string entryName,
+        Flow parentFlow,
+        CancellationToken ct = default)
+        => RunAsync(graph, entryName, parentFlow.CreateChild(), ct);
+}
+
+public readonly struct GraphRunResult
+{
+    public bool CompletedAtReturn { get; }
+    public bool StoppedNoNext { get; }
+    public object ReturnValue { get; }
+}
+```
+
+`INodeExecutorRegistry` maps **`DefinitionTypeId`** from bake to a delegate that invokes the correct **`ExecuteCore`** (generated dispatch table or source-generated switch).
+
+### How to trigger the flow from code
+
+```csharp
+// Game or service code — Runtime assembly
+public class QuestService
+{
+    readonly GraphRunner runner;
+    [SerializeField] RuntimeGraph questGraph;
+
+    public async ValueTask StartQuestRunAsync(CancellationToken ct)
+    {
+        var flow = Flow.CreateRoot(ct);
+
+        // Optional: seed blackboard before run
+        flow.Blackboard.Set("PlayerId", currentPlayerId);
+
+        GraphRunResult result = await runner.RunAsync(
+            graph: questGraph,
+            entryName: "Run", // matches named exit on entry node from bake
+            flow: flow,
+            ct: ct);
+
+        if (result.CompletedAtReturn)
+            ApplyReward(result.ReturnValue);
+    }
+}
+```
+
+**Middleware** starting another graph reuses the same API with a **child** flow:
+
+```csharp
+GraphMiddleware SpawnChildGraph(GraphRunner innerRunner, RuntimeGraph otherGraph, string entry) =>
+    async (ctx, next) =>
+    {
+        await innerRunner.RunAsync(otherGraph, entry, ctx.Flow.CreateChild(), ctx.Flow.Cancellation);
+        await next();
+    };
+```
 
 ## Interfaces and Dependencies
 
@@ -149,7 +365,7 @@ Indented examples below are illustrative only; final names may differ if the Dec
 
 **Scaffold:** New **Runtime** `.asmdef` for `Flow`, middleware, runner, runtime graph data; new **Editor** `.asmdef` referencing Graph Toolkit and the Runtime assembly for importer and editor nodes; new **Generator** project referenced from consumer assemblies via `Analyzer` / source generator metadata (match existing AutoPacker wiring pattern in the repo).
 
-**Minimum types (names indicative):** `IFlow` or `Flow` (with **`Parent`** and optional **root** discovery for cancellation), `GraphRunResult`, `GraphRunner.RunAsync(RuntimeGraph graph, string entryName, Flow parentFlow, CancellationToken ct)` (or equivalent overloads so **game code** and **middleware** share one entry point), `MiddlewareContext` exposing **current `Flow`**, **definition**, **instance**, and **node id**, middleware `Func<MiddlewareContext, Func<ValueTask>, ValueTask>` or interface with `Before`/`After`, `RuntimeGraph` (ScriptableObject), `InputConnection<>`, `OutputConnection<>`, `FlowInput` / `FlowOutput` (or named flow port types), `[GraphNodeDefinition]` on definition types.
+**Minimum types (names indicative):** `IFlow` or `Flow` (with **`Parent`** and optional **root** discovery for cancellation), `GraphRunResult`, `GraphRunner.RunAsync(RuntimeGraph graph, string entryName, Flow flow, CancellationToken ct)` plus optional **`RunChildAsync`** for child flows, `MiddlewareContext` exposing **current `Flow`**, **definition**, **instance**, and **node id**, `GraphMiddleware` / `Func<MiddlewareContext, Func<ValueTask>, ValueTask>`, `RuntimeGraph` (ScriptableObject), `BakedNode` / `BakedEdge` / `EntryPoint`, `INodeExecutorRegistry`, `InputConnection<>`, `OutputConnection<>`, `FlowInput` / `FlowOutput` (or named flow port types), `[GraphNodeDefinition]` on definition types. See **Snippets and API** for fuller illustrative shapes.
 
 ## Implementation Plan Index
 
@@ -160,3 +376,5 @@ Indented examples below are illustrative only; final names may differ if the Dec
 - 2026-03-28: Initial ExecPlan authored from design discussion (definition-first ports, dedicated generator, ScriptedImporter bake, awaitable runner, middleware, nested flows, multi-entry).
 
 - 2026-03-28: Clarified that **middleware** may start **separate** graph runs (not only nested subgraph nodes); **`Flow`** must be passed through **runner** and **middleware** APIs; child flows reference **parent** for both cases.
+
+- 2026-03-28: Expanded **Snippets and API**: full Add node example, generated instance and editor node shapes, instance fill pipeline, illustrative core types (`Flow`, `RuntimeGraph`, `MiddlewareContext`, `GraphRunner`), code trigger and middleware child-run sample.
