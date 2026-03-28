@@ -6,9 +6,9 @@ This document must be maintained in accordance with `PLANS.md` at the repository
 
 ## Purpose / Big Picture
 
-After this work, a contributor can author a **flow graph** in the Unity Editor using **Unity Graph Toolkit** (a package that provides editor-only graph windows, nodes, and serialized graph assets). The graph describes **control flow** between nodes that are defined in C# as **definition types** (the single authoring point for port shape). A **bake step** turns the edited graph into a **runtime graph asset** that does not depend on Graph Toolkit assemblies in player builds. Game code can **start** a graph run from one of several **named entry points**, obtain an **awaitable** execution, and observe **middleware** firing **before and after** each node with access to the **per-node instance** object. A run **ends** at a **return** node (with or without a value) or when **no successor** exists on the active flow path.
+After this work, a contributor can author a **flow graph** in the Unity Editor using **Unity Graph Toolkit** (a package that provides editor-only graph windows, nodes, and serialized graph assets). The graph describes **control flow** between nodes that are defined in C# as **definition types** (the single authoring point for port shape). A **bake step** turns the edited graph into a **runtime graph asset** that does not depend on Graph Toolkit assemblies in player builds. Game code can **start** a graph run from one of several **named entry points**, obtain an **awaitable** execution, and observe **middleware** firing **before and after** each node with access to the **per-node instance** object and the active **`Flow`**. Middleware may **start an entirely separate graph run** (same or different `RuntimeGraph`), not only **nested subgraph** nodes; those starts should receive a **`Flow`** argument (typically a **new child flow** whose **parent** is the current flow) so cancellation, diagnostics, and blackboard policy stay coherent. A run **ends** at a **return** node (with or without a value) or when **no successor** exists on the active flow path.
 
-Someone can verify success by running the repository’s EditMode tests (see `Concrete Steps`) and by stepping through a small sample graph: multiple entry names, a branch, middleware that awaits, nested graph invocation with a **child flow** linked to a **parent flow**, and termination via return versus dead-end.
+Someone can verify success by running the repository’s EditMode tests (see `Concrete Steps`) and by stepping through a small sample graph: multiple entry names, a branch, middleware that awaits, **middleware that awaits a separate graph run** while passing **child `Flow`**, nested graph invocation from a **node** with **child flow** linked to **parent**, and termination via return versus dead-end.
 
 ## Progress
 
@@ -18,7 +18,7 @@ Someone can verify success by running the repository’s EditMode tests (see `Co
 - [ ] Implement Roslyn generator: discover definitions, emit editor node shells and runtime registration glue.
 - [ ] Implement ScriptedImporter bake: graph asset to runtime graph asset; preserve connection map.
 - [ ] Implement `GraphRunner`: multi-entry, awaitable traversal, return and no-next termination, middleware pipeline.
-- [ ] Implement nested graph run (child flow holds parent); document re-entrancy expectations.
+- [ ] Implement nested graph run and **middleware-started** graph runs (child `Flow` holds parent; `Flow` passed through `GraphRunner` / middleware APIs); document re-entrancy expectations.
 - [ ] Add EditMode tests and sample graph assets; document module in `Docs/` when implementation stabilizes.
 - [ ] Optional final pass: definition-level customization (attributes or partial methods copied or invoked by generator).
 
@@ -49,6 +49,10 @@ Someone can verify success by running the repository’s EditMode tests (see `Co
   Rationale: First instinct matches clear lifecycle boundaries; exact inheritance rules for blackboard data are finalized during runner implementation.
   Date/Author: 2026-03-28 / planning
 
+- Decision: **Middleware** may start a **full new graph run** (any graph asset, any entry), not only runs triggered by a dedicated **nested-graph node**. The public **start/run API** and middleware **context** must expose the current **`Flow`** and accept a **`Flow`** (or parent link) when starting additional runs so callers can correlate **child** runs with the **active** run and propagate cancellation consistently.
+  Rationale: Effects and interceptors often spawn parallel or follow-on flows; reusing the same runner entry point with an explicit **parent `Flow`** avoids ad-hoc globals and matches nested-subgraph semantics.
+  Date/Author: 2026-03-28 / planning
+
 ## Outcomes & Retrospective
 
 (To be filled as milestones complete.)
@@ -63,7 +67,7 @@ Someone can verify success by running the repository’s EditMode tests (see `Co
 
 **Definition** means a C# type (usually `partial class`) that declares **which inputs and outputs exist** using generic field types. The **source generator** reads that type and emits **editor graph nodes** (subclasses of Graph Toolkit `Node` with matching ports) and **runtime glue** (identifiers, registration, or accessors) so implementers only maintain the definition and hand-written **execution** code.
 
-**Flow** (or **graph context**) means the per-run object that tracks **current node**, **cancellation**, **parent flow** (if nested), and any **blackboard** or **entry name** used when multiple exits exist from an entry point. **Middleware** means an ordered list of hooks invoked **before** and **after** each node’s core execution, each **awaitable**, receiving the **definition handle**, **instance**, and **flow**, so another system can start additional flows and await their completion before the runner proceeds.
+**Flow** (or **graph context**) means the per-run object that tracks **current node**, **cancellation**, **parent flow** (when this run was started from another run or from middleware), and any **blackboard** or **entry name** used when multiple exits exist from an entry point. **Middleware** means an ordered list of hooks invoked **before** and **after** each node’s core execution, each **awaitable**, receiving the **definition handle**, **instance**, and the **active `Flow`**, so another system can **start a separate graph run** (with a **new child `Flow`** whose parent is that active flow), **await** it, and only then allow the runner to proceed—same pattern as a **nested-graph node**, but triggered outside node logic.
 
 **Entry point with multiple flow exits** means a single graph **entry node type** (or entry metadata) that exposes **named outbound flow ports** (for example `Run` versus `Validate`). Code selects which **named exit** to follow when starting or when resolving the first step.
 
@@ -79,15 +83,15 @@ Milestone two adds an **Editor** assembly referencing Graph Toolkit and extends 
 
 Milestone three implements the **ScriptedImporter** for the authoring file extension. On import, walk editor nodes and `IPort` connectivity (`GetNodes`, port enumerators, `GetConnectedPorts`), map each placed node to a **stable definition id** from generation, and write or update a **runtime graph** `ScriptableObject` with nodes, edges, entry bindings (including **named** exits such as Run versus Validate), and return nodes. Failed validation should log clearly and avoid writing a misleading runtime asset. Acceptance is deterministic reimport and an EditMode test that proves bake output for a minimal graph (using a checked-in asset or an editor-test construction path).
 
-Milestone four implements **GraphRunner** with an **awaitable** public API. Prefer **`UnityEngine.Awaitable`** if the project’s Unity version supports it consistently; otherwise use **`ValueTask`** or **`Task`** and record the choice in the Decision Log. The runner starts from **code** with a **runtime graph**, an **entry name**, optional payload, and optional **parent flow**; each step allocates or resets the **per-node instance**, awaits **Before** middleware, awaits **node execution**, then awaits **After** middleware; it follows **flow** edges including **multiple** outputs from an entry; it stops on a **return** node (with or without a value) or when **no** successor exists. Acceptance is EditMode coverage for multi-entry, dead-end, return variants, and async middleware ordering.
+Milestone four implements **GraphRunner** with an **awaitable** public API that always accepts or produces a **`Flow`** instance (for example `RunAsync(RuntimeGraph graph, string entryName, Flow parentFlow, …)` or an overload that creates a **root** flow when `parentFlow` is null). Prefer **`UnityEngine.Awaitable`** if the project’s Unity version supports it consistently; otherwise use **`ValueTask`** or **`Task`** and record the choice in the Decision Log. The **middleware context** must include the **active `Flow`** so hooks can call the same **start/run** API to launch **another** graph and **await** it. Each step allocates or resets the **per-node instance**, awaits **Before** middleware, awaits **node execution**, then awaits **After** middleware; it follows **flow** edges including **multiple** outputs from an entry; it stops on a **return** node (with or without a value) or when **no** successor exists. Acceptance is EditMode coverage for multi-entry, dead-end, return variants, async middleware ordering, and **middleware that starts and awaits a child graph run** using a **child `Flow`** linked to the current flow.
 
-Milestone five covers **nested graphs**. A node that starts another graph creates a **child `Flow`** referencing the **parent**, runs the child graph to completion **awaitably**, then resumes the parent. Pick and test one **blackboard** policy (for example isolated versus inherited). Acceptance is a test that proves ordering and that the parent does not finish before the child.
+Milestone five covers **nested graphs from nodes** and aligns it with the **same** child-flow rule as middleware: a **subgraph** or **invoke-graph** node creates a **child `Flow`**, runs the target graph **awaitably** via the shared runner API, then resumes the parent. Pick and test one **blackboard** policy (for example isolated versus inherited). Acceptance is a test that proves ordering, that the parent does not finish before the child, and that **middleware-spawned** and **node-nested** runs both use the same **parent/child `Flow`** contract.
 
 Milestone six is **optional customization**: attributes or partial hooks that the generator copies into editor metadata or bake records so samples do not require hand-editing generated files.
 
 ## Milestones summary (index)
 
-Milestone 0 is runtime contracts and bases. Milestone 1 is generator metadata emission. Milestone 2 is Graph Toolkit editor nodes. Milestone 3 is ScriptedImporter bake. Milestone 4 is awaitable `GraphRunner` with middleware. Milestone 5 is nested flows. Milestone 6 is optional definition-level customization.
+Milestone 0 is runtime contracts and bases. Milestone 1 is generator metadata emission. Milestone 2 is Graph Toolkit editor nodes. Milestone 3 is ScriptedImporter bake. Milestone 4 is awaitable `GraphRunner` with middleware. Milestone 5 is nested flows from **nodes**, sharing the same **Flow** contract as middleware-started runs. Milestone 6 is optional definition-level customization.
 
 ## Concrete Steps
 
@@ -112,7 +116,7 @@ Work from the repository root (`/workspace` or your local clone).
 
 ## Validation and Acceptance
 
-Acceptance for the **overall** initiative: at least one **sample** runtime graph asset exists in `Assets/` (or test resources), **two named entry paths** from one entry node behave differently in a test assertion, **middleware** logs or counters prove **Before**/**After** ordering around node execution, **return** and **no-next** both terminate with distinguishable outcomes, and **nested** graph run completes with parent **awaiting** child. All new EditMode tests pass under `run-editmode-tests.ps1`.
+Acceptance for the **overall** initiative: at least one **sample** runtime graph asset exists in `Assets/` (or test resources), **two named entry paths** from one entry node behave differently in a test assertion, **middleware** logs or counters prove **Before**/**After** ordering around node execution, **return** and **no-next** both terminate with distinguishable outcomes, **nested** graph run from a **node** completes with parent **awaiting** child, and **middleware** can **start and await** a **separate** graph run with a **child `Flow`** whose **parent** is the active run. All new EditMode tests pass under `run-editmode-tests.ps1`.
 
 For each milestone, add or extend tests **before** claiming completion; if a bug fix appears in a milestone, include a regression test that failed before the fix and passes after, per `PLANS.md`.
 
@@ -145,7 +149,7 @@ Indented examples below are illustrative only; final names may differ if the Dec
 
 **Scaffold:** New **Runtime** `.asmdef` for `Flow`, middleware, runner, runtime graph data; new **Editor** `.asmdef` referencing Graph Toolkit and the Runtime assembly for importer and editor nodes; new **Generator** project referenced from consumer assemblies via `Analyzer` / source generator metadata (match existing AutoPacker wiring pattern in the repo).
 
-**Minimum types (names indicative):** `IFlow` or `Flow`, `GraphRunResult`, `GraphRunner.RunAsync(RuntimeGraph graph, string entryName, Flow parent, CancellationToken ct)`, middleware `Func<MiddlewareContext, Func<ValueTask>, ValueTask>` or interface with `Before`/`After`, `RuntimeGraph` (ScriptableObject), `InputConnection<>`, `OutputConnection<>`, `FlowInput` / `FlowOutput` (or named flow port types), `[GraphNodeDefinition]` on definition types.
+**Minimum types (names indicative):** `IFlow` or `Flow` (with **`Parent`** and optional **root** discovery for cancellation), `GraphRunResult`, `GraphRunner.RunAsync(RuntimeGraph graph, string entryName, Flow parentFlow, CancellationToken ct)` (or equivalent overloads so **game code** and **middleware** share one entry point), `MiddlewareContext` exposing **current `Flow`**, **definition**, **instance**, and **node id**, middleware `Func<MiddlewareContext, Func<ValueTask>, ValueTask>` or interface with `Before`/`After`, `RuntimeGraph` (ScriptableObject), `InputConnection<>`, `OutputConnection<>`, `FlowInput` / `FlowOutput` (or named flow port types), `[GraphNodeDefinition]` on definition types.
 
 ## Implementation Plan Index
 
@@ -154,3 +158,5 @@ Indented examples below are illustrative only; final names may differ if the Dec
 ## Change History
 
 - 2026-03-28: Initial ExecPlan authored from design discussion (definition-first ports, dedicated generator, ScriptedImporter bake, awaitable runner, middleware, nested flows, multi-entry).
+
+- 2026-03-28: Clarified that **middleware** may start **separate** graph runs (not only nested subgraph nodes); **`Flow`** must be passed through **runner** and **middleware** APIs; child flows reference **parent** for both cases.
