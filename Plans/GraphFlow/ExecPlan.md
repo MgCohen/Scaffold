@@ -6,9 +6,9 @@ This document must be maintained in accordance with `PLANS.md` at the repository
 
 ## Purpose / Big Picture
 
-After this work, a contributor can author a **flow graph** in the Unity Editor using **Unity Graph Toolkit** (a package that provides editor-only graph windows, nodes, and serialized graph assets). The graph describes **control flow** between nodes that are defined in C# as **definition types** (the single authoring point for port shape). A **bake step** turns the edited graph into a **runtime graph asset** that does not depend on Graph Toolkit assemblies in player builds. Game code can **start** a graph run from one of several **named entry points**, obtain an **awaitable** execution, and observe **middleware** firing **before and after** each node with access to the **per-node instance** object and the active **`Flow`**. Middleware may **start an entirely separate graph run** (same or different `RuntimeGraph`), not only **nested subgraph** nodes; those starts should receive a **`Flow`** argument (typically a **new child flow** whose **parent** is the current flow) so cancellation, diagnostics, and blackboard policy stay coherent. A run **ends** at a **return** node (with or without a value) or when **no successor** exists on the active flow path.
+After this work, a contributor can author a **flow graph** in the Unity Editor using **Unity Graph Toolkit** (a package that provides editor-only graph windows, nodes, and serialized graph assets). The graph describes **control flow** between nodes that are defined in C# as **definition types** (the single authoring point for port shape). A **bake step** turns the edited graph into a **runtime graph asset** that does not depend on Graph Toolkit assemblies in player builds. Game code can **start** a graph run from one of several **typed entry points** (each entry is a **CLR type**, which can carry **payload fields** or be an empty marker), **query** which entry types exist on a baked graph, obtain an **awaitable** execution, and observe **middleware** firing **before and after** each node with access to the **per-node instance** object and the active **`Flow`**. Starting a run may pass **only** a **`CancellationToken`**, an existing **`Flow`**, or both—creating a **root** `Flow` is optional when the overload allows it. Middleware may **start an entirely separate graph run** (same or different `RuntimeGraph`), not only **nested subgraph** nodes; those starts should receive a **`Flow`** argument (typically a **new child flow** whose **parent** is the current flow) so cancellation, diagnostics, and blackboard policy stay coherent. Cross-cutting behavior is **wired during an explicit setup phase** (composition) so other graphs or systems can attach **before/after** logic **without singletons**. An optional **`MonoBehaviour`** (or small **host** type) can wrap runner construction for scene-based workflows. A run **ends** at a **return** node (with or without a value) or when **no successor** exists on the active flow path.
 
-Someone can verify success by running the repository’s EditMode tests (see `Concrete Steps`) and by stepping through a small sample graph: multiple entry names, a branch, middleware that awaits, **middleware that awaits a separate graph run** while passing **child `Flow`**, nested graph invocation from a **node** with **child flow** linked to **parent**, and termination via return versus dead-end.
+Someone can verify success by running the repository’s EditMode tests (see `Concrete Steps`) and by stepping through a small sample graph: **two distinct entry types** (for example `QuestRunEntry` versus `QuestValidateEntry`) with different first steps, a branch, middleware registered at **setup** time, **middleware that awaits a separate graph run** via a **non-lambda** helper (for example `GraphRunner.RunChildGraphAsync` or a small static class), nested graph invocation from a **node** with **child flow** linked to **parent**, and termination via return versus dead-end.
 
 ## Progress
 
@@ -17,7 +17,8 @@ Someone can verify success by running the repository’s EditMode tests (see `Co
 - [ ] Implement handcrafted base types (`Flow`, connection placeholders, definition base, middleware contracts).
 - [ ] Implement Roslyn generator: discover definitions, emit editor node shells and runtime registration glue.
 - [ ] Implement ScriptedImporter bake: graph asset to runtime graph asset; preserve connection map.
-- [ ] Implement `GraphRunner`: multi-entry, awaitable traversal, return and no-next termination, middleware pipeline.
+- [ ] Implement `GraphRunner`: **typed** multi-entry, optional `Flow`/`ct` overloads, awaitable traversal, return and no-next termination, middleware pipeline; **entry discovery** on `RuntimeGraph`.
+- [ ] Implement **setup / composition** API so middleware and cross-graph hooks register without singletons; optional **`GraphFlowHost`** `MonoBehaviour` (or equivalent) wrapping runner boilerplate.
 - [ ] Implement nested graph run and **middleware-started** graph runs (child `Flow` holds parent; `Flow` passed through `GraphRunner` / middleware APIs); document re-entrancy expectations.
 - [ ] Add EditMode tests and sample graph assets; document module in `Docs/` when implementation stabilizes.
 - [ ] Optional final pass: definition-level customization (attributes or partial methods copied or invoked by generator).
@@ -53,6 +54,30 @@ Someone can verify success by running the repository’s EditMode tests (see `Co
   Rationale: Effects and interceptors often spawn parallel or follow-on flows; reusing the same runner entry point with an explicit **parent `Flow`** avoids ad-hoc globals and matches nested-subgraph semantics.
   Date/Author: 2026-03-28 / planning
 
+- Decision: **Node execution** is expressed as a **`public virtual` or `protected abstract`** method on the definition type hierarchy. When the runner must invoke through a **non-generic** contract (`object` instance), the **public** entry that accepts **`object`** is **`sealed`** and performs the **cast**, then forwards to a **`protected`** method with the **correct instance type** (or the generic `TInstance` method on `GraphNodeDefinitionBase<TInstance>`). Hand-written code only implements the **typed** method.
+  Rationale: Keeps casting in one generated or base-class location; implementations stay strongly typed.
+  Date/Author: 2026-03-28 / planning
+
+- Decision: **Instance wiring** (populate inputs from edges, blackboard, or entry payload) is emitted as **`partial` methods on the same definition type** (or static helpers in the definition’s generated partial), **not** as separate factory types, mirroring how **AutoPacker** keeps `Pack` on the annotated partial class.
+  Rationale: Single type as the anchor for discoverability and tooling; fewer types to maintain.
+  Date/Author: 2026-03-28 / planning
+
+- Decision: **`GraphRunner.RunAsync`** supports **minimal call sites**: overloads that accept **only** `CancellationToken` (runner creates an internal **root** `Flow`) and overloads that pass an explicit **`Flow`** when the caller needs shared blackboard or parentage. **Child** graph runs use an explicit API such as **`RunChildGraphAsync`** (or a small static helper class)—**not** a captured lambda pattern as the primary recommended style—so debugging, stepping, and allocation stay clear.
+  Rationale: Matches “optional new flow” and avoids middleware examples that rely on lambdas closing over runner state.
+  Date/Author: 2026-03-28 / planning
+
+- Decision: **Entry points** are identified by **CLR types** (for example `QuestRunEntry`, `QuestValidateEntry`), not by **string** names. Each type may be an **empty marker** or a **struct/class with payload fields** serialized or passed when starting a run. The baked **`RuntimeGraph`** exposes a **list or read-only view of entry types** (plus metadata) discoverable at runtime. The bake stores a **stable type id** (assembly-qualified or project-defined) per entry node.
+  Rationale: Typed entries enable **payload**, compile-time checks, and rename safety versus magic strings.
+  Date/Author: 2026-03-28 / planning
+
+- Decision: **Middleware and cross-graph reactions** attach during a **setup** or **composition** phase: a **`GraphFlowBuilder`**, **`IGraphMiddlewareContributor`**, or explicit registration object passed from the game bootstrap (DI container, scene host, or test fixture). No **singleton** registry is required; the **same composed `GraphRunner`** (or environment object) is passed to code that needs to run graphs. Multiple graphs can register contributors when the host builds the runner once per scope.
+  Rationale: Lets “another graph” or subsystem participate in **before/after** by receiving the builder or runner config at startup, not by locating a global service.
+  Date/Author: 2026-03-28 / planning
+
+- Decision: Provide an **optional** presentation-layer **`MonoBehaviour`** (for example **`GraphFlowHost`**) that holds **serialized `RuntimeGraph` references**, performs **setup** (build runner, register middleware), and exposes **awaitable** entry methods for **scenes** or **prefabs**. The **core runner** remains usable without `MonoBehaviour` for pure C# tests and services.
+  Rationale: Reduces boilerplate in Unity workflows while keeping a **non-Unity** “brain” (`GraphRunner` + `Flow`) as the real center of execution.
+  Date/Author: 2026-03-28 / planning
+
 ## Outcomes & Retrospective
 
 (To be filled as milestones complete.)
@@ -67,31 +92,35 @@ Someone can verify success by running the repository’s EditMode tests (see `Co
 
 **Definition** means a C# type (usually `partial class`) that declares **which inputs and outputs exist** using generic field types. The **source generator** reads that type and emits **editor graph nodes** (subclasses of Graph Toolkit `Node` with matching ports) and **runtime glue** (identifiers, registration, or accessors) so implementers only maintain the definition and hand-written **execution** code.
 
-**Flow** (or **graph context**) means the per-run object that tracks **current node**, **cancellation**, **parent flow** (when this run was started from another run or from middleware), and any **blackboard** or **entry name** used when multiple exits exist from an entry point. **Middleware** means an ordered list of hooks invoked **before** and **after** each node’s core execution, each **awaitable**, receiving the **definition handle**, **instance**, and the **active `Flow`**, so another system can **start a separate graph run** (with a **new child `Flow`** whose parent is that active flow), **await** it, and only then allow the runner to proceed—same pattern as a **nested-graph node**, but triggered outside node logic.
+**Flow** (or **graph context**) means the per-run object that tracks **current node**, **cancellation**, **parent flow** (when this run was started from another run or from middleware), and any **blackboard** or **entry payload** supplied when starting from a **typed entry**. **Middleware** means an ordered list of hooks invoked **before** and **after** each node’s core execution, each **awaitable**, receiving the **definition handle**, **instance**, and the **active `Flow`**, so another system can **start a separate graph run** (with a **new child `Flow`** whose parent is that active flow), **await** it, and only then allow the runner to proceed—same pattern as a **nested-graph node**, but triggered outside node logic.
 
-**Entry point with multiple flow exits** means a single graph **entry node type** (or entry metadata) that exposes **named outbound flow ports** (for example `Run` versus `Validate`). Code selects which **named exit** to follow when starting or when resolving the first step.
+**Typed entry point** means a **CLR type** registered in the bake (for example `QuestRunEntry` or `QuestValidateEntry`) mapped to a specific **entry node instance** in the graph and its **outbound flow ports**. Starting a run specifies **`typeof(TEntry)`** or a **generic parameter** `RunAsync<TEntry>(...)` and may pass an **instance of `TEntry`** as payload. **Multiple entry types** on one graph replace **string** entry names.
+
+**Setup phase** means the moment **before** any run (bootstrap, scene load, or test arrange) when code constructs a **`GraphRunner`** (or **`GraphFlowEnvironment`**) and registers **middleware contributors**, **child-graph policies**, and any **cross-graph** listeners by **explicit** hand-off of a builder or options object—no implicit global singleton.
 
 ## Plan of Work
 
 The work proceeds in milestones that each leave a **verifiable** artifact. Prefer additive changes: new assemblies and tests first, then integration with the Graph Toolkit package and importer registration. Keep **player** assemblies free of `UnityEditor` and Graph Toolkit references, and keep **generated** code in `partial` types so hand-written logic stays in non-generated files.
 
-Milestone zero establishes **contracts and handcrafted bases**. Introduce a **Runtime** assembly containing `Flow`, cancellation or timeout hooks if needed, middleware delegate or interface types, and **handwritten** generic types `InputConnection<T>` and `OutputConnection<T>` (or equivalent names) with **no** generator involvement so base types stay stable and readable. Add a **definition base class** carrying a single type-level attribute such as `[GraphNodeDefinition]` for generator discovery. Support nodes **without** a per-run instance (for example `VoidInstance` or a default type argument) and both **sync** and **async** execution by choosing either two bases or one base whose execute method returns **`ValueTask`** and completes synchronously for trivial nodes. Document how a hand-written **partial** implements execution and receives **instance**. Acceptance is compilation plus a minimal test that invokes middleware in order without Graph Toolkit.
+Milestone zero establishes **contracts and handcrafted bases**. Introduce a **Runtime** assembly containing `Flow`, cancellation or timeout hooks if needed, middleware delegate or interface types, **`GraphFlowBuilder`** (or equivalent) for **setup-time** registration, and **handwritten** generic types `InputConnection<T>` and `OutputConnection<T>` (or equivalent names) with **no** generator involvement so base types stay stable and readable. Add a **definition base class** carrying a single type-level attribute such as `[GraphNodeDefinition]` for generator discovery, with **`protected abstract`** (or **`protected virtual`**) **typed** execution and a **`sealed public`** (or **`sealed` bridge**) path that accepts **`object`** and casts to **`TInstance`** when required by the registry. Support nodes **without** a per-run instance (for example `VoidInstance` or a default type argument) and both **sync** and **async** execution by choosing either two bases or one base whose execute method returns **`ValueTask`** and completes synchronously for trivial nodes. Document how a hand-written **partial** overrides only the **typed** execute method. Acceptance is compilation plus a minimal test that builds a runner via **setup** and invokes middleware in order without Graph Toolkit.
 
-Milestone one adds the **Roslyn source generator** in a new project under `Generators/`, mirroring AutoPacker layout. The generator must **not** reference Graph Toolkit; it scans definitions, validates allowed field types, and emits **partial** companions with node kind ids and **port metadata** for the runner. Do not generate the connection generic types themselves. Acceptance is a compiling sample definition with a generated `*.g.cs` file and optional snapshot tests for stable output.
+Milestone one adds the **Roslyn source generator** in a new project under `Generators/`, mirroring AutoPacker layout. The generator must **not** reference Graph Toolkit; it scans definitions, validates allowed field types, and emits **partial** companions on the **same definition type** with node kind ids, **port metadata**, **`sealed`** **object**-to-**`TInstance`** execute bridge if applicable, and **instance wiring** methods (**`WireInputs`** / **`ApplyOutputs`** or similar) **on the definition partial**—not separate factory types. Do not generate the connection generic types themselves. Acceptance is a compiling sample definition with a generated `*.g.cs` file and optional snapshot tests for stable output.
 
-Milestone two adds an **Editor** assembly referencing Graph Toolkit and extends the generator with an emission pass that outputs **`Node`** subclasses whose ports match definition fields, including **flow** ports under a fixed convention (for example one flow in and one flow out, or multiple named flow outs on entry nodes). Port **names** must match definition field names for reliable baking. Acceptance is a graph asset whose generated nodes show correct ports in the graph window.
+Milestone two adds an **Editor** assembly referencing Graph Toolkit and extends the generator with an emission pass that outputs **`Node`** subclasses whose ports match definition fields, including **flow** ports under a fixed convention (for example one flow in and one flow out, or **multiple flow outs** on **typed entry** nodes such as `QuestRunEntry` versus `QuestValidateEntry`). Port **names** must match definition field names for reliable baking. **Entry node** types in the editor must reference or imply the **CLR entry type** so bake can record **stable type ids**. Acceptance is a graph asset whose generated nodes show correct ports in the graph window.
 
-Milestone three implements the **ScriptedImporter** for the authoring file extension. On import, walk editor nodes and `IPort` connectivity (`GetNodes`, port enumerators, `GetConnectedPorts`), map each placed node to a **stable definition id** from generation, and write or update a **runtime graph** `ScriptableObject` with nodes, edges, entry bindings (including **named** exits such as Run versus Validate), and return nodes. Failed validation should log clearly and avoid writing a misleading runtime asset. Acceptance is deterministic reimport and an EditMode test that proves bake output for a minimal graph (using a checked-in asset or an editor-test construction path).
+Milestone three implements the **ScriptedImporter** for the authoring file extension. On import, walk editor nodes and `IPort` connectivity (`GetNodes`, port enumerators, `GetConnectedPorts`), map each placed node to a **stable definition id** from generation, and write or update a **runtime graph** `ScriptableObject` with nodes, edges, **typed entry** table (**entry CLR type id** to **node id** and **per-port successor map**), and return nodes. Expose **`GetEntryPoints()`** (or **`EntryPoints`** property) returning the list of **entry types** baked into the asset. Failed validation should log clearly and avoid writing a misleading runtime asset. Acceptance is deterministic reimport and an EditMode test that proves bake output for a minimal graph (using a checked-in asset or an editor-test construction path).
 
-Milestone four implements **GraphRunner** with an **awaitable** public API that always accepts or produces a **`Flow`** instance (for example `RunAsync(RuntimeGraph graph, string entryName, Flow parentFlow, …)` or an overload that creates a **root** flow when `parentFlow` is null). Prefer **`UnityEngine.Awaitable`** if the project’s Unity version supports it consistently; otherwise use **`ValueTask`** or **`Task`** and record the choice in the Decision Log. The **middleware context** must include the **active `Flow`** so hooks can call the same **start/run** API to launch **another** graph and **await** it. Each step allocates or resets the **per-node instance**, awaits **Before** middleware, awaits **node execution**, then awaits **After** middleware; it follows **flow** edges including **multiple** outputs from an entry; it stops on a **return** node (with or without a value) or when **no** successor exists. Acceptance is EditMode coverage for multi-entry, dead-end, return variants, async middleware ordering, and **middleware that starts and awaits a child graph run** using a **child `Flow`** linked to the current flow.
+Milestone four implements **GraphRunner** with an **awaitable** public API: overloads that accept **`RuntimeGraph` + `CancellationToken` only** (runner creates an internal **root** `Flow`), overloads that accept an explicit **`Flow`**, and overloads that accept **`TEntry` payload** for **typed** starts (for example `RunAsync<TEntry>(RuntimeGraph graph, TEntry entry, Flow flow = null, CancellationToken ct = default)` with **`flow` optional**). Provide **`RunChildGraphAsync`** (or equivalent **named** API on **`GraphRunner`**) for **child** runs **without** recommending lambda-based middleware patterns. Prefer **`UnityEngine.Awaitable`** if the project’s Unity version supports it consistently; otherwise use **`ValueTask`** or **`Task`** and record the choice in the Decision Log. The **middleware context** must include the **active `Flow`** so hooks can call **child** run helpers with **explicit** arguments. Each step allocates or resets the **per-node instance**, calls **generated wiring** on the **definition partial**, awaits **Before** middleware, awaits **node execution** (via **typed** method), awaits **After** middleware; it follows **flow** edges including **multiple** outputs from an **entry type**; it stops on a **return** node (with or without a value) or when **no** successor exists. Acceptance is EditMode coverage for **two entry types**, dead-end, return variants, async middleware ordering, **setup-time** middleware registration, and **middleware that starts and awaits a child graph run** via **`RunChildGraphAsync`** (or the chosen named helper).
 
 Milestone five covers **nested graphs from nodes** and aligns it with the **same** child-flow rule as middleware: a **subgraph** or **invoke-graph** node creates a **child `Flow`**, runs the target graph **awaitably** via the shared runner API, then resumes the parent. Pick and test one **blackboard** policy (for example isolated versus inherited). Acceptance is a test that proves ordering, that the parent does not finish before the child, and that **middleware-spawned** and **node-nested** runs both use the same **parent/child `Flow`** contract.
 
 Milestone six is **optional customization**: attributes or partial hooks that the generator copies into editor metadata or bake records so samples do not require hand-editing generated files.
 
+Milestone seven (optional, can merge with 0/4): add **`GraphFlowHost`** `MonoBehaviour` (or thin wrapper) that serializes **`RuntimeGraph`**, runs **setup** in **`Awake`/`OnEnable`**, exposes **`RunAsync`**-shaped methods to **MonoBehaviour** callers, and forwards to the composed **`GraphRunner`**.
+
 ## Milestones summary (index)
 
-Milestone 0 is runtime contracts and bases. Milestone 1 is generator metadata emission. Milestone 2 is Graph Toolkit editor nodes. Milestone 3 is ScriptedImporter bake. Milestone 4 is awaitable `GraphRunner` with middleware. Milestone 5 is nested flows from **nodes**, sharing the same **Flow** contract as middleware-started runs. Milestone 6 is optional definition-level customization.
+Milestone 0 is runtime contracts, bases, **setup** composition API, and **typed execute** pattern. Milestone 1 is generator emission on **definition partial** (metadata, **wiring**, **sealed** bridge). Milestone 2 is Graph Toolkit editor nodes and **typed** entry nodes. Milestone 3 is ScriptedImporter bake and **entry discovery**. Milestone 4 is awaitable **`GraphRunner`** with optional **`Flow`**, **`RunChildGraphAsync`**, and middleware. Milestone 5 is nested flows from **nodes**. Milestone 6 is optional definition-level customization. Milestone 7 is optional **`MonoBehaviour`** host.
 
 ## Concrete Steps
 
@@ -116,7 +145,7 @@ Work from the repository root (`/workspace` or your local clone).
 
 ## Validation and Acceptance
 
-Acceptance for the **overall** initiative: at least one **sample** runtime graph asset exists in `Assets/` (or test resources), **two named entry paths** from one entry node behave differently in a test assertion, **middleware** logs or counters prove **Before**/**After** ordering around node execution, **return** and **no-next** both terminate with distinguishable outcomes, **nested** graph run from a **node** completes with parent **awaiting** child, and **middleware** can **start and await** a **separate** graph run with a **child `Flow`** whose **parent** is the active run. All new EditMode tests pass under `run-editmode-tests.ps1`.
+Acceptance for the **overall** initiative: at least one **sample** runtime graph asset exists in `Assets/` (or test resources), **`RuntimeGraph`** exposes **at least two distinct entry types** that route to different first steps, **`RunAsync` with only `ct`** works (implicit root **`Flow`**) and **`RunAsync` with explicit `Flow`** works, **middleware** registered at **setup** proves **Before**/**After** ordering, **return** and **no-next** both terminate with distinguishable outcomes, **nested** graph run from a **node** completes with parent **awaiting** child, and **middleware** starts a **child** run via **`RunChildGraphAsync`** (or equivalent **non-lambda** API). All new EditMode tests pass under `run-editmode-tests.ps1`.
 
 For each milestone, add or extend tests **before** claiming completion; if a bug fix appears in a milestone, include a regression test that failed before the fix and passes after, per `PLANS.md`.
 
@@ -132,10 +161,22 @@ The **Snippets and API** section below is **indicative**. Exact type names, name
 
 ### Whole “Add” node example (definition + hand-written execution)
 
-The **definition** declares ports and flow pins. **Execution** lives in a hand-written `partial` method (or override) that the generator declares in a generated partial so signatures stay in sync.
+The **definition** declares ports and flow pins. **Execution** is a **`protected override`** of a **typed** method on **`GraphNodeDefinitionBase<TInstance>`**; the **base** exposes a **`public sealed`** entry that accepts **`object`** (or **`object` + node id**) and **casts** to **`TInstance`** before calling the **protected** method—so the runner never forces hand-written code to cast.
 
 ```csharp
-// Hand-written — consumer Runtime assembly, same file or AddNumbersDefinition.Execute.cs
+// Hand-crafted base (Runtime) — illustrative
+public abstract class GraphNodeDefinitionBase<TInstance> : IGraphNodeDefinition
+    where TInstance : class, new()
+{
+    public sealed async ValueTask ExecuteAsync(object instance, Flow flow, CancellationToken ct)
+    {
+        await ExecuteAsync((TInstance)instance, flow, ct);
+    }
+
+    protected abstract ValueTask ExecuteAsync(TInstance instance, Flow flow, CancellationToken ct);
+}
+
+// Hand-written — consumer Runtime assembly
 [GraphNodeDefinition]
 public partial class AddNumbersDefinition : GraphNodeDefinitionBase<AddNumbersInstance>
 {
@@ -146,13 +187,13 @@ public partial class AddNumbersDefinition : GraphNodeDefinitionBase<AddNumbersIn
     public FlowOutput Out;
 }
 
-// Hand-written partial — logic only; generator supplies the rest of the partial class glue
+// Hand-written partial — only typed execution; casting stays in base sealed method
 public partial class AddNumbersDefinition
 {
-    private static async ValueTask ExecuteCore(AddNumbersInstance instance, Flow flow, CancellationToken ct)
+    protected override async ValueTask ExecuteAsync(AddNumbersInstance instance, Flow flow, CancellationToken ct)
     {
         instance.Sum = instance.A + instance.B;
-        await default(ValueTask); // async shape even when trivial; sync nodes may use a different base
+        await default(ValueTask);
     }
 }
 ```
@@ -203,27 +244,36 @@ Flow pins may use **untyped** `AddInputPort` / `AddOutputPort` when the toolkit 
 
 ### How the instance is built and filled
 
-The **runner** (or a dedicated **binding** step) runs **after** the baked graph is loaded and **before** `ExecuteCore`:
+The **runner** allocates or pools **`AddNumbersInstance`**, then calls **generated methods on the same `partial` definition type** (AutoPacker-style: logic lives next to the type), for example **`WireInstanceInputs`** / **`PublishInstanceOutputs`**, **not** a separate factory type.
 
 1. For the **current node id**, allocate or pool an **`AddNumbersInstance`** (or reset fields).
-2. For each **input data** port, copy a value from the **predecessor** node’s instance field (using the baked **edge** list and port names) or from a **graph blackboard** on `Flow` when the edge comes from an entry parameter.
-3. Call **Before** middleware with **`MiddlewareContext`** (includes `Flow`, current node id, definition type, instance reference).
-4. Call **`ExecuteCore`**.
+2. The runner resolves the **`IGraphNodeDefinition`** (or static table) for that **definition type id** and invokes **`AddNumbersDefinition.WireInstanceInputs(instance, flow, stepContext)`** (name indicative)—**generated** in **`AddNumbersDefinition.*.g.cs`** from field metadata.
+3. Call **Before** middleware.
+4. Call **`definition.ExecuteAsync(instance, flow, ct)`** (uses **sealed** **`object`** entry → **protected typed** override).
 5. Call **After** middleware.
-6. Read **flow output** port name from bake (or branch outcome) to choose the **next node id**; copy **output** fields along edges when advancing.
-
-Indicative **internal** helper shape (names may differ):
+6. Call generated **`PublishInstanceOutputs`** if needed, then advance using baked **flow** edges.
 
 ```csharp
-// Indicative — inside GraphRunner or GraphBinding
-void PopulateInstanceInputs(
-    RuntimeGraph.BakedNode node,
-    object instance,
-    Flow flow,
-    IReadOnlyDictionary<NodeId, object> priorOutputs);
+// Generated — AddNumbersDefinition.Wiring.g.cs (illustrative)
+public partial class AddNumbersDefinition
+{
+    public static void WireInstanceInputs(
+        AddNumbersInstance target,
+        Flow flow,
+        GraphStepContext ctx)
+    {
+        target.A = ctx.ReadInput<int>(nameof(A));
+        target.B = ctx.ReadInput<int>(nameof(B));
+    }
+
+    public static void PublishInstanceOutputs(AddNumbersInstance source, GraphStepContext ctx)
+    {
+        ctx.WriteOutput(nameof(Sum), source.Sum);
+    }
+}
 ```
 
-The generator may emit **per-definition** static methods such as `AddNumbersDefinition.BindInputs(BakedEdge[] edges, …)` to avoid reflection at runtime.
+**`GraphStepContext`** is an indicative façade the runner fills so generated code stays short (backed by edge tables, prior node cache, and **typed entry** payload).
 
 ### Other important types (illustrative)
 
@@ -254,7 +304,10 @@ public sealed class RuntimeGraph : ScriptableObject
 {
     public IReadOnlyList<BakedNode> Nodes { get; }
     public IReadOnlyList<BakedEdge> Edges { get; }
-    public IReadOnlyDictionary<string, EntryPoint> Entries { get; } // e.g. "Run", "Validate"
+    /// <summary>CLR types that can start this graph (marker or payload types).</summary>
+    public IReadOnlyList<Type> EntryPointTypes { get; }
+
+    public bool TryGetEntry(Type entryType, out BakedEntryPoint entry) { throw new NotImplementedException(); }
 }
 
 public sealed class BakedNode
@@ -271,10 +324,12 @@ public sealed class BakedEdge
     public string ToPort { get; }
 }
 
-public sealed class EntryPoint
+/// <summary>One typed entry: which node is the entry, and outbound flow port → first node.</summary>
+public sealed class BakedEntryPoint
 {
-    public NodeId NodeId { get; }
-    public IReadOnlyDictionary<string, NodeId> NamedFlowExits { get; } // port name -> first node on that path
+    public Type EntryClrType { get; }       // typeof(QuestRunEntry), etc.
+    public NodeId EntryNodeId { get; }
+    public IReadOnlyDictionary<string, NodeId> FlowExitToNextNode { get; } // flow port name → successor
 }
 
 public readonly struct MiddlewareContext
@@ -287,27 +342,35 @@ public readonly struct MiddlewareContext
 
 public delegate ValueTask GraphMiddleware(MiddlewareContext ctx, Func<ValueTask> next);
 
+// Prefer class-based middleware (no lambda) for child-graph and DI-friendly setup.
+public interface IGraphMiddleware
+{
+    ValueTask InvokeAsync(MiddlewareContext ctx, Func<ValueTask> next);
+}
+
 public sealed class GraphRunner
 {
     public GraphRunner(IEnumerable<GraphMiddleware> middleware, INodeExecutorRegistry registry) { }
 
-    /// <summary>Runs under the given <paramref name="flow"/> (root or child).</summary>
-    public ValueTask<GraphRunResult> RunAsync(
-        RuntimeGraph graph,
-        string entryName,
-        Flow flow,
-        CancellationToken ct = default)
-    {
-        throw new NotImplementedException();
-    }
+    /// <summary>Creates an internal root <see cref="Flow"/> for this run.</summary>
+    public ValueTask<GraphRunResult> RunAsync<TEntry>(RuntimeGraph graph, CancellationToken ct = default) { }
 
-    /// <summary>Convenience: allocates a child flow and runs under it (nested graph, middleware-spawned run).</summary>
-    public ValueTask<GraphRunResult> RunChildAsync(
+    /// <summary><paramref name="flow"/> null creates a root flow; otherwise runs under the given flow.</summary>
+    public ValueTask<GraphRunResult> RunAsync<TEntry>(RuntimeGraph graph, Flow flow, CancellationToken ct = default) { }
+
+    /// <summary>Start with typed payload (struct or class); <paramref name="flow"/> null creates a root flow.</summary>
+    public ValueTask<GraphRunResult> RunAsync<TEntry>(
         RuntimeGraph graph,
-        string entryName,
-        Flow parentFlow,
-        CancellationToken ct = default)
-        => RunAsync(graph, entryName, parentFlow.CreateChild(), ct);
+        in TEntry entryPayload,
+        Flow flow = null,
+        CancellationToken ct = default) { }
+
+    /// <summary>Child run under <paramref name="parent"/>; call from middleware without capturing a lambda.</summary>
+    public static ValueTask<GraphRunResult> RunChildGraphAsync<TEntry>(
+        GraphRunner runner,
+        RuntimeGraph graph,
+        Flow parent,
+        CancellationToken ct = default) { }
 }
 
 public readonly struct GraphRunResult
@@ -318,12 +381,28 @@ public readonly struct GraphRunResult
 }
 ```
 
-`INodeExecutorRegistry` maps **`DefinitionTypeId`** from bake to a delegate that invokes the correct **`ExecuteCore`** (generated dispatch table or source-generated switch).
+`INodeExecutorRegistry` maps **`DefinitionTypeId`** from bake to **`IGraphNodeDefinition`** (or a delegate) that invokes **`ExecuteAsync(object, Flow, CancellationToken)`**—the **sealed** path that casts to **`TInstance`**.
+
+### Setup phase (no singleton): compose runner and middleware
+
+```csharp
+// Bootstrap / DI / test arrange — build once per scope
+public static GraphRunner BuildQuestRunner(GraphRunnerDependencies deps)
+{
+    var builder = new GraphFlowBuilder(deps.Registry);
+    builder.UseMiddleware(new LoggingMiddleware(deps.Log));
+    builder.UseMiddleware(new CrossGraphMiddleware(deps.InnerRunner, deps.OtherGraph));
+    // Other graphs register here by receiving the same builder or a shared options object.
+    return builder.Build();
+}
+```
+
+Contributors implement **`IGraphMiddleware`** or register **`GraphMiddleware`** delegates supplied by **whoever owns setup** (container, scene host, test). **`GraphFlowBuilder`** is indicative; the exact type name is fixed during Milestone 0.
 
 ### How to trigger the flow from code
 
 ```csharp
-// Game or service code — Runtime assembly
+// Game or service — minimal call: only graph + ct (implicit root Flow)
 public class QuestService
 {
     readonly GraphRunner runner;
@@ -331,33 +410,74 @@ public class QuestService
 
     public async ValueTask StartQuestRunAsync(CancellationToken ct)
     {
-        var flow = Flow.CreateRoot(ct);
-
-        // Optional: seed blackboard before run
-        flow.Blackboard.Set("PlayerId", currentPlayerId);
-
-        GraphRunResult result = await runner.RunAsync(
-            graph: questGraph,
-            entryName: "Run", // matches named exit on entry node from bake
-            flow: flow,
-            ct: ct);
-
+        GraphRunResult result = await runner.RunAsync<QuestRunEntry>(questGraph, ct);
         if (result.CompletedAtReturn)
             ApplyReward(result.ReturnValue);
+    }
+
+    public async ValueTask ValidateAsync(CancellationToken ct)
+    {
+        var payload = new QuestValidateEntry { LevelId = currentLevel };
+        await runner.RunAsync(questGraph, payload, flow: null, ct);
     }
 }
 ```
 
-**Middleware** starting another graph reuses the same API with a **child** flow:
+Discover entries without running:
 
 ```csharp
-GraphMiddleware SpawnChildGraph(GraphRunner innerRunner, RuntimeGraph otherGraph, string entry) =>
-    async (ctx, next) =>
-    {
-        await innerRunner.RunAsync(otherGraph, entry, ctx.Flow.CreateChild(), ctx.Flow.Cancellation);
-        await next();
-    };
+IReadOnlyList<Type> entries = questGraph.EntryPointTypes;
+bool canValidate = questGraph.TryGetEntry(typeof(QuestValidateEntry), out var bakedEntry);
 ```
+
+### Child graph from middleware (no lambda)
+
+Implement **`IGraphMiddleware`** as a **class** with dependencies injected at setup:
+
+```csharp
+public sealed class SpawnChildGraphMiddleware : IGraphMiddleware
+{
+    readonly GraphRunner runner;
+    readonly RuntimeGraph childGraph;
+
+    public SpawnChildGraphMiddleware(GraphRunner runner, RuntimeGraph childGraph)
+    {
+        this.runner = runner;
+        this.childGraph = childGraph;
+    }
+
+    public async ValueTask InvokeAsync(MiddlewareContext ctx, Func<ValueTask> next)
+    {
+        await GraphRunner.RunChildGraphAsync<ChildEntry>(runner, childGraph, ctx.Flow, ctx.Flow.Cancellation);
+        await next();
+    }
+}
+```
+
+### Optional MonoBehaviour “central brain”
+
+```csharp
+// Presentation-facing thin wrapper — optional; core logic stays in GraphRunner + Flow
+public sealed class GraphFlowHost : MonoBehaviour
+{
+    [SerializeField] RuntimeGraph graph;
+    GraphRunner runner;
+
+    void Awake()
+    {
+        runner = GraphFlowHostServices.BuildRunnerFor(this); // or resolve from DI
+    }
+
+    public ValueTask<GraphRunResult> RunAsync<TEntry>(CancellationToken ct = default)
+        => runner.RunAsync<TEntry>(graph, ct);
+}
+```
+
+Scene code references **`GraphFlowHost`** when convenient; headless tests use **`GraphRunner`** directly.
+
+### How to let “another graph” react to before/after
+
+At **setup**, pass the **`GraphFlowBuilder`** (or a **`GraphFlowEnvironment`** options object) into the module that owns the second graph so it can call **`builder.UseMiddleware(new MyCrossGraphMiddleware(...))`**. **`MyCrossGraphMiddleware`** holds **`GraphRunner`**, **`RuntimeGraph`**, and any **policies** by **constructor injection**—no static service locator. If the second graph must **observe** runs of the first without being middleware on the same runner, register a **shared event bus** or **`IObserver<GraphRunEvent>`** **also** at setup and have middleware on the first runner **publish** to that channel (still **wired in composition**, not a singleton unless the project already uses one globally).
 
 ## Interfaces and Dependencies
 
@@ -365,7 +485,7 @@ GraphMiddleware SpawnChildGraph(GraphRunner innerRunner, RuntimeGraph otherGraph
 
 **Scaffold:** New **Runtime** `.asmdef` for `Flow`, middleware, runner, runtime graph data; new **Editor** `.asmdef` referencing Graph Toolkit and the Runtime assembly for importer and editor nodes; new **Generator** project referenced from consumer assemblies via `Analyzer` / source generator metadata (match existing AutoPacker wiring pattern in the repo).
 
-**Minimum types (names indicative):** `IFlow` or `Flow` (with **`Parent`** and optional **root** discovery for cancellation), `GraphRunResult`, `GraphRunner.RunAsync(RuntimeGraph graph, string entryName, Flow flow, CancellationToken ct)` plus optional **`RunChildAsync`** for child flows, `MiddlewareContext` exposing **current `Flow`**, **definition**, **instance**, and **node id**, `GraphMiddleware` / `Func<MiddlewareContext, Func<ValueTask>, ValueTask>`, `RuntimeGraph` (ScriptableObject), `BakedNode` / `BakedEdge` / `EntryPoint`, `INodeExecutorRegistry`, `InputConnection<>`, `OutputConnection<>`, `FlowInput` / `FlowOutput` (or named flow port types), `[GraphNodeDefinition]` on definition types. See **Snippets and API** for fuller illustrative shapes.
+**Minimum types (names indicative):** `Flow` (**`Parent`**, **`CreateChild`**, cancellation), `GraphRunResult`, **`GraphRunner`** with **`RunAsync<TEntry>(graph, ct)`**, **`RunAsync<TEntry>(graph, flow, ct)`**, **`RunAsync<TEntry>(graph, in entryPayload, flow, ct)`**, **`RunChildGraphAsync<TEntry>(runner, graph, parent, ct)`**, **`RuntimeGraph.EntryPointTypes`** / **`TryGetEntry`**, **`BakedEntryPoint`**, **`GraphFlowBuilder`** (or **`IGraphMiddlewareContributor`**) for **setup**, **`IGraphMiddleware`** / **`GraphMiddleware`**, **`MiddlewareContext`**, **`IGraphNodeDefinition`** with **`sealed`** **`ExecuteAsync(object, …)`** and **`protected`** typed execute on **`GraphNodeDefinitionBase<TInstance>`**, **`INodeExecutorRegistry`**, generated **`partial`** **wiring** on definitions, `InputConnection<>`, `OutputConnection<>`, `FlowInput` / `FlowOutput`, **`GraphFlowHost`** `MonoBehaviour` (optional). See **Snippets and API**.
 
 ## Implementation Plan Index
 
@@ -378,3 +498,5 @@ GraphMiddleware SpawnChildGraph(GraphRunner innerRunner, RuntimeGraph otherGraph
 - 2026-03-28: Clarified that **middleware** may start **separate** graph runs (not only nested subgraph nodes); **`Flow`** must be passed through **runner** and **middleware** APIs; child flows reference **parent** for both cases.
 
 - 2026-03-28: Expanded **Snippets and API**: full Add node example, generated instance and editor node shapes, instance fill pipeline, illustrative core types (`Flow`, `RuntimeGraph`, `MiddlewareContext`, `GraphRunner`), code trigger and middleware child-run sample.
+
+- 2026-03-28: **Typed entry points** (replace string names), **`EntryPointTypes` / `TryGetEntry`**, **optional `Flow`** (`ct`-only overload), **`RunChildGraphAsync`** without lambda, **sealed public + protected typed** execute, **wiring on definition partial**, **`GraphFlowBuilder` setup**, optional **`GraphFlowHost`** `MonoBehaviour`.
