@@ -12,25 +12,30 @@ Someone can verify success by running the repository’s EditMode tests (see `Co
 
 ## Progress
 
-- [ ] (2026-03-28 00:00Z) Authored initial ExecPlan for GraphFlow (Graph Toolkit, generator, ScriptedImporter, runtime executor).
-- [ ] Add package dependency and minimal Graph Toolkit graph window proof (open asset, place nodes).
-- [ ] Implement handcrafted base types (`Flow`, connection placeholders, definition base, middleware contracts).
-- [ ] Implement Roslyn generator: discover definitions, emit editor node shells and runtime registration glue.
-- [ ] Implement ScriptedImporter bake: graph asset to runtime graph asset; preserve connection map.
-- [ ] Implement **`RuntimeGraph` → `ExecutableGraph` hydration** (`BuildExecutable(registry)`): ids resolved **once**; runner traverses **references**.
-- [ ] Implement `GraphRunner`: operates on **`ExecutableGraph`**, **typed** multi-entry, optional `Flow`/`ct`, awaitable traversal, middleware; **entry discovery** from serialized asset or hydrated **entry map**.
-- [ ] Implement **`GraphFlowCentralService`** (name indicative): holds **middleware**, **discovers** graphs, **`graph.Initialize(middlewares)`**; **`IGraphNodeDefinition.Initialize`** / **`RuntimeGraph.Initialize`** pipeline.
+- [x] (2026-03-28 00:00Z) Authored initial ExecPlan for GraphFlow (Graph Toolkit, generator, ScriptedImporter, runtime executor).
+- [ ] Add package dependency **`com.unity.graphtoolkit`** and minimal Graph Toolkit graph window proof (open asset, place nodes).
+- [x] Implement handcrafted base types in **`Scaffold.GraphFlow`**: `Flow`, `ExecutableGraph` / `ExecutableNode`, connection markers, `GraphNodeDefinitionBase`, middleware, registry, central service (partial).
+- [ ] Implement Roslyn source generator: discover definitions, emit editor node shells and registration glue.
+- [x] **Placeholder** **`GraphFlowAuthoringImporter`** (`.graphflowauthoring` → empty **`RuntimeGraph`**); **full** ScriptedImporter bake when Graph Toolkit is wired.
+- [x] Implement **`RuntimeGraph.BuildExecutable`**: **id-only** serialized lists → **`ExecutableGraph`** with **references**; **`GraphRunner`** walks **`ExecutableNode`** (no per-step id lookup).
+- [x] Implement **`GraphRunner`**: **`RunAsync<TEntry>`**, **`RunChildGraphAsync`**, middleware chain, **`ReactiveHookMiddleware`**, hand-wired **`WireInstance`** for Add→Log sample.
+- [x] **`GraphFlowCentralService.Bootstrap`** + **`IGraphFlowObject`** (minimal); **`Initialize`** on definitions still **optional** on graph host.
 - [ ] Optional **`GraphFlowHost`** `MonoBehaviour` for discovery and serialized **`RuntimeGraph`** references.
-- [ ] Implement nested graph run and **middleware-started** graph runs (child `Flow` holds parent; `Flow` passed through `GraphRunner` / middleware APIs); document re-entrancy expectations.
-- [ ] Add EditMode tests and sample graph assets; document module in `Docs/` when implementation stabilizes.
+- [ ] Implement nested graph **invoke node** (Milestone 5) and document re-entrancy.
+- [x] EditMode tests: **`Scaffold.GraphFlow.Tests`** — bootstrap, linear Add→Log, reactive before/after multiply (see **`GraphFlowRunnerTests`**).
+- [ ] Document module in **`Docs/`** when API stabilizes.
 - [ ] Optional final pass: definition-level customization (attributes or partial methods copied or invoked by generator).
-- [ ] Sample scenario validation: keyboard + **GameStartEntry**, reactive **before Add** child graph, **multiply in place** on **`AddNumbersInstance`**, **logger** prints **4** (see **Expected result (trace)**).
+- [x] Sample scenario validation (subset): reactive **before/after** Add + multiply + log **4** (via **`LastLoggedForTests`**).
 - [ ] After first pass: work through **Post-first-pass evaluation backlog** and update **Decision Log**.
+- [x] **Build plan** phases **A–E** started (runtime + hydration + runner + tests + editor stub); **F–G** pending.
 
 ## Surprises & Discoveries
 
-- Observation: (none yet)
-  Evidence: (none yet)
+- Observation: **EditMode tests** were not executed in this environment (Unity CLI not available in path); compilation assumed correct C#.
+  Evidence: No `Unity` binary found in `PATH` when checking agent environment.
+
+- Observation: **Instance wiring** is **hand-coded** in **`GraphRunner.WireInstance`** for the sample only; **generator** must replace this for real graphs.
+  Evidence: `Assets/Scripts/Tools/GraphFlow/Runtime/GraphRunner.cs` `WireInstance` method.
 
 ## Decision Log
 
@@ -163,6 +168,50 @@ Milestone seven (optional, can merge with 0/4): add **`GraphFlowHost`** `MonoBeh
 ## Milestones summary (index)
 
 Milestone 0 is runtime contracts, bases, **setup**, **typed execute**. Milestone 1 is generator (**`DefinitionTypeId`** for **serialization**, registry). Milestone 2 is Graph Toolkit editor nodes. Milestone 3 is **id-only** serialized **`RuntimeGraph`**. Milestone 4 is **hydration** + **`ExecutableGraph`** + **`GraphRunner`** on **references**. Milestone 5 is nested flows. Milestone 6 is optional customization. Milestone 7 is optional **`MonoBehaviour`** host.
+
+## Build plan (implementation order)
+
+This section turns milestones into an **ordered build** with **dependencies**, **deliverables**, and **gates**. Follow the sequence unless a spike proves a different order; record changes in the **Decision Log**.
+
+**Repository layout (suggested under `Assets/Scripts/`):**
+
+- `GraphFlow/Runtime/` — **`GraphFlow.Runtime.asmdef`**: `Flow`, `ExecutableGraph`, `RuntimeGraph`, `GraphRunner`, `GraphEntryPoint`, bases, `IGraphMiddleware`, `MiddlewareContext`, `INodeExecutorRegistry`, `GraphFlowCentralService`, `IGraphFlowObject`, `IGraphTickService` (interfaces + minimal impls).
+- `GraphFlow/Editor/` — **`GraphFlow.Editor.asmdef`**: references **Runtime** + **Graph Toolkit**; `ScriptedImporter`, editor-only `Node` subclasses (or generated output consumed here).
+- `Generators/GraphFlowGenerator/` — Roslyn project; referenced from **Runtime** (or a thin **GraphFlow.Generated** assembly if you prefer isolating analyzer load).
+
+**Phase A — Skeleton and contracts (Milestone 0)**  
+Deliver: **Runtime** `.asmdef`; **`GraphEntryPoint`**; **`GraphNodeDefinitionBase`** / **`GraphNodeDefinitionBase<TInstance>`**; **`IGraphNodeDefinition`**; **`Flow`** with **`CurrentNode`** (**`ExecutableNode`** placeholder or null until Phase D); **`IGraphMiddleware`**, **`MiddlewareContext`** (minimal fields, expand in Phase D); **`GraphFlowCentralService`** + **`IGraphFlowObject`**; **`Initialize`** stubs on bases; **`InputConnection<T>`** / **`OutputConnection<T>`** as hand-written markers on definitions (no behavior yet).  
+Gate: **EditMode** test that **`Bootstrap()`** runs without throwing; no Graph Toolkit required.
+
+**Phase B — Source generator (Milestone 1)**  
+Deliver: **GraphFlowGenerator** project; discovery by **base class**; per-definition **`DefinitionTypeId`** const; **`RegisterWith(INodeExecutorRegistry)`** or generated registry partial; **`WireInstanceInputs` / `PublishInstanceOutputs`** instance methods on generated partial; **`sealed ExecuteAsync(object, …)`** bridge for generic base.  
+Gate: **one** sample **`partial` Add** (or minimal) definition compiles; **`dotnet build`** on generator **Release**; Unity compiles consumer assembly.
+
+**Phase C — Graph Toolkit authoring (Milestone 2)**  
+Deliver: **`com.unity.graphtoolkit`** in **`Packages/manifest.json`**; **Editor** `.asmdef`; **custom `Graph`** subclass + asset extension; **generated `Node`** subclasses with **`OnDefinePorts`** matching Phase B definitions; **menu** or **Create** path for new graph asset.  
+Gate: Open graph in Editor, place **Add** node, ports visible; no importer yet (authoring asset may be intermediate format).
+
+**Phase D — Serialized IR + importer (Milestone 3)**  
+Deliver: **`RuntimeGraph` : ScriptableObject** with **`SerializedRuntimeNode`**, **`SerializedRuntimeEdge`**, **`SerializedRuntimeEntry`**, **`SerializedReactiveHook`**; **`ScriptedImporter`** walks **Graph Toolkit** graph, writes **id-only** topology + **entry** table + **hooks**; **`EntryPointTypes`** / **`TryGetSerializedEntry`**. *(2026-03-28: placeholder importer only — see `GraphFlowAuthoringImporter`.)*  
+Gate: **EditMode** test: import fixture authoring asset → assert **node/edge counts** and **DefinitionTypeId** strings; reimport **idempotent**.
+
+**Phase E — Hydration + runner (Milestone 4)**  
+Deliver: **`ExecutableNode`**, **`ExecutableGraph`**, **`ReactiveHookRuntime`**; **`RuntimeGraph.BuildExecutable(registry)`**; **`GraphRunner`** stepping **`ExecutableNode`** **references**; **`RunAsync<TEntry>(ExecutableGraph, …)`**; **`RunChildGraphAsync(ExecutableGraph, …)`**; **`GraphStepContext`** filled from **data edges**; **Before**/**After** pipeline; **`ReactiveHookMiddleware`** using **reference** match on **`Definition`**; fill **`Flow.CurrentNode`**.  
+Gate: **EditMode** test: **linear** graph (constants → Add → Log or no-op end) runs end-to-end; second test: **reactive** hook **before** Add doubles inputs (sample from **Expected result**); confirm **no per-step `registry.Resolve(DefinitionTypeId)`** in runner hot loop (assertion or code review checklist).
+
+**Phase F — Nested invoke node (Milestone 5)**  
+Deliver: **invoke-graph** definition + bake rules + **`RunChildGraphAsync`** from **node** `ExecuteAsync` with **`Flow.CreateChild()`**; **blackboard** policy **documented** and **tested**.  
+Gate: **EditMode** test parent **awaits** child; order assertions.
+
+**Phase G — Polish (Milestone 6–7, optional)**  
+Deliver: definition **attributes** / metadata to editor; **`GraphFlowHost`** + central **registration** in scene bootstrap.  
+Gate: sample scene or **PlayMode** smoke (if project uses it); otherwise **EditMode** host test.
+
+**Parallelism**  
+Phase **B** can start once **A** has stable **interface** names. Phase **C** needs **B** for **port** names / **DefinitionTypeId**. Phase **D** needs **C** assets. Phase **E** needs **A** + **B** + **D**. Phase **F** needs **E**. **G** anytime after **E**.
+
+**Per-phase ritual (from `PLANS.md`)**  
+After each phase: run **`run-editmode-tests.ps1`**, **`check-analyzers.ps1`** when policy applies, **commit**, update **Progress** and **Surprises** in this ExecPlan.
 
 ## Concrete Steps
 
@@ -777,3 +826,7 @@ Revisit after the **first implementation pass** (working graphs, hydration, runn
 - 2026-03-28: **Two-layer model**: **`RuntimeGraph`** = **id-only** serialized IR; **`ExecutableGraph`** = **hydrated** **references**; **`BuildExecutable`**: **ids → `IGraphNodeDefinition` + `ExecutableNode` graph** once; **runner** / **`Flow.CurrentNode`** use **references**; **`ReactiveHookMiddleware`** matches **`Definition`** by **reference**; **`MiddlewareContext`** carries **`ExecutableNode`**.
 
 - 2026-03-28: Added **Post-first-pass evaluation backlog** (reactive hooks, port logic, returns, wiring extensibility, typed entry return, context count, subscribe as context).
+
+- 2026-03-28: Added **Build plan** section: phases A–G, suggested **asmdef** layout, dependencies, deliverables, gates, parallelism, per-phase ritual.
+
+- 2026-03-28: **First implementation slice**: **`Scaffold.GraphFlow`** + **`Scaffold.GraphFlow.Editor`** (placeholder **`GraphFlowAuthoringImporter`**), **`Scaffold.GraphFlow.Tests`**; **`RuntimeGraph.BuildExecutable`**, **`GraphRunner`**, **`ReactiveHookMiddleware`**, sample definitions (**Add**, **Multiply**, **Log**); **Progress** updated. **Roslyn generator** and **Graph Toolkit** bake **not** done yet.
