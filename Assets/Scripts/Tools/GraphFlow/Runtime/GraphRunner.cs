@@ -5,13 +5,15 @@ using System.Threading.Tasks;
 
 namespace Scaffold.GraphFlow
 {
-    public sealed class GraphRunner
+    public sealed partial class GraphRunner
     {
         readonly IReadOnlyList<IGraphMiddleware> middlewarePipeline;
+        readonly INodeExecutorRegistry registry;
 
-        public GraphRunner(IReadOnlyList<IGraphMiddleware> middlewarePipeline)
+        public GraphRunner(IReadOnlyList<IGraphMiddleware> middlewarePipeline, INodeExecutorRegistry registry = null)
         {
             this.middlewarePipeline = middlewarePipeline ?? Array.Empty<IGraphMiddleware>();
+            this.registry = registry;
         }
 
         public ValueTask<GraphRunResult> RunAsync<TEntry>(ExecutableGraph graph, CancellationToken cancellationToken = default)
@@ -33,6 +35,12 @@ namespace Scaffold.GraphFlow
             where TEntry : GraphEntryPoint
         {
             flow ??= new Flow(cancellationToken);
+            if (registry != null)
+            {
+                flow.Registry = registry;
+                flow.ActiveRunner = this;
+            }
+
             if (!graph.EntryRoots.TryGetValue(typeof(TEntry), out var start))
                 return new GraphRunResult(false, true, null);
 
@@ -48,6 +56,12 @@ namespace Scaffold.GraphFlow
             var entryType = entryPayload.GetType();
             if (!childGraph.EntryRoots.TryGetValue(entryType, out var start))
                 return new GraphRunResult(false, true, null);
+
+            if (registry != null && childFlow.Registry == null)
+            {
+                childFlow.Registry = registry;
+                childFlow.ActiveRunner = this;
+            }
 
             return await RunFromNode(childGraph, start, childFlow, cancellationToken).ConfigureAwait(false);
         }
@@ -70,6 +84,7 @@ namespace Scaffold.GraphFlow
 
                 await node.Definition.ExecuteAsync(instance, flow, cancellationToken).ConfigureAwait(false);
                 flow.LastInstanceByNode[node] = instance;
+                flow.LastExecutedInstance = instance;
 
                 await InvokeMiddlewarePipeline(graph, node, flow, MiddlewarePhase.After, instance, cancellationToken)
                     .ConfigureAwait(false);
@@ -103,32 +118,6 @@ namespace Scaffold.GraphFlow
             }
 
             await ChainAsync(0).ConfigureAwait(false);
-        }
-
-        static void WireInstance(ExecutableNode node, object instance, Flow flow)
-        {
-            foreach (var edge in node.DataEdgesIn)
-            {
-                if (!flow.LastInstanceByNode.TryGetValue(edge.SourceNode, out var sourceInst))
-                    continue;
-
-                if (instance is AddNumbersInstance add && sourceInst is AddNumbersInstance srcAdd &&
-                    edge.SourcePortName == "Sum" && edge.TargetPortName == "A")
-                {
-                    add.A = srcAdd.Sum;
-                }
-                else if (instance is LogObjectInstance log && sourceInst is AddNumbersInstance add2 &&
-                         edge.SourcePortName == "Sum" && edge.TargetPortName == "Message")
-                {
-                    log.Message = add2.Sum;
-                }
-            }
-
-            if (instance is AddNumbersInstance seedAdd)
-            {
-                seedAdd.A = flow.Blackboard.Get<int>("A");
-                seedAdd.B = flow.Blackboard.Get<int>("B");
-            }
         }
     }
 }

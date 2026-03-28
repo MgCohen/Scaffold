@@ -18,14 +18,17 @@ namespace Scaffold.GraphFlow
 
     public sealed class ExecutableNode
     {
-        public ExecutableNode(NodeId serializedId, IGraphNodeDefinition definition)
+        public ExecutableNode(NodeId serializedId, IGraphNodeDefinition definition, RuntimeGraph nestedRuntimeGraph = null)
         {
             SerializedId = serializedId;
             Definition = definition;
+            NestedRuntimeGraph = nestedRuntimeGraph;
         }
 
         public NodeId SerializedId { get; }
         public IGraphNodeDefinition Definition { get; }
+
+        public RuntimeGraph NestedRuntimeGraph { get; }
 
         public Dictionary<string, ExecutableNode> FlowSuccessors { get; } = new Dictionary<string, ExecutableNode>();
 

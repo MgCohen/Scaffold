@@ -9,15 +9,13 @@ namespace Scaffold.GraphFlow.Sample
         public object Message;
     }
 
-    public sealed class LogObjectDefinition : GraphNodeDefinitionBase<LogObjectInstance>
+    public sealed partial class LogObjectDefinition : GraphNodeDefinitionBase<LogObjectInstance>
     {
         public InputConnection<object> Message;
         public FlowInput In;
         public FlowOutput Out;
 
         public static object LastLoggedForTests { get; private set; }
-
-        public override string DefinitionTypeId => GraphFlowDefinitionIds.LogObject;
 
         protected override ValueTask ExecuteAsync(LogObjectInstance instance, Flow flow, CancellationToken cancellationToken)
         {

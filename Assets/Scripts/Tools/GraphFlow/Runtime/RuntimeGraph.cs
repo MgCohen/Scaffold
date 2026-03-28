@@ -46,7 +46,7 @@ namespace Scaffold.GraphFlow
                 var def = registry.Resolve(sn.definitionTypeId);
                 if (def == null)
                     throw new InvalidOperationException($"Unknown DefinitionTypeId: {sn.definitionTypeId}");
-                idToNode[sn.id] = new ExecutableNode(ParseNodeId(sn.id), def);
+                idToNode[sn.id] = new ExecutableNode(ParseNodeId(sn.id), def, sn.nestedRuntimeGraph);
             }
 
             foreach (var edge in serializedEdges)
@@ -97,8 +97,8 @@ namespace Scaffold.GraphFlow
             string.Equals(port, "In", StringComparison.OrdinalIgnoreCase);
 
         /// <summary>For EditMode tests and tooling; not for production graph authoring.</summary>
-        public void AppendSerializedNode(string id, string definitionTypeId) =>
-            serializedNodes.Add(new SerializedRuntimeNode { id = id, definitionTypeId = definitionTypeId });
+        public void AppendSerializedNode(string id, string definitionTypeId, RuntimeGraph nested = null) =>
+            serializedNodes.Add(new SerializedRuntimeNode { id = id, definitionTypeId = definitionTypeId, nestedRuntimeGraph = nested });
 
         public void AppendSerializedEdge(string fromNodeId, string fromPort, string toNodeId, string toPort) =>
             serializedEdges.Add(new SerializedRuntimeEdge
@@ -127,7 +127,9 @@ namespace Scaffold.GraphFlow
                 reactiveGraphAsset = reactiveGraphAsset
             });
 
-        public void ClearSerializedForTests()
+        public void ClearSerializedForTests() => ResetSerializedRuntime();
+
+        public void ResetSerializedRuntime()
         {
             serializedNodes.Clear();
             serializedEdges.Clear();

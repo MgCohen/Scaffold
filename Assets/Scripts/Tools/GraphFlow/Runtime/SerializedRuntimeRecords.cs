@@ -9,6 +9,9 @@ namespace Scaffold.GraphFlow
     {
         public string id;
         public string definitionTypeId;
+
+        /// <summary>Optional nested graph for invoke-subgraph nodes (Unity serializes asset reference).</summary>
+        public RuntimeGraph nestedRuntimeGraph;
     }
 
     [Serializable]

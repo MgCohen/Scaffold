@@ -24,5 +24,7 @@ namespace Scaffold.GraphFlow
                 return defaultValue;
             }
         }
+
+        internal IEnumerable<KeyValuePair<string, object>> Enumerate() => values;
     }
 }

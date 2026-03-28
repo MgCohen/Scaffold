@@ -17,9 +17,25 @@ namespace Scaffold.GraphFlow
         public ExecutableNode CurrentNode { get; set; }
         public object ReactivePayload { get; set; }
 
+        public object LastExecutedInstance { get; set; }
+
         public Dictionary<ExecutableNode, object> LastInstanceByNode { get; } = new Dictionary<ExecutableNode, object>();
 
-        public Flow CreateChild() => new Flow(Cancellation, this);
+        public INodeExecutorRegistry Registry { get; set; }
+
+        public GraphRunner ActiveRunner { get; set; }
+
+        public Flow CreateChild()
+        {
+            var c = new Flow(Cancellation, this)
+            {
+                Registry = Registry,
+                ActiveRunner = ActiveRunner
+            };
+            foreach (var kv in Blackboard.Enumerate())
+                c.Blackboard.Set(kv.Key, kv.Value);
+            return c;
+        }
     }
 
 }

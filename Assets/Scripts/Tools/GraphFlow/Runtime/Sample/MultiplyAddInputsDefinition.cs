@@ -3,12 +3,10 @@ using System.Threading.Tasks;
 
 namespace Scaffold.GraphFlow.Sample
 {
-    public sealed class MultiplyAddInputsDefinition : GraphNodeDefinitionBase
+    public sealed partial class MultiplyAddInputsDefinition : GraphNodeDefinitionBase
     {
         public FlowInput In;
         public FlowOutput Out;
-
-        public override string DefinitionTypeId => GraphFlowDefinitionIds.MultiplyAddInputs;
 
         public override ValueTask ExecuteAsync(Flow flow, CancellationToken cancellationToken)
         {
