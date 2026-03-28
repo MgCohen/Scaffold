@@ -25,6 +25,7 @@ Someone can verify success by running the repository’s EditMode tests (see `Co
 - [ ] Add EditMode tests and sample graph assets; document module in `Docs/` when implementation stabilizes.
 - [ ] Optional final pass: definition-level customization (attributes or partial methods copied or invoked by generator).
 - [ ] Sample scenario validation: keyboard + **GameStartEntry**, reactive **before Add** child graph, **multiply in place** on **`AddNumbersInstance`**, **logger** prints **4** (see **Expected result (trace)**).
+- [ ] After first pass: work through **Post-first-pass evaluation backlog** and update **Decision Log**.
 
 ## Surprises & Discoveries
 
@@ -739,6 +740,24 @@ Assume **`Bootstrap()`** ran: **`BuildExecutable`** on **main** and **reactive**
 
 - (Optional) `Plans/GraphFlow/milestones/ExecPlan-Milestone-1.md` through subsequent milestones—add when a milestone needs a standalone document.
 
+## Post-first-pass evaluation backlog
+
+Revisit after the **first implementation pass** (working graphs, hydration, runner, one reactive sample). These are **open design questions**, not blockers for Milestone 0–4.
+
+- **Reactive hooks still feel odd** — **`ReactiveHookMiddleware`** + **`ReactivePayload`** + **`ReactiveChildEntry`** may be too indirect; consider hook **syntax**, **ordering** when multiple hooks hit one node, **failure** semantics, and whether **reactive** belongs in **middleware** at all versus **first-class runner** phases.
+
+- **In/out ports may need logic** — beyond **type** matching: **coercion**, **optional** ports, **multiplicity**, **default** when unwired, and **validation** at **hydration** vs **run** time.
+
+- **Return values** — how **`GraphRunResult.ReturnValue`** relates to **typed** **return** nodes, **multiple** return paths, **void** returns, and **propagation** from **child** graphs to **parent** **`await`**.
+
+- **How to modify instance wiring** — **`WireInstanceInputs` / `PublishInstanceOutputs`** are **generated** today; document **escape hatches** (partial **manual** wiring, **custom** `GraphStepContext`, **runtime**-patched graphs) without breaking **generator** assumptions.
+
+- **Entry point typed return?** — whether **`RunAsync<TEntry>`** should also be **generic** in a **result** type (e.g. **`RunAsync<TEntry, TResult>`**) or **always** **`GraphRunResult`** + **cast**; interaction with **return** nodes and **`GraphEntryPoint`** payloads.
+
+- **How many contexts** — inventory and **merge** or **split**: **`GraphInitializationContext`**, **`MiddlewareContext`**, **`GraphStepContext`**, **`Flow`**, **`ExecutableGraph`** host APIs; avoid **overlap** and **ambiguous** “which context do I use for X?”.
+
+- **Should subscribe be a native context concern?** — **`IGraphTickService`** + **`Initialize`** **register** today; decide if **subscription** (input, events, timers) is a **first-class** **`ISubscriptionContext`** on **`Flow`** / **`GraphRunner`**, or stays **injected** per **`Initialize`**.
+
 ## Change History
 
 - 2026-03-28: Initial ExecPlan authored from design discussion (definition-first ports, dedicated generator, ScriptedImporter bake, awaitable runner, middleware, nested flows, multi-entry).
@@ -756,3 +775,5 @@ Assume **`Bootstrap()`** ran: **`BuildExecutable`** on **main** and **reactive**
 - 2026-03-28: **`GraphEntryPoint`** base; **optional** **`[GraphNodeDefinition]`** when inheriting definition base; **non-generic** **`GraphNodeDefinitionBase`** instead of **`VoidInstance`**; **definition → runtime node** mapping section; **`Initialize`** pipeline; **`GraphFlowCentralService`**; **keyboard** on **payload** + **entry** **`Initialize`**; **generic** **`ReactiveHookMiddleware`** + **`SerializedReactiveHook`** / **`ReactiveHookRuntime`**; removed **`KeyboardGraphTrigger`** / bespoke **`GraphReactiveDispatchMiddleware`** from the canonical story.
 
 - 2026-03-28: **Two-layer model**: **`RuntimeGraph`** = **id-only** serialized IR; **`ExecutableGraph`** = **hydrated** **references**; **`BuildExecutable`**: **ids → `IGraphNodeDefinition` + `ExecutableNode` graph** once; **runner** / **`Flow.CurrentNode`** use **references**; **`ReactiveHookMiddleware`** matches **`Definition`** by **reference**; **`MiddlewareContext`** carries **`ExecutableNode`**.
+
+- 2026-03-28: Added **Post-first-pass evaluation backlog** (reactive hooks, port logic, returns, wiring extensibility, typed entry return, context count, subscribe as context).
