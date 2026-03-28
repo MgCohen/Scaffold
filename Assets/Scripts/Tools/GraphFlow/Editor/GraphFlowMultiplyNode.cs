@@ -9,10 +9,13 @@ namespace Scaffold.GraphFlow.Editor
     {
         protected override void OnDefinePorts(IPortDefinitionContext context)
         {
+            context.AddInputPort<int>("A").Build();
+            context.AddInputPort<int>("B").Build();
+            context.AddOutputPort<int>("Product").Build();
             context.AddInputPort("In").Build();
             context.AddOutputPort("Out").Build();
         }
 
-        public string DefinitionTypeId => new MultiplyAddInputsDefinition().DefinitionTypeId;
+        public string DefinitionTypeId => new MultiplyNumbersDefinition().DefinitionTypeId;
     }
 }

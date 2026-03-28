@@ -37,12 +37,4 @@ namespace Scaffold.GraphFlow
         public string flowPortName;
         public string nextNodeId;
     }
-
-    [Serializable]
-    public sealed class SerializedReactiveHook
-    {
-        public MiddlewarePhase timing;
-        public string targetDefinitionTypeId;
-        public RuntimeGraph reactiveGraphAsset;
-    }
 }

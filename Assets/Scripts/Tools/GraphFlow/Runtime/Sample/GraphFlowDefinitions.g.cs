@@ -9,9 +9,9 @@ namespace Scaffold.GraphFlow.Sample
         public override string DefinitionTypeId => "Scaffold.GraphFlow.Sample.AddNumbersDefinition";
     }
 
-    partial class MultiplyAddInputsDefinition
+    partial class MultiplyNumbersDefinition
     {
-        public override string DefinitionTypeId => "Scaffold.GraphFlow.Sample.MultiplyAddInputsDefinition";
+        public override string DefinitionTypeId => "Scaffold.GraphFlow.Sample.MultiplyNumbersDefinition";
     }
 
     partial class LogObjectDefinition
@@ -37,7 +37,7 @@ namespace Scaffold.GraphFlow.Generated
         public static void RegisterAll(GraphFlowRegistry registry)
         {
             registry.Register(new Scaffold.GraphFlow.Sample.AddNumbersDefinition());
-            registry.Register(new Scaffold.GraphFlow.Sample.MultiplyAddInputsDefinition());
+            registry.Register(new Scaffold.GraphFlow.Sample.MultiplyNumbersDefinition());
             registry.Register(new Scaffold.GraphFlow.Sample.LogObjectDefinition());
             registry.Register(new Scaffold.GraphFlow.Sample.InvokeSubGraphDefinition());
             registry.Register(new Scaffold.GraphFlow.Sample.GraphFlowEntryPassThroughDefinition());

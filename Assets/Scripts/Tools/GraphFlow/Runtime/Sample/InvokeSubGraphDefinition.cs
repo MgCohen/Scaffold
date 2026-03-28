@@ -15,7 +15,6 @@ namespace Scaffold.GraphFlow.Sample
                 return default;
 
             var child = flow.CreateChild();
-            child.ReactivePayload = flow.LastExecutedInstance;
             return flow.ActiveRunner.RunChildGraphAsync(
                 nested.BuildExecutable(flow.Registry),
                 new SubGraphEntry(),

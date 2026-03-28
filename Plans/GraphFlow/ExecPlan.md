@@ -6,9 +6,9 @@ This document must be maintained in accordance with `PLANS.md` at the repository
 
 ## Purpose / Big Picture
 
-After this work, a contributor can author a **flow graph** in the Unity Editor using **Unity Graph Toolkit** (a package that provides editor-only graph windows, nodes, and serialized graph assets). The graph describes **control flow** between nodes that are defined in C# as **definition types** (the single authoring point for port shape). A **bake step** turns the edited graph into a **runtime graph asset** (**id-based serialized IR** only) that does not depend on Graph Toolkit assemblies in player builds. At **load or `Initialize`**, each asset **hydrates** into an **`ExecutableGraph`**: **node references**, **resolved `IGraphNodeDefinition` pointers**, and **flow successors** as **object references**—**no per-step id lookups**. **Stable ids** (**`NodeId`**, **`DefinitionTypeId`**) exist **only inside the serialized blob** for import, diff, and round-trip save. Game code can **start** a graph run from one of several **typed entry points** (each entry is a **CLR type**, which can carry **payload fields** or be an empty marker), **query** which entry types exist on the **runtime graph** asset, obtain an **awaitable** execution, and observe **middleware** firing **before and after** each node with access to the **per-node instance** object and the active **`Flow`**. Starting a run may pass **only** a **`CancellationToken`**, an existing **`Flow`**, or both—creating a **root** `Flow` is optional when the overload allows it. Middleware may **start an entirely separate graph run** (same or different `RuntimeGraph`), not only **nested subgraph** nodes; those starts should receive a **`Flow`** argument (typically a **new child flow** whose **parent** is the current flow) so cancellation, diagnostics, and blackboard policy stay coherent. Cross-cutting behavior uses a **central service** that owns the **shared middleware list**, **discovers** each **graph** (and its **runner**), and runs **`graph.Initialize(middlewares)`** so every **node definition** can run **`Initialize`** for **entry registration** (keyboard, etc.). **Reactive** hooks are **generic middleware** driven by hook records: **serialized** rows use **ids**; after **hydration**, **`ReactiveHookRuntime`** holds **`IGraphNodeDefinition`** and **`ExecutableGraph`** **references** for matching without string compares on the hot path. An optional **`MonoBehaviour`** can wrap **graph** references and participate in discovery. A run **ends** at a **return** node (with or without a value) or when **no successor** exists on the active flow path.
+After this work, a contributor can author a **flow graph** in the Unity Editor using **Unity Graph Toolkit** (a package that provides editor-only graph windows, nodes, and serialized graph assets). The graph describes **control flow** between nodes that are defined in C# as **definition types** (the single authoring point for port shape). A **bake step** turns the edited graph into a **runtime graph asset** (**id-based serialized IR** only) that does not depend on Graph Toolkit assemblies in player builds. At **load or `Initialize`**, each asset **hydrates** into an **`ExecutableGraph`**: **node references**, **resolved `IGraphNodeDefinition` pointers**, and **flow successors** as **object references**—**no per-step id lookups**. **Stable ids** (**`NodeId`**, **`DefinitionTypeId`**) exist **only inside the serialized blob** for import, diff, and round-trip save. Game code can **start** a graph run from one of several **typed entry points** (each entry is a **CLR type**, which can carry **payload fields** or be an empty marker), **query** which entry types exist on the **runtime graph** asset, obtain an **awaitable** execution, and observe **middleware** firing **before and after** each node with access to the **per-node instance** object and the active **`Flow`**. Starting a run may pass **only** a **`CancellationToken`**, an existing **`Flow`**, or both—creating a **root** `Flow` is optional when the overload allows it. Middleware may **start an entirely separate graph run** (same or different `RuntimeGraph`), not only **nested subgraph** nodes; those starts should receive a **`Flow`** argument (typically a **new child flow** whose **parent** is the current flow) so cancellation, diagnostics, and blackboard policy stay coherent. Cross-cutting behavior uses a **central service** that owns the **shared middleware list**, **discovers** each **graph** (and its **runner**), and runs **`graph.Initialize(middlewares)`** so every **node definition** can run **`Initialize`** for **entry registration** (keyboard, etc.). The repository ships **no** first-party **reactive-hook** or **serialized hook table**: custom **`IGraphMiddleware`** implementations can add hook-like behavior when needed. An optional **`MonoBehaviour`** can wrap **graph** references and participate in discovery. A run **ends** at a **return** node (with or without a value) or when **no successor** exists on the active flow path.
 
-Someone can verify success by running the repository’s EditMode tests (see `Concrete Steps`) and by stepping through a small sample graph: **two distinct entry types** (both **`GraphEntryPoint`** subclasses) with different first steps, **`GraphFlowCentralService.Bootstrap`** calling **`Initialize`** on graphs, **data-driven** **`ReactiveHookMiddleware`**, **`RunChildGraphAsync`** on **`GraphRunner`**, nested graph invocation from a **node** with **child flow** linked to **parent**, and termination via return versus dead-end.
+Someone can verify success by running the repository’s EditMode tests (see `Concrete Steps`) and by stepping through a small sample graph: **two distinct entry types** (both **`GraphEntryPoint`** subclasses) with different first steps, **`GraphFlowCentralService.Bootstrap`** calling **`Initialize`** on graphs, **middleware** **Before**/**After** on each node, **`RunChildGraphAsync`** on **`GraphRunner`**, nested graph invocation from a **node** with **child flow** linked to **parent**, and termination via return versus dead-end.
 
 ## Progress
 
@@ -18,14 +18,14 @@ Someone can verify success by running the repository’s EditMode tests (see `Co
 - [x] **`Generators/GraphFlowGenerator`** + checked-in **`GraphFlowDefinitions.g.cs`** for **`DefinitionTypeId`** / **`RegisterAll`** (optional `dotnet build` to refresh).
 - [x] **`GraphFlowAuthoringImporter`** on extension **`graphflow`**: **`LoadGraphForImporter`** + **`GraphFlowRuntimeBaker`** → **`RuntimeGraph`** main asset.
 - [x] Implement **`RuntimeGraph.BuildExecutable`**: **id-only** serialized lists → **`ExecutableGraph`** with **references**; **`GraphRunner`** walks **`ExecutableNode`** (no per-step id lookup).
-- [x] Implement **`GraphRunner`**: **`RunAsync<TEntry>`**, **`RunChildGraphAsync`**, middleware chain, **`ReactiveHookMiddleware`**, **`GraphRunner.Wiring`** reflection-based data edges + blackboard seed for **`AddNumbersInstance`**.
+- [x] Implement **`GraphRunner`**: **`RunAsync<TEntry>`**, **`RunChildGraphAsync`**, middleware chain (empty by default; no bundled reactive implementation), **`GraphRunner.Wiring`** reflection-based data edges + blackboard seed for **`AddNumbersInstance`** / **`MultiplyNumbersInstance`**.
 - [x] **`GraphFlowCentralService.Bootstrap`** + **`IGraphFlowObject`** (minimal); **`Initialize`** on definitions still **optional** on graph host.
 - [x] **`GraphFlowHost`** `MonoBehaviour` implements **`IGraphFlowObject`** (hydrate, runner, **`Initialize`** on registered definitions).
-- [x] **`InvokeSubGraphDefinition`** + editor **`GraphFlowInvokeNode`** + **`SubGraphEntry`** + nested **`RuntimeGraph`** on **`SerializedRuntimeNode`**; child **`Flow`** copies blackboard and passes **`ReactivePayload`** from **`LastExecutedInstance`**.
-- [x] EditMode tests: **`Scaffold.GraphFlow.Tests`** — bootstrap, linear Add→Log, reactive before/after multiply (see **`GraphFlowRunnerTests`**).
+- [x] **`InvokeSubGraphDefinition`** + editor **`GraphFlowInvokeNode`** + **`SubGraphEntry`** + nested **`RuntimeGraph`** on **`SerializedRuntimeNode`**; child **`Flow`** copies blackboard (no parent **instance** handoff).
+- [x] EditMode tests: **`Scaffold.GraphFlow.Tests`** — bootstrap, linear Add→Log, Add→Multiply→Log, invoke nested Add→Log (see **`GraphFlowRunnerTests`**).
 - [ ] Document module in **`Docs/`** when API stabilizes.
 - [ ] Optional final pass: definition-level customization (attributes or partial methods copied or invoked by generator).
-- [x] Sample scenario validation (subset): reactive **before/after** Add + multiply + log **4** (via **`LastLoggedForTests`**).
+- [x] Sample scenario validation (subset): Add→Multiply wired so **Sum** feeds both **A** and **B** → log **4** (via **`LastLoggedForTests`**).
 - [ ] After first pass: work through **Post-first-pass evaluation backlog** and update **Decision Log**.
 - [x] **Build plan** phases **A–F** implemented (invoke subgraph, baker, Graph Toolkit importer); **G** polish / **Docs** optional.
 
@@ -66,11 +66,15 @@ Someone can verify success by running the repository’s EditMode tests (see `Co
   Rationale: Centralized bootstrap: one middleware list, many graphs/nodes configured consistently.
   Date/Author: 2026-03-28 / planning
 
-- Decision: **Reactive** behavior uses **one generic** **`ReactiveHookMiddleware`** (or equivalent). **Importer** writes **`SerializedReactiveHook`** rows (**id-based**, including **`TargetDefinitionTypeId`**). **`ExecutableGraph` hydration** produces **`ReactiveHookRuntime`** with **`IGraphNodeDefinition TargetDefinition`** and **`ExecutableGraph ReactiveSubgraph`** **references**. Middleware matches **`ctx.CurrentNode.Definition == hook.TargetDefinition`** (or reference equality on a **definition singleton**), **not** string **ids** on the hot path.
-  Rationale: Serialized **ids** for authoring; **runtime** uses **direct references** after one **build** pass.
-  Date/Author: 2026-03-28 / planning
+- Decision: **No first-party reactive-hook pipeline in the first slice.** Removed **`SerializedReactiveHook`**, **`ReactiveHookMiddleware`**, **`Flow.ReactivePayload`**, and editor **`GraphFlowReactiveHookNode`**. **`MultiplyNumbersDefinition`** is a normal data node with **`InputConnection<int> A`**, **`InputConnection<int> B`**, **`OutputConnection<int> Product`** (same pattern as **Add**). Cross-cutting behavior remains **`IGraphMiddleware`** only; hook-like flows can be added in product code later.
+  Rationale: The prior design (child graph mutating the parent node **instance** via **`ReactivePayload`**) was rejected; keep middleware generic without a bundled reactive implementation.
+  Date/Author: 2026-03-28 / implementation
 
-- Decision: **Two-layer graph model**: (1) **`RuntimeGraph`** **`ScriptableObject`** holds **only** **serialized** **`SerializedRuntimeNode`**, **`SerializedRuntimeEdge`**, **entry tables**, and **reactive hook** records—**all cross-node links use stable ids**. (2) **`ExecutableGraph`** (and **`ExecutableNode`**) is built by **`RuntimeGraph.BuildExecutable(INodeExecutorRegistry)`** (cached per asset after domain reload / invalidation): each **`ExecutableNode`** holds **`IGraphNodeDefinition Definition`**, **flow** edges as **`ExecutableNode`** **references**, **data-edge** metadata as references or compact tables pointing at **neighbor nodes**. **`GraphRunner`** and **`Flow`** track **`ExecutableNode Current`** (or equivalent **reference**), **not** **`NodeId`**, for traversal. **`DefinitionTypeId` / `NodeId`** appear **only** in serialized types and optional **debug** fields on **`ExecutableNode`**.
+- Decision: **Reactive** behavior **was** planned as **`ReactiveHookMiddleware`** + **`SerializedReactiveHook`** + **`ReactiveHookRuntime`** (serialized **ids**, hydrated **references**). **Superseded** by the decision above for this repository slice; retain only if a future milestone reintroduces hooks with a different data contract.
+  Rationale: Historical record of the earlier plan.
+  Date/Author: 2026-03-28 / planning (superseded)
+
+- Decision: **Two-layer graph model**: (1) **`RuntimeGraph`** **`ScriptableObject`** holds **only** **serialized** **`SerializedRuntimeNode`**, **`SerializedRuntimeEdge`**, and **entry tables**—**all cross-node links use stable ids**. (2) **`ExecutableGraph`** (and **`ExecutableNode`**) is built by **`RuntimeGraph.BuildExecutable(INodeExecutorRegistry)`** (cached per asset after domain reload / invalidation): each **`ExecutableNode`** holds **`IGraphNodeDefinition Definition`**, **flow** edges as **`ExecutableNode`** **references**, **data-edge** metadata as references or compact tables pointing at **neighbor nodes**. **`GraphRunner`** and **`Flow`** track **`ExecutableNode Current`** (or equivalent **reference**), **not** **`NodeId`**, for traversal. **`DefinitionTypeId` / `NodeId`** appear **only** in serialized types and optional **debug** fields on **`ExecutableNode`**.
   Rationale: **Ids only for serialization**; execution is **pointer-following** after a single **hydration** cost.
   Date/Author: 2026-03-28 / planning
 
@@ -118,8 +122,8 @@ Someone can verify success by running the repository’s EditMode tests (see `Co
   Rationale: **`GraphEntryPoint`** filters **RunAsync** and **discovery**; payloads stay typed.
   Date/Author: 2026-03-28 / planning
 
-- Decision: **Middleware** is registered on a **`GraphFlowCentralService`** (or passed from DI once), then **`Initialize(middlewares)`** on **each** **`IGraphFlowObject`** builds **that graph’s** **`GraphRunner`** with the **same middleware instances**. **`MiddlewareContext`** carries **`ExecutableGraph`** (hydrated) and **`ExecutableNode CurrentNode`** (reference). **Reactive** matching uses **hydrated** **`ReactiveHookRuntime`** list on **`ExecutableGraph`**, not raw **`RuntimeGraph`** ids during **`InvokeAsync`**.
-  Rationale: One global pipeline; **hot path** avoids **id** resolution.
+- Decision: **Middleware** is registered on a **`GraphFlowCentralService`** (or passed from DI once), then **`Initialize(middlewares)`** on **each** **`IGraphFlowObject`** builds **that graph’s** **`GraphRunner`** with the **same middleware instances**. **`MiddlewareContext`** carries **`ExecutableGraph`** (hydrated) and **`ExecutableNode CurrentNode`** (reference).
+  Rationale: One global pipeline; **hot path** uses **references** after hydration.
   Date/Author: 2026-03-28 / planning
 
 - Decision: Provide an **optional** presentation-layer **`MonoBehaviour`** (for example **`GraphFlowHost`**) that holds **serialized `RuntimeGraph` references**, performs **setup** (build runner, register middleware), and exposes **awaitable** entry methods for **scenes** or **prefabs**. The **core runner** remains usable without `MonoBehaviour` for pure C# tests and services.
@@ -158,9 +162,9 @@ Milestone one adds the **Roslyn source generator**: discover types by **base cla
 
 Milestone two adds an **Editor** assembly referencing Graph Toolkit and extends the generator with an emission pass that outputs **`Node`** subclasses whose ports match definition fields, including **flow** ports under a fixed convention (for example one flow in and one flow out, or **multiple flow outs** on **typed entry** nodes such as `QuestRunEntry` versus `QuestValidateEntry`). Port **names** must match definition field names for reliable baking. **Entry node** types in the editor must reference or imply the **CLR entry type** so bake can record **stable type ids**. Acceptance is a graph asset whose generated nodes show correct ports in the graph window.
 
-Milestone three implements the **ScriptedImporter** for the authoring file extension. On import, walk editor nodes and `IPort` connectivity, emit **only** **serialized** records: **`SerializedRuntimeNode`** (**`NodeId`**, **`DefinitionTypeId`**), **`SerializedRuntimeEdge`** (**from/to ids** + port names), **entry** table (**entry type id** → **node id** + flow exits), **`SerializedReactiveHook`**. Expose **`EntryPointTypes`** on **`RuntimeGraph`**. Failed validation should log clearly. Acceptance: reimport is deterministic; serialized output uses **ids** only for **cross-node** links.
+Milestone three implements the **ScriptedImporter** for the authoring file extension. On import, walk editor nodes and `IPort` connectivity, emit **only** **serialized** records: **`SerializedRuntimeNode`** (**`NodeId`**, **`DefinitionTypeId`**), **`SerializedRuntimeEdge`** (**from/to ids** + port names), **entry** table (**entry type id** → **node id** + flow exits). Expose **`EntryPointTypes`** on **`RuntimeGraph`**. Failed validation should log clearly. Acceptance: reimport is deterministic; serialized output uses **ids** only for **cross-node** links.
 
-Milestone four implements **`RuntimeGraph.BuildExecutable(INodeExecutorRegistry)`** → **`ExecutableGraph`**: allocate **`ExecutableNode`** per serialized node, resolve **`DefinitionTypeId`** → **`IGraphNodeDefinition`** **once**, wire **flow** and **data** edges as **references**, build **`ReactiveHookRuntime`** from **`SerializedReactiveHook`** (resolve **target definition** and **reactive subgraph** **`ExecutableGraph`** references). Implement **`GraphRunner`** traversing **`ExecutableNode`** **references**; **`RunAsync<TEntry>`** where **`TEntry : GraphEntryPoint`**; **`RunChildGraphAsync`** accepts **hydrated** **`ExecutableGraph`** for the child (child subgraph **built** when the **main** graph **hydrates**, or **lazy** on first child run—record choice in **Decision Log**). **`MiddlewareContext`**: **`ExecutableGraph`**, **`ExecutableNode CurrentNode`**, **`Runner`**, **`Phase`**. **`ReactiveHookMiddleware`** iterates **`ExecutableGraph.ReactiveHooks`**. Acceptance: **two** **`GraphEntryPoint`** types, **no per-step registry lookup by string id**, **reactive** child run.
+Milestone four implements **`RuntimeGraph.BuildExecutable(INodeExecutorRegistry)`** → **`ExecutableGraph`**: allocate **`ExecutableNode`** per serialized node, resolve **`DefinitionTypeId`** → **`IGraphNodeDefinition`** **once**, wire **flow** and **data** edges as **references**. Implement **`GraphRunner`** traversing **`ExecutableNode`** **references**; **`RunAsync<TEntry>`** where **`TEntry : GraphEntryPoint`**; **`RunChildGraphAsync`** accepts **hydrated** **`ExecutableGraph`** for the child (child subgraph **built** when the **main** graph **hydrates**, or **lazy** on first child run—record choice in **Decision Log**). **`MiddlewareContext`**: **`ExecutableGraph`**, **`ExecutableNode CurrentNode`**, **`Runner`**, **`Phase`**. Acceptance: **two** **`GraphEntryPoint`** types, **no per-step registry lookup by string id**, middleware **Before**/**After** on each node.
 
 Milestone five covers **nested graphs from nodes** and aligns it with the **same** child-flow rule as middleware: a **subgraph** or **invoke-graph** node creates a **child `Flow`**, runs the target graph **awaitably** via the shared runner API, then resumes the parent. Pick and test one **blackboard** policy (for example isolated versus inherited). Acceptance is a test that proves ordering, that the parent does not finish before the child, and that **middleware-spawned** and **node-nested** runs both use the same **parent/child `Flow`** contract.
 
@@ -195,12 +199,12 @@ Deliver: **`com.unity.graphtoolkit`** in **`Packages/manifest.json`**; **Editor*
 Gate: Open graph in Editor, place **Add** node, ports visible; no importer yet (authoring asset may be intermediate format).
 
 **Phase D — Serialized IR + importer (Milestone 3)**  
-Deliver: **`RuntimeGraph` : ScriptableObject** with **`SerializedRuntimeNode`**, **`SerializedRuntimeEdge`**, **`SerializedRuntimeEntry`**, **`SerializedReactiveHook`**; **`ScriptedImporter`** walks **Graph Toolkit** graph, writes **id-only** topology + **entry** table + **hooks**; **`EntryPointTypes`** / **`TryGetSerializedEntry`**. *(2026-03-28: placeholder importer only — see `GraphFlowAuthoringImporter`.)*  
+Deliver: **`RuntimeGraph` : ScriptableObject** with **`SerializedRuntimeNode`**, **`SerializedRuntimeEdge`**, **`SerializedRuntimeEntry`**; **`ScriptedImporter`** walks **Graph Toolkit** graph, writes **id-only** topology + **entry** table; **`EntryPointTypes`** / **`TryGetSerializedEntry`**. *(2026-03-28: placeholder importer only — see `GraphFlowAuthoringImporter`.)*  
 Gate: **EditMode** test: import fixture authoring asset → assert **node/edge counts** and **DefinitionTypeId** strings; reimport **idempotent**.
 
 **Phase E — Hydration + runner (Milestone 4)**  
-Deliver: **`ExecutableNode`**, **`ExecutableGraph`**, **`ReactiveHookRuntime`**; **`RuntimeGraph.BuildExecutable(registry)`**; **`GraphRunner`** stepping **`ExecutableNode`** **references**; **`RunAsync<TEntry>(ExecutableGraph, …)`**; **`RunChildGraphAsync(ExecutableGraph, …)`**; **`GraphStepContext`** filled from **data edges**; **Before**/**After** pipeline; **`ReactiveHookMiddleware`** using **reference** match on **`Definition`**; fill **`Flow.CurrentNode`**.  
-Gate: **EditMode** test: **linear** graph (constants → Add → Log or no-op end) runs end-to-end; second test: **reactive** hook **before** Add doubles inputs (sample from **Expected result**); confirm **no per-step `registry.Resolve(DefinitionTypeId)`** in runner hot loop (assertion or code review checklist).
+Deliver: **`ExecutableNode`**, **`ExecutableGraph`**; **`RuntimeGraph.BuildExecutable(registry)`**; **`GraphRunner`** stepping **`ExecutableNode`** **references**; **`RunAsync<TEntry>(ExecutableGraph, …)`**; **`RunChildGraphAsync(ExecutableGraph, …)`**; **data edges** via **`GraphRunner.Wiring`** (reflection); **Before**/**After** middleware pipeline; fill **`Flow.CurrentNode`**.  
+Gate: **EditMode** test: **linear** graph (blackboard → Add → Log) runs end-to-end; second test: **Add → Multiply → Log**; confirm **no per-step `registry.Resolve(DefinitionTypeId)`** in runner hot loop (assertion or code review checklist).
 
 **Phase F — Nested invoke node (Milestone 5)**  
 Deliver: **invoke-graph** definition + bake rules + **`RunChildGraphAsync`** from **node** `ExecuteAsync` with **`Flow.CreateChild()`**; **blackboard** policy **documented** and **tested**.  
@@ -380,7 +384,6 @@ public sealed class RuntimeGraph : ScriptableObject
     public IReadOnlyList<SerializedRuntimeNode> SerializedNodes { get; }
     public IReadOnlyList<SerializedRuntimeEdge> SerializedEdges { get; }
     public IReadOnlyList<Type> EntryPointTypes { get; }
-    public IReadOnlyList<SerializedReactiveHook> SerializedReactiveHooks { get; }
 
     public bool TryGetSerializedEntry(Type entryType, out SerializedRuntimeEntry entry) { }
 
@@ -408,13 +411,6 @@ public sealed class SerializedRuntimeEntry
     public NodeId EntryNodeId { get; }
     public IReadOnlyDictionary<string, NodeId> FlowExitToNextNodeId { get; }
 }
-
-public sealed class SerializedReactiveHook
-{
-    public MiddlewarePhase Timing { get; }
-    public string TargetDefinitionTypeId { get; }
-    public RuntimeGraph ReactiveGraphAsset { get; }
-}
 ```
 
 **Layer B — execution (references only; built from Layer A + registry):**
@@ -424,8 +420,6 @@ public sealed class ExecutableGraph
 {
     public IReadOnlyList<ExecutableNode> Nodes { get; }
     public IReadOnlyDictionary<Type, ExecutableNode> EntryRoots { get; }
-    /// <summary>Hydrated from <see cref="SerializedReactiveHook"/>; middleware matches by definition reference.</summary>
-    public IReadOnlyList<ReactiveHookRuntime> ReactiveHooks { get; }
 }
 
 public sealed class ExecutableNode
@@ -434,13 +428,6 @@ public sealed class ExecutableNode
     public IReadOnlyDictionary<string, ExecutableNode> FlowSuccessors { get; }
     public IReadOnlyList<DataEdgeRuntime> DataEdgesIn { get; }
     public NodeId SerializedId { get; }
-}
-
-public sealed class ReactiveHookRuntime
-{
-    public MiddlewarePhase Timing { get; }
-    public IGraphNodeDefinition TargetDefinition { get; }
-    public ExecutableGraph ReactiveSubgraph { get; }
 }
 
 public sealed class GraphBlackboard { }
@@ -453,7 +440,6 @@ public sealed class Flow
     public CancellationToken Cancellation { get; }
     public GraphBlackboard Blackboard { get; }
     public ExecutableNode CurrentNode { get; internal set; }
-    public object ReactivePayload { get; set; }
 
     public Flow CreateChild() { throw new NotImplementedException(); }
 }
@@ -521,7 +507,7 @@ public readonly struct GraphRunResult
 
 ### Setup phase: central service + per-graph runner
 
-**`GraphFlowBuilder`** builds **`GraphRunner`**; **`GraphFlowCentralService`** owns **middleware**. **`Initialize`** calls **`asset.BuildExecutable(registry)`**, stores **`ExecutableGraph`**, attaches **runner**. **Reactive** rules are **`SerializedReactiveHook`** on **`RuntimeGraph`**; **hydration** produces **`ReactiveHookRuntime`** on **`ExecutableGraph`** for **middleware** matching by **`IGraphNodeDefinition`** **reference**.
+**`GraphFlowBuilder`** builds **`GraphRunner`**; **`GraphFlowCentralService`** owns **middleware**. **`Initialize`** calls **`asset.BuildExecutable(registry)`**, stores **`ExecutableGraph`**, attaches **runner**. Custom hook-like behavior belongs in **`IGraphMiddleware`** implementations registered on the central service (no serialized hook table in the first slice).
 
 ### Extension methods (only sanctioned `static` surface)
 
@@ -624,9 +610,9 @@ public sealed class GraphFlowHost : MonoBehaviour, IGraphFlowObject
 
 Scene code uses **`GraphFlowCentralService`** to **`RegisterGraph`** each **`IGraphFlowObject`**, then **`Bootstrap()`**. Headless tests may call **`Initialize`** directly without **`MonoBehaviour`**.
 
-### How to let “another graph” react to before/after
+### How to let “another graph” run on before/after
 
-Prefer **`SerializedReactiveHook`** on the **`RuntimeGraph`** asset (edited with **dropdowns**); **hydration** fills **`ExecutableGraph.ReactiveHooks`** for **`ReactiveHookMiddleware`**. For **cross-cutting** behavior that is **not** graph-serialized, add **another** **`IGraphMiddleware`** on **`GraphFlowCentralService`** only.
+Implement **`IGraphMiddleware`** and call **`ctx.Runner.RunChildGraphAsync`** when **`ctx.Phase`** matches your policy (see **Child graph from middleware**). There is **no** first-party serialized hook table in this slice.
 
 ### Central bootstrap: middleware, graphs, Initialize
 
@@ -662,16 +648,13 @@ public interface IGraphFlowObject
 - **`GraphEntryPoint`**: abstract base for **all** entry payload types (**`where TEntry : GraphEntryPoint`**).
 - **`GameStartEntry : GraphEntryPoint`**: empty or marker—**scene start** / generic start.
 - **`KeyPressedEntry : GraphEntryPoint`**: carries **`KeyCode WantedKey`** (and optional **graph id**); **no** separate **`KeyboardGraphTrigger`** class—the **entry node definition** handles **`Initialize`** + **poll** or **register** with **`IGraphTickService`**.
-- **`ReactiveChildEntry : GraphEntryPoint`**: single generic payload type for **reactive** subgraph—holds **`object ContextPayload`** (the **current node instance** or a **wrapper**); **reactive graph** reads **`entry.ContextPayload`** and casts. **Optional:** multiple subclasses if you want strong typing without **`object`**.
 - **`AddNumbersDefinition`** / **`AddNumbersInstance`**: unchanged pattern (**attribute optional** when inheriting base).
-- **`MultiplyAddInputsDefinition`**: **`GraphNodeDefinitionBase`** (non-generic); **`ExecuteAsync`** reads **`flow.ReactivePayload`** (or **`flow.PendingReactiveContext`**) set by **`ReactiveHookMiddleware`** before **`RunChildGraphAsync`**.
+- **`MultiplyNumbersDefinition`** / **`MultiplyNumbersInstance`**: same pattern as **Add** — **`InputConnection<int> A`**, **`InputConnection<int> B`**, **`OutputConnection<int> Product`**.
 - **`LogObjectDefinition`** / **`LogObjectInstance`**: unchanged.
-- **`ReactiveHookMiddleware`**: loops **`ctx.Graph.ReactiveHooks`** (**`ReactiveHookRuntime`**); match **`hook.Timing`**, **`ReferenceEquals(hook.TargetDefinition, ctx.CurrentNode.Definition)`** (singleton **definition** instances); **`RunChildGraphAsync(hook.ReactiveSubgraph, …)`**.
-- **`SerializedReactiveHook`** / **`ReactiveHookRuntime`**: **serialized** row uses **ids** + **`RuntimeGraph`** asset ref; **hydrated** row holds **`IGraphNodeDefinition`** + **`ExecutableGraph`** **references**.
 - **`GraphRunner`**: **per graph** instance; **`RunChildGraphAsync`** remains **instance** method.
 - **`GraphFlowHost`**: **`MonoBehaviour`** implementing **`IGraphFlowObject`** or registering self with **`GraphFlowCentralService`**.
 
-### Snippets: entry base, keyboard payload, non-generic multiplier, generic reactive middleware, Initialize
+### Snippets: entry base, keyboard payload, multiply node (typed instance), Initialize
 
 **Entry base:**
 
@@ -683,12 +666,6 @@ public sealed class GameStartEntry : GraphEntryPoint { }
 public sealed class KeyPressedEntry : GraphEntryPoint
 {
     public KeyCode WantedKey { get; set; }
-}
-
-public sealed class ReactiveChildEntry : GraphEntryPoint
-{
-    public ReactiveChildEntry(object contextPayload) => ContextPayload = contextPayload;
-    public object ContextPayload { get; }
 }
 ```
 
@@ -725,60 +702,40 @@ public partial class KeyPressedEntryNodeDefinition : GraphNodeDefinitionBase<Key
 
 (Exact shape of **`KeyPressedEntryInstance`** can be empty generated class or omitted if entry uses non-generic base—**finalize** whether **entry** nodes use **instance** or **non-generic** execute.)
 
-**Multiplier (non-generic base):**
+**Multiply (typed instance, same pattern as Add):**
 
 ```csharp
-public partial class MultiplyAddInputsDefinition : GraphNodeDefinitionBase
+public sealed class MultiplyNumbersInstance
 {
+    public int A;
+    public int B;
+    public int Product;
+}
+
+public partial class MultiplyNumbersDefinition : GraphNodeDefinitionBase<MultiplyNumbersInstance>
+{
+    public InputConnection<int> A;
+    public InputConnection<int> B;
+    public OutputConnection<int> Product;
     public FlowInput In;
     public FlowOutput Out;
 
-    public override ValueTask ExecuteAsync(Flow flow, CancellationToken ct)
+    protected override ValueTask ExecuteAsync(MultiplyNumbersInstance instance, Flow flow, CancellationToken ct)
     {
-        var add = (AddNumbersInstance)flow.ReactivePayload;
-        add.A *= 2;
-        add.B *= 2;
+        instance.Product = instance.A * instance.B;
         return default;
     }
 }
 ```
 
-**Generic reactive middleware (single class, data-driven hooks):**
+**Initial values:** **1** and **1** via blackboard seed (tests) or **data edges** from upstream nodes.
 
-```csharp
-public sealed class ReactiveHookMiddleware : IGraphMiddleware
-{
-    public async ValueTask InvokeAsync(MiddlewareContext ctx, Func<ValueTask> next)
-    {
-        foreach (var hook in ctx.Graph.ReactiveHooks)
-        {
-            if (hook.Timing != ctx.Phase) continue;
-            if (!ReferenceEquals(hook.TargetDefinition, ctx.CurrentNode.Definition)) continue;
-
-            var child = ctx.Flow.CreateChild();
-            child.ReactivePayload = ctx.Instance;
-            var entry = new ReactiveChildEntry(ctx.Instance);
-            await ctx.Runner.RunChildGraphAsync(hook.ReactiveSubgraph, entry, child, ctx.Flow.Cancellation);
-        }
-
-        await next();
-    }
-}
-```
-
-**Hydration** resolves **`SerializedReactiveHook.TargetDefinitionTypeId`** → **`hook.TargetDefinition`** and **`hook.ReactiveSubgraph = reactiveAsset.BuildExecutable(registry)`** so **middleware** never compares **string ids** during **`InvokeAsync`**.
-
-**Initial values:** **1** and **1** via constants / blackboard / previous nodes as before.
-
-### Expected result (trace for the sample)
-
-Assume **`Bootstrap()`** ran: **`BuildExecutable`** on **main** and **reactive** assets; **`ReactiveHookMiddleware`** uses **hydrated** hooks (**`TargetDefinition`** reference **matches** **Add** **singleton**). **Reactive** **`ExecutableGraph`**: **entry** **`ReactiveChildEntry`** → **Multiply** → end.
+### Expected result (trace for a simple sample)
 
 1. **Game start** runs **`RunAsync<GameStartEntry>(mainExecutable, ct)`** (or **KeyPressed** **`Initialize`** fires **`RunAsync`** with **`KeyPressedEntry`** carrying **WantedKey**).
-2. **Runner** wires **Add** instance: **A = 1**, **B = 1**.
-3. **Before Add**: **`ReactiveHookMiddleware`** finds hook matching **Add** + **Before**; sets **`ReactivePayload`**, **`RunChildGraphAsync`** with **`ReactiveChildEntry(instance)`**.
-4. **Reactive** graph runs **Multiply**; **A**/**B** become **2**/**2** on **same** object.
-5. Child completes; **main** continues; **Add** runs **2+2=4**; **Logger** logs **4**.
+2. **Runner** wires **Add** instance: **A = 1**, **B = 1** (blackboard or edges).
+3. **Add** runs **1+1=2**; **Sum** is wired to **Multiply** **A** and **B** (two data edges).
+4. **Multiply** runs **2×2=4**; **Log** receives **Product** **4**.
 
 ## Interfaces and Dependencies
 
@@ -786,7 +743,7 @@ Assume **`Bootstrap()`** ran: **`BuildExecutable`** on **main** and **reactive**
 
 **Scaffold:** New **Runtime** `.asmdef` for `Flow`, middleware, runner, runtime graph data; new **Editor** `.asmdef` referencing Graph Toolkit and the Runtime assembly for importer and editor nodes; new **Generator** project referenced from consumer assemblies via `Analyzer` / source generator metadata (match existing AutoPacker wiring pattern in the repo).
 
-**Minimum types (names indicative):** **`GraphEntryPoint`**, **`GraphNodeDefinitionBase`** / **`GraphNodeDefinitionBase<TInstance>`**, optional **`[GraphNodeDefinition]`**, **`SerializedRuntimeNode`**, **`SerializedRuntimeEdge`**, **`SerializedRuntimeEntry`**, **`SerializedReactiveHook`**, **`RuntimeGraph`**, **`ExecutableGraph`**, **`ExecutableNode`**, **`ReactiveHookRuntime`**, **`GraphInitializationContext`** (**`ExecutableGraph`**, asset ref), **`IGraphTickService`**, **`IGraphFlowObject`**, **`GraphFlowCentralService`**, **`Flow`** (**`CurrentNode`**, **`ReactivePayload`**), **`MiddlewarePhase`**, **`GraphRunResult`**, **`GraphRunner`** (**`RunAsync`/`RunChildGraphAsync`** on **`ExecutableGraph`**), **`MiddlewareContext`** (**`ExecutableGraph`**, **`ExecutableNode CurrentNode`**), **`ReactiveHookMiddleware`**, **`GraphFlowBuilder`**, **`IGraphMiddleware`**, **`IGraphNodeDefinition`**, **`INodeExecutorRegistry`** (**hydration only**), **`GraphFlowHost`**, **extension-only** `static` classes. See **Serialized asset vs executable graph**, **Where the definition maps**, **Central bootstrap**.
+**Minimum types (names indicative):** **`GraphEntryPoint`**, **`GraphNodeDefinitionBase`** / **`GraphNodeDefinitionBase<TInstance>`**, optional **`[GraphNodeDefinition]`**, **`SerializedRuntimeNode`**, **`SerializedRuntimeEdge`**, **`SerializedRuntimeEntry`**, **`RuntimeGraph`**, **`ExecutableGraph`**, **`ExecutableNode`**, **`GraphInitializationContext`** (**`ExecutableGraph`**, asset ref), **`IGraphTickService`**, **`IGraphFlowObject`**, **`GraphFlowCentralService`**, **`Flow`** (**`CurrentNode`**), **`MiddlewarePhase`**, **`GraphRunResult`**, **`GraphRunner`** (**`RunAsync`/`RunChildGraphAsync`** on **`ExecutableGraph`**), **`MiddlewareContext`** (**`ExecutableGraph`**, **`ExecutableNode CurrentNode`**), **`GraphFlowBuilder`**, **`IGraphMiddleware`**, **`IGraphNodeDefinition`**, **`INodeExecutorRegistry`** (**hydration only**), **`GraphFlowHost`**, **extension-only** `static` classes. See **Serialized asset vs executable graph**, **Where the definition maps**, **Central bootstrap**.
 
 ## Implementation Plan Index
 
@@ -794,9 +751,9 @@ Assume **`Bootstrap()`** ran: **`BuildExecutable`** on **main** and **reactive**
 
 ## Post-first-pass evaluation backlog
 
-Revisit after the **first implementation pass** (working graphs, hydration, runner, one reactive sample). These are **open design questions**, not blockers for Milestone 0–4.
+Revisit after the **first implementation pass** (working graphs, hydration, runner, middleware). These are **open design questions**, not blockers for Milestone 0–4.
 
-- **Reactive hooks still feel odd** — **`ReactiveHookMiddleware`** + **`ReactivePayload`** + **`ReactiveChildEntry`** may be too indirect; consider hook **syntax**, **ordering** when multiple hooks hit one node, **failure** semantics, and whether **reactive** belongs in **middleware** at all versus **first-class runner** phases.
+- **Reactive / hook-like flows** — if reintroduced, avoid mutating the **parent node instance** from a child graph; prefer **explicit data** (edges, blackboard keys, or typed payloads). Decide **syntax**, **ordering** when multiple hooks hit one node, and **failure** semantics (**middleware** vs **first-class runner** phases).
 
 - **In/out ports may need logic** — beyond **type** matching: **coercion**, **optional** ports, **multiplicity**, **default** when unwired, and **validation** at **hydration** vs **run** time.
 
@@ -822,16 +779,18 @@ Revisit after the **first implementation pass** (working graphs, hydration, runn
 
 - 2026-03-28: **No statics** except **extension methods**; **`RunChildGraphAsync`** and **`Flow`** creation are **instance** / **`new`**; **`Baked*`** renamed to serialized **`SerializedRuntime*`** types (later split **`ExecutableGraph`**); **Add** definition in **one** hand-written partial; **`MiddlewareContext.Runner`** for child runs; wiring methods are **instance** on definition partial.
 
-- 2026-03-28: Added **main class inventory**, **reactive hook** design (dropdown vs fallbacks), **snippets** (**keyboard**, **start**, **multiplier**, **logger**, **`ReactiveHookMiddleware`**, **`Flow.ReactivePayload`**), **`MiddlewarePhase`** on **`MiddlewareContext`**, and **expected trace** (1+1 → before-add reactive → 2+2 → 4).
+- 2026-03-28: Added **main class inventory**, **snippets** (**keyboard**, **start**, **multiply**, **logger**), **`MiddlewarePhase`** on **`MiddlewareContext`**, and **expected trace** (Add → Multiply → Log). *(Reactive hook snippets removed 2026-03-28 — see Decision Log.)*
 
-- 2026-03-28: **`GraphEntryPoint`** base; **optional** **`[GraphNodeDefinition]`** when inheriting definition base; **non-generic** **`GraphNodeDefinitionBase`** instead of **`VoidInstance`**; **definition → runtime node** mapping section; **`Initialize`** pipeline; **`GraphFlowCentralService`**; **keyboard** on **payload** + **entry** **`Initialize`**; **generic** **`ReactiveHookMiddleware`** + **`SerializedReactiveHook`** / **`ReactiveHookRuntime`**; removed **`KeyboardGraphTrigger`** / bespoke **`GraphReactiveDispatchMiddleware`** from the canonical story.
+- 2026-03-28: **`GraphEntryPoint`** base; **optional** **`[GraphNodeDefinition]`** when inheriting definition base; **non-generic** **`GraphNodeDefinitionBase`** instead of **`VoidInstance`**; **definition → runtime node** mapping section; **`Initialize`** pipeline; **`GraphFlowCentralService`**; **keyboard** on **payload** + **entry** **`Initialize`**; removed **`KeyboardGraphTrigger`** / bespoke **`GraphReactiveDispatchMiddleware`** from the canonical story.
 
-- 2026-03-28: **Two-layer model**: **`RuntimeGraph`** = **id-only** serialized IR; **`ExecutableGraph`** = **hydrated** **references**; **`BuildExecutable`**: **ids → `IGraphNodeDefinition` + `ExecutableNode` graph** once; **runner** / **`Flow.CurrentNode`** use **references**; **`ReactiveHookMiddleware`** matches **`Definition`** by **reference**; **`MiddlewareContext`** carries **`ExecutableNode`**.
+- 2026-03-28: **Two-layer model**: **`RuntimeGraph`** = **id-only** serialized IR; **`ExecutableGraph`** = **hydrated** **references**; **`BuildExecutable`**: **ids → `IGraphNodeDefinition` + `ExecutableNode` graph** once; **runner** / **`Flow.CurrentNode`** use **references**; **`MiddlewareContext`** carries **`ExecutableNode`**.
 
 - 2026-03-28: Added **Post-first-pass evaluation backlog** (reactive hooks, port logic, returns, wiring extensibility, typed entry return, context count, subscribe as context).
 
 - 2026-03-28: Added **Build plan** section: phases A–G, suggested **asmdef** layout, dependencies, deliverables, gates, parallelism, per-phase ritual.
 
-- 2026-03-28: **First implementation slice**: **`Scaffold.GraphFlow`** + **`Scaffold.GraphFlow.Editor`** (placeholder **`GraphFlowAuthoringImporter`**), **`Scaffold.GraphFlow.Tests`**; **`RuntimeGraph.BuildExecutable`**, **`GraphRunner`**, **`ReactiveHookMiddleware`**, sample definitions (**Add**, **Multiply**, **Log**); **Progress** updated. **Roslyn generator** and **Graph Toolkit** bake **not** done yet.
+- 2026-03-28: **First implementation slice**: **`Scaffold.GraphFlow`** + **`Scaffold.GraphFlow.Editor`** (placeholder **`GraphFlowAuthoringImporter`**), **`Scaffold.GraphFlow.Tests`**; **`RuntimeGraph.BuildExecutable`**, **`GraphRunner`**, sample definitions (**Add**, **Multiply**, **Log**); **Progress** updated. **Roslyn generator** and **Graph Toolkit** bake **not** done yet.
 
 - 2026-03-28: **Full plan slice**: **`com.unity.graphtoolkit`**, **`GraphFlowAuthoringGraph`** + editor nodes + **`GraphFlowRuntimeBaker`**, real **`GraphFlowAuthoringImporter`**, **`GraphFlowDefinitions.g.cs`**, **`InvokeSubGraphDefinition`**, **`GraphFlowHost`**, **`GraphRunner.Wiring`** reflection, **`Generators/GraphFlowGenerator`** project + README.
+
+- 2026-03-28: **Removed reactive-hook feature** from code and serialized IR: no **`SerializedReactiveHook`**, **`ReactiveHookMiddleware`**, **`Flow.ReactivePayload`**, or **`GraphFlowReactiveHookNode`**. **`MultiplyNumbersDefinition`** uses discrete **A**/**B** inputs like **Add**; tests cover **Add→Multiply→Log** and **invoke** nested graph.

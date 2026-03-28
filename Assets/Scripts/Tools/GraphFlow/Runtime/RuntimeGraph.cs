@@ -10,11 +10,9 @@ namespace Scaffold.GraphFlow
         [SerializeField] List<SerializedRuntimeNode> serializedNodes = new List<SerializedRuntimeNode>();
         [SerializeField] List<SerializedRuntimeEdge> serializedEdges = new List<SerializedRuntimeEdge>();
         [SerializeField] List<SerializedRuntimeEntry> serializedEntries = new List<SerializedRuntimeEntry>();
-        [SerializeField] List<SerializedReactiveHook> serializedReactiveHooks = new List<SerializedReactiveHook>();
 
         public IReadOnlyList<SerializedRuntimeNode> SerializedNodes => serializedNodes;
         public IReadOnlyList<SerializedRuntimeEdge> SerializedEdges => serializedEdges;
-        public IReadOnlyList<SerializedReactiveHook> SerializedReactiveHooks => serializedReactiveHooks;
 
         public IReadOnlyList<Type> EntryPointTypes =>
             serializedEntries
@@ -76,17 +74,7 @@ namespace Scaffold.GraphFlow
                 entryRoots[entryType] = entryNode;
             }
 
-            var hooks = new List<ReactiveHookRuntime>();
-            foreach (var sh in serializedReactiveHooks)
-            {
-                var targetDef = registry.Resolve(sh.targetDefinitionTypeId);
-                if (targetDef == null || sh.reactiveGraphAsset == null)
-                    continue;
-                var sub = sh.reactiveGraphAsset.BuildExecutable(registry);
-                hooks.Add(new ReactiveHookRuntime(sh.timing, targetDef, sub));
-            }
-
-            return new ExecutableGraph(idToNode.Values.ToList(), entryRoots, hooks);
+            return new ExecutableGraph(idToNode.Values.ToList(), entryRoots);
         }
 
         static NodeId ParseNodeId(string s) =>
@@ -116,17 +104,6 @@ namespace Scaffold.GraphFlow
                 entryNodeId = entryNodeId
             });
 
-        public void AppendSerializedReactiveHook(
-            MiddlewarePhase timing,
-            string targetDefinitionTypeId,
-            RuntimeGraph reactiveGraphAsset) =>
-            serializedReactiveHooks.Add(new SerializedReactiveHook
-            {
-                timing = timing,
-                targetDefinitionTypeId = targetDefinitionTypeId,
-                reactiveGraphAsset = reactiveGraphAsset
-            });
-
         public void ClearSerializedForTests() => ResetSerializedRuntime();
 
         public void ResetSerializedRuntime()
@@ -134,7 +111,6 @@ namespace Scaffold.GraphFlow
             serializedNodes.Clear();
             serializedEdges.Clear();
             serializedEntries.Clear();
-            serializedReactiveHooks.Clear();
         }
     }
 }

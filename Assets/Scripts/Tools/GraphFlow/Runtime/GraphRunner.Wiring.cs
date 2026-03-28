@@ -1,5 +1,6 @@
 using System;
 using System.Reflection;
+using Scaffold.GraphFlow.Sample;
 
 namespace Scaffold.GraphFlow
 {
@@ -19,6 +20,12 @@ namespace Scaffold.GraphFlow
             {
                 seedAdd.A = flow.Blackboard.Get<int>("A");
                 seedAdd.B = flow.Blackboard.Get<int>("B");
+            }
+
+            if (instance is MultiplyNumbersInstance seedMul)
+            {
+                seedMul.A = flow.Blackboard.Get<int>("A");
+                seedMul.B = flow.Blackboard.Get<int>("B");
             }
         }
 

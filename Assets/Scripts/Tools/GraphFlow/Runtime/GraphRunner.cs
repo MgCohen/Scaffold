@@ -84,7 +84,6 @@ namespace Scaffold.GraphFlow
 
                 await node.Definition.ExecuteAsync(instance, flow, cancellationToken).ConfigureAwait(false);
                 flow.LastInstanceByNode[node] = instance;
-                flow.LastExecutedInstance = instance;
 
                 await InvokeMiddlewarePipeline(graph, node, flow, MiddlewarePhase.After, instance, cancellationToken)
                     .ConfigureAwait(false);

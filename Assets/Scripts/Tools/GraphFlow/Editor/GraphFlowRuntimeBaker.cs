@@ -22,10 +22,6 @@ namespace Scaffold.GraphFlow.Editor
             {
                 switch (node)
                 {
-                    case GraphFlowReactiveHookNode hook:
-                        if (hook.reactiveGraph != null && !string.IsNullOrEmpty(hook.targetDefinitionTypeId))
-                            target.AppendSerializedReactiveHook(hook.timing, hook.targetDefinitionTypeId, hook.reactiveGraph);
-                        break;
                     case GraphFlowAddNode add:
                         target.AppendSerializedNode(nodeToId[node], add.DefinitionTypeId);
                         break;

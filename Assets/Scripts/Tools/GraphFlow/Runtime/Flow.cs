@@ -15,9 +15,6 @@ namespace Scaffold.GraphFlow
         public CancellationToken Cancellation { get; }
         public GraphBlackboard Blackboard { get; } = new GraphBlackboard();
         public ExecutableNode CurrentNode { get; set; }
-        public object ReactivePayload { get; set; }
-
-        public object LastExecutedInstance { get; set; }
 
         public Dictionary<ExecutableNode, object> LastInstanceByNode { get; } = new Dictionary<ExecutableNode, object>();
 
