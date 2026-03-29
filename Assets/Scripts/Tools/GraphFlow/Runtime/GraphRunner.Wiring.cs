@@ -33,7 +33,7 @@ namespace Scaffold.GraphFlow
         {
             var sf = source.GetType().GetField(sourcePort, BindingFlags.Public | BindingFlags.Instance);
             var tf = target.GetType().GetField(targetPort, BindingFlags.Public | BindingFlags.Instance);
-            if (sf == null || tf == null || !tf.CanWrite)
+            if (sf == null || tf == null || tf.IsInitOnly)
                 return;
 
             var v = sf.GetValue(source);

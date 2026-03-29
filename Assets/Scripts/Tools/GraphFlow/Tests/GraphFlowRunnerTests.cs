@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -32,7 +33,7 @@ namespace Scaffold.GraphFlow.Tests
         [Test]
         public async Task Linear_Add_Then_Log_Wires_Sum_To_Message()
         {
-            LogObjectDefinition.LastLoggedForTests = null;
+            LogObjectDefinition.ResetLastLoggedForTests();
 
             var addId = Guid.NewGuid().ToString();
             var logId = Guid.NewGuid().ToString();
@@ -59,7 +60,7 @@ namespace Scaffold.GraphFlow.Tests
         [Test]
         public async Task InvokeSubGraph_Runs_Nested_Add_Then_Log()
         {
-            LogObjectDefinition.LastLoggedForTests = null;
+            LogObjectDefinition.ResetLastLoggedForTests();
 
             var nestedAddId = Guid.NewGuid().ToString();
             var nestedLogId = Guid.NewGuid().ToString();
@@ -99,7 +100,7 @@ namespace Scaffold.GraphFlow.Tests
         [Test]
         public async Task Add_Then_Multiply_Wires_Sum_To_Both_Inputs()
         {
-            LogObjectDefinition.LastLoggedForTests = null;
+            LogObjectDefinition.ResetLastLoggedForTests();
 
             var addId = Guid.NewGuid().ToString();
             var mulId = Guid.NewGuid().ToString();

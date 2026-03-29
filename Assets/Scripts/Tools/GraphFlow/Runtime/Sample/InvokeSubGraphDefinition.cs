@@ -8,18 +8,18 @@ namespace Scaffold.GraphFlow.Sample
         public FlowInput In;
         public FlowOutput Out;
 
-        public override ValueTask ExecuteAsync(Flow flow, CancellationToken cancellationToken)
+        public override async ValueTask ExecuteAsync(Flow flow, CancellationToken cancellationToken)
         {
             var nested = flow.CurrentNode?.NestedRuntimeGraph;
             if (nested == null || flow.ActiveRunner == null || flow.Registry == null)
-                return default;
+                return;
 
             var child = flow.CreateChild();
-            return flow.ActiveRunner.RunChildGraphAsync(
+            await flow.ActiveRunner.RunChildGraphAsync(
                 nested.BuildExecutable(flow.Registry),
                 new SubGraphEntry(),
                 child,
-                cancellationToken);
+                cancellationToken).ConfigureAwait(false);
         }
     }
 }

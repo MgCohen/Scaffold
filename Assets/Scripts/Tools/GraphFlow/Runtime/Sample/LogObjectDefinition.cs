@@ -17,6 +17,8 @@ namespace Scaffold.GraphFlow.Sample
 
         public static object LastLoggedForTests { get; private set; }
 
+        public static void ResetLastLoggedForTests() => LastLoggedForTests = null;
+
         protected override ValueTask ExecuteAsync(LogObjectInstance instance, Flow flow, CancellationToken cancellationToken)
         {
             LastLoggedForTests = instance.Message;

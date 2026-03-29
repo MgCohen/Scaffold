@@ -3,6 +3,7 @@
     "rootNamespace": "Scaffold.GraphFlow.Editor",
     "references": [
         "Scaffold.GraphFlow",
+        "Unity.GraphToolkit.Common.Editor",
         "Unity.GraphToolkit.Editor"
     ],
     "includePlatforms": [
