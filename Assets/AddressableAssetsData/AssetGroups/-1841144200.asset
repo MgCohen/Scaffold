@@ -14,12 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Unity.Addressables.Editor::UnityEditor.AddressableAssets.Settings.AddressableAssetGroup
   m_GroupName: -1841144200
   m_GUID: c90bdf94eabb64295b3dbfb3b86f005b
-  m_SerializeEntries:
-  - m_GUID: 00a871e5a968db2458c4d0aad775db32
-    m_Address: Assets/Packages/Stef.Validation.0.3.0/logo_128x128.png
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
+  m_SerializeEntries: []
   m_ReadOnly: 0
   m_Settings: {fileID: 11400000, guid: fbb208bb5aa7a441d95f8c927490d368, type: 2}
   m_SchemaSet:
