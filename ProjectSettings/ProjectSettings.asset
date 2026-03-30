@@ -681,7 +681,7 @@ PlayerSettings:
   platformArchitecture: {}
   scriptingBackend:
     Android: 1
-    Standalone: 1
+    Standalone: 0
   il2cppCompilerConfiguration: {}
   il2cppCodeGeneration: {}
   il2cppStacktraceInformation: {}
@@ -776,11 +776,11 @@ PlayerSettings:
   captureStartupLogs: {}
   activeInputHandler: 2
   windowsGamepadBackendHint: 0
-  cloudProjectId: e5139a8c-6c7c-4507-ae77-76d3c4f427f4
+  cloudProjectId: ddc3d2dc-f829-400d-a1dc-c3ca5623c761
   framebufferDepthMemorylessMode: 0
   qualitySettingsNames: []
-  projectName: Scaffold
-  organizationId: matheuscohen
+  projectName: SK
+  organizationId: leonardo-dos-santos-silva
   cloudEnabled: 0
   legacyClampBlendShapeWeights: 0
   hmiLoadingImage: {fileID: 0}
