@@ -114,6 +114,7 @@ PlayerSettings:
   xboxEnableGuest: 0
   xboxEnablePIXSampling: 0
   metalFramebufferOnly: 0
+  metalUseMetalDisplayLink: 0
   xboxOneResolution: 0
   xboxOneSResolution: 0
   xboxOneXResolution: 3
@@ -776,11 +777,11 @@ PlayerSettings:
   captureStartupLogs: {}
   activeInputHandler: 2
   windowsGamepadBackendHint: 0
-  cloudProjectId: ddc3d2dc-f829-400d-a1dc-c3ca5623c761
+  cloudProjectId: e5139a8c-6c7c-4507-ae77-76d3c4f427f4
   framebufferDepthMemorylessMode: 0
   qualitySettingsNames: []
-  projectName: SK
-  organizationId: leonardo-dos-santos-silva
+  projectName: Scaffold
+  organizationId: matheuscohen
   cloudEnabled: 0
   legacyClampBlendShapeWeights: 0
   hmiLoadingImage: {fileID: 0}
