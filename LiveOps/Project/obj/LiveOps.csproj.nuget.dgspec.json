@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Unity\\Cleanup Project\\LiveOps\\Project\\LiveOps.csproj": {}
+    "C:\\Unity\\Scaffold\\LiveOps\\Project\\LiveOps.csproj": {}
   },
   "projects": {
-    "C:\\Unity\\Cleanup Project\\LiveOps\\LiveOps.DTO\\Scaffold.LiveOps.DTO.csproj": {
+    "C:\\Unity\\Scaffold\\LiveOps\\LiveOps.DTO\\Scaffold.LiveOps.DTO.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Unity\\Cleanup Project\\LiveOps\\LiveOps.DTO\\Scaffold.LiveOps.DTO.csproj",
+        "projectUniqueName": "C:\\Unity\\Scaffold\\LiveOps\\LiveOps.DTO\\Scaffold.LiveOps.DTO.csproj",
         "projectName": "Scaffold.LiveOps.DTO",
-        "projectPath": "C:\\Unity\\Cleanup Project\\LiveOps\\LiveOps.DTO\\Scaffold.LiveOps.DTO.csproj",
+        "projectPath": "C:\\Unity\\Scaffold\\LiveOps\\LiveOps.DTO\\Scaffold.LiveOps.DTO.csproj",
         "packagesPath": "C:\\Users\\mtgco\\.nuget\\packages\\",
-        "outputPath": "C:\\Unity\\Cleanup Project\\LiveOps\\LiveOps.DTO\\obj\\",
+        "outputPath": "C:\\Unity\\Scaffold\\LiveOps\\LiveOps.DTO\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\mtgco\\AppData\\Roaming\\NuGet\\NuGet.Config",
@@ -71,14 +71,14 @@
         }
       }
     },
-    "C:\\Unity\\Cleanup Project\\LiveOps\\Project\\LiveOps.csproj": {
+    "C:\\Unity\\Scaffold\\LiveOps\\Project\\LiveOps.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Unity\\Cleanup Project\\LiveOps\\Project\\LiveOps.csproj",
+        "projectUniqueName": "C:\\Unity\\Scaffold\\LiveOps\\Project\\LiveOps.csproj",
         "projectName": "LiveOps",
-        "projectPath": "C:\\Unity\\Cleanup Project\\LiveOps\\Project\\LiveOps.csproj",
+        "projectPath": "C:\\Unity\\Scaffold\\LiveOps\\Project\\LiveOps.csproj",
         "packagesPath": "C:\\Users\\mtgco\\.nuget\\packages\\",
-        "outputPath": "C:\\Unity\\Cleanup Project\\LiveOps\\Project\\obj\\",
+        "outputPath": "C:\\Unity\\Scaffold\\LiveOps\\Project\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\mtgco\\AppData\\Roaming\\NuGet\\NuGet.Config",
@@ -95,8 +95,8 @@
           "net6.0": {
             "targetAlias": "net6.0",
             "projectReferences": {
-              "C:\\Unity\\Cleanup Project\\LiveOps\\LiveOps.DTO\\Scaffold.LiveOps.DTO.csproj": {
-                "projectPath": "C:\\Unity\\Cleanup Project\\LiveOps\\LiveOps.DTO\\Scaffold.LiveOps.DTO.csproj"
+              "C:\\Unity\\Scaffold\\LiveOps\\LiveOps.DTO\\Scaffold.LiveOps.DTO.csproj": {
+                "projectPath": "C:\\Unity\\Scaffold\\LiveOps\\LiveOps.DTO\\Scaffold.LiveOps.DTO.csproj"
               }
             }
           }

@@ -60,11 +60,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Unity\\Cleanup Project\\LiveOps\\LiveOps.DTO\\Scaffold.LiveOps.DTO.csproj",
+      "projectUniqueName": "C:\\Unity\\Scaffold\\LiveOps\\LiveOps.DTO\\Scaffold.LiveOps.DTO.csproj",
       "projectName": "Scaffold.LiveOps.DTO",
-      "projectPath": "C:\\Unity\\Cleanup Project\\LiveOps\\LiveOps.DTO\\Scaffold.LiveOps.DTO.csproj",
+      "projectPath": "C:\\Unity\\Scaffold\\LiveOps\\LiveOps.DTO\\Scaffold.LiveOps.DTO.csproj",
       "packagesPath": "C:\\Users\\mtgco\\.nuget\\packages\\",
-      "outputPath": "C:\\Unity\\Cleanup Project\\LiveOps\\LiveOps.DTO\\obj\\",
+      "outputPath": "C:\\Unity\\Scaffold\\LiveOps\\LiveOps.DTO\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\mtgco\\AppData\\Roaming\\NuGet\\NuGet.Config",

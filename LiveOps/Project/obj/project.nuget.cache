@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "gi+w3zNeW9k=",
+  "dgSpecHash": "X/fpPaiUSlU=",
   "success": true,
-  "projectFilePath": "C:\\Unity\\Cleanup Project\\LiveOps\\Project\\LiveOps.csproj",
+  "projectFilePath": "C:\\Unity\\Scaffold\\LiveOps\\Project\\LiveOps.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\mtgco\\.nuget\\packages\\com.unity.services.cloudcode.apis\\0.0.9\\com.unity.services.cloudcode.apis.0.0.9.nupkg.sha512",
     "C:\\Users\\mtgco\\.nuget\\packages\\com.unity.services.cloudcode.core\\0.0.1\\com.unity.services.cloudcode.core.0.0.1.nupkg.sha512",
@@ -29,8 +29,8 @@
     "C:\\Users\\mtgco\\.nuget\\packages\\system.runtime\\4.3.1\\system.runtime.4.3.1.nupkg.sha512",
     "C:\\Users\\mtgco\\.nuget\\packages\\system.runtime.compilerservices.unsafe\\6.0.0\\system.runtime.compilerservices.unsafe.6.0.0.nupkg.sha512",
     "C:\\Users\\mtgco\\.nuget\\packages\\system.text.encodings.web\\8.0.0\\system.text.encodings.web.8.0.0.nupkg.sha512",
-    "C:\\Users\\mtgco\\.nuget\\packages\\microsoft.netcore.app.ref\\6.0.36\\microsoft.netcore.app.ref.6.0.36.nupkg.sha512",
     "C:\\Users\\mtgco\\.nuget\\packages\\microsoft.windowsdesktop.app.ref\\6.0.36\\microsoft.windowsdesktop.app.ref.6.0.36.nupkg.sha512",
+    "C:\\Users\\mtgco\\.nuget\\packages\\microsoft.netcore.app.ref\\6.0.36\\microsoft.netcore.app.ref.6.0.36.nupkg.sha512",
     "C:\\Users\\mtgco\\.nuget\\packages\\microsoft.aspnetcore.app.ref\\6.0.36\\microsoft.aspnetcore.app.ref.6.0.36.nupkg.sha512"
   ],
   "logs": []

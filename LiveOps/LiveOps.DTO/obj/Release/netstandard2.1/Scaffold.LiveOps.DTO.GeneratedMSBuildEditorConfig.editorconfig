@@ -1,6 +1,6 @@
 is_global = true
 build_property.RootNamespace = GameModuleDTO
-build_property.ProjectDir = C:\Unity\Cleanup Project\LiveOps\LiveOps.DTO\
+build_property.ProjectDir = C:\Unity\Scaffold\LiveOps\LiveOps.DTO\
 build_property.EnableComHosting = 
 build_property.EnableGeneratedComInterfaceComImportInterop = 
 build_property.CsWinRTUseWindowsUIXamlProjections = false
