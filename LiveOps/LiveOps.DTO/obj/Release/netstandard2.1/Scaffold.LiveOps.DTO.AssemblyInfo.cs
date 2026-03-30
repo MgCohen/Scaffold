@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Scaffold.LiveOps.DTO")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+ee384176610237085ea17edc2e445c7e62629f0b")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+4734eed5769fd75ce0da81e6c90342f172658d60")]
 [assembly: System.Reflection.AssemblyProductAttribute("Scaffold.LiveOps.DTO")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Scaffold.LiveOps.DTO")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
