@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Reflection;
 using UnityEditor;
@@ -18,19 +18,19 @@ namespace Scaffold.Types.Editor
 
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
-            Type filterType = GetFilterType();
-            EnsureMenuBuilt(filterType);
-            position = GetLabelledPosition(position, property, label);
-            DrawTypeDropdown(position, property, filterType);
+            Type filterType = BuildGetFilterType();
+            BuildEnsureMenuBuilt(filterType);
+            position = BuildGetLabelledPosition(position, property, label);
+            BuildDrawTypeDropdown(position, property, filterType);
         }
 
-        private Type GetFilterType()
+        private Type BuildGetFilterType()
         {
             TypeReferenceFilterAttribute attr = fieldInfo.GetCustomAttribute<TypeReferenceFilterAttribute>();
             return attr == null ? typeof(TypeReference) : attr.TypeFilter;
         }
 
-        private void EnsureMenuBuilt(Type filterType)
+        private static void BuildEnsureMenuBuilt(Type filterType)
         {
             if (!menus.ContainsKey(filterType))
             {
@@ -38,7 +38,7 @@ namespace Scaffold.Types.Editor
             }
         }
 
-        private Rect GetLabelledPosition(Rect position, SerializedProperty property, GUIContent label)
+        private static Rect BuildGetLabelledPosition(Rect position, SerializedProperty property, GUIContent label)
         {
             if (!property.propertyPath.Contains("Array"))
             {
@@ -47,93 +47,93 @@ namespace Scaffold.Types.Editor
             return position;
         }
 
-        private void DrawTypeDropdown(Rect position, SerializedProperty property, Type filterType)
+        private static void BuildDrawTypeDropdown(Rect position, SerializedProperty property, Type filterType)
         {
             Type currentType = (property.boxedValue as TypeReference).Type;
             GUIContent dropdownContent = new GUIContent(currentType?.Name);
             if (EditorGUI.DropdownButton(position, dropdownContent, FocusType.Passive))
             {
-                ShowMenuForType(filterType, property);
+                BuildShowMenuForType(filterType, property);
             }
         }
 
-        private void ShowMenuForType(Type filterType, SerializedProperty property)
+        private static void BuildShowMenuForType(Type filterType, SerializedProperty property)
         {
-            onClickCallback = (t) => SetClickedType(t, property);
+            onClickCallback = (t) => BuildSetClickedType(t, property);
             menus[filterType].ShowAsContext();
         }
 
-        private static void SetClickedType(Type t, SerializedProperty property)
+        private static void BuildSetClickedType(Type t, SerializedProperty property)
         {
-            string serializedType = SerializeType(t);
+            string serializedType = BuildSerializeType(t);
             SerializedProperty serializedTypeProperty = property.FindPropertyRelative("serializedType");
             serializedTypeProperty.stringValue = serializedType;
             property.serializedObject.ApplyModifiedProperties();
         }
 
-        private void BuildMenu(Type filterType)
+        private static void BuildMenu(Type filterType)
         {
-            List<Type> typeOptions = CollectTypeOptions(filterType);
+            List<Type> typeOptions = BuildCollectTypeOptions(filterType);
             BuildMenu(filterType, typeOptions);
         }
 
-        private List<Type> CollectTypeOptions(Type filterType)
+        private static List<Type> BuildCollectTypeOptions(Type filterType)
         {
             if (filterType != typeof(TypeReference))
             {
-                return GetTypesFromCache(filterType);
+                return BuildGetTypesFromCache(filterType);
             }
-            return GetAllNonSystemTypes();
+            return BuildGetAllNonSystemTypes();
         }
 
-        private void BuildMenu(Type filterType, List<Type> typeOptions)
+        private static void BuildMenu(Type filterType, List<Type> typeOptions)
         {
             GenericMenu menu = new GenericMenu();
             foreach (Type type in typeOptions)
-            {
-                AddMenuItem(menu, type);
-            }
+{
+    BuildAddMenuItem(menu, type);
+}
             menus[filterType] = menu;
         }
 
-        private List<Type> GetTypesFromCache(Type filterType)
+        private static List<Type> BuildGetTypesFromCache(Type filterType)
         {
             return UnityEditor.TypeCache.GetTypesDerivedFrom(filterType).Where(t => !t.IsAbstract && !t.ContainsGenericParameters && !t.IsGenericTypeDefinition && !t.FullName.Contains("<") && !t.IsGenericType).ToList();
         }
 
-        private List<Type> GetAllNonSystemTypes()
+        private static List<Type> BuildGetAllNonSystemTypes()
         {
-            IEnumerable<Assembly> assemblies = AppDomain.CurrentDomain.GetAssemblies().Where(a => !IsSystemAssembly(a));
+            IEnumerable<Assembly> assemblies = AppDomain.CurrentDomain.GetAssemblies().Where(a => !BuildIsSystemAssembly(a));
             List<Type> result = new List<Type>();
-            assemblies.ToList().ForEach(a => AddNonSystemTypes(a, result));
+            assemblies.ToList().ForEach(a => BuildAddNonSystemTypes(a, result));
             return result;
         }
 
-        private void AddNonSystemTypes(Assembly assembly, List<Type> result)
+        private static void BuildAddNonSystemTypes(Assembly assembly, List<Type> result)
         {
             IEnumerable<Type> types = assembly.GetTypes().Where(t => !t.IsAbstract && !t.ContainsGenericParameters && !t.IsGenericTypeDefinition && !t.FullName.Contains("<") && !t.IsGenericType);
             result.AddRange(types);
         }
 
-        private static bool IsSystemAssembly(Assembly assembly)
+        private static bool BuildIsSystemAssembly(Assembly assembly)
         {
             AssemblyName assemblyName = assembly.GetName();
             AssemblyName[] referencedAssemblies = assembly.GetReferencedAssemblies();
-            return IsSystemAssembly(assemblyName) || referencedAssemblies.Any(IsSystemAssembly);
+            return BuildIsSystemAssembly(assemblyName) || referencedAssemblies.Any(BuildIsSystemAssembly);
         }
 
-        private static bool IsSystemAssembly(AssemblyName assemblyName)
+        private static bool BuildIsSystemAssembly(AssemblyName assemblyName)
         {
             return systemAssemblyNames.Contains(assemblyName.Name);
         }
 
-        private static string SerializeType(Type type)
+        private static string BuildSerializeType(Type type)
         {
             JsonSerializerSettings settings = new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All };
             return JsonConvert.SerializeObject(type, settings);
         }
 
-        private void AddMenuItem(GenericMenu menu, Type type)
+        private static void BuildAddMenuItem(GenericMenu menu, Type type)
         {
             string menuLabel = type.FullName.Replace('.', '/');
             GUIContent menuOption = new GUIContent(menuLabel);
@@ -141,3 +141,5 @@ namespace Scaffold.Types.Editor
         }
     }
 }
+
+

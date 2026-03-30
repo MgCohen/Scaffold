@@ -1,12 +1,10 @@
-using UnityEngine;
+﻿using UnityEngine;
 
-namespace Scaffold.Navigation
+namespace Scaffold.Navigation.Contracts
 {
     public interface IView
     {
-#pragma warning disable IDE1006 // Naming Styles
         public GameObject gameObject { get; }
-#pragma warning restore IDE1006 // Naming Styles
 
         public ViewState State { get; }
         public ViewType Type { get; }
@@ -18,3 +16,7 @@ namespace Scaffold.Navigation
         void Order(int depth);
     }
 }
+
+
+
+

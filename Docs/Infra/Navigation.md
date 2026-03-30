@@ -1,327 +1,161 @@
-# Navigation Module
+# Scaffold Infra Navigation
 
-## Summary
+## TL;DR
 
-The Navigation module coordinates view-controller lifecycle and screen transitions in Scaffold. Its main effect is predictable navigation behavior: opening and closing view controllers, maintaining a navigation stack, applying transition rules, and publishing navigation-related events.
+- Purpose: manage view-controller navigation stack and transitions.
+- Location: `Assets/Scripts/Infra/Navigation/Runtime/` (boundary types under `Runtime/Contracts/`).
+- Depends on: `Scaffold.Events`, `Scaffold.Types`, `Scaffold.Records`, `Scaffold.Addressables`, container abstractions.
+- Used by: app screens and MVVM presentation flow.
+- Runtime/Editor: runtime + container integration.
+- Keywords: navigation stack, transitions, view config, middleware.
 
-Internally, the module composes provider, stack, middleware, and transition services so navigation logic stays centralized and reusable across modules.
+## Responsibilities
 
-## Bird's Eye View
+- Owns navigation contract (`INavigation`) and runtime implementation (`NavigationController`).
+- Owns view-controller stack behavior (`NavigationStack`, `NavigationPoint`).
+- Owns transition orchestration (`NavigationTransitions` and schemas).
+- Owns DI integration (`NavigationInstaller`, `NavigationInjection`).
+- Owns non-context view runtime loading via Addressables gateway, resident prefab-handle usage, and instance buffer/cache lifecycle.
+- Does not own app-specific business decisions or domain mutation logic.
 
-Module layout (`Assets/Scripts/Infra/Navigation/`):
+## Public API
 
-- `Runtime/Contracts/`: navigation and view contracts (`INavigation`, `IViewController`, `IView`, middleware/handler interfaces).
-- `Runtime/Implementation/`: controller, stack, provider, transitions, options, schemas, and related runtime types.
-- `Container/`: DI integration (`NavigationInstaller`, `NavigationInjection`).
-- `Samples/`: usage examples for opening views with `NavigationOptions`.
-- `Tests/`: EditMode tests for options and navigation point behavior.
+| Symbol | Purpose | Inputs | Outputs | Failure behavior |
+|---|---|---|---|---|
+| `INavigation.Open(...)` | Open target controller/view | controller + options | active navigation point | invalid config/path is ignored or guarded by provider checks |
+| `INavigation.Close(...)` | Close a controller/view | controller | removed point or return transition | no-op when point not found |
+| `INavigation.Return()` | Return to previous point | none | previous controller | guarded behavior when no previous point |
+| `IViewController` | Controller lifecycle contract | `Bind(INavigation)` etc. | bound controller behavior | n/a |
+| `IView` | View lifecycle contract | bind/open/hide/focus/close/order | runtime view behavior | state-specific operations may no-op |
+| `NavigationInstaller` | Registers navigation services | container registry | navigation runtime wiring | fails when required contracts are unavailable |
+| `ViewConfig.Asset` | Addressable prefab reference for non-context views | `AssetReference` | prefab load source | throws when missing at runtime |
 
-External dependency graph:
+## Setup / Integration
+
+1. Reference `Scaffold.Navigation` for contracts and implementation/container wiring.
+2. Configure `NavigationSettings` with controller/view mappings and `ViewConfig.Asset` references.
+3. Register `NavigationInstaller` in composition root (it does not own preload policy).
+4. Open controllers through `INavigation`.
+
+## How to Use
+
+1. Implement controller type (`IViewController` or MVVM `ViewModel` descendant).
+2. Implement view type (`IView` or MVVM view base).
+3. Add `ViewConfig` mapping for controller/view and assign addressable prefab reference.
+4. Open/close/return with `INavigation`.
+
+## Behavior Contracts
+
+| Operation | Stack behavior | Transition behavior |
+|---|---|---|
+| `Open(controller, closeCurrent:false)` | current remains; new point appended and becomes current | previous point is typically hidden, then target opens/focuses |
+| `Open(controller, closeCurrent:true)` | current removed before/while activating target | close sequence runs before target open |
+| `Open(..., options.CloseAllViews=true)` | non-origin stacked points are removed/closed | target activation occurs after close sweep |
+| `Close(current)` | equivalent to return to previous point | transition goes from current to previous |
+| `Close(non-current)` | target point removed in place; current unchanged | close applies to removed point only |
+| `Return()` | target is previous point; current removed | `GoTo(previous, closeCurrent:true, ...)` semantics |
+
+- `NavigationTransitions.DoTransition(from, to, closeCurrent)` enqueues transitions and executes them serially.
+- Default ordering is: close or hide `from` first, then open/focus `to`.
+- `ViewConfig` resolution uses `NavigationSettings` mapping and may reuse context views under `viewHolder` before non-context view instantiation.
+- Non-context flow treats loaded addressable as prefab source, not persistent instance.
+- Prefab handles are loaded once per config and kept resident for navigation lifetime flow.
+- Closed non-context view instances are returned to an internal instance buffer/cache and reused on next open when available.
+- Transition processing waits for target point readiness before open/focus sequences run.
+- Schema handlers:
+- `TransitionViewSchema.Handler=Default` uses built-in close/hide/open flow.
+- `TransitionViewSchema.Handler=Code` calls `IViewTransitionHandler.DoTransition(...)`.
+- `AnimationViewSchema.Handler=Animator` plays configured state and waits for completion.
+- `AnimationViewSchema.Handler=Code` calls `IViewAnimationHandler.AnimateView(...)`.
+
+## Examples
+
+### Open/Return Flow
 
 ```mermaid
-graph LR
-  NAV["Scaffold.Navigation"] --> UNITY["UnityEngine"]
-  NAV --> EVENTS["Scaffold.Events"]
-  NAV_CONTAINER["Scaffold.Navigation.Container"] --> CONTAINERS["Scaffold.Containers"]
-  NAV_CONTAINER --> NAV
+sequenceDiagram
+  participant App as Caller
+  participant Nav as NavigationController
+  participant Prov as NavigationProvider
+  participant Stack as NavigationStack
+  participant Tr as NavigationTransitions
+
+  App->>Nav: Open(controller, options)
+  Nav->>Prov: Resolve NavigationPoint
+  Nav->>Stack: Push/replace point
+  Nav->>Tr: DoTransition(from,to,closeCurrent)
+  App->>Nav: Return()
+  Nav->>Stack: PreviousPoint
+  Nav->>Tr: DoTransition(current,previous,true)
 ```
 
-Internal dependency graph:
-
-```mermaid
-graph TD
-  INAV["INavigation"] --> NC["NavigationController"]
-  NC --> NSP["NavigationStack"]
-  NC --> NPROV["NavigationProvider"]
-  NC --> NTR["NavigationTransitions"]
-  NC --> NMW["NavigationMiddleware"]
-  NC --> NPOINT["NavigationPoint"]
-  NTR --> IEVB["IEventBus"]
-  NINST["NavigationInstaller"] --> REG["IContainerRegistry"]
-  NINJ["NavigationInjection"] --> RES["IContainerResolver.Inject(viewModel)"]
-```
-
-## Architecture and key behaviors
-
-### 1) Opening flow and stack effects
-
-`Open(...)` resolves a `NavigationPoint`, invokes middleware, binds the controller to navigation, and transitions to the new point.
+### Minimal
 
 ```csharp
-public void Open<TController>(TController controller, bool closeCurrent = false, NavigationOptions options = null)
-    where TController : IViewController
-{
-    options ??= new NavigationOptions();
-    NavigationPoint point = provider.GetNavigationPoint<TController>(controller, options);
-    Open(point, closeCurrent, options);
-}
+INavigation navigation = resolver.Resolve<INavigation>();
+navigation.Open(new MainMenuViewController());
+navigation.Return();
 ```
 
-Stack behavior when opening:
+## Best Practices
 
-- `closeCurrent = false`: old current stays in stack; new point is appended and becomes current.
-- `closeCurrent = true`: old current is removed before adding the new point.
-- `options.CloseAllViews = true`: all stacked points except the current origin are removed/closed before activation.
+- Keep navigation decisions in controllers/app orchestration.
+- Use `NavigationOptions` explicitly for close-all/close-current behavior.
+- Keep `ViewConfig` mappings complete and validated.
+- Keep middleware focused on cross-cutting open behavior.
 
-### 2) Closing flow and stack effects
+## Anti-Patterns
 
-`Close(controller)` resolves the point from stack. If it is current, navigation performs `Return()`. If not current, it force-removes and closes that point.
+- Instantiating and toggling views directly outside navigation.
+- Putting preload policy in navigation/container wiring.
+- Treating loaded prefab handle as live UI instance state.
+- Hiding navigation side effects in unrelated service layers.
+- Mixing domain business rules into transition handlers.
 
-```csharp
-public void Close<TViewController>(TViewController controller) where TViewController : IViewController
-{
-    var point = this.stack.Get(controller);
-    if (point == null) return;
-    ClosePoint(point);
-}
-```
+## Testing
 
-Stack behavior when closing:
-
-- Closing current point: stack moves to previous point via `Return()`.
-- Closing non-current point: target point is removed in place, current remains unchanged.
-
-### 3) Return flow and stack effects
-
-`Return()` transitions to `PreviousPoint`, removes current from stack (via `GoTo(..., closeCurrent: true, ...)`), and returns the target controller.
-
-```csharp
-public IViewController Return()
-{
-    var targetPoint = this.stack.PreviousPoint;
-    var defaultOptions = new NavigationOptions();
-    GoTo(targetPoint, true, defaultOptions);
-    return targetPoint.ViewModel;
-}
-```
-
-### 4) Open/Close/Hide/Focus behavior differences
-
-Navigation ultimately drives `IView` methods based on transition conditions.
-
-```csharp
-void IView.Open();
-void IView.Close();
-void IView.Hide();
-void IView.Focus();
-```
-
-Behavior intent:
-
-- `Open`: activates first-time or reopening display path for target point.
-- `Close`: finalizes and closes view; non-scene views may be destroyed.
-- `Hide`: keeps point in stack but hides visual state when another screen overlays it.
-- `Focus`: re-activates a view that is already open when revisited.
-
-### 5) Timing/order between close and open
-
-Transitions run in a queue; each transition composes hide/close/open sequences and runs asynchronously.
-
-```csharp
-public void DoTransition(NavigationPoint from, NavigationPoint to, bool closeCurrent)
-{
-    var transitionData = new ViewTransitionData(from, to, closeCurrent);
-    pendingTransitions.Enqueue(transitionData);
-    if (!runningTransition)
-    {
-        RunTransitions();
-    }
-}
-```
-
-Default sequence timing:
-
-- If there is a `from` point:
-- close-current path: closing sequence runs before opening sequence.
-- non-close path: hiding sequence runs before opening sequence.
-- If there is a `to` point: opening sequence runs after previous sequence completes.
-- Sequence boundaries emit events like `BeforeViewCloseEvent`, `AfterViewCloseEvent`, `BeforeViewOpenEvent`, `AfterViewOpenEvent`.
-
-### 6) ViewConfig and view resolution
-
-`ViewConfig` maps controller type -> view type + prefab/asset and can hold attached schemas used by transitions/options.
-
-```csharp
-public Type ViewType => viewType.Type;
-public Type ControllerType => controllerType.Type;
-```
-
-`NavigationProvider` resolves points in this order:
-
-- Reuse context views found under `viewHolder` (scene-bound views).
-- Instantiate `ViewAsset` from `ViewConfig` when no context view exists.
-- Resolve default `NavigationOptions` from `NavigationOptionsSchema` if available.
-
-### 7) Transition schemas and handlers
-
-Transition behavior is schema-driven and can be default, code-based, animator-based, or template placeholder depending on schema type.
-
-```csharp
-public interface IViewTransitionHandler
-{
-    Awaitable DoTransition(ViewTransitionData transitionData, TransitionDirection direction);
-}
-
-public interface IViewAnimationHandler
-{
-    Awaitable AnimateView(AnimationType direction);
-}
-```
-
-Handler model by schema:
-
-`TransitionViewSchema.Handler`
-
-- `Default`: run the built-in close/hide/open transition flow.
-- `Code`: call `IViewTransitionHandler.DoTransition(...)` on the target view.
-- `Template`: reserved placeholder; not implemented in current runtime.
-
-`AnimationViewSchema.Handler`
-
-- `Animator`: play configured animator state (`AnimationName`) and wait for completion.
-- `Code`: call `IViewAnimationHandler.AnimateView(...)` on the target view.
-- `Template`: reserved placeholder; not implemented in current runtime.
-
-## How to use
-
-### Create a view controller
-
-Implement `IViewController`.
-
-```csharp
-public class InventoryController : IViewController
-{
-    public void Bind(INavigation navigation)
-    {
-        // Keep navigation reference if needed.
-    }
-
-    public void Close()
-    {
-        // Optional local close behavior.
-    }
-}
-```
-
-### Create a view
-
-Implement `IView`.
-
-```csharp
-public class InventoryView : UnityEngine.MonoBehaviour, IView
-{
-    public UnityEngine.GameObject gameObject => base.gameObject;
-    public ViewState State => ViewState.Closed;
-    public ViewType Type => ViewType.Screen;
-
-    public void Bind(IViewController controller) { }
-    public void Open() { }
-    public void Close() { }
-    public void Focus() { }
-    public void Hide() { }
-    public void Order(int depth) { }
-}
-```
-
-### Configure binding between controller and view through ViewConfig
-
-The `IView -> IViewController` bind happens through `ViewConfig` lookup:
-
-1. `NavigationSettings.GetViewConfig(typeof(MyController))` resolves the `ViewConfig`.
-2. `NavigationProvider` uses that `ViewConfig` to get or instantiate the `IView`.
-3. During activation, if the view is closed, navigation calls `to.View.Bind(to.ViewModel)`.
-
-```csharp
-// NavigationProvider: controller -> ViewConfig -> NavigationPoint(view, controller)
-ViewConfig config = settings.GetViewConfig(typeof(TController));
-return new NavigationPoint(view, controller, config, isSceneView, options);
-
-// NavigationTransitions: bind controller to view on first open
-if (to.View.State is ViewState.Closed)
-{
-    to.View.Bind(to.ViewModel);
-}
-```
-
-### Open and close through INavigation
-
-```csharp
-INavigation navigation = GetNavigation();
-var options = new NavigationOptions { CloseAllViews = false };
-var controller = new InventoryController();
-
-navigation.Open(controller, closeCurrent: false, options: options);
-navigation.Close(controller);
-```
-
-### IView method callbacks and when they are called
-
-- `Bind(IViewController controller)`: called before first open when the target view state is `Closed`.
-- `Open()`: called when a point becomes active and the view is not already in `Open` state.
-- `Focus()`: called when a point becomes active and the view is already open.
-- `Hide()`: called when the previous point should remain in stack but not be visible.
-- `Close()`: called when a point is closed/removed by close or close-current flows.
-- `Order(int depth)`: called when navigation sets the point depth.
-
-Reference sample: `Assets/Scripts/Infra/Navigation/Samples/NavigationUseCases.cs`.
-
-## Internal Services
-
-### Middleware orchestration
-
-- Main types: `INavigationMiddleware`, `INavigationOpenHandler`, `NavigationMiddleware`.
-- Responsibility: execute middleware hooks (currently open handlers) during navigation open flow.
-- Container integration: `NavigationInjection` implements `INavigationOpenHandler` and injects dependencies into opened controllers.
-
-### Transition engine
-
-- Main types: `NavigationTransitions`, `TransitionViewSchema`, `AnimationViewSchema`, `IViewTransitionHandler`, `IViewAnimationHandler`, `ViewTransitionData`.
-- Responsibility: queue transitions, resolve schema handlers, run close/hide/open ordering, and publish transition lifecycle events.
-
-### Stack/provider internals
-
-- Main types: `NavigationStack`, `NavigationProvider`, `NavigationPoint`, `NavigationSettings`, `ViewConfig`.
-- Responsibility: map controllers to view definitions, reuse or instantiate views, track stack state, and hold per-point lifecycle/render metadata.
-
-## Public api
-
-- `INavigation` (`Assets/Scripts/Infra/Navigation/Runtime/Contracts/INavigation.cs`): public navigation service for opening/closing/returning view controllers.
-- `IViewController` (`Assets/Scripts/Infra/Navigation/Runtime/Contracts/IViewController.cs`): controller contract bound to navigation lifecycle.
-- `IView` (`Assets/Scripts/Infra/Navigation/Runtime/Contracts/IView.cs`): view contract for bind/open/close/focus/hide/order operations.
-- `INavigationMiddleware` (`Assets/Scripts/Infra/Navigation/Runtime/Contracts/INavigationMiddleware.cs`): base middleware contract for navigation extension points.
-- `INavigationOpenHandler` (`Assets/Scripts/Infra/Navigation/Runtime/Contracts/INavigationOpenHandler.cs`): middleware hook contract invoked on view-controller open.
-- `IViewTransitionHandler` (`Assets/Scripts/Infra/Navigation/Runtime/Contracts/IViewTransitionHandler.cs`): custom code-transition handler contract.
-- `IViewAnimationHandler` (`Assets/Scripts/Infra/Navigation/Runtime/Contracts/IViewAnimationHandler.cs`): custom code-animation handler contract.
-- `NavigationController` (`Assets/Scripts/Infra/Navigation/Runtime/Implementation/NavigationController.cs`): default runtime implementation of `INavigation`.
-- `NavigationOptions` (`Assets/Scripts/Infra/Navigation/Runtime/Implementation/NavigationOptions.cs`): optional open behavior flags (render override, close-all behavior).
-- `NavigationPoint` (`Assets/Scripts/Infra/Navigation/Runtime/Implementation/NavigationPoint.cs`): runtime view/controller pairing with stack depth and lifecycle metadata.
-- `NavigationSettings` (`Assets/Scripts/Infra/Navigation/Runtime/Implementation/NavigationSettings.cs`): lookup registry from controller/view type to `ViewConfig`.
-- `ViewConfig` (`Assets/Scripts/Infra/Navigation/Runtime/Implementation/ViewConfig.cs`): ScriptableObject mapping view/controller types plus schemas and asset reference.
-- `ViewState` (`Assets/Scripts/Infra/Navigation/Runtime/Enums/ViewState.cs`): enum describing runtime state of a view.
-- `ViewType` (`Assets/Scripts/Infra/Navigation/Runtime/Enums/ViewType.cs`): enum describing view classification for navigation behavior.
-- `NavigationInstaller` (`Assets/Scripts/Infra/Navigation/Container/NavigationInstaller.cs`): container installer for `INavigation` and navigation injection middleware registration.
-
-## How to test
-
-From Unity Editor:
-
-1. Open `Window > General > Test Runner`.
-2. Run EditMode tests for `Scaffold.Navigation.Tests`.
-3. Expected result: `NavigationTests` passes for default `NavigationOptions`, `NavigationPoint.Dispose()`, and `IsSceneView` constructor behavior.
-
-From Unity CLI (headless pattern):
+- Test assembly: `Scaffold.Navigation.Tests`.
+- Run from repo root:
 
 ```powershell
-# Run from repository root; adjust Unity executable path for your machine.
-Unity.exe -batchmode -quit -projectPath "C:\Users\user\Documents\Unity\Scaffold" -runTests -testPlatform EditMode -testResults "Logs\Navigation-TestResults.xml"
+& ".\.agents\scripts\run-editmode-tests.ps1" -AssemblyNames "Scaffold.Navigation.Tests"
 ```
 
-Expected result: run completes successfully and includes passing tests for `Scaffold.Navigation.Tests`.
+- Expected: all tests pass with zero failures.
+- Addressable path coverage: tests verify context path no-load behavior, delayed readiness handling, and non-context view instance reuse from buffer/cache.
+- Bugfix rule: add/update regression test first, verify fail-before/fix/pass-after.
 
-## Related docs and modules
+## AI Agent Context
+
+- Invariants:
+  - stack order and current/previous semantics are preserved.
+  - transitions maintain close/hide/open ordering.
+  - controller-to-view mapping resolves through `ViewConfig`.
+- Allowed Dependencies:
+  - `Scaffold.Events`, `Scaffold.Types`, `Scaffold.Records`, `Scaffold.Addressables`, container abstractions.
+- Forbidden Dependencies:
+  - module-specific gameplay logic in navigation runtime.
+- Change Checklist:
+  - verify open/close/return tests.
+  - verify options behavior tests.
+  - verify transition event behavior.
+- Known Tricky Areas:
+  - closeCurrent vs closeAllViews interactions.
+
+## Related
 
 - `Architecture.md`
-- `Docs/Infra/Containers.md` (navigation service registration through installers)
-- `Docs/Infra/Events.md` (transition pipeline publishes navigation lifecycle events)
-- `Docs/Core/MVVM.md` (MVVM view/viewmodel lifecycle commonly driven via `INavigation`)
-- `Docs/Infra/NetworkMessages.md` (integration points where navigation can react to incoming messages)
+- `Docs/Infra/Model.md`
+- `Docs/Core/ViewModel.md`
+- `Docs/App/View.md`
+- `Docs/Infra/Events.md`
+
+## Changelog
+
+- Rewritten to AI-first standard with navigation sequence diagram.
+- Recovered stack semantics and transition/schema execution contracts.
+
+- Added constructor null-guard coverage and single-point `Return()` behavior verification.
+- Consolidated `Scaffold.Navigation.Contracts` + `Scaffold.Navigation.Runtime` into `Scaffold.Navigation` and moved boundary types to `Runtime/Contracts/`.
+- Migrated non-context view loading to `IAddressablesGateway`, added preload registration in installer, and documented handle-release lifecycle.
+- Refactored to remove navigation-owned preload registration, added resident prefab store + instance buffer/cache, and documented readiness-aware transition flow with unchanged `INavigation` API.

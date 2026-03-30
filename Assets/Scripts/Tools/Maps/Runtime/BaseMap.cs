@@ -6,8 +6,6 @@ namespace Scaffold.Maps
 {
     public class BaseMap<TKey, TValue> : IEnumerable<KeyValuePair<TKey, TValue>>
     {
-        private readonly Dictionary<TKey, Holder<TValue>> data;
-
         protected BaseMap()
         {
             data = new Dictionary<TKey, Holder<TValue>>();
@@ -15,7 +13,24 @@ namespace Scaffold.Maps
 
         public BaseMap(IEqualityComparer<TKey> comparer)
         {
+            if (comparer is null)
+            {
+                throw new ArgumentNullException(nameof(comparer));
+            }
+
             data = new Dictionary<TKey, Holder<TValue>>(comparer);
+        }
+
+        public virtual TValue this[TKey key]
+        {
+            get
+            {
+                return data[key].Value;
+            }
+            set
+            {
+                data[key].Value = value;
+            }
         }
 
         public int Count
@@ -37,25 +52,25 @@ namespace Scaffold.Maps
             }
         }
 
-        public virtual TValue this[TKey key]
-        {
-            get
-            {
-                return data[key].Value;
-            }
-            set
-            {
-                data[key].Value = value;
-            }
-        }
+        private readonly Dictionary<TKey, Holder<TValue>> data;
 
         public bool ContainsKey(TKey key)
         {
+            if (data == null)
+            {
+                throw new InvalidOperationException("Map storage was not initialized.");
+            }
+
             return data.ContainsKey(key);
         }
 
         public bool TryGetValue(TKey key, out TValue value)
         {
+            if (data == null)
+            {
+                throw new InvalidOperationException("Map storage was not initialized.");
+            }
+
             bool found = data.TryGetValue(key, out Holder<TValue> holder);
             value = found ? holder.Value : default;
             return found;
@@ -63,11 +78,21 @@ namespace Scaffold.Maps
 
         public virtual bool Remove(TKey key)
         {
+            if (data == null)
+            {
+                throw new InvalidOperationException("Map storage was not initialized.");
+            }
+
             return data.Remove(key);
         }
 
         public virtual void Clear()
         {
+            if (data == null)
+            {
+                throw new InvalidOperationException("Map storage was not initialized.");
+            }
+
             data.Clear();
         }
 

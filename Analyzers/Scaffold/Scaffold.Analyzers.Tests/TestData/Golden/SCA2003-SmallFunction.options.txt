@@ -1,0 +1,2 @@
+# SCA2003 only runs when max_lines is configured; golden baseline expects the 15-line limit.
+scaffold.SCA2003.max_lines=15

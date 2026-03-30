@@ -1,16 +1,27 @@
 {
-    "name": "Scaffold.Types.Samples",
-    "rootNamespace": "Scaffold.Types.Samples",
-    "references": [
-        "Scaffold.Types"
-    ],
-    "includePlatforms": [],
-    "excludePlatforms": [],
-    "allowUnsafeCode": false,
-    "overrideReferences": false,
-    "precompiledReferences": [],
-    "autoReferenced": true,
-    "defineConstraints": [],
-    "versionDefines": [],
-    "noEngineReferences": false
+    "name":  "Scaffold.Types.Samples",
+    "rootNamespace":  "Scaffold.Types.Samples",
+    "references":  [
+                       "Scaffold.Types"
+                   ],
+    "includePlatforms":  [
+
+                         ],
+    "excludePlatforms":  [
+
+                         ],
+    "allowUnsafeCode":  false,
+    "overrideReferences":  false,
+    "precompiledReferences":  [
+
+                              ],
+    "autoReferenced":  true,
+    "defineConstraints":  [
+
+                          ],
+    "versionDefines":  [
+
+                       ],
+    "noEngineReferences":  false
 }
+

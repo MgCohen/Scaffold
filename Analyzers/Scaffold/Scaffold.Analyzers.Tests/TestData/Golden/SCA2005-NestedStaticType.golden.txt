@@ -1,0 +1,1 @@
+SCA2005|6|30|warning|Error SCA2005: Nested static type 'Pipeline' is not allowed inside instance type 'Outer'. Prefer a private instance handler (or nested non-static type) owned by 'Outer'.

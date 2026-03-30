@@ -1,0 +1,21 @@
+{
+    "name": "Scaffold.Scope.Tests",
+    "rootNamespace": "Scaffold.Scope.Tests",
+    "references": [
+        "Scaffold.Scope"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false,
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
+}

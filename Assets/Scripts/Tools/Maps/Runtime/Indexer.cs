@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 namespace Scaffold.Maps
@@ -12,9 +12,6 @@ namespace Scaffold.Maps
             holders = new List<Holder<TValue>>();
         }
 
-        private readonly Func<TPrimary, TSecondary, bool> predicate;
-        private readonly List<Holder<TValue>> holders;
-
         public string Name { get; }
 
         public IReadOnlyCollection<TValue> Values
@@ -23,9 +20,9 @@ namespace Scaffold.Maps
             {
                 List<TValue> result = new List<TValue>(holders.Count);
                 foreach (Holder<TValue> holder in holders)
-                {
-                    result.Add(holder.Value);
-                }
+{
+    result.Add(holder.Value);
+}
                 return result;
             }
         }
@@ -38,33 +35,29 @@ namespace Scaffold.Maps
             }
         }
 
+        private readonly Func<TPrimary, TSecondary, bool> predicate;
+        private readonly List<Holder<TValue>> holders;
+
         internal void Rebuild(IEnumerable<KeyValuePair<Index<TPrimary, TSecondary>, Holder<TValue>>> entries)
         {
             holders.Clear();
             foreach (KeyValuePair<Index<TPrimary, TSecondary>, Holder<TValue>> entry in entries)
-            {
-                Track(entry.Key, entry.Value);
-            }
+{
+    Track(entry.Key, entry.Value);
+}
         }
 
         internal void Track(Index<TPrimary, TSecondary> index, Holder<TValue> holder)
         {
             bool isMatch = predicate(index.Primary, index.Secondary);
-            AddToIndex(isMatch, holder);
-            RemoveFromIndex(isMatch, holder);
-        }
-
-        private void AddToIndex(bool isMatch, Holder<TValue> holder)
-        {
-            if (isMatch && holders.Contains(holder) == false)
+            if (isMatch)
             {
-                holders.Add(holder);
+                if (holders.Contains(holder) == false)
+                {
+                    holders.Add(holder);
+                }
             }
-        }
-
-        private void RemoveFromIndex(bool isMatch, Holder<TValue> holder)
-        {
-            if (isMatch == false)
+            else
             {
                 holders.Remove(holder);
             }
@@ -100,3 +93,4 @@ namespace Scaffold.Maps
         }
     }
 }
+

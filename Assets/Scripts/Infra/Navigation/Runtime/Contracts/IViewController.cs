@@ -1,4 +1,4 @@
-namespace Scaffold.Navigation
+﻿namespace Scaffold.Navigation.Contracts
 {
     public interface IViewController
     {
@@ -6,3 +6,7 @@ namespace Scaffold.Navigation
         void Close();
     }
 }
+
+
+
+

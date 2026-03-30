@@ -1,72 +1,40 @@
-# Records Module
+# Scaffold Tools Records
 
-## Summary
+## TL;DR
 
-The Records module provides compatibility support for `init`-style property initialization in environments where the compiler/runtime expects `IsExternalInit`. Its main effect is enabling record-like object-initializer ergonomics without requiring newer runtime support in every target context.
+- Purpose: compatibility shim for `init` accessors in target environments needing `IsExternalInit`.
+- Location: `Assets/Scripts/Tools/Records/`.
+- Depends on: base runtime compiler services only.
+- Used by: modules using record/init-style initialization semantics.
+- Runtime/Editor: runtime utility with samples/tests.
+- Keywords: isexternalinit, init accessor, compatibility.
 
-Internally, the module is intentionally minimal and centered on a single shim type.
+## Responsibilities
 
-## Bird's Eye View
+- Owns `System.Runtime.CompilerServices.IsExternalInit` compatibility type.
+- Enables `init` property syntax where required by target profile.
+- Does not own business models or serialization logic.
 
-Module layout (`Assets/Scripts/Tools/Records/`):
+## Public API
 
-- `Runtime/`: compatibility shim (`IsExternalInit`).
-- `Samples/`: init-property usage examples.
-- `Tests/`: init-property behavior validation.
+| Symbol | Purpose | Inputs | Outputs | Failure behavior |
+|---|---|---|---|---|
+| `IsExternalInit` | Compiler compatibility marker for `init` support | none | compile-time/runtime compatibility type | n/a |
 
-External dependency graph:
+## Setup / Integration
 
-```mermaid
-graph LR
-  RECORDS["Scaffold.Records"] --> DOTNET["System.Runtime.CompilerServices"]
-```
+1. Reference `Scaffold.Records` in asmdef using `init` accessors.
+2. Keep shim present exactly once across loaded assemblies.
 
-Internal dependency graph:
+## How to Use
 
-```mermaid
-graph TD
-  SHIM["IsExternalInit"] --> INIT["init-only properties"]
-  SAMPLE["RecordsUseCases"] --> INIT
-  TESTS["RecordsTests"] --> INIT
-```
+1. Define `init`-only properties in your models.
+2. Initialize objects via object initializers.
+3. Keep this module referenced for compatibility scenarios.
 
-## Architecture and key behaviors
+## Examples
 
-### 1) Compatibility shim
-
-The module defines `IsExternalInit` so `init` accessors compile in target environments that need this type.
-
-```csharp
-namespace System.Runtime.CompilerServices
-{
-    public static class IsExternalInit { }
-}
-```
-
-### 2) Init property usage pattern
-
-Consumer structs/classes can use object initializer syntax with `init` setters.
-
-```csharp
-private struct PersonRecord
-{
-    public string Name { get; init; }
-    public int Age { get; init; }
-}
-```
-
-### 3) Validation behavior
-
-Tests validate that values assigned through object initializers are retained.
-
-```csharp
-PersonRecord person = new PersonRecord { Name = "Alice", Age = 30 };
-Assert.AreEqual("Alice", person.Name);
-```
-
-## How to use
-
-When you need `init`-only property initialization compatibility in this project, keep the Records module referenced and define/init properties normally:
+### Minimal
 
 ```csharp
 private struct Settings
@@ -77,39 +45,67 @@ private struct Settings
 Settings s = new Settings { Mode = "Fast" };
 ```
 
-Reference sample: `Assets/Scripts/Tools/Records/Samples/RecordsUseCases.cs`.
+## Best Practices
 
-## Internal Services
+- Keep this module minimal and focused.
+- Avoid duplicating `IsExternalInit` definitions in other modules.
+- Use this as compatibility plumbing, not feature storage.
 
-### Compiler compatibility shim
+## Anti-Patterns
 
-- Main type: `System.Runtime.CompilerServices.IsExternalInit`.
-- Responsibility: satisfy compiler/runtime expectation for `init` accessor support.
+- Adding unrelated helper utilities to this module.
+- Defining multiple conflicting `IsExternalInit` types.
 
-## Public api
+## Testing
 
-- `IsExternalInit` (`Assets/Scripts/Tools/Records/Runtime/IsExternalInit.cs`): compatibility type enabling `init` accessors in target environments where it is missing.
-
-## How to test
-
-From Unity Editor:
-
-1. Open `Window > General > Test Runner`.
-2. Run EditMode tests for `Scaffold.Records.Tests`.
-3. Expected result: `RecordsTests` passes, confirming init-property assignment persists expected values.
-
-From Unity CLI (headless pattern):
+- Test assembly: `Scaffold.Records.Tests`.
+- Run from repo root:
 
 ```powershell
-Unity.exe -batchmode -quit -projectPath "C:\Users\user\Documents\Unity\Scaffold" -runTests -testPlatform EditMode -testResults "Logs\Records-TestResults.xml"
+& ".\.agents\scripts\run-editmode-tests.ps1" -AssemblyNames "Scaffold.Records.Tests"
 ```
 
-Expected result: run completes successfully with passing `Scaffold.Records.Tests`.
+- Expected: all tests pass with zero failures.
+- Bugfix rule: add/update regression test first, verify fail-before/fix/pass-after.
 
-## Related docs and modules
+## Testing Exception (Intentional Low-Test Module)
+
+This module is an approved low-test exception.
+
+- `Scaffold.Records` is a marker/compatibility assembly whose runtime behavior is intentionally minimal.
+- The existing smoke test (`RecordsTests`) is the contract check for `init` assignment compatibility.
+- Additional tests are not required unless module scope changes.
+
+Add more tests if any of the following happens:
+
+- New runtime behavior is introduced beyond the `IsExternalInit` compatibility marker.
+- Additional public APIs are added under `Assets/Scripts/Tools/Records/`.
+- The module begins to own branching logic, state transitions, or domain rules.
+
+See also: `Docs/AutomatedTesting.md` (allowed low-test module exceptions policy).
+
+## AI Agent Context
+
+- Invariants:
+  - compatibility shim remains present and unchanged.
+- Allowed Dependencies:
+  - core runtime compiler namespace only.
+- Forbidden Dependencies:
+  - infra/app/module-specific logic.
+- Change Checklist:
+  - verify `init` usage tests still pass.
+  - verify no duplicate shim added elsewhere.
+- Known Tricky Areas:
+  - duplicate type definitions across assemblies.
+
+## Related
 
 - `Architecture.md`
-- `Docs/Tools/Types.md` (type metadata and reflection utilities can consume record-like models)
-- `Docs/Tools/Maps.md` (record-like values can be stored in map indexes)
-- `Plans/Create-Module-Documentation/ExecPlan.md`
-- `Assets/Scripts/Tools/Records/Tests/RecordsTests.cs`
+- `Docs/AutomatedTesting.md`
+- `Docs/Tools/Types.md`
+- `Docs/Tools/Maps.md`
+
+## Changelog
+
+- Rewritten to AI-first standard with explicit compatibility boundaries.
+- Added low-test-module exception policy linkage.

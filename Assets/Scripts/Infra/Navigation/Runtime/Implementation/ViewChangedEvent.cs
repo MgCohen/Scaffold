@@ -1,8 +1,12 @@
-using System;
-using Scaffold.Events;
+﻿using UnityEngine;
 using Scaffold.Types;
-using UnityEngine;
-
+using Scaffold.Events.Contracts;
+using Scaffold.Events;
+using System.Threading.Tasks;
+using System.Linq;
+using System.Collections.Generic;
+using System;
+using Scaffold.Navigation.Contracts;
 namespace Scaffold.Navigation
 {
     public record ViewChangedEvent : ContextEvent
@@ -14,6 +18,7 @@ namespace Scaffold.Navigation
         }
         public ViewChangedEvent(IViewController from, IViewController to)
         {
+            ValidateEndpoints(from, to);
             this.From = from;
             this.To = to;
             targetType = new TypeReference(to?.GetType());
@@ -22,5 +27,16 @@ namespace Scaffold.Navigation
         public IViewController From { get; }
 
         public TypeReference TargetType => targetType;
+
+        private void ValidateEndpoints(IViewController from, IViewController to)
+        {
+            if (from == null && to == null)
+            {
+                throw new ArgumentException("At least one endpoint must be set.");
+            }
+        }
     }
 }
+
+
+

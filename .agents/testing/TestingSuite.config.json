@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "coverage": {
+    "defaultAssemblyFilters": "+Scaffold.*"
+  },
+  "asmdefReferences": {
+    "excludedAssemblyNames": [
+      "Scaffold.Schemas",
+      "Scaffold.LiveOps.DTO.dll"
+    ],
+    "excludedGuidReferences": [
+      "GUID:c72c3642ec330a340ad91bd6bf5d6bdc"
+    ],
+    "firstPartyAssemblyNamePatterns": [
+      "Scaffold.*"
+    ]
+  }
+}

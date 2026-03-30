@@ -1,9 +1,13 @@
-using UnityEngine;
+﻿using System.Threading.Tasks;
 
-namespace Scaffold.Navigation
+namespace Scaffold.Navigation.Contracts
 {
     public interface IViewTransitionHandler
     {
-        Awaitable DoTransition(ViewTransitionData transitionData, TransitionDirection direction);
+        Task DoTransition(object transitionData, TransitionDirection direction);
     }
 }
+
+
+
+

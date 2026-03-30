@@ -1,9 +1,11 @@
 {
     "name": "Scaffold.Navigation.Container",
-    "rootNamespace": "",
+    "rootNamespace": "Scaffold.Navigation.Container",
     "references": [
-        "GUID:c3088aa60ae8cfb489f4d39ee00a5d8c",
-        "GUID:187850c043ab2e447bccebb00224cad7"
+        "Scaffold.Navigation",
+        "Scaffold.Scope",
+        "VContainer",
+        "VContainer.Unity"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

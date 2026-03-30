@@ -1,6 +1,10 @@
-namespace Scaffold.Navigation
+﻿namespace Scaffold.Navigation.Contracts
 {
     public interface INavigationMiddleware
     {
     }
 }
+
+
+
+

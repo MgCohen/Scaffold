@@ -1,17 +1,28 @@
 {
-    "name": "Scaffold.Events.Container",
-    "rootNamespace": "",
-    "references": [
-        "GUID:add4e0403ba79634984fb6eb819e09bd",
-        "GUID:c3088aa60ae8cfb489f4d39ee00a5d8c"
-    ],
-    "includePlatforms": [],
-    "excludePlatforms": [],
-    "allowUnsafeCode": false,
-    "overrideReferences": false,
-    "precompiledReferences": [],
-    "autoReferenced": true,
-    "defineConstraints": [],
-    "versionDefines": [],
-    "noEngineReferences": false
+    "name":  "Scaffold.Events.Container",
+    "rootNamespace":  "Scaffold.Events.Container",
+    "references":  [
+                       "Scaffold.Events",
+                       "VContainer"
+                   ],
+    "includePlatforms":  [
+
+                         ],
+    "excludePlatforms":  [
+
+                         ],
+    "allowUnsafeCode":  false,
+    "overrideReferences":  false,
+    "precompiledReferences":  [
+
+                              ],
+    "autoReferenced":  true,
+    "defineConstraints":  [
+
+                          ],
+    "versionDefines":  [
+
+                       ],
+    "noEngineReferences":  false
 }
+

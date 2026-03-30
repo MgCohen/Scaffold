@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
@@ -8,19 +8,6 @@ namespace Scaffold.Types.Editor
 {
     public class DerivedTypeDropdown
     {
-        private readonly List<Type> subTypes;
-        private readonly string[] subTypeNames;
-        private int selectedIndex = -1;
-
-        public Type SelectedType
-        {
-            get
-            {
-                var safeIndex = Math.Max(0, selectedIndex);
-                return subTypes.ElementAtOrDefault(safeIndex);
-            }
-        }
-
         public DerivedTypeDropdown(Type targetType, Type currentType = null)
         {
             subTypes = new List<Type>();
@@ -36,6 +23,19 @@ namespace Scaffold.Types.Editor
             subTypeNames = subTypes.Select(x => x.Name).ToArray();
             selectedIndex = subTypes.IndexOf(currentType);
         }
+
+        public Type SelectedType
+        {
+            get
+            {
+                var safeIndex = Math.Max(0, selectedIndex);
+                return subTypes.ElementAtOrDefault(safeIndex);
+            }
+        }
+
+        private readonly List<Type> subTypes;
+        private readonly string[] subTypeNames;
+        private int selectedIndex = -1;
 
         public void RefreshSelection(Type currentType)
         {
@@ -57,3 +57,5 @@ namespace Scaffold.Types.Editor
         }
     }
 }
+
+

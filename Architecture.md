@@ -1,104 +1,195 @@
 # Architecture
 
-This document describes the high-level architecture of the Scaffold project. It serves as a bird's-eye view for anyone looking to understand the project structure and contribute effectively.
+This document is the architecture entrypoint for this Unity repository. It describes the current module boundaries, runtime flow, and verification loop used to keep architecture rules enforceable.
+
+## TL;DR
+
+- The host project is a modular Unity tree with explicit assembly boundaries under `Assets/Scripts/`.
+- The **`Core/`** script folder groups shared gameplay foundations; it is **not** a guarantee that every assembly under it is Unity-free. Some Core assemblies use `UnityEngine` on purpose (for example **`Scaffold.Entities`**: ScriptableObjects, `MonoBehaviour` health and lifecycle hooks). Other modules may set `noEngineReferences: true` in `.asmdef` when they are intentionally engine-agnostic.
+- UI and app-specific presentation stay in App/Infra; keep cross-module dependencies explicit and avoid leaking view concerns into unrelated modules.
+- Architecture enforcement is layered: docs standards, `.asmdef` dependency boundaries, and custom Roslyn analyzers.
+- Startup composition in this tree is intentionally minimal: **asset preload → infra (events, navigation, UGS, cloud code, scene flow) → core (LiveOps)**. Add layers only when you introduce matching modules.
+- Current state reflects the repository.
+
+## Architectural Drivers
+
+- Keep module boundaries explicit and mechanically enforceable.
+- Prefer plain C# and narrow surfaces where it helps.
+- Keep startup predictable and diagnosable with deterministic scope initialization.
+- Make quality checks repeatable through repository scripts and analyzer diagnostics.
 
 ## Project Summary
 
-Scaffold is a highly modularized Unity project designed with clear boundaries. It enforces strict separation of concerns, dividing functionality into core logic, infrastructure components, and development tools.
+This repository is a modular Unity project with architecture controls enforced through:
 
-This approach ensures that the project remains scalable, testable, and maintainable. Each module is encapsulated within its own assembly (`.asmdef` or `.csproj`), keeping dependencies explicit and minimizing tight coupling.
+- A written record of what was trimmed from the upstream game project: [`Docs/REFERENCE_DECISIONS.md`](Docs/REFERENCE_DECISIONS.md).
+- Documentation standards under `Docs/Standards/` (when present).
+- Explicit assembly boundaries under `Assets/Scripts/**/*.asmdef`.
+- Custom Roslyn analyzers under `Analyzers/Scaffold/Scaffold.Analyzers`.
+- Repository validation scripts under `.agents/scripts/`.
+
+## Constraints and Invariants
+
+- **`Assets/Scripts/Core/` is a physical grouping, not “Unity-free by definition.”** Whether an assembly references `UnityEngine` is determined per `.asmdef` (for example `Scaffold.Entities` uses the engine; some other assemblies use `noEngineReferences: true` where they stay agnostic).
+- MonoBehaviour usage is allowed in Core when the module owns engine-facing gameplay building blocks (again, `Scaffold.Entities` is the canonical example). Prefer keeping UI-specific MonoBehaviours in App/Infra presentation layers.
+- All cross-module dependencies must be declared in `.asmdef` files; no hidden references.
+- Bootstrap/composition root owns concrete wiring; runtime modules consume contracts/interfaces.
 
 ## Tech Stack
 
-The project relies on the following core technologies and patterns:
-- **Engine**: Unity
-- **Language**: C#
-- **Architecture**: MVVM (Model-View-ViewModel)
-- **Code Analysis & Generation**: Custom Roslyn Analyzers and Source Generators
-- **Dependency Injection**: Custom IoC Container
+- Engine: Unity `2022.3.50f1` (see `ProjectSettings/ProjectVersion.txt` for the active editor version).
+- Language: C#
+- Architecture: MVVM
+- Dependency Injection: VContainer (`jp.hadashikick.vcontainer`)
+- Rendering: Universal Render Pipeline (URP)
+- Core Packages: Addressables, AI Navigation, Cinemachine, TextMeshPro, Unity Test Framework, Scaffold Schemas (`com.scaffold.schemas`)
+- Code Quality: Roslyn analyzers (`Analyzers/Scaffold/Scaffold.Analyzers`)
 
-## Bird's Eye View & File Listing
+## System Context
 
-The repository contains the following main directories:
+Intent: show how external actors/systems interact with this Unity client at runtime.
 
-- `Docs/`: Documentation files for all project modules. Every module must have a `.md` document/folder here containing its logic.
-- `Plans/`: Contains all planning documents and files.
-- `Assets/`: The main Unity directory.
-  - `Scripts/`: Contains all the application source code divided into functional layers.
-    - `Core/`: Core application logic.
-    - `Infra/`: Infrastructure systems and framework-level tools.
-    - `Presentation/`: User interface and visual representation layer.
-    - `Tools/`: Helper utilities and structural tools.
-- `Analyzers/`: Contains custom Roslyn analyzers that enforce codestyle and architectural rules. Source lives in `Analyzers/Scaffold/`; compiled artifact goes to `Analyzers/Output/Scaffold.Analyzers.dll` and is injected into all projects via `Directory.Build.props` at the repo root (not through Unity's asset pipeline).
-- `Generators/`: Source generators (e.g., AutoPacker and ObservableNestedPropertiesGenerator) that output boilerplate code during compilation.
-- `Packages/`: Project dependencies and third-party modules.
+Source of truth: your bootstrap scene and composition wiring under `Assets/Scripts/App/Bootstrap/` (no fixed scene path is documented here).
 
-## Modules
+Update trigger: changes to startup sequence, external service integrations, or root scene flow.
 
-The logic is split into several interconnected but distinct submodules located inside `Assets/Scripts`:
+System context diagram:
 
-### Core
-- **MVVM**: Implements the Model-View-ViewModel architectural pattern. This module provides the foundation for data-binding and separating the UI logic from the presentation layer.
+```mermaid
+flowchart LR
+    Player([Player]) --> UnityClient[Unity client]
+    UnityClient --> UGS[Unity Gaming Services / Cloud]
+    UnityClient --> Addressables[Addressables Content Catalog]
+    UnityClient --> LocalData[Local Save/Settings]
+    UnityClient --> Telemetry[Logs and Diagnostics]
 
-### Infra
-- **Containers**: Dependency injection and inversion of control (IoC) resolution mechanisms to manage service lifecycles.
-- **Events**: A decoupled event-bus or messaging system used for cross-module communication without direct references.
-- **Navigation**: Handling in-app routing, view transitions, and screen management.
-- **NetworkMessages**: Structures and subsystems dedicated to handling data transfer or network communication payloads.
-
-### Tools
-- **AutoPacker**: A Roslyn Source Generator that creates zero-allocation structs and conversions for optimal Data Transfer Objects.
-- **Maps**: Utilities mapped to data collections or routing maps.
-- **Records**: Tools relating to immutable data structures or state records.
-- **Types**: Custom type wrappers, extensions, and type-safety enforcers. 
-
-## Basic Rules and Code Standards
-
-The project follows a strict set of rules to maintain code quality:
-1. **Separation of Concerns**: Never tightly couple core logic with Unity-specific presentation.
-2. **Modular Integrity**: Always declare dependencies explicitly. One module should not bypass the intended architectural boundaries to access another.
-3. **Automated Enforcement**: All rules and standards are defined through a custom Roslyn analyzer located in the `Analyzers/` folder.
-4. **Avoid MonoBehaviours for Core Logic**: MonoBehaviours must be avoided when writing core business logic.
-5. **Restrict MonoBehaviours**: Try, as much as possible, to leave MonoBehaviours only to bootstrap and presentation logic.
-6. **Mandatory Testing**: We must have tests in all modules.
-7. **Documentation**: All modules need a `.md` document or folder within the `Docs/` directory containing their logic documentation.
-8. **Plans**: All plan files must go into the `Plans/` directory.
-9. **Source Generators Location**: When creating new source generators, they should be placed in `Generators/`.
-
-If the custom analyzer reports a warning or error, you must fix it to comply with the project standards before committing code. 
-
-## How to Test
-
-Scaffold uses an AI-first, automation-first testing workflow. The standard test path is the headless `EditMode` script, not manually opening Unity.
-
-### Headless Edit Mode Testing
-
-Use the repository script `.agents/scripts/run-editmode-tests.ps1` when you want a repeatable command-line test run without opening the Unity Editor UI.
-
-Run it from the repository root:
-
-```powershell
-& ".\.agents\scripts\run-editmode-tests.ps1"
+    subgraph Client[Unity client]
+      Bootstrap[Bootstrap Scope + DI]
+      AppFlow[App Navigation and Views]
+      Core[Core Services]
+      Bootstrap --> AppFlow
+      AppFlow --> Core
+    end
 ```
 
-This script:
+## Container/Module View
 
-- detects the required Unity version from `ProjectSettings/ProjectVersion.txt`
-- launches Unity in batch mode for `EditMode` tests
-- prints a summary with passed, failed, and skipped counts
-- prints failed test names if any tests fail
-- deletes its temporary XML and log artifacts before exiting
+Intent: show static module groups in **this** repository.
 
-If the project cannot compile, the script reports a blocked run and prints the relevant Unity compiler errors.
+Source of truth: `Assets/Scripts/**/*.asmdef`, and the Unity-generated solution (`.sln`) at the repository root when present (name follows the project folder; often gitignored alongside `*.csproj`).
 
-## How to Create More Code
+Update trigger: add/rename/remove assemblies or change `.asmdef` references.
 
-To maintain structural consistency, you should not manually copy-paste folders to create new pieces of logic.
+Container/module dependency diagram (trimmed extract):
 
-### Creating a New Module
-When you need to create a new module, you must use the provided workflow. The `/create-module` workflow automatically scaffolds a new module following the project's structure guidelines, ensuring the correct `.asmdef`/`.csproj` boundaries and folder structure.
+```mermaid
+flowchart LR
+    Infra[Infra<br/>Scope / Events / Navigation / Model / MVVM / Addressables / SceneFlow / UGS / CloudCode]
+    Core[Core<br/>LiveOps / Entities / ViewModel]
+    App[App<br/>Bootstrap / View]
+    Tools[Tools<br/>Maps / Records / Types]
 
-### Creating a Custom Analyzer Rule
-If you need to define or enforce a new architectural rule, you should use the custom analyzer workflow. Run the `/create-custom-analyzer` workflow, which guides you through creating a new custom Roslyn analyzer linter rule that runs securely across the codebase.
+    Infra --> Core
+    Infra --> App
+    Core --> App
+    Tools --> Core
+    Tools --> App
+```
 
+Current module documentation map (see `Docs/`):
 
+- `Docs/App/Bootstrap.md`, `Docs/App/View.md`
+- `Docs/Core/ViewModel.md`, `Docs/Core/LiveOps.md`, `Docs/Core/Entities.md`
+- `Docs/Infra/Addressables.md`, `Docs/Infra/MVVM.md`, `Docs/Infra/Events.md`, `Docs/Infra/Model.md`, `Docs/Infra/Navigation.md`, `Docs/Infra/Scope.md`, `Docs/Infra/SceneFlow.md`
+- `Docs/Tools/Maps.md`, `Docs/Tools/Records.md`, `Docs/Tools/Types.md`
+- `Docs/Analyzers/Analyzers.md`, `Docs/Testing.md`, `Docs/AutomatedTesting.md`
+
+## Runtime Flows
+
+Intent: describe bootstrap startup in this tree.
+
+Update trigger: any change to startup ordering or navigation.
+
+Startup sequence (current wiring):
+
+```mermaid
+sequenceDiagram
+    participant Player
+    participant Boot as Bootstrap
+    participant Infra as InstallInfra
+    participant Core as InstallCore
+
+    Player->>Boot: Press Play
+    Boot->>Infra: Register infra services
+    Infra-->>Boot: Infra ready
+    Boot->>Core: Register core services
+    Core-->>Boot: Core ready
+```
+
+## Dependency Rules
+
+Allowed:
+
+- Explicit `.asmdef` references between modules.
+- Domain and gameplay logic in Core modules, with or without `UnityEngine` per assembly choice.
+- Framework dependencies (`VContainer`, navigation/event adapters) in infra/bootstrap modules.
+
+Forbidden:
+
+- Hidden dependencies that bypass declared assembly references.
+- Putting App/UI or scene-specific presentation concerns into modules that are not meant to own them (keep boundaries intentional).
+- Direct production runtime coupling to analyzer implementation projects.
+
+## Quality Attributes and Tradeoffs
+
+- Modularity over convenience:
+  - Pros: safer edits, stronger boundaries, analyzable dependency graph.
+  - Tradeoff: more interfaces/contracts and composition wiring.
+- Deterministic startup over implicit registration:
+  - Pros: predictable initialization and easier fault isolation.
+  - Tradeoff: phase ordering must be maintained intentionally.
+- Clear module ownership over ad-hoc coupling:
+  - Pros: testable contracts and predictable dependencies.
+  - Tradeoff: adapter layers and explicit `.asmdef` edges when mixing engine and non-engine code.
+- Scripted validation over ad-hoc checks:
+  - Pros: repeatable quality gate for contributors and agents.
+  - Tradeoff: longer feedback loop than compile-only checks.
+
+## Verification
+
+Run from repository root. For **how** scripts invoke Unity and `dotnet` safely when the repo path contains spaces (Windows PowerShell 5.x), see `Docs/Testing.md` → "Implementation notes".
+
+- Full gate (optional: skip automated Unity tests with `-SkipTests`):
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File ".\.agents\scripts\validate-changes.ps1" -SkipTests`
+  - or `& ".\.agents\scripts\validate-changes.cmd" -SkipTests`
+- Analyzer diagnostics:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File ".\.agents\scripts\check-analyzers.ps1"`
+- EditMode tests (when you add tests again):
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File ".\.agents\scripts\run-editmode-tests.ps1"`
+- PlayMode tests (when you add tests again):
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File ".\.agents\scripts\run-playmode-tests.ps1"`
+
+Architecture controls and policy files:
+
+- Analyzer source: `Analyzers/Scaffold/Scaffold.Analyzers` (`Rules/CategoryNN-*/` per disposition, `Support/` for shared config)
+- Analyzer tests: `Analyzers/Scaffold/Scaffold.Analyzers.Tests` (SCA); MVVM analyzer tests: `Generators/Scaffold.Mvvm.Analyzers.Tests`
+- Analyzer output: `Analyzers/Output/Scaffold.Analyzers.dll` (and `Scaffold.Mvvm.Analyzers.dll` from `Generators/Scaffold.Mvvm.Analyzers`)
+- Assembly boundaries: `Assets/Scripts/**/*.asmdef`
+- Operational docs: `AGENTS.md`, `PLANS.md`, `MILESTONE.md`
+
+## Operational policy
+
+- Primary agent operating policy: `AGENTS.md`.
+- ExecPlan authoring/execution policy: `PLANS.md`.
+- Milestone plan policy: `MILESTONE.md`.
+- Quality gate: `validate-changes.ps1` (use `-SkipTests` while Unity Edit/PlayMode tests are not maintained).
+- Analyzer diagnostics workflow: `.agents/workflows/check-analyzers.md`.
+- Module creation workflow: `.agents/workflows/create-module.md`.
+- Custom analyzer workflow: `.agents/workflows/create-custom-analyzer.md`.
+
+## Change Log
+
+- Documented that Core script folders may include Unity-engine references (notably `Scaffold.Entities`); removed the outdated invariant that all Core/domain assemblies must be Unity-free.
+- Reorganized the document to match architecture documentation standard; added system context, module dependency, startup/battle/runtime state diagrams, invariants, and quality-tradeoff sections.
+- Synced docs map with current module docs and aligned startup/runtime language with research flow documents.
+- Trimmed extract: removed references to external research documents, specific scene asset paths, and battle/main-menu flows not present in this repository; documented minimal bootstrap layering.

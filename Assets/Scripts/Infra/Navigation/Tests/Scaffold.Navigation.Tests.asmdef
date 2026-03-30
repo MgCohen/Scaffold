@@ -1,8 +1,12 @@
 {
     "name": "Scaffold.Navigation.Tests",
     "rootNamespace": "Scaffold.Navigation.Tests",
-    "references": ["Scaffold.Navigation"],
-    "includePlatforms": ["Editor"],
+    "references": [
+        "Scaffold.Navigation"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,
@@ -11,5 +15,7 @@
     "defineConstraints": [],
     "versionDefines": [],
     "noEngineReferences": false,
-    "optionalUnityReferences": ["TestAssemblies"]
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
 }

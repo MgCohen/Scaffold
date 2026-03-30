@@ -1,3 +1,4 @@
+﻿using Scaffold.Events.Contracts;
 using System;
 using UnityEngine;
 
@@ -29,3 +30,5 @@ namespace Scaffold.Events.Samples
         private record PlayerDiedEvent : ContextEvent;
     }
 }
+
+

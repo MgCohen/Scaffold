@@ -1,0 +1,7 @@
+<Project>
+  <!-- Cloud Code backend mirrors scaffold patterns; disable repo Roslyn analyzers here to avoid
+       style blockers on Newtonsoft-backed DTO shapes and generated-style infrastructure. -->
+  <PropertyGroup>
+    <RunAnalyzers>false</RunAnalyzers>
+  </PropertyGroup>
+</Project>

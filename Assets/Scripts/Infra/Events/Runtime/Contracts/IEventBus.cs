@@ -1,6 +1,6 @@
-using System;
+﻿using System;
 
-namespace Scaffold.Events
+namespace Scaffold.Events.Contracts
 {
     public interface IEventBus
     {
@@ -12,3 +12,6 @@ namespace Scaffold.Events
         void Clear();
     }
 }
+
+
+

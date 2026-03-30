@@ -1,4 +1,4 @@
-namespace Scaffold.Records.Samples
+﻿namespace Scaffold.Records.Samples
 {
     public class RecordsUseCases
     {
@@ -23,3 +23,5 @@ namespace Scaffold.Records.Samples
         }
     }
 }
+
+

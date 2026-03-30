@@ -1,39 +1,35 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\user\\.codex\\worktrees\\7a04\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers.Tests\\Scaffold.Analyzers.Tests.csproj": {}
+    "C:\\Unity\\Cleanup Project\\Analyzers\\Scaffold\\Scaffold.Analyzers.Tests\\Scaffold.Analyzers.Tests.csproj": {}
   },
   "projects": {
-    "C:\\Users\\user\\.codex\\worktrees\\7a04\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers.Tests\\Scaffold.Analyzers.Tests.csproj": {
+    "C:\\Unity\\Cleanup Project\\Analyzers\\Scaffold\\Scaffold.Analyzers.Tests\\Scaffold.Analyzers.Tests.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\user\\.codex\\worktrees\\7a04\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers.Tests\\Scaffold.Analyzers.Tests.csproj",
+        "projectUniqueName": "C:\\Unity\\Cleanup Project\\Analyzers\\Scaffold\\Scaffold.Analyzers.Tests\\Scaffold.Analyzers.Tests.csproj",
         "projectName": "Scaffold.Analyzers.Tests",
-        "projectPath": "C:\\Users\\user\\.codex\\worktrees\\7a04\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers.Tests\\Scaffold.Analyzers.Tests.csproj",
-        "packagesPath": "C:\\Users\\user\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\user\\.codex\\worktrees\\7a04\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers.Tests\\obj\\",
+        "projectPath": "C:\\Unity\\Cleanup Project\\Analyzers\\Scaffold\\Scaffold.Analyzers.Tests\\Scaffold.Analyzers.Tests.csproj",
+        "packagesPath": "C:\\Users\\mtgco\\.nuget\\packages\\",
+        "outputPath": "C:\\Unity\\Cleanup Project\\Analyzers\\Scaffold\\Scaffold.Analyzers.Tests\\obj\\",
         "projectStyle": "PackageReference",
-        "fallbackFolders": [
-          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
-        ],
         "configFilePaths": [
-          "C:\\Users\\user\\AppData\\Roaming\\NuGet\\NuGet.Config",
-          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Users\\mtgco\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
         "originalTargetFrameworks": [
-          "net9.0"
+          "net8.0"
         ],
         "sources": {
           "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
-          "net9.0": {
-            "targetAlias": "net9.0",
+          "net8.0": {
+            "targetAlias": "net8.0",
             "projectReferences": {
-              "C:\\Users\\user\\.codex\\worktrees\\7a04\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers\\Scaffold.Analyzers.csproj": {
-                "projectPath": "C:\\Users\\user\\.codex\\worktrees\\7a04\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers\\Scaffold.Analyzers.csproj"
+              "C:\\Unity\\Cleanup Project\\Analyzers\\Scaffold\\Scaffold.Analyzers\\Scaffold.Analyzers.csproj": {
+                "projectPath": "C:\\Unity\\Cleanup Project\\Analyzers\\Scaffold\\Scaffold.Analyzers\\Scaffold.Analyzers.csproj"
               }
             }
           }
@@ -51,20 +47,20 @@
         "SdkAnalysisLevel": "9.0.300"
       },
       "frameworks": {
-        "net9.0": {
-          "targetAlias": "net9.0",
+        "net8.0": {
+          "targetAlias": "net8.0",
           "dependencies": {
             "Microsoft.CodeAnalysis.CSharp": {
               "target": "Package",
-              "version": "[4.8.0, )"
+              "version": "[4.11.0, )"
             },
             "Microsoft.NET.Test.Sdk": {
               "target": "Package",
-              "version": "[17.14.1, )"
+              "version": "[17.11.1, )"
             },
             "xunit": {
               "target": "Package",
-              "version": "[2.9.3, )"
+              "version": "[2.9.0, )"
             },
             "xunit.runner.visualstudio": {
               "include": "Runtime, Build, Native, ContentFiles, Analyzers, BuildTransitive",
@@ -89,25 +85,21 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.305/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.312/PortableRuntimeIdentifierGraph.json"
         }
       }
     },
-    "C:\\Users\\user\\.codex\\worktrees\\7a04\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers\\Scaffold.Analyzers.csproj": {
+    "C:\\Unity\\Cleanup Project\\Analyzers\\Scaffold\\Scaffold.Analyzers\\Scaffold.Analyzers.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\user\\.codex\\worktrees\\7a04\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers\\Scaffold.Analyzers.csproj",
+        "projectUniqueName": "C:\\Unity\\Cleanup Project\\Analyzers\\Scaffold\\Scaffold.Analyzers\\Scaffold.Analyzers.csproj",
         "projectName": "Scaffold.Analyzers",
-        "projectPath": "C:\\Users\\user\\.codex\\worktrees\\7a04\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers\\Scaffold.Analyzers.csproj",
-        "packagesPath": "C:\\Users\\user\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\user\\.codex\\worktrees\\7a04\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers\\obj\\",
+        "projectPath": "C:\\Unity\\Cleanup Project\\Analyzers\\Scaffold\\Scaffold.Analyzers\\Scaffold.Analyzers.csproj",
+        "packagesPath": "C:\\Users\\mtgco\\.nuget\\packages\\",
+        "outputPath": "C:\\Unity\\Cleanup Project\\Analyzers\\Scaffold\\Scaffold.Analyzers\\obj\\",
         "projectStyle": "PackageReference",
-        "fallbackFolders": [
-          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
-        ],
         "configFilePaths": [
-          "C:\\Users\\user\\AppData\\Roaming\\NuGet\\NuGet.Config",
-          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Users\\mtgco\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
         "originalTargetFrameworks": [
@@ -147,12 +139,7 @@
             "Microsoft.CodeAnalysis.CSharp": {
               "suppressParent": "All",
               "target": "Package",
-              "version": "[4.8.0, )"
-            },
-            "Microsoft.CodeAnalysis.CSharp.Workspaces": {
-              "suppressParent": "All",
-              "target": "Package",
-              "version": "[4.8.0, )"
+              "version": "[4.11.0, )"
             },
             "NETStandard.Library": {
               "suppressParent": "All",
@@ -172,7 +159,7 @@
           ],
           "assetTargetFallback": true,
           "warn": true,
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.305\\RuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.312\\RuntimeIdentifierGraph.json"
         }
       }
     }

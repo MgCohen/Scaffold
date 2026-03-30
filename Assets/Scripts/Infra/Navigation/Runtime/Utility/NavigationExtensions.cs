@@ -1,4 +1,13 @@
-namespace Scaffold.Navigation
+﻿using UnityEngine;
+using Scaffold.Types;
+using Scaffold.Navigation.Contracts;
+using Scaffold.Events.Contracts;
+using Scaffold.Events;
+using System.Threading.Tasks;
+using System.Linq;
+using System.Collections.Generic;
+using System;
+namespace Scaffold.Navigation.Utility
 {
     public static class NavigationExtensions
     {
@@ -10,3 +19,7 @@ namespace Scaffold.Navigation
         }
     }
 }
+
+
+
+

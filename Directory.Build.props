@@ -1,6 +1,8 @@
 <Project>
-  <ItemGroup Condition="'$(MSBuildProjectName)' != 'Scaffold.Analyzers'">
+  <ItemGroup Condition="'$(MSBuildProjectName)' != 'Scaffold.Analyzers' and '$(MSBuildProjectName)' != 'Scaffold.Analyzers.Tests' and '$(MSBuildProjectName)' != 'Scaffold.Mvvm.Analyzers' and '$(MSBuildProjectName)' != 'Scaffold.Mvvm.Analyzers.Tests'">
     <Analyzer Include="$(MSBuildThisFileDirectory)Analyzers/Output/Scaffold.Analyzers.dll"
               Condition="Exists('$(MSBuildThisFileDirectory)Analyzers/Output/Scaffold.Analyzers.dll')" />
+    <Analyzer Include="$(MSBuildThisFileDirectory)Analyzers/Output/Scaffold.Mvvm.Analyzers.dll"
+              Condition="Exists('$(MSBuildThisFileDirectory)Analyzers/Output/Scaffold.Mvvm.Analyzers.dll')" />
   </ItemGroup>
 </Project>

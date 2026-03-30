@@ -1,173 +1,128 @@
-# Types Module
+# Scaffold Tools Types
 
-## Summary
+## TL;DR
 
-The Types module provides runtime and editor utilities for working with `System.Type` safely in Unity workflows. Its main effect is enabling serialized type references, filtered type selection, and constructor dependency inspection without scattering reflection logic across feature modules.
+- Purpose: type metadata utilities for runtime/editor workflows.
+- Location: `Assets/Scripts/Tools/Types/`.
+- Depends on: base runtime libs (+ Newtonsoft in runtime, UnityEditor in editor asmdef).
+- Used by: navigation configs, dependency analysis, inspector type selection.
+- Runtime/Editor: both runtime and editor.
+- Keywords: typereference, reflection, dependency extractor, editor drawers.
 
-Internally, the module combines runtime type metadata classes with editor drawers to make type-driven configuration practical in inspectors.
+## Responsibilities
 
-## Bird's Eye View
+- Owns serializable `TypeReference` representation.
+- Owns constructor dependency extraction (`IDependencyExtractor`).
+- Owns derived-type discovery helpers (`TypeUtility`).
+- Owns editor drawers for constrained type selection.
+- Does not own module dependency policy or DI container behavior.
 
-Module layout (`Assets/Scripts/Tools/Types/`):
+## Public API
 
-- `Runtime/Contracts/`: dependency extraction contract.
-- `Runtime/Implementation/`: dependency extraction implementation.
-- `Runtime/`: serialized type wrappers, utility, and selection/filter attributes.
-- `Editor/`: inspector drawers for type selection/reference UX.
-- `Samples/`: usage examples (`TypesUseCases.cs`).
-- `Tests/`: dependency extractor behavior tests (`TypesTests.cs`).
+| Symbol | Purpose | Inputs | Outputs | Failure behavior |
+|---|---|---|---|---|
+| `TypeReference` | Persist and resolve `System.Type` | type or serialized backing string | resolved `Type` | unresolved or invalid serialization resolves null/guarded path |
+| `TypeUtility` | Find assignable derived types | base type + flags | `IEnumerable<Type>` | returns empty set when none found |
+| `IDependencyExtractor` | Constructor dependency contract | target `Type` | constructor dependency type list | empty result when no dependencies |
+| `DependencyExtractor` | Cached dependency extractor | target `Type` | cached dependency set | guards unsupported or invalid inputs |
+| `TypeReferenceFilterAttribute` | Restrict selectable type set | base type metadata | filtered inspector candidates | n/a |
+| `TypeSelectionAttribute` | Enable derived-type managed reference selection | base type metadata | inspector selection support | n/a |
 
-External dependency graph:
+## Setup / Integration
+
+1. Reference `Scaffold.Types` runtime asmdef where type helpers are needed.
+2. Use `TypeReference` fields in serializable configs.
+3. For editor selection UX, reference `Scaffold.Types.Editor` in editor-only asmdefs.
+
+## How to Use
+
+1. Store type metadata through `TypeReference`.
+2. Resolve concrete type when needed at runtime.
+3. Use dependency extractor for constructor analysis scenarios.
+4. Apply filter/selection attributes for inspector usability.
+
+## Behavior Contracts
+
+- `TypeReference` stores serialized type identity and lazily resolves `Type` on access.
+- `DependencyExtractor` constructor selection prioritizes `[Inject]`-annotated constructor when present; otherwise falls back to highest-parameter constructor.
+- Dependency extraction results are cached by analyzed `Type` for stable repeated access performance.
+- `TypeUtility` scans loaded assemblies for assignable types and can include/exclude abstract candidates by option.
+- Editor drawers (`TypeReferenceDrawer`, `TypeSelectionAttributeDrawer`) convert metadata attributes into constrained inspector selection flows.
+
+## Examples
+
+### Type Resolution Flow
 
 ```mermaid
-graph LR
-  TYPES["Scaffold.Types Runtime"] --> NEWTON["Newtonsoft.Json"]
-  TYPES --> UNITY["UnityEngine"]
-  TYPES_EDITOR["Scaffold.Types.Editor"] --> UNITY_EDITOR["UnityEditor"]
-  TYPES_EDITOR --> TYPES
+sequenceDiagram
+  participant Cfg as Serialized Config
+  participant TR as TypeReference
+  participant DE as DependencyExtractor
+
+  Cfg->>TR: Load serialized type string
+  TR-->>Cfg: Resolved System.Type
+  Cfg->>DE: GetConstructorDependencies(type)
+  DE-->>Cfg: dependency type list
 ```
 
-Internal dependency graph:
-
-```mermaid
-graph TD
-  TR["TypeReference"] --> JSON["Serialize/Deserialize Type"]
-  TS["TypeSelectionAttribute"] --> TSD["TypeSelectionAttributeDrawer"]
-  TF["TypeReferenceFilterAttribute"] --> TRD["TypeReferenceDrawer"]
-  IDE["IDependencyExtractor"] --> DE["DependencyExtractor"]
-  UTIL["TypeUtility"] --> APP["AppDomain assemblies"]
-```
-
-## Architecture and key behaviors
-
-### 1) Serialized type reference
-
-`TypeReference` stores type identity as serialized JSON and lazily resolves `Type` on access.
+### Minimal
 
 ```csharp
-[SerializeField] private string serializedType;
-
-public Type Type
-{
-    get
-    {
-        if (type == null && !string.IsNullOrWhiteSpace(serializedType))
-        {
-            var settings = new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All };
-            type = JsonConvert.DeserializeObject<Type>(serializedType, settings);
-        }
-        return type;
-    }
-}
-```
-
-### 2) Constructor dependency extraction
-
-`DependencyExtractor` finds the best constructor (`[Inject]` or max-params fallback) and returns parameter types.
-
-```csharp
-public IEnumerable<Type> GetConstructorDependencies(Type type)
-{
-    return cache.GetOrAdd(type, AnalyzeDependencies);
-}
-```
-
-### 3) Type discovery utility
-
-`TypeUtility` scans assemblies for derived concrete types.
-
-```csharp
-return AppDomain.CurrentDomain.GetAssemblies()
-    .SelectMany(s => s.GetTypes())
-    .Where(p => type.IsAssignableFrom(p) && (!p.IsAbstract || includeAbstract) && !p.IsInterface);
-```
-
-### 4) Editor selection/drawer pipeline
-
-Editor drawers convert attributes into inspector dropdowns and managed-reference selectors.
-
-```csharp
-[CustomPropertyDrawer(typeof(TypeReference))]
-public class TypeReferenceDrawer : PropertyDrawer { ... }
-```
-
-## How to use
-
-### Use TypeReference for serialized type fields
-
-```csharp
-[UnityEngine.SerializeField]
-private TypeReference selectedType;
-
-selectedType = new TypeReference(typeof(string));
-System.Type resolved = selectedType.Type;
-```
-
-### Extract constructor dependencies
-
-```csharp
+TypeReference selected = new TypeReference(typeof(string));
+Type resolved = selected.Type;
 IDependencyExtractor extractor = new DependencyExtractor();
-IEnumerable<System.Type> deps = extractor.GetConstructorDependencies(typeof(MyService));
+IEnumerable<Type> deps = extractor.GetConstructorDependencies(typeof(MyService));
 ```
 
-### Add inspector filtering/selection attributes
+## Best Practices
 
-```csharp
-[TypeReferenceFilter(typeof(MyBaseType))]
-[SerializeField] private TypeReference filteredType;
+- Keep runtime and editor dependencies separated by asmdef.
+- Cache reflection-intensive operations.
+- Restrict inspector type choices with explicit base types.
 
-[TypeSelection(typeof(MyBaseType))]
-[SerializeReference] private object selectedImplementation;
-```
+## Anti-Patterns
 
-Reference sample: `Assets/Scripts/Tools/Types/Samples/TypesUseCases.cs`.
+- Serializing raw assembly-qualified strings manually across modules.
+- Running full assembly scans repeatedly in hot paths.
+- Mixing editor-only APIs into runtime code.
 
-## Internal Services
+## Testing
 
-### JSON type serialization bridge
-
-- Main type: `TypeReference`.
-- Responsibility: persist type identity as serialized string and restore at runtime safely.
-
-### Dependency analysis engine
-
-- Main types: `IDependencyExtractor`, `DependencyExtractor`.
-- Responsibility: inspect constructors and compute dependency type lists with caching.
-
-### Editor drawer infrastructure
-
-- Main types: `TypeReferenceDrawer`, `TypeSelectionAttributeDrawer`, `DerivedTypeDropdown`.
-- Responsibility: render and update type-selection UI in editor inspectors.
-
-## Public api
-
-- `TypeReference` (`Assets/Scripts/Tools/Types/Runtime/TypeReference.cs`): serializable wrapper around `System.Type` with lazy JSON-backed resolution.
-- `TypeUtility` (`Assets/Scripts/Tools/Types/Runtime/TypeUtility.cs`): helper for discovering derived runtime types across loaded assemblies.
-- `TypeReferenceFilterAttribute` (`Assets/Scripts/Tools/Types/Runtime/TypeReferenceFilterAttribute.cs`): attribute to constrain selectable types for `TypeReference` fields.
-- `TypeSelectionAttribute` (`Assets/Scripts/Tools/Types/Runtime/TypeSelectionAttribute.cs`): attribute enabling derived-type selection for managed reference fields.
-- `IDependencyExtractor` (`Assets/Scripts/Tools/Types/Runtime/Contracts/IDependencyExtractor.cs`): contract for constructor dependency introspection.
-- `DependencyExtractor` (`Assets/Scripts/Tools/Types/Runtime/Implementation/DependencyExtractor.cs`): cached implementation of constructor dependency extraction logic.
-
-## How to test
-
-From Unity Editor:
-
-1. Open `Window > General > Test Runner`.
-2. Run EditMode tests for `Scaffold.Types.Tests`.
-3. Expected result: `TypesTests` passes for dependency extraction with zero/single/multiple constructor dependencies.
-
-From Unity CLI (headless pattern):
+- Test assembly: `Scaffold.Types.Tests`.
+- Run from repo root:
 
 ```powershell
-Unity.exe -batchmode -quit -projectPath "C:\Users\user\Documents\Unity\Scaffold" -runTests -testPlatform EditMode -testResults "Logs\Types-TestResults.xml"
+& ".\.agents\scripts\run-editmode-tests.ps1" -AssemblyNames "Scaffold.Types.Tests"
 ```
 
-Expected result: run completes successfully with passing `Scaffold.Types.Tests`.
+- Expected: all tests pass with zero failures.
+- Bugfix rule: add/update regression test first, verify fail-before/fix/pass-after.
 
-## Related docs and modules
+## AI Agent Context
+
+- Invariants:
+  - serialized type references resolve deterministically.
+  - dependency extraction is stable per analyzed type.
+- Allowed Dependencies:
+  - runtime libs and editor libs in editor-only assembly.
+- Forbidden Dependencies:
+  - cross-module policy enforcement inside this utility module.
+- Change Checklist:
+  - verify type serialization tests.
+  - verify dependency extraction tests.
+  - verify editor/runtime boundary is preserved.
+- Known Tricky Areas:
+  - assembly reload and renamed/moved type compatibility.
+
+## Related
 
 - `Architecture.md`
-- `Docs/Infra/Containers.md` (dependency extraction utilities are relevant to DI/composition)
-- `Docs/Infra/Navigation.md` (`ViewConfig` uses type reference patterns)
-- `Docs/Generators/AutoPacker.md` (generator/type metadata workflows)
-- `Plans/Create-Module-Documentation/ExecPlan.md`
+- `Docs/Tools/Maps.md`
+- `Docs/Testing.md`
+
+## Changelog
+
+- Rewritten to AI-first standard with type-resolution sequence diagram.
+- Recovered constructor selection, caching, and editor drawer behavior contracts.
+
+- Added dependency extractor coverage for `[Inject]` constructor preference and null type guard.

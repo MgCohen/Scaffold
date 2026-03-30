@@ -1,18 +1,27 @@
 {
-    "name": "Scaffold.Types.Editor",
-    "rootNamespace": "",
-    "references": [
-        "GUID:69cc6723df1508c43a53a553fbf802b3"
-    ],
-    "includePlatforms": [
-        "Editor"
-    ],
-    "excludePlatforms": [],
-    "allowUnsafeCode": false,
-    "overrideReferences": false,
-    "precompiledReferences": [],
-    "autoReferenced": true,
-    "defineConstraints": [],
-    "versionDefines": [],
-    "noEngineReferences": false
+    "name":  "Scaffold.Types.Editor",
+    "rootNamespace":  "",
+    "references":  [
+                       "GUID:69cc6723df1508c43a53a553fbf802b3"
+                   ],
+    "includePlatforms":  [
+                             "Editor"
+                         ],
+    "excludePlatforms":  [
+
+                         ],
+    "allowUnsafeCode":  false,
+    "overrideReferences":  false,
+    "precompiledReferences":  [
+
+                              ],
+    "autoReferenced":  true,
+    "defineConstraints":  [
+
+                          ],
+    "versionDefines":  [
+
+                       ],
+    "noEngineReferences":  false
 }
+

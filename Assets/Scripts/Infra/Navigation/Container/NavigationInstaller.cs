@@ -1,21 +1,25 @@
+using Scaffold.Navigation.Contracts;
 using UnityEngine;
-using Scaffold.Containers;
+using VContainer;
+using VContainer.Unity;
 
 namespace Scaffold.Navigation.Container
 {
-    public class NavigationInstaller : Installer
+    public class NavigationInstaller : IInstaller
     {
-        public NavigationInstaller(NavigationSettings settings)
+        public NavigationInstaller(Transform holder)
         {
-            this.settings = settings;
+            this.holder = holder;
         }
-        
-        private NavigationSettings settings;
 
-        public override void Install(IContainerRegistry registry, Transform holder)
+        private readonly Transform holder;
+
+        public void Install(IContainerBuilder builder)
         {
-            registry.Register<INavigation, NavigationController>(ContainerLifetime.Scoped).WithParameter<NavigationSettings>(settings).WithParameter<Transform>(holder);
-            registry.Register<NavigationInjection>(ContainerLifetime.Scoped).AsImplementedInterfaces();
+            builder.Register<INavigation, NavigationController>(Lifetime.Singleton)
+                   .WithParameter<Transform>(holder);
+            builder.Register<NavigationInjection>(Lifetime.Singleton).AsImplementedInterfaces();
         }
     }
 }
+

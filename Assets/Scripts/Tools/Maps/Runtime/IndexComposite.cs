@@ -1,26 +1,46 @@
 using System;
+using System.Collections.Generic;
 
 namespace Scaffold.Maps
 {
     public readonly struct Index<TPrimary, TSecondary> : IEquatable<Index<TPrimary, TSecondary>>
     {
-        public readonly TPrimary Primary;
-        public readonly TSecondary Secondary;
-
         public Index(TPrimary primary, TSecondary secondary)
         {
+            if (primary is null)
+            {
+                throw new ArgumentNullException(nameof(primary));
+            }
+
+            if (secondary is null)
+            {
+                throw new ArgumentNullException(nameof(secondary));
+            }
+
             this.Primary = primary;
             this.Secondary = secondary;
         }
 
+        public readonly TPrimary Primary;
+        public readonly TSecondary Secondary;
+
         public bool Equals(Index<TPrimary, TSecondary> other)
         {
-            return Equals(Primary, other.Primary) && Equals(Secondary, other.Secondary);
+            bool primaryEquals = EqualityComparer<TPrimary>.Default.Equals(Primary, other.Primary);
+            bool secondaryEquals = EqualityComparer<TSecondary>.Default.Equals(Secondary, other.Secondary);
+            return primaryEquals && secondaryEquals;
         }
 
         public override bool Equals(object obj)
         {
-            return obj is Index<TPrimary, TSecondary> other && Equals(other);
+            if (obj is not Index<TPrimary, TSecondary> other)
+            {
+                return false;
+            }
+
+            bool primaryEquals = EqualityComparer<TPrimary>.Default.Equals(Primary, other.Primary);
+            bool secondaryEquals = EqualityComparer<TSecondary>.Default.Equals(Secondary, other.Secondary);
+            return primaryEquals && secondaryEquals;
         }
 
         public override int GetHashCode()
@@ -33,12 +53,16 @@ namespace Scaffold.Maps
 
         public static bool operator ==(Index<TPrimary, TSecondary> left, Index<TPrimary, TSecondary> right)
         {
-            return left.Equals(right);
+            bool primaryEquals = EqualityComparer<TPrimary>.Default.Equals(left.Primary, right.Primary);
+            bool secondaryEquals = EqualityComparer<TSecondary>.Default.Equals(left.Secondary, right.Secondary);
+            return primaryEquals && secondaryEquals;
         }
 
         public static bool operator !=(Index<TPrimary, TSecondary> left, Index<TPrimary, TSecondary> right)
         {
-            return left.Equals(right) == false;
+            bool primaryEquals = EqualityComparer<TPrimary>.Default.Equals(left.Primary, right.Primary);
+            bool secondaryEquals = EqualityComparer<TSecondary>.Default.Equals(left.Secondary, right.Secondary);
+            return (primaryEquals && secondaryEquals) == false;
         }
     }
 }

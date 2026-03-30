@@ -11,21 +11,29 @@ When invoked with `/check-analyzers`, run the build and report diagnostics only.
 Use the PowerShell script in this Windows workspace (do not use `/bin/bash` here):
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File "C:/Users/user/Documents/Unity/Scaffold/.agents/scripts/check-analyzers.ps1"
+powershell -ExecutionPolicy Bypass -File ".\.agents\scripts\check-analyzers.ps1"
 ```
 
-If you are on a Unix-like shell, the bash equivalent remains available:
+By default, test assemblies are excluded. To include them:
 
-```bash
-bash "C:/Users/user/Documents/Unity/Scaffold/.agents/scripts/check-analyzers.sh"
+```powershell
+powershell -ExecutionPolicy Bypass -File ".\.agents\scripts\check-analyzers.ps1" -IncludeTestAssemblies
 ```
 
-Both scripts build with `--no-incremental`, deduplicate identical diagnostics (the same issue can appear twice when a project is compiled as both a standalone target and a dependency), and emit parseable lines:
+Paths with spaces: `Start-Process` passes the `.sln` / `.csproj` path as a single argument without shell-style extra quotes (wrapping in quotes breaks `dotnet`).
 
-- `TOTAL:<n>`
+If you are on a Unix-like shell and a `check-analyzers.sh` wrapper exists in this repo, use it; otherwise run the PowerShell script above from the repo root.
+
+It runs analyzer unit tests first, then builds the solution with `--no-incremental`, deduplicates identical diagnostics, and emits parseable lines:
+
+- `BUILD_EXIT:<code>` — `dotnet build` exit code (`0` = success)
+- `TOTAL:<n>` — combined **SCA** + **SCM** (MVVM) analyzer hits (warnings/errors)
 - `RULE:<code>:<count>`
 - `FILE:<relative-path>:<count>`
-- `BLOCKER:<raw error line>` - non-SCA build errors, if any
+- `DIAG:<raw line>` — one per deduplicated analyzer diagnostic
+- `BLOCKER:<raw error line>` — compiler or other errors (not `SCA`/`SCM` codes; excludes `MSB`)
+
+The script **exits with code 1** if the solution build failed or any `BLOCKER:` line was emitted. Non-zero `TOTAL` alone does not fail the script (analyzer violations may be warnings while the build still succeeds).
 
 ---
 
@@ -38,9 +46,9 @@ Analyzer Diagnostics Report
 ----------------------------
 Total: X diagnostics
 
-SCA0003: N  - Nested call/object construction
-SCA0005: N  - Line break inside statement
-SCA0006: N  - Method too long
+SCA2002: N  - Nested call/object construction
+SCA1003: N  - Line break inside statement
+SCA2003: N  - Method too long
 ...
 
 Files affected:
@@ -50,4 +58,4 @@ Files affected:
 
 List any `BLOCKER:` lines separately as build blockers.
 
-If TOTAL is 0, report that the build is clean.
+If `BUILD_EXIT` is `0` and there are no `BLOCKER:` lines, the solution compiled. If `TOTAL` is 0, there were no **SCA**/**SCM** diagnostics in the filtered output.

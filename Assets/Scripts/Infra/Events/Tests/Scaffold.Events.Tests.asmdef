@@ -1,8 +1,12 @@
 {
     "name": "Scaffold.Events.Tests",
     "rootNamespace": "Scaffold.Events.Tests",
-    "references": ["Scaffold.Events"],
-    "includePlatforms": ["Editor"],
+    "references": [
+        "Scaffold.Events"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,
@@ -11,5 +15,7 @@
     "defineConstraints": [],
     "versionDefines": [],
     "noEngineReferences": false,
-    "optionalUnityReferences": ["TestAssemblies"]
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
 }

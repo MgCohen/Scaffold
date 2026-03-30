@@ -1,162 +1,131 @@
-# Events Module
+# Scaffold Infra Events
 
-## Summary
+## TL;DR
 
-The Events module provides Scaffold's in-process event bus for decoupled communication between systems. Its main effect is that modules can publish and listen for strongly typed events (`ContextEvent` derivatives) without direct references to each other, reducing coupling and simplifying feature composition.
+- Purpose: in-process typed event bus for module decoupling.
+- Location: `Assets/Scripts/Infra/Events/Runtime/` (boundary types under `Runtime/Contracts/`).
+- Depends on: `Scaffold.Records` and container abstractions.
+- Used by: navigation, MVVM-adjacent flows, app orchestration.
+- Runtime/Editor: runtime + container integration.
+- Keywords: event bus, context event, publish subscribe.
 
-Internally, the module maintains listener lookup structures and type-indexed callback routing so add/remove/raise operations stay consistent and predictable.
+## Responsibilities
 
-## Bird's Eye View
+- Owns typed publish/subscribe contract (`IEventBus`).
+- Owns in-memory dispatch implementation (`EventController`).
+- Owns module DI integration (`EventsInstaller`).
+- Does not own persistence, remote messaging, or cross-process transport.
+- Boundary: infra messaging utility.
 
-Module layout (`Assets/Scripts/Infra/Events/`):
+## Public API
 
-- `Runtime/Contracts/`: event contracts (`ContextEvent`, `IEventBus`).
-- `Runtime/Implementation/`: concrete bus implementation (`EventController`).
-- `Container/`: DI integration (`EventsInstaller`).
-- `Samples/`: publish/subscribe examples (`EventsUseCases.cs`).
-- `Tests/`: EditMode NUnit coverage (`EventsTests.cs`).
+| Symbol | Purpose | Inputs | Outputs | Failure behavior |
+|---|---|---|---|---|
+| `ContextEvent` | Base event payload contract | derived event data | event instance | n/a |
+| `IEventBus.AddListener<T>(...)` | Subscribe typed handler | `Action<T>` | subscription registration | duplicate handler add is ignored |
+| `IEventBus.RemoveListener<T>(...)` | Unsubscribe typed handler | `Action<T>` | handler removal | missing handler remove is safe no-op |
+| `IEventBus.Raise(ContextEvent)` | Publish event | event instance | invokes handlers of concrete event type | no listeners is safe no-op |
+| `EventsInstaller` | DI installer | container registry + holder | bus registration | startup fails if container contracts missing |
 
-External dependency graph:
+## Setup / Integration
+
+1. Reference `Scaffold.Events` in consuming asmdef.
+2. Register `EventsInstaller` in composition root.
+3. Inject `IEventBus` where publish/subscribe is needed.
+
+## How to Use
+
+1. Define an event type derived from `ContextEvent`.
+2. Register listeners through `IEventBus.AddListener<T>()`.
+3. Publish with `Raise(new MyEvent(...))`.
+4. Remove listener when owner lifetime ends.
+
+## Behavior Contracts
+
+- Typed subscriptions are adapted internally to `Action<ContextEvent>` delegates.
+- Unsubscribe correctness depends on delegate identity mapping; removing uses the original typed delegate key lookup.
+- Removing the last handler for an event type prunes that type entry from the dispatch map.
+- Raising an event with no listeners is a safe no-op.
+- Duplicate typed listener registration for the same delegate is ignored.
+
+## Examples
+
+### Event Dispatch Flow
 
 ```mermaid
-graph LR
-  EVENTS["Scaffold.Events"] --> UNITY["UnityEngine"]
-  EVENTS_CONTAINER["Scaffold.Events.Container"] --> CONTAINERS["Scaffold.Containers"]
-  EVENTS_CONTAINER --> EVENTS
+sequenceDiagram
+  participant Pub as Publisher
+  participant Bus as IEventBus/EventController
+  participant Sub as Subscriber
+
+  Sub->>Bus: AddListener<MyEvent>(handler)
+  Pub->>Bus: Raise(new MyEvent())
+  Bus-->>Sub: handler(MyEvent)
+  Sub->>Bus: RemoveListener<MyEvent>(handler)
 ```
 
-Internal dependency graph:
-
-```mermaid
-graph TD
-  CE["ContextEvent"] --> IEB["IEventBus"]
-  IEB --> EC["EventController"]
-  EC --> EVT["events: Dictionary<Type, Action<ContextEvent>>"]
-  EC --> LOOK["eventLookups: Dictionary<Delegate, Action<ContextEvent>>"]
-  INST["EventsInstaller"] --> REG["IContainerRegistry"]
-  REG --> BIND["IEventBus -> EventController (Scoped)"]
-```
-
-## Architecture and key behaviors
-
-### 1) Strongly typed event contract
-
-All domain events in this module derive from `ContextEvent`.
-
-```csharp
-public abstract record ContextEvent;
-```
-
-### 2) Typed listener registration
-
-`EventController` supports generic listener registration while internally adapting to a shared `ContextEvent` callback signature.
-
-```csharp
-public void AddListener<T>(Action<T> evt) where T : ContextEvent
-{
-    if (eventLookups.ContainsKey(evt)) return;
-
-    Action<ContextEvent> newAction = (e) => evt((T)e);
-    eventLookups[evt] = newAction;
-    AddListener(typeof(T), newAction);
-}
-```
-
-### 3) Listener removal and dictionary cleanup
-
-When removing listeners, the implementation updates the delegate chain and removes empty event entries.
-
-```csharp
-private void ApplyOrRemoveAction(Type type, Action<ContextEvent> tempAction)
-{
-    if (tempAction == null)
-    {
-        events.Remove(type);
-    }
-    else
-    {
-        events[type] = tempAction;
-    }
-}
-```
-
-### 4) Scoped DI registration
-
-`EventsInstaller` binds `IEventBus` to `EventController` as scoped lifetime in container composition.
-
-```csharp
-public override void Install(IContainerRegistry registry, Transform holder)
-{
-    registry.Register<IEventBus, EventController>(ContainerLifetime.Scoped);
-}
-```
-
-## How to use
-
-Use `IEventBus`/`EventController` by defining a `ContextEvent` type, registering listeners, raising events, and unsubscribing when done:
+### Minimal
 
 ```csharp
 private record PlayerDiedEvent : ContextEvent;
-
 EventController bus = new EventController();
-bool received = false;
-
-bus.AddListener<PlayerDiedEvent>(_ => received = true);
+bus.AddListener<PlayerDiedEvent>(_ => UnityEngine.Debug.Log("received"));
 bus.Raise(new PlayerDiedEvent());
 ```
 
-Unsubscribe pattern:
+## Best Practices
 
-```csharp
-int count = 0;
-Action<PlayerDiedEvent> handler = _ => count++;
+- Keep event payloads small and explicit.
+- Subscribe/unsubscribe at clear lifecycle boundaries.
+- Prefer typed events over string-based channels.
+- Use events for decoupling, not for core control flow abuse.
 
-bus.AddListener(handler);
-bus.RemoveListener(handler);
-```
+## Anti-Patterns
 
-Reference sample: `Assets/Scripts/Infra/Events/Samples/EventsUseCases.cs`.
+- Using event bus as shared mutable state.
+- Keeping long-lived listeners without cleanup.
+- Publishing broad generic payloads that hide intent.
 
-## Internal Services
+## Testing
 
-### Listener lookup adapter map
-
-- Type: `eventLookups` in `EventController`.
-- Responsibility: maps original typed delegates to adapted `Action<ContextEvent>` delegates, enabling safe unsubscribe with the original handler reference.
-
-### Type-indexed dispatch map
-
-- Type: `events` in `EventController`.
-- Responsibility: stores combined delegate chains by concrete event `Type`, used during `Raise(...)` for targeted dispatch.
-
-## Public api
-
-- `ContextEvent` (`Assets/Scripts/Infra/Events/Runtime/Contracts/ContextEvent.cs`): base event record type for all events routed by the bus.
-- `IEventBus` (`Assets/Scripts/Infra/Events/Runtime/Contracts/IEventBus.cs`): public contract for add/remove listeners, raising events, and clearing subscriptions.
-- `EventController` (`Assets/Scripts/Infra/Events/Runtime/Implementation/EventController.cs`): default in-memory implementation of `IEventBus` with typed and untyped registration paths.
-- `EventsInstaller` (`Assets/Scripts/Infra/Events/Container/EventsInstaller.cs`): container installer that registers `IEventBus` to `EventController`.
-
-## How to test
-
-From Unity Editor:
-
-1. Open `Window > General > Test Runner`.
-2. Run EditMode tests for `Scaffold.Events.Tests`.
-3. Expected result: `EventsTests` passes for subscribe/publish, unsubscribe behavior, and clear behavior.
-
-From Unity CLI (headless pattern):
+- Test assembly: `Scaffold.Events.Tests`.
+- Run from repo root:
 
 ```powershell
-# Run from repository root; adjust Unity executable path for your machine.
-Unity.exe -batchmode -quit -projectPath "C:\Users\user\Documents\Unity\Scaffold" -runTests -testPlatform EditMode -testResults "Logs\Events-TestResults.xml"
+& ".\.agents\scripts\run-editmode-tests.ps1" -AssemblyNames "Scaffold.Events.Tests"
 ```
 
-Expected result: run completes successfully and results include passing tests for `Scaffold.Events.Tests`.
+- Expected: all tests pass with zero failures.
+- Bugfix rule: add/update regression test first, verify fail-before/fix/pass-after.
 
-## Related docs and modules
+## AI Agent Context
+
+- Invariants:
+  - listener add/remove and raise operations are deterministic and safe when absent.
+  - type-based dispatch is preserved.
+- Allowed Dependencies:
+  - `Scaffold.Records`, container abstractions.
+- Forbidden Dependencies:
+  - direct UI dependencies and transport/network concerns.
+- Change Checklist:
+  - verify subscribe/unsubscribe tests.
+  - verify raise-without-listeners path.
+  - verify DI installer coverage.
+- Known Tricky Areas:
+  - delegate identity for unsubscribe correctness.
+
+## Related
 
 - `Architecture.md`
-- `Docs/Infra/Containers.md` (installer-based registration of event bus)
-- `Docs/Core/MVVM.md` (MVVM view events complement infra event bus patterns)
-- `Docs/Infra/Navigation.md` (navigation transitions often emit/consume event signals)
-- `Docs/Infra/NetworkMessages.md` (event-driven integration patterns)
+- `Docs/Infra/Navigation.md`
+- `Docs/Infra/Model.md`
+- `Docs/Core/ViewModel.md`
+- `Docs/App/View.md`
+
+## Changelog
+
+- Rewritten to AI-first standard with sequence diagram and explicit boundaries.
+- Recovered internal dispatch/unsubscribe behavior contracts.
+
+- Added negative-path coverage for null event raise and null open-type handler registration.
+- Consolidated `Scaffold.Events.Contracts` + `Scaffold.Events.Runtime` into `Scaffold.Events` and moved boundary types to `Runtime/Contracts/`.

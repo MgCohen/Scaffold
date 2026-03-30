@@ -1,9 +1,12 @@
-
-using System;
-using System.Collections.Generic;
+﻿using UnityEngine;
+using Scaffold.Types;
+using Scaffold.Events.Contracts;
+using Scaffold.Events;
+using System.Threading.Tasks;
 using System.Linq;
-using UnityEngine;
-
+using System.Collections.Generic;
+using System;
+using Scaffold.Navigation.Contracts;
 namespace Scaffold.Navigation
 {
     internal class NavigationStack
@@ -16,33 +19,42 @@ namespace Scaffold.Navigation
 
         public NavigationPoint Get<T>()
         {
-            return Get(typeof(T));
+            if (stack == null) throw new InvalidOperationException("Navigation stack is not initialized.");
+            Type screenType = typeof(T);
+            return stack.LastOrDefault(point =>
+            {
+                Type viewType = point.View.GetType();
+                Type viewModelType = point.ViewModel.GetType();
+                return screenType.IsAssignableFrom(viewType) || screenType.IsAssignableFrom(viewModelType);
+            });
         }
 
         public NavigationPoint Get(Type screenType)
         {
-            return stack.LastOrDefault(point => MatchesType(point, screenType));
-        }
-
-        private bool MatchesType(NavigationPoint point, Type screenType)
-        {
-            var viewType = point.View.GetType();
-            var vmType = point.ViewModel.GetType();
-            return screenType.IsAssignableFrom(viewType) || screenType.IsAssignableFrom(vmType);
+            if (stack == null) throw new InvalidOperationException("Navigation stack is not initialized.");
+            return stack.LastOrDefault(point =>
+            {
+                Type viewType = point.View.GetType();
+                Type viewModelType = point.ViewModel.GetType();
+                return screenType.IsAssignableFrom(viewType) || screenType.IsAssignableFrom(viewModelType);
+            });
         }
 
         public NavigationPoint Get(IView screen)
         {
+            if (stack == null) throw new InvalidOperationException("Navigation stack is not initialized.");
             return stack.LastOrDefault(point => point.View == screen);
         }
 
         public NavigationPoint Get(IViewController controller)
         {
+            if (stack == null) throw new InvalidOperationException("Navigation stack is not initialized.");
             return stack.LastOrDefault(point => point.ViewModel == controller);
         }
 
         public List<IView> GetAllScreens(Func<NavigationPoint, bool> filter)
         {
+            if (stack == null) throw new InvalidOperationException("Navigation stack is not initialized.");
             return GetAllStackedScreens(filter).Select(s => s.View).ToList();
         }
 
@@ -54,6 +66,7 @@ namespace Scaffold.Navigation
 
         public void AddToStack(NavigationPoint point)
         {
+            if (stack == null) throw new InvalidOperationException("Navigation stack is not initialized.");
             if (point != null)
             {
                 stack.Add(point);
@@ -63,21 +76,31 @@ namespace Scaffold.Navigation
 
         public void RemoveFromStack(NavigationPoint point)
         {
-            if (point != null)
-            {
-                stack.Remove(point);
-                if (CurrentPoint == point)
-                {
-                    CurrentPoint = stack.LastOrDefault();
-                }
-            }
+            if (stack == null) throw new InvalidOperationException("Navigation stack is not initialized.");
+            if (point == null)
+{
+    return;
+}
+            stack.Remove(point);
+            UpdateCurrentPointAfterRemoval(point);
+        }
+
+        private void UpdateCurrentPointAfterRemoval(NavigationPoint point)
+        {
+            if (CurrentPoint == point)
+{
+    CurrentPoint = stack.LastOrDefault();
+}
         }
 
         public int GetPointDepth(NavigationPoint point)
         {
+            if (stack == null) throw new InvalidOperationException("Navigation stack is not initialized.");
             int index = stack.IndexOf(point);
             if (index != 0)
+            {
                 return Mathf.Max(index * 10, stack[index - 1].Depth + 10);
+            }
             else
             {
                 return 0;
@@ -86,8 +109,15 @@ namespace Scaffold.Navigation
 
         public void ClearStack()
         {
+            if (stack == null) throw new InvalidOperationException("Navigation stack is not initialized.");
             stack.Clear();
         }
     }
 
 }
+
+
+
+
+
+

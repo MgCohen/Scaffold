@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System;
 using UnityEngine;
+using Scaffold.Events.Contracts;
 
 namespace Scaffold.Events
 {
@@ -16,21 +17,18 @@ namespace Scaffold.Events
                 return;
             }
 
-            Action<ContextEvent> newAction = (e) => evt((T)e);
+            Action<ContextEvent> newAction = e => evt((T)e);
             eventLookups[evt] = newAction;
             AddListener(typeof(T), newAction);
         }
 
         public void AddListener(Type type, Action<ContextEvent> newAction)
         {
-            if (events.TryGetValue(type, out Action<ContextEvent> internalAction))
-            {
-                events[type] = internalAction += newAction;
-            }
-            else
-            {
-                events[type] = newAction;
-            }
+            if (events == null) throw new InvalidOperationException("Event registry was not initialized.");
+            if (eventLookups == null) throw new InvalidOperationException("Event lookup registry was not initialized.");
+            if (type == null) throw new ArgumentNullException(nameof(type));
+            if (newAction == null) throw new ArgumentNullException(nameof(newAction));
+            events[type] = events.TryGetValue(type, out Action<ContextEvent> current) ? current + newAction : newAction;
         }
 
         public void RemoveListener<T>(Action<T> evt) where T : ContextEvent
@@ -74,6 +72,9 @@ namespace Scaffold.Events
 
         public void Raise(ContextEvent evt)
         {
+            if (events == null) throw new InvalidOperationException("Event registry was not initialized.");
+            if (eventLookups == null) throw new InvalidOperationException("Event lookup registry was not initialized.");
+            if (evt == null) throw new ArgumentNullException(nameof(evt));
             var evtType = evt.GetType();
             if (events.TryGetValue(evtType, out var action))
             {
@@ -83,8 +84,17 @@ namespace Scaffold.Events
 
         public void Clear()
         {
+            ValidateState();
             events.Clear();
             eventLookups.Clear();
         }
+
+        private void ValidateState()
+        {
+            if (events == null) throw new InvalidOperationException("Event registry was not initialized.");
+            if (eventLookups == null) throw new InvalidOperationException("Event lookup registry was not initialized.");
+        }
     }
 }
+
+

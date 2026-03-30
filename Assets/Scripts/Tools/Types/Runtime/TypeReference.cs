@@ -1,5 +1,4 @@
-
-using JetBrains.Annotations;
+﻿using JetBrains.Annotations;
 using Newtonsoft.Json;
 using System;
 using UnityEngine;
@@ -7,7 +6,7 @@ using UnityEngine;
 namespace Scaffold.Types
 {
     [Serializable]
-    public class TypeReference
+    public class TypeReference : ISerializationCallbackReceiver
     {
         public TypeReference()
         {
@@ -16,32 +15,17 @@ namespace Scaffold.Types
 
         public TypeReference(Type type)
         {
+            if (type is null)
+            {
+                throw new ArgumentNullException(nameof(type));
+            }
             Set(type);
         }
 
-        private Type type;
-        [SerializeField] private string serializedType;
+        public Type Type => type;
 
-        public Type Type
-        {
-            get
-            {
-                try
-                {
-                    if (type == null && !string.IsNullOrWhiteSpace(serializedType))
-                    {
-                        var settings = new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All };
-                        type = JsonConvert.DeserializeObject<Type>(serializedType, settings);
-                    }
-                }
-                catch
-                {
-                    Debug.LogWarning($"Failed to deserialize type value from:\n{serializedType}");
-                    type = null;
-                }
-                return type;
-            }
-        }
+        [SerializeField] private Type type;
+        [SerializeField] private string serializedType;
 
         public void Set<T>()
         {
@@ -50,15 +34,35 @@ namespace Scaffold.Types
 
         public void Set(Type type)
         {
-            var hasType = type != null;
-            if (hasType)
+            if (type == null) throw new ArgumentNullException(nameof(type));
+            this.type = type;
+            var settings = new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All };
+            serializedType = JsonConvert.SerializeObject(type, settings);
+        }
+
+        public void OnBeforeSerialize()
+        {
+            if (type == null)
             {
-                this.type = type;
-                var settings = new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All };
-                serializedType = JsonConvert.SerializeObject(type, settings);
+                return;
             }
+
+            var settings = new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All };
+            serializedType = JsonConvert.SerializeObject(type, settings);
+        }
+
+        public void OnAfterDeserialize()
+        {
+            if (string.IsNullOrWhiteSpace(serializedType))
+            {
+                type = null;
+                return;
+            }
+            try { var settings = new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All }; type = JsonConvert.DeserializeObject<Type>(serializedType, settings); }
+            catch { Debug.LogWarning($"Failed to deserialize type value from:\n{serializedType}"); type = null; }
         }
 
         public static implicit operator TypeReference(Type type) => new(type);
     }
 }
+

@@ -1,0 +1,21 @@
+{
+    "name": "Scaffold.Bootstrap.Tests",
+    "rootNamespace": "Scaffold.Bootstrap.Tests",
+    "references": [
+        "Scaffold.Bootstrap.Runtime"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false,
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
+}

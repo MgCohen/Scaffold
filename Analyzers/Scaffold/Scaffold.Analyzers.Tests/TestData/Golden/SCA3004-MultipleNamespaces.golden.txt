@@ -1,0 +1,1 @@
+SCA3004|7|11|warning|Error SCA3004: File has 2 top-level namespace declarations. Use a single top-level namespace per file

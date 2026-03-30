@@ -1,8 +1,5 @@
+﻿using Scaffold.Navigation.Contracts;
 using UnityEngine;
-
-#if ADDRESSABLES
-using UnityEngine.AddressableAssets;
-#endif
 
 namespace Scaffold.Navigation
 {
@@ -12,3 +9,4 @@ namespace Scaffold.Navigation
         [SerializeField] private NavigationOptions options;
     }
 }
+

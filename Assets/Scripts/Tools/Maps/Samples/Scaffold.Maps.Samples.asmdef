@@ -1,16 +1,27 @@
 {
-    "name": "Scaffold.Maps.Samples",
-    "rootNamespace": "Scaffold.Maps.Samples",
-    "references": [
-        "Scaffold.Maps"
-    ],
-    "includePlatforms": [],
-    "excludePlatforms": [],
-    "allowUnsafeCode": false,
-    "overrideReferences": false,
-    "precompiledReferences": [],
-    "autoReferenced": true,
-    "defineConstraints": [],
-    "versionDefines": [],
-    "noEngineReferences": false
+    "name":  "Scaffold.Maps.Samples",
+    "rootNamespace":  "Scaffold.Maps.Samples",
+    "references":  [
+                       "Scaffold.Maps"
+                   ],
+    "includePlatforms":  [
+
+                         ],
+    "excludePlatforms":  [
+
+                         ],
+    "allowUnsafeCode":  false,
+    "overrideReferences":  false,
+    "precompiledReferences":  [
+
+                              ],
+    "autoReferenced":  true,
+    "defineConstraints":  [
+
+                          ],
+    "versionDefines":  [
+
+                       ],
+    "noEngineReferences":  false
 }
+

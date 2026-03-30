@@ -1,153 +1,120 @@
-# Maps Module
+# Scaffold Tools Maps
 
-## Summary
+## TL;DR
 
-The Maps module provides indexed dictionary-like storage with primary/secondary keys and predicate-based indexers. Its main effect is efficient keyed retrieval plus dynamic grouped views (`Indexer`) over map entries without manual synchronization.
+- Purpose: composite-key map with dynamic predicate indexers.
+- Location: `Assets/Scripts/Tools/Maps/`.
+- Depends on: `Scaffold.Records`.
+- Used by: modules requiring indexed grouped lookups.
+- Runtime/Editor: runtime with samples/tests.
+- Keywords: map, indexer, composite key, filtered views.
 
-Internally, values are wrapped in holders so updates can preserve index membership and indexers can track/untrack entries consistently.
+## Responsibilities
 
-## Bird's Eye View
+- Owns two-key map storage and retrieval.
+- Owns dynamic indexer registration by predicates.
+- Owns automatic track/untrack behavior for indexers.
+- Does not own persistence, query language, or business-specific filtering policy.
 
-Module layout (`Assets/Scripts/Tools/Maps/`):
+## Public API
 
-- `Runtime/`: core map/index/indexer implementation.
-- `Samples/`: usage scenarios (`MapIndexerUseCases.cs`).
-- `Tests/`: behavior tests for indexing/add/remove/clear (`MapIndexerTests.cs`).
+| Symbol | Purpose | Inputs | Outputs | Failure behavior |
+|---|---|---|---|---|
+| `Map<TPrimary,TSecondary,TValue>` | Composite-key value store | keys + value | get/set by pair and indexer support | missing keys follow map semantics (guard/not found) |
+| `Indexer<TPrimary,TSecondary,TValue>` | Predicate-based filtered view | predicate + tracked entries | values collection | empty when no matching keys |
+| `Index<TPrimary>` | Single key index struct | primary key | stable hash/equality key | n/a |
+| `Index<TPrimary,TSecondary>` | Composite key index struct | primary + secondary keys | stable hash/equality key | n/a |
+| `BaseMap<TKey,TValue>` | Base map abstraction | generic key/value | base storage behavior | n/a |
 
-External dependency graph:
+## Setup / Integration
+
+1. Reference `Scaffold.Maps`.
+2. Create `Map<TPrimary,TSecondary,TValue>`.
+3. Register optional indexers for grouped slices.
+4. Use indexers to read filtered values without manual sync code.
+
+## How to Use
+
+1. Add entries with primary/secondary keys.
+2. Register named indexer predicates.
+3. Read from map directly or from indexer views.
+4. Remove/clear entries and rely on auto-sync.
+
+## Examples
+
+### Tracking Flow
 
 ```mermaid
-graph LR
-  MAPS["Scaffold.Maps"] --> DOTNET["System.Collections.Generic"]
+sequenceDiagram
+  participant Caller as Caller
+  participant Map as Map<TP,TS,TV>
+  participant Idx as Indexer<TP,TS,TV>
+
+  Caller->>Map: Add(primary, secondary, value)
+  Map->>Idx: Track(index, holder)
+  Caller->>Map: Update(existing key, value)
+  Map->>Idx: Keep membership / update holder value
+  Caller->>Map: Remove(primary, secondary)
+  Map->>Idx: Untrack(index)
 ```
 
-Internal dependency graph:
-
-```mermaid
-graph TD
-  MAP["Map<TPrimary,TSecondary,TValue>"] --> BASE["BaseMap<Index, Holder>"]
-  MAP --> IDX["Index<TPrimary,TSecondary>"]
-  MAP --> INDX["Indexer<TPrimary,TSecondary,TValue>"]
-  INDX --> HOLD["Holder<TValue>"]
-```
-
-## Architecture and key behaviors
-
-### 1) Two-key map access
-
-`Map` supports indexer access by `(primary, secondary)` tuple.
-
-```csharp
-public TValue this[TPrimary primary, TSecondary secondary]
-{
-    get { return this[CreateIndex(primary, secondary)]; }
-    set { /* add/update holder */ }
-}
-```
-
-### 2) Predicate-based indexers
-
-You can create named indexers to track subsets of entries.
-
-```csharp
-public Indexer<TPrimary, TSecondary, TValue> AddIndexer(string name, Func<TPrimary, TSecondary, bool> predicate)
-{
-    Indexer<TPrimary, TSecondary, TValue> indexer = CreateIndexer(name, predicate);
-    RegisterIndexer(indexer);
-    return indexer;
-}
-```
-
-### 3) Auto-tracking on add/remove
-
-Entries are tracked/untracked in all registered indexers automatically.
-
-```csharp
-private void TrackEntry(Index<TPrimary, TSecondary> index, Holder<TValue> holder)
-{
-    foreach (Indexer<TPrimary, TSecondary, TValue> indexer in predicateIndexers.Values)
-    {
-        indexer.Track(index, holder);
-    }
-}
-```
-
-### 4) Stable membership on value updates
-
-Changing value at existing index keeps index membership determined by keys/predicate.
-
-```csharp
-map[index] = "inactive";
-map[index] = "active";
-```
-
-## How to use
+### Minimal
 
 ```csharp
 Map<string, int, string> map = new Map<string, int, string>();
 map.Add("Matheus", 29, "Matheus-29");
-
-Indexer<string, int, string> adults = map.AddIndexer(
-    "MatheusAdults",
-    (name, age) => name == "Matheus" && age > 10);
-
+Indexer<string, int, string> adults = map.AddIndexer("Adults", (name, age) => age >= 18);
 IReadOnlyCollection<string> values = adults.Values;
 ```
 
-Common operations:
+## Best Practices
 
-- Add/update by composite key.
-- Register named indexers for filtered subsets.
-- Remove entries and keep indexers synchronized.
-- Clear map and all indexers.
+- Keep indexer predicates deterministic and side-effect free.
+- Use explicit indexer names for debugging clarity.
+- Prefer map/indexer APIs over duplicating filtered caches.
 
-Reference sample: `Assets/Scripts/Tools/Maps/Samples/MapIndexerUseCases.cs`.
+## Anti-Patterns
 
-## Internal Services
+- Mutating predicate logic based on external unstable state.
+- Rebuilding manual mirrored collections on each change.
+- Using map as global mutable bag without clear ownership.
 
-### Index structs
+## Testing
 
-- Main types: `Index<TPrimary>`, `Index<TPrimary,TSecondary>`.
-- Responsibility: stable hash/equality for map key identity.
-
-### Holder indirection
-
-- Main type: `Holder<TValue>`.
-- Responsibility: maintain mutable value references tracked by indexers.
-
-### Indexer tracking engine
-
-- Main type: `Indexer<TPrimary,TSecondary,TValue>`.
-- Responsibility: predicate evaluation and membership tracking (`Track`, `Untrack`, `Rebuild`).
-
-## Public api
-
-- `Map<TPrimary,TSecondary,TValue>` (`Assets/Scripts/Tools/Maps/Runtime/Map.cs`): composite-key map with dynamic predicate indexers.
-- `Indexer<TPrimary,TSecondary,TValue>` (`Assets/Scripts/Tools/Maps/Runtime/Indexer.cs`): named filtered view over map entries.
-- `Index<TPrimary>` (`Assets/Scripts/Tools/Maps/Runtime/IndexPrimary.cs`): single-key index struct with equality/hash support.
-- `Index<TPrimary,TSecondary>` (`Assets/Scripts/Tools/Maps/Runtime/IndexComposite.cs`): composite-key index struct with equality/hash support.
-- `BaseMap<TKey,TValue>` (`Assets/Scripts/Tools/Maps/Runtime/BaseMap.cs`): generic base storage abstraction used by `Map`.
-
-## How to test
-
-From Unity Editor:
-
-1. Open `Window > General > Test Runner`.
-2. Run EditMode tests for `Scaffold.Maps.Tests`.
-3. Expected result: `MapIndexerTests` passes for population, auto-tracking, removal, update stability, and clear behavior.
-
-From Unity CLI (headless pattern):
+- Test assembly: `Scaffold.Maps.Tests`.
+- Run from repo root:
 
 ```powershell
-Unity.exe -batchmode -quit -projectPath "C:\Users\user\Documents\Unity\Scaffold" -runTests -testPlatform EditMode -testResults "Logs\Maps-TestResults.xml"
+& ".\.agents\scripts\run-editmode-tests.ps1" -AssemblyNames "Scaffold.Maps.Tests"
 ```
 
-Expected result: run completes successfully with passing `Scaffold.Maps.Tests`.
+- Expected: all tests pass with zero failures.
+- Bugfix rule: add/update regression test first, verify fail-before/fix/pass-after.
 
-## Related docs and modules
+## AI Agent Context
+
+- Invariants:
+  - index equality/hash remains stable.
+  - indexer membership reflects key predicate, not value-only updates.
+  - remove/clear operations fully untrack entries.
+- Allowed Dependencies:
+  - `Scaffold.Records`.
+- Forbidden Dependencies:
+  - module-specific app logic or UI concerns.
+- Change Checklist:
+  - verify add/update/remove/clear tests.
+  - verify indexer auto-tracking tests.
+- Known Tricky Areas:
+  - updating existing keys and preserving membership behavior.
+
+## Related
 
 - `Architecture.md`
-- `Docs/Tools/Types.md` (type-driven utility patterns often pair with indexed maps)
-- `Docs/Tools/Records.md` (immutable-style data can be indexed via map keys)
-- `Plans/Create-Module-Documentation/ExecPlan.md`
-- `Assets/Scripts/Tools/Maps/Tests/MapIndexerTests.cs`
+- `Docs/Tools/Types.md`
+- `Docs/Tools/Records.md`
+
+## Changelog
+
+- Rewritten to AI-first standard with map/indexer tracking sequence diagram.
+
+- Added map/indexer coverage for missing-indexer lookup and null predicate guard on `AddIndexer`.

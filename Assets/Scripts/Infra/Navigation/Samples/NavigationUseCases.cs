@@ -1,5 +1,5 @@
-using UnityEngine;
-
+﻿using UnityEngine;
+using Scaffold.Navigation.Contracts;
 namespace Scaffold.Navigation.Samples
 {
     public class NavigationUseCases
@@ -14,14 +14,14 @@ namespace Scaffold.Navigation.Samples
 
         public void UseCaseOpenViewWithOptions()
         {
-            INavigation navigation = GetSampleNavigation();
+            INavigation navigation = BuildGetSampleNavigation();
             NavigationOptions options = new NavigationOptions();
             options.CloseAllViews = false;
             SampleViewController controller = new SampleViewController();
             navigation.Open(controller, closeCurrent: false, options: options);
         }
 
-        private INavigation GetSampleNavigation()
+        private static INavigation BuildGetSampleNavigation()
         {
             return new NullNavigation();
         }
@@ -34,10 +34,14 @@ namespace Scaffold.Navigation.Samples
 
         private class NullNavigation : INavigation
         {
-            public NavigationPoint CurrentPoint => null;
+            public IViewController CurrentController => null;
             public void Open<TController>(TController controller, bool closeCurrent = false, NavigationOptions options = null) where TController : IViewController { }
             public void Close<TViewController>(TViewController controller) where TViewController : IViewController { }
             public IViewController Return() { return null; }
         }
     }
 }
+
+
+
+

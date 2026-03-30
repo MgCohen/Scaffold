@@ -74,6 +74,7 @@ crashlytics-build.properties
 # Old plastic
 .plastic/
 .vscode/
+.cursor/
 .idea/
 .vsconfig/
 
@@ -139,11 +140,7 @@ fmod_editor.log
 /Tools/SurrenderTimeout/SurrenderTimeout/bin
 .utmp/
 
-
-# Ignore all C# project & solution files
-*.csproj
-*.sln
-
+# Unity root .sln / Scaffold.*.csproj are intentionally not tracked (open the project in Unity to regenerate).
 # But keep any .csproj/.sln under GameModule/**      
 !GameModule/**/*.csproj
 !GameModule/**/*.sln
@@ -159,6 +156,9 @@ Utility/**/bin
 # But keep any .csproj/.sln under Analyzers/**
 !Analyzers/**/*.csproj
 !Analyzers/**/*.sln
+# LiveOps Cloud Code .NET projects
+!LiveOps/**/*.csproj
+!LiveOps/**/*.sln
 !/Generators/AutoPacker/src/Contracts/*.csproj
 Analyzers/**/bin
 Analyzers/**/obj

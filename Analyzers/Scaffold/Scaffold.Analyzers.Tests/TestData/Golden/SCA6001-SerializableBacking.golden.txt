@@ -1,0 +1,1 @@
+SCA6001|7|20|warning|Error SCA6001: Public property 'Count' uses 'public get; private set;' but must use a private [SerializeField] field and a public getter-only property (e.g. `[SerializeField] private int field;` and `public int Prop => field;`).

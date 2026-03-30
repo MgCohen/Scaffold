@@ -1,0 +1,28 @@
+{
+    "name":  "Scaffold.MVVM.Model",
+    "rootNamespace":  "Scaffold.MVVM",
+    "references":  [
+                       "Scaffold.MVVM"
+                   ],
+    "includePlatforms":  [
+
+                         ],
+    "excludePlatforms":  [
+
+                         ],
+    "allowUnsafeCode":  false,
+    "overrideReferences":  true,
+    "precompiledReferences":  [
+        "CommunityToolkit.Mvvm.dll",
+        "System.Runtime.CompilerServices.Unsafe.dll"
+                              ],
+    "autoReferenced":  true,
+    "defineConstraints":  [
+
+                          ],
+    "versionDefines":  [
+
+                       ],
+    "noEngineReferences":  true
+}
+
