@@ -1,0 +1,15 @@
+{
+  "name": "com.scaffold.types",
+  "version": "0.1.0",
+  "displayName": "Scaffold Types",
+  "description": "Type reference utilities and editor UI for Scaffold projects.",
+  "unity": "6000.0",
+  "dependencies": {},
+  "samples": [
+    {
+      "displayName": "Types use cases",
+      "description": "Sample usage of Scaffold.Types.",
+      "path": "Samples"
+    }
+  ]
+}

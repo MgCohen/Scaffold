@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "g9Gv5gki5mA=",
+  "dgSpecHash": "UpX/smd4zBU=",
   "success": true,
-  "projectFilePath": "C:\\Unity\\Cleanup Project\\Analyzers\\Scaffold\\Scaffold.Analyzers\\Scaffold.Analyzers.csproj",
+  "projectFilePath": "C:\\Unity\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers\\Scaffold.Analyzers.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\mtgco\\.nuget\\packages\\microsoft.codeanalysis.analyzers\\3.3.4\\microsoft.codeanalysis.analyzers.3.3.4.nupkg.sha512",
     "C:\\Users\\mtgco\\.nuget\\packages\\microsoft.codeanalysis.common\\4.11.0\\microsoft.codeanalysis.common.4.11.0.nupkg.sha512",

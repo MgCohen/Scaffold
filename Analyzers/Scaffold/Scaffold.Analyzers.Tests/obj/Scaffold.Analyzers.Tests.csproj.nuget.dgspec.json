@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Unity\\Cleanup Project\\Analyzers\\Scaffold\\Scaffold.Analyzers.Tests\\Scaffold.Analyzers.Tests.csproj": {}
+    "C:\\Unity\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers.Tests\\Scaffold.Analyzers.Tests.csproj": {}
   },
   "projects": {
-    "C:\\Unity\\Cleanup Project\\Analyzers\\Scaffold\\Scaffold.Analyzers.Tests\\Scaffold.Analyzers.Tests.csproj": {
+    "C:\\Unity\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers.Tests\\Scaffold.Analyzers.Tests.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Unity\\Cleanup Project\\Analyzers\\Scaffold\\Scaffold.Analyzers.Tests\\Scaffold.Analyzers.Tests.csproj",
+        "projectUniqueName": "C:\\Unity\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers.Tests\\Scaffold.Analyzers.Tests.csproj",
         "projectName": "Scaffold.Analyzers.Tests",
-        "projectPath": "C:\\Unity\\Cleanup Project\\Analyzers\\Scaffold\\Scaffold.Analyzers.Tests\\Scaffold.Analyzers.Tests.csproj",
+        "projectPath": "C:\\Unity\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers.Tests\\Scaffold.Analyzers.Tests.csproj",
         "packagesPath": "C:\\Users\\mtgco\\.nuget\\packages\\",
-        "outputPath": "C:\\Unity\\Cleanup Project\\Analyzers\\Scaffold\\Scaffold.Analyzers.Tests\\obj\\",
+        "outputPath": "C:\\Unity\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers.Tests\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\mtgco\\AppData\\Roaming\\NuGet\\NuGet.Config",
@@ -28,8 +28,8 @@
           "net8.0": {
             "targetAlias": "net8.0",
             "projectReferences": {
-              "C:\\Unity\\Cleanup Project\\Analyzers\\Scaffold\\Scaffold.Analyzers\\Scaffold.Analyzers.csproj": {
-                "projectPath": "C:\\Unity\\Cleanup Project\\Analyzers\\Scaffold\\Scaffold.Analyzers\\Scaffold.Analyzers.csproj"
+              "C:\\Unity\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers\\Scaffold.Analyzers.csproj": {
+                "projectPath": "C:\\Unity\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers\\Scaffold.Analyzers.csproj"
               }
             }
           }
@@ -89,14 +89,14 @@
         }
       }
     },
-    "C:\\Unity\\Cleanup Project\\Analyzers\\Scaffold\\Scaffold.Analyzers\\Scaffold.Analyzers.csproj": {
+    "C:\\Unity\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers\\Scaffold.Analyzers.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Unity\\Cleanup Project\\Analyzers\\Scaffold\\Scaffold.Analyzers\\Scaffold.Analyzers.csproj",
+        "projectUniqueName": "C:\\Unity\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers\\Scaffold.Analyzers.csproj",
         "projectName": "Scaffold.Analyzers",
-        "projectPath": "C:\\Unity\\Cleanup Project\\Analyzers\\Scaffold\\Scaffold.Analyzers\\Scaffold.Analyzers.csproj",
+        "projectPath": "C:\\Unity\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers\\Scaffold.Analyzers.csproj",
         "packagesPath": "C:\\Users\\mtgco\\.nuget\\packages\\",
-        "outputPath": "C:\\Unity\\Cleanup Project\\Analyzers\\Scaffold\\Scaffold.Analyzers\\obj\\",
+        "outputPath": "C:\\Unity\\Scaffold\\Analyzers\\Scaffold\\Scaffold.Analyzers\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\mtgco\\AppData\\Roaming\\NuGet\\NuGet.Config",

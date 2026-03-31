@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$ProjectPath = (Get-Location).Path,
-    [string]$ScriptsRoot = "Assets/Scripts",
+    [string[]]$ScriptsRoots = @("Assets/Scripts", "Packages"),
     [string[]]$ExcludedAssemblyNames,
     [string[]]$ExcludedGuidReferences
 )
@@ -20,15 +20,34 @@ if (-not $ExcludedAssemblyNames -or $ExcludedAssemblyNames.Count -eq 0) {
 if (-not $ExcludedGuidReferences -or $ExcludedGuidReferences.Count -eq 0) {
     $ExcludedGuidReferences = $testingSuiteConfig.AsmdefExcludedGuidReferences
 }
-$resolvedScriptsRoot = Join-Path $resolvedProjectPath $ScriptsRoot
+$resolvedScriptsRoots = @()
+foreach ($root in $ScriptsRoots) {
+    $resolved = Join-Path $resolvedProjectPath $root
+    if (Test-Path $resolved) {
+        $resolvedScriptsRoots += $resolved
+    }
+}
 
-if (-not (Test-Path $resolvedScriptsRoot)) {
-    Write-Output ("SCRIPTS_ROOT_NOT_FOUND:{0}" -f $resolvedScriptsRoot)
+# First-party UPM-style trees under Assets/Packages (e.g. com.scaffold.types) — scan each com.scaffold.* folder only (skip third-party asset packs in the same parent).
+$assetsPackagesRoot = Join-Path $resolvedProjectPath "Assets/Packages"
+if (Test-Path $assetsPackagesRoot) {
+    $scaffoldPackageDirs = @(Get-ChildItem -Path $assetsPackagesRoot -Directory -Filter "com.scaffold.*" -ErrorAction SilentlyContinue)
+    foreach ($dir in $scaffoldPackageDirs) {
+        $resolvedScriptsRoots += $dir.FullName
+    }
+}
+
+if ($resolvedScriptsRoots.Count -eq 0) {
+    Write-Output ("SCRIPTS_ROOTS_NOT_FOUND:{0}" -f ($ScriptsRoots -join ";"))
     Write-Output "TOTAL:0"
     exit 0
 }
 
-$asmdefs = @(Get-ChildItem -Path $resolvedScriptsRoot -Recurse -File -Filter *.asmdef | Sort-Object -Property FullName)
+$asmdefs = @()
+foreach ($resolvedScriptsRoot in $resolvedScriptsRoots) {
+    $asmdefs += @(Get-ChildItem -Path $resolvedScriptsRoot -Recurse -File -Filter *.asmdef | Sort-Object -Property FullName)
+}
+$asmdefs = @($asmdefs | Sort-Object -Property FullName)
 
 $nameToPath = @{}
 $guidToPath = @{}
@@ -77,7 +96,7 @@ foreach ($asmdef in $asmdefs) {
                         Type      = "MissingScriptsGuidReference"
                         Assembly  = $asmdef.FullName
                         Reference = $referenceValue
-                        Detail    = "GUID does not match an asmdef under Assets/Scripts."
+                        Detail    = "GUID does not match an asmdef under Assets/Scripts, Assets/Packages/com.scaffold.*, or Packages."
                     })
             }
 
@@ -98,7 +117,7 @@ foreach ($asmdef in $asmdefs) {
                     Type      = "MissingScriptsAssemblyName"
                     Assembly  = $asmdef.FullName
                     Reference = $referenceValue
-                    Detail    = "Assembly name does not match any asmdef under Assets/Scripts."
+                    Detail    = "Assembly name does not match any asmdef under Assets/Scripts, Assets/Packages/com.scaffold.*, or Packages."
                 })
         }
     }

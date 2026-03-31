@@ -106,7 +106,7 @@ Coverage goals and best practices are documented in [AutomatedTesting.md](Automa
 - `check-analyzers.ps1`: `-ProjectPath`, `-TimeoutMinutes` (default `10`), `-AnalyzerTestsTimeoutMinutes` (default `10`)
   Default behavior excludes diagnostics from test assemblies. Add `-IncludeTestAssemblies` to include them.
   Emits `BUILD_EXIT` (from `dotnet build`), `TOTAL` (SCA + SCM hits), `BLOCKER:` for non-analyzer errors; **exits 1** if the build failed or any blocker line was reported (analyzer warning count alone does not force exit 1).
-- `check-scripts-asmdef-references.ps1`: `-ProjectPath`, `-ScriptsRoot` (default `Assets/Scripts`), `-ExcludedAssemblyNames`, `-ExcludedGuidReferences`
+- `check-scripts-asmdef-references.ps1`: `-ProjectPath`, `-ScriptsRoots` (default `Assets/Scripts` and root `Packages`), plus **automatic** inclusion of each **`Assets/Packages/com.scaffold.*`** directory (first-party packages only; other folders under `Assets/Packages` are not scanned), `-ExcludedAssemblyNames`, `-ExcludedGuidReferences`
 - `check-pragma-warning-suppressions.ps1`: `-ProjectPath`, `-AllowlistPath` (default `.agents/scripts/pragma-warning-disable-allowlist.txt`)
 - `run-coverage-audit.ps1`: `-ProjectPath`, `-UnityPath`, `-AssemblyNames`, `-CoverageResultsPath`, `-CoverageAssemblyFilters`, `-KeepCoverageArtifacts`, `-CompilationTimeoutMinutes`, `-EditModeTimeoutMinutes`, `-PlayModeTimeoutMinutes`
 - `validate-changes.ps1`: `-ProjectPath`, `-UnityPath`, `-AssemblyNames`, `-CompilationTimeoutMinutes`, `-EditModeTimeoutMinutes`, `-PlayModeTimeoutMinutes`, `-AnalyzerTimeoutMinutes`, `-AnalyzerTestsTimeoutMinutes`

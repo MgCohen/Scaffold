@@ -3,7 +3,7 @@
 ## TL;DR
 
 - Purpose: type metadata utilities for runtime/editor workflows.
-- Location: `Assets/Scripts/Tools/Types/`.
+- Location: package sources under `Assets/Packages/com.scaffold.types/` (`com.scaffold.types`) in the holder; consumers install via UPM (Git subpath) into the package cache.
 - Depends on: base runtime libs (+ Newtonsoft in runtime, UnityEditor in editor asmdef).
 - Used by: navigation configs, dependency analysis, inspector type selection.
 - Runtime/Editor: both runtime and editor.
