@@ -4,6 +4,11 @@
     "displayName":  "Scaffold Events",
     "description":  "Event bus and messaging.",
     "unity":  "6000.0",
+    "author":  {
+                   "name":  "Matheus Gandolf Cohen",
+                   "email":  "matheus@duckduckweasel.com",
+                   "url":  "https://github.com/MgCohen/Scaffold"
+               },
     "dependencies":  {
                          "com.scaffold.types":  "0.1.0"
                      },

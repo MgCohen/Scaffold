@@ -4,6 +4,11 @@
     "displayName":  "Scaffold MVVM",
     "description":  "MVVM core and MVVM-related generators in this repo.",
     "unity":  "6000.0",
+    "author":  {
+                   "name":  "Matheus Gandolf Cohen",
+                   "email":  "matheus@duckduckweasel.com",
+                   "url":  "https://github.com/MgCohen/Scaffold"
+               },
     "dependencies":  {
                          "com.scaffold.maps":  "0.1.0",
                          "com.scaffold.records":  "0.1.0"

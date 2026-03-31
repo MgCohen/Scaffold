@@ -4,6 +4,11 @@
     "displayName":  "Scaffold View",
     "description":  "MVVM views and UI wiring.",
     "unity":  "6000.0",
+    "author":  {
+                   "name":  "Matheus Gandolf Cohen",
+                   "email":  "matheus@duckduckweasel.com",
+                   "url":  "https://github.com/MgCohen/Scaffold"
+               },
     "dependencies":  {
                          "com.scaffold.types":  "0.1.0",
                          "com.scaffold.navigation":  "0.1.0",

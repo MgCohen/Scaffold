@@ -4,6 +4,11 @@
     "displayName":  "Scaffold Records",
     "description":  "Record utilities for Scaffold.",
     "unity":  "6000.0",
+    "author":  {
+                   "name":  "Matheus Gandolf Cohen",
+                   "email":  "matheus@duckduckweasel.com",
+                   "url":  "https://github.com/MgCohen/Scaffold"
+               },
     "dependencies":  {
 
                      },

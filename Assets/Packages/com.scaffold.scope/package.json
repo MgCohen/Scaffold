@@ -4,6 +4,11 @@
     "displayName":  "Scaffold Scope",
     "description":  "Layered scope and DI composition helpers.",
     "unity":  "6000.0",
+    "author":  {
+                   "name":  "Matheus Gandolf Cohen",
+                   "email":  "matheus@duckduckweasel.com",
+                   "url":  "https://github.com/MgCohen/Scaffold"
+               },
     "dependencies":  {
 
                      },
