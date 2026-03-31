@@ -1,0 +1,15 @@
+{
+    "name":  "com.scaffold.navigation",
+    "version":  "0.1.0",
+    "displayName":  "Scaffold Navigation",
+    "description":  "View navigation and transitions.",
+    "unity":  "6000.0",
+    "dependencies":  {
+                         "com.scaffold.types":  "0.1.0",
+                         "com.scaffold.schemas":  "https://github.com/ScaffoldLibrary/Schemas.git",
+                         "com.scaffold.events":  "0.1.0",
+                         "com.unity.addressables":  "2.9.1",
+                         "com.scaffold.addressables":  "0.1.0"
+                     },
+    "path":  "https://github.com/MgCohen/Scaffold.git?path=/Assets/Packages/com.scaffold.navigation#main"
+}

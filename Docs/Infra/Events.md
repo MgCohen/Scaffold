@@ -3,7 +3,7 @@
 ## TL;DR
 
 - Purpose: in-process typed event bus for module decoupling.
-- Location: `Assets/Scripts/Infra/Events/Runtime/` (boundary types under `Runtime/Contracts/`).
+- Location: `Assets/Packages/com.scaffold.events/Runtime/` (boundary types under `Runtime/Contracts/`).
 - Depends on: `Scaffold.Records` and container abstractions.
 - Used by: navigation, MVVM-adjacent flows, app orchestration.
 - Runtime/Editor: runtime + container integration.

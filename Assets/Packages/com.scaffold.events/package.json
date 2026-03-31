@@ -1,0 +1,11 @@
+{
+    "name":  "com.scaffold.events",
+    "version":  "0.1.0",
+    "displayName":  "Scaffold Events",
+    "description":  "Event bus and messaging.",
+    "unity":  "6000.0",
+    "dependencies":  {
+                         "com.scaffold.types":  "0.1.0"
+                     },
+    "path":  "https://github.com/MgCohen/Scaffold.git?path=/Assets/Packages/com.scaffold.events#main"
+}

@@ -3,7 +3,7 @@
 ## TL;DR
 
 - Purpose: shared MVVM contract primitives reused by model, viewmodel, and view modules.
-- Location: `Assets/Scripts/Infra/MVVM/Runtime/`.
+- Location: `Assets/Packages/com.scaffold.mvvm/Runtime/`.
 - Depends on: `Scaffold.Maps` (multi-key maps for bind registry); CommunityToolkit.Mvvm and System.Runtime.CompilerServices.Unsafe as explicit precompiled references, loaded from `Assets/Generators/MVVM/` (shared with the MVVM source generators).
 - Used by: `Scaffold.MVVM.Model`, `Scaffold.MVVM.ViewModel`, `Scaffold.MVVM.View`.
 - Runtime/Editor: runtime contract assembly only.

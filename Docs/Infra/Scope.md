@@ -3,7 +3,7 @@
 ## TL;DR
 
 - Purpose: reusable layered startup orchestration for application bootstrap.
-- Location: `Assets/Scripts/Infra/Scope/Runtime/` and `Assets/Scripts/Infra/Scope/Runtime/Contracts/`.
+- Location: `Assets/Packages/com.scaffold.scope/Runtime/` and `Assets/Packages/com.scaffold.scope/Runtime/Contracts/`.
 - Depends on: BCL plus `VContainer` / `VContainer.Unity`.
 - Used by: `Scaffold.Bootstrap.Runtime` and services that initialize during layered startup.
 

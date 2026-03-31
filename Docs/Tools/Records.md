@@ -3,7 +3,7 @@
 ## TL;DR
 
 - Purpose: compatibility shim for `init` accessors in target environments needing `IsExternalInit`.
-- Location: `Assets/Scripts/Tools/Records/`.
+- Location: `Assets/Packages/com.scaffold.records/`.
 - Depends on: base runtime compiler services only.
 - Used by: modules using record/init-style initialization semantics.
 - Runtime/Editor: runtime utility with samples/tests.
@@ -79,7 +79,7 @@ This module is an approved low-test exception.
 Add more tests if any of the following happens:
 
 - New runtime behavior is introduced beyond the `IsExternalInit` compatibility marker.
-- Additional public APIs are added under `Assets/Scripts/Tools/Records/`.
+- Additional public APIs are added under `Assets/Packages/com.scaffold.records/`.
 - The module begins to own branching logic, state transitions, or domain rules.
 
 See also: `Docs/AutomatedTesting.md` (allowed low-test module exceptions policy).

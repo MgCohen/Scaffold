@@ -1,0 +1,12 @@
+{
+    "name":  "com.scaffold.liveops",
+    "version":  "0.1.0",
+    "displayName":  "Scaffold LiveOps",
+    "description":  "LiveOps services and DTOs.",
+    "unity":  "6000.0",
+    "dependencies":  {
+                         "com.scaffold.cloudcode":  "0.1.0",
+                         "com.scaffold.scope":  "0.1.0"
+                     },
+    "path":  "https://github.com/MgCohen/Scaffold.git?path=/Assets/Packages/com.scaffold.liveops#main"
+}

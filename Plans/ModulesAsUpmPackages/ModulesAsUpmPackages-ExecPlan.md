@@ -6,21 +6,21 @@ Repository policy for ExecPlans is defined in `PLANS.md` at the repository root.
 
 ## Purpose / Big Picture
 
-Today, every C# module lives under `Assets/Scripts/` as ordinary project folders with assembly definition (`.asmdef`) files. After this work, each **publishable module** becomes a **Unity Package Manager (UPM) package**: a folder whose root contains a `package.json` manifest. The **Scaffold** Unity project remains the **holder** (development hub) where all packages are built and integrated together. Other Unity projects install individual modules by declaring a **Git dependency with a subpath** (a single Git URL plus a `path=` query that points at one package folder inside this repository), which is the standard way to consume one folder from a monorepo without copying code by hand.
+First-party modules now live under **`Assets/Packages/com.scaffold.*/`** as **Unity Package Manager (UPM)**–style trees: each has a **`package.json`** at its root. The **Scaffold** Unity project remains the **holder** (development hub); those folders compile as project assets without `file:` entries in the holder `Packages/manifest.json`. Other Unity projects install individual modules by declaring a **Git dependency with a subpath** (a single Git URL plus a `path=` query that points at one package folder inside this repository).
 
-Someone gains the ability to add only `com.scaffold.events` (for example) to a foreign `Packages/manifest.json`, resolve dependencies, and compile against the same assemblies as in Scaffold, without duplicating the repository layout under `Assets/Scripts/`. You can see it working when a clean external project imports one subpath package, the Package Manager shows the package with the expected version and dependencies, and play mode or a minimal compile succeeds.
+Someone can add only `com.scaffold.events` (for example) to a foreign `Packages/manifest.json`, resolve dependencies, and compile against the same assemblies as in Scaffold. You can see it working when a clean external project imports one subpath package, the Package Manager shows the package with the expected version and dependencies, and play mode or a minimal compile succeeds.
 
 ## Progress
 
 - [x] Author initial ExecPlan (this file) and check it into `Plans/ModulesAsUpmPackages/ModulesAsUpmPackages-ExecPlan.md`.
 - [x] Decide package identity and folder convention (naming, which roots are in scope, generators, optional exclusions) and record the decision in `Decision Log`.
 - [x] Prototype milestone: **`com.scaffold.types`** lives in **`Assets/Packages/com.scaffold.types/`** with `package.json`, samples entry, and `README.md`. The **holder** does **not** list it in `Packages/manifest.json` (sources compile as project assets). Consumer **`C:\Unity\AITest\AITest`** references the package via **`file:../../../Scaffold/Assets/Packages/com.scaffold.types`**. **Git subpath** proof uses **`?path=/Assets/Packages/com.scaffold.types`** (deferred until remote URL + branch/tag).
-- [ ] Define the **directed dependency graph** between packages (mirror current `.asmdef` edges) and encode it in each `package.json` `dependencies` map (see **Package dependency examples**).
-- [ ] Migrate remaining modules in dependency order (dependencies before dependents), updating `.asmdef` references only where Unity requires it, preserving GUIDs when moving folders.
-- [x] **Asmdef reference audit** updated: `.agents/scripts/check-scripts-asmdef-references.ps1` scans **`Assets/Scripts`** and root **`Packages`**, and **automatically** each **`Assets/Packages/com.scaffold.*`** folder (so third-party trees like `Assets/Packages/AAGen-*` are not audited). Parameter `-ScriptsRoots` still overrides/extends defaults.
-- [ ] Document consumer instructions: example `manifest.json` entries using `?path=/Assets/Packages/<packageId>`, version tags or branches, SemVer update workflow (see **Versioning**), and consumer `file:` vs Git subpath (holder develops under `Assets/Packages` without manifest entries).
-- [ ] Samples: register **per package** in `package.json` where applicable. Tests: **keep** test assemblies that already exist inside a module’s tree **inside** the same package; **omit** test folders where no tests exist today (trim).
-- [ ] Outcomes & Retrospective completed for the rollout.
+- [x] Define the **directed dependency graph** between packages and encode **`dependencies`** in each `package.json` (internal `com.scaffold.*` at `0.1.0`, `com.scaffold.schemas` as Git URL where needed, Unity/registry versions aligned with the holder `Packages/manifest.json` where declared). Migration script: `.agents/scripts/migrate-scaffold-packages.ps1` (already executed).
+- [x] Migrate **all** listed modules **plus** **`com.scaffold.autopacker`** and **MVVM generators** (`Assets/Generators/MVVM` → `com.scaffold.mvvm/GeneratorsMVVM`). **`Assets/Scripts`** and **`Assets/Generators`** trees removed after move (empty). Assembly **names** unchanged; **GUIDs** preserved via folder moves.
+- [x] **Asmdef reference audit** updated: `.agents/scripts/check-scripts-asmdef-references.ps1` accepts optional **`Assets/Scripts`** (if present), root **`Packages`**, and **automatic** **`Assets/Packages/com.scaffold.*`** roots; **asmdefs** without a **`references`** property are handled. Parameter `-ScriptsRoots` still overrides/extends defaults.
+- [x] Consumer documentation: **`Docs/ConsumingScaffoldPackages.md`** (Git subpath, `file:`, versioning pointers). **`Architecture.md`**, module **`Docs/*.md`**, **`create-module`** workflow, and **`rewrite-docs-package-paths.ps1`** updated for new paths.
+- [x] Tests: existing **Tests** assemblies moved with their packages; empty **Tests** stubs trimmed where applicable. **Samples** entries in `package.json`: added where the migration script wrote manifests; extend with full **`samples`** arrays per package when you want Package Manager sample imports (optional polish).
+- [x] Outcomes & Retrospective: see **Outcomes & Retrospective** (summary below).
 
 ## Surprises & Discoveries
 
@@ -35,13 +35,16 @@ Document unexpected behaviors, bugs, optimizations, or insights discovered durin
 - Observation: Scanning **all** of **`Assets/Packages/**`** in the asmdef audit pulls in third-party asmdefs (e.g. **AAGen**) and produces false **MissingScriptsGuidReference** issues. **Fix:** auto-include only **`Assets/Packages/com.scaffold.*`** directories as roots, not the parent `Assets/Packages` folder.
   Evidence: `TOTAL:5` failures referencing `AAGen` asmdefs until the script was narrowed.
 
+- Observation: Some **asmdef** files (e.g. **`Scaffold.Autopacker`**) omit a **`references`** property entirely. **Strict** access to `$json.references` in **`check-scripts-asmdef-references.ps1`** threw. **Fix:** treat missing **`references`** as an empty array.
+  Evidence: Script failure until the property guard was added; then **TOTAL:0**.
+
 ## Decision Log
 
-- Decision: **Module list** — The sixteen `Assets/Scripts/...` module roots listed under **Context and Orientation** are **in scope** as one UPM package each (unchanged list).
+- Decision: **Module list** — The sixteen first-party module packages listed under **Context and Orientation** (`Assets/Packages/com.scaffold.*`) are **in scope** as one UPM package each, plus **`com.scaffold.autopacker`**.
   Rationale: Confirmed by stakeholder; matches current architecture boundaries.
   Author: Stakeholder (2026-03-30).
 
-- Decision: **In-repo generators** — Ship **AutoPacker** and **MVVM-related generators** as part of packaging. **AutoPacker** is its own package (`com.scaffold.autopacker`), sourced from `Assets/Generators/Autopacker/` and `Generators/AutoPacker/`. **MVVM** tooling ships **together** with `Assets/Scripts/Infra/MVVM`: the `com.scaffold.mvvm` package includes the Infra/MVVM assemblies **and** the MVVM generator assets under `Assets/Generators/MVVM`, plus build outputs from `Generators/MVVMCompositionGenerator` and `Generators/Scaffold.Mvvm.Analyzers` as required for consumers (exact layout TBD during implementation).
+- Decision: **In-repo generators** — Ship **AutoPacker** and **MVVM-related generators** as part of packaging. **AutoPacker** is its own package (`com.scaffold.autopacker`) under `Assets/Packages/`, with C# projects under `Generators/AutoPacker/`. **MVVM** tooling ships **together** with `com.scaffold.mvvm`: runtime **and** `GeneratorsMVVM/` (former `Assets/Generators/MVVM`); analyzer build outputs remain under `Generators/MVVMCompositionGenerator` and `Generators/Scaffold.Mvvm.Analyzers` as today.
   Rationale: Generators are first-class deliverables; MVVM infra and MVVM generators are one product surface for consumers.
   Author: Stakeholder (2026-03-30).
 
@@ -77,7 +80,8 @@ Document unexpected behaviors, bugs, optimizations, or insights discovered durin
 
 Summarize outcomes, gaps, and lessons learned at major milestones or at completion. Compare the result against the original purpose.
 
-- (Not started.)
+- **Achieved:** All first-party modules listed in **Context and Orientation** now live under `Assets/Packages/com.scaffold.*/` with `package.json` and internal dependency edges; AutoPacker and MVVM generator **assets** are folded into `com.scaffold.autopacker` and `com.scaffold.mvvm` respectively. Holder uses no `file:` entries for these trees. Consumer patterns are documented in `Docs/ConsumingScaffoldPackages.md`; `Architecture.md` and module docs paths were updated via `.agents/scripts/rewrite-docs-package-paths.ps1`.
+- **Gaps:** Unity Edit/PlayMode tests are not re-run here; open the project in Unity to refresh the asset database. `validate-changes.ps1` may still report analyzer **TOTAL** greater than zero from third-party code (e.g. AAGen). Optional polish: add full **`samples`** arrays to every `package.json` for one-click sample import in consumers.
 
 ## Context and Orientation
 
@@ -89,27 +93,27 @@ Summarize outcomes, gaps, and lessons learned at major milestones or at completi
 
 **Module** in this repository means a bounded script area that already owns one or more `.asmdef` files. After migration, the **authoritative** location for first-party package trees in the holder is **`Assets/Packages/<packageName>/`**, with documentation updated accordingly. The following **module roots** (all **in scope**) become **one UPM package each**, using **`com.scaffold.<short-name>`** derived from the module (see **Decision Log** for naming):
 
-- `Assets/Scripts/App/Bootstrap` → `com.scaffold.bootstrap`
-- `Assets/Scripts/App/View` → `com.scaffold.view`
-- `Assets/Scripts/Assets/Addressables` → `com.scaffold.addressables`
-- `Assets/Scripts/Core/Entities` → `com.scaffold.entities`
-- `Assets/Scripts/Core/LiveOps` → `com.scaffold.liveops`
-- `Assets/Scripts/Core/ViewModel` → `com.scaffold.viewmodel`
-- `Assets/Scripts/Infra/CloudCode` → `com.scaffold.cloudcode`
-- `Assets/Scripts/Infra/Events` → `com.scaffold.events`
-- `Assets/Scripts/Infra/MVVM` → `com.scaffold.mvvm` (**includes** `Assets/Generators/MVVM` and related generator/analyzer build artifacts as decided)
-- `Assets/Scripts/Infra/Model` → `com.scaffold.model`
-- `Assets/Scripts/Infra/Navigation` → `com.scaffold.navigation`
-- `Assets/Scripts/Infra/SceneFlow` → `com.scaffold.sceneflow`
-- `Assets/Scripts/Infra/Scope` → `com.scaffold.scope`
-- `Assets/Scripts/Infra/Ugs` → `com.scaffold.ugs`
-- `Assets/Scripts/Tools/Maps` → `com.scaffold.maps`
-- `Assets/Scripts/Tools/Records` → `com.scaffold.records`
-- `Assets/Scripts/Tools/Types` → `com.scaffold.types`
+- `Assets/Packages/com.scaffold.bootstrap` → `com.scaffold.bootstrap`
+- `Assets/Packages/com.scaffold.view` → `com.scaffold.view`
+- `Assets/Packages/com.scaffold.addressables` → `com.scaffold.addressables`
+- `Assets/Packages/com.scaffold.entities` → `com.scaffold.entities`
+- `Assets/Packages/com.scaffold.liveops` → `com.scaffold.liveops`
+- `Assets/Packages/com.scaffold.viewmodel` → `com.scaffold.viewmodel`
+- `Assets/Packages/com.scaffold.cloudcode` → `com.scaffold.cloudcode`
+- `Assets/Packages/com.scaffold.events` → `com.scaffold.events`
+- `Assets/Packages/com.scaffold.mvvm` → `com.scaffold.mvvm` (**includes** `GeneratorsMVVM/` from the former `Assets/Generators/MVVM`; analyzer **build** projects remain under repo `Generators/` as today)
+- `Assets/Packages/com.scaffold.model` → `com.scaffold.model`
+- `Assets/Packages/com.scaffold.navigation` → `com.scaffold.navigation`
+- `Assets/Packages/com.scaffold.sceneflow` → `com.scaffold.sceneflow`
+- `Assets/Packages/com.scaffold.scope` → `com.scaffold.scope`
+- `Assets/Packages/com.scaffold.ugs` → `com.scaffold.ugs`
+- `Assets/Packages/com.scaffold.maps` → `com.scaffold.maps`
+- `Assets/Packages/com.scaffold.records` → `com.scaffold.records`
+- `Assets/Packages/com.scaffold.types` → `com.scaffold.types`
 
 **Additional in-scope package (generators):**
 
-- **AutoPacker** — `com.scaffold.autopacker`, sourcing from `Assets/Generators/Autopacker/` and `Generators/AutoPacker/` (and related contracts/tests per **Tests and samples** policy).
+- **AutoPacker** — `com.scaffold.autopacker` at `Assets/Packages/com.scaffold.autopacker/`; C# projects for builds remain under `Generators/AutoPacker/` at the repo root.
 
 **General-purpose Roslyn analyzers** under `Analyzers/Scaffold/Scaffold.Analyzers` (non-MVVM) are **not** part of the sixteen-module list; treat them as **optional follow-up** unless product policy requires shipping them as a UPM package. **Repository scripts** under `.agents/scripts/` stay repo tooling, not consumer packages.
 
@@ -211,7 +215,7 @@ Work from the repository root (example: `C:\Unity\Scaffold`).
 **Prototype (Types + AITest)**
 
     1. Create `Assets/Packages/com.scaffold.types/package.json` with name `com.scaffold.types`, initial version (for example `0.1.0`), `unity` constraint aligned with `ProjectSettings/ProjectVersion.txt`, and `dependencies` derived from `Scaffold.Types` asmdefs.
-    2. Move `Assets/Scripts/Tools/Types` content into `Assets/Packages/com.scaffold.types/`, preserving `Runtime/`, `Editor/`, `Samples/`, `Tests/` as applicable. Apply **Tests and samples** policy (keep existing tests; trim if none).
+    2. Move `Assets/Packages/com.scaffold.types` content into `Assets/Packages/com.scaffold.types/`, preserving `Runtime/`, `Editor/`, `Samples/`, `Tests/` as applicable. Apply **Tests and samples** policy (keep existing tests; trim if none).
     3. **Holder:** do **not** add `com.scaffold.types` to `Packages/manifest.json` (optional: consumers only).
     4. Open Unity in Scaffold, let it compile, fix missing references.
     5. Run: powershell -NoProfile -ExecutionPolicy Bypass -File ".\.agents\scripts\validate-changes.ps1" -SkipTests
@@ -274,3 +278,4 @@ Revision history:
 - 2026-03-30: Stakeholder decisions recorded (naming, `Packages/<packageName>/`, SemVer, dependency graph, prototype Types + `C:\Unity\AITest`, tests/samples policy, dual-path automation, legal). Added AutoPacker (`com.scaffold.autopacker`) and MVVM+generators scope; added **Versioning**, **Package dependency examples**, **Legal and third-party**.
 - 2026-03-30: Prototype executed: `com.scaffold.types` embedded under `Packages/`, holder manifest wired, `check-scripts-asmdef-references.ps1` dual-root, `Docs/Tools/Types.md` and `Docs/Testing/Testing.md` updated, AITest consumer manifest updated with `file:` dependency.
 - 2026-03-30: Holder layout changed to **`Assets/Packages/com.scaffold.types/`** (no `file:` entry in holder `manifest.json`); `packages-lock.json` and `manifest.json` updated; asmdef audit includes **`Assets/Packages`**; AITest `file:` path and ExecPlan paths updated to **`/Assets/Packages/...`** for Git subpaths.
+- 2026-03-30: Full rollout: all modules + **`com.scaffold.autopacker`** moved to **`Assets/Packages/`**; **`Docs/ConsumingScaffoldPackages.md`** added; **`rewrite-docs-package-paths.ps1`** and **`migrate-scaffold-packages.ps1`** added; **`Assets/Scripts`** and empty **`Assets/Generators`** removed; asmdef script handles missing **`references`**; **`Architecture.md`** and ExecPlan aligned.

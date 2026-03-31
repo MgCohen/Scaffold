@@ -73,7 +73,11 @@ foreach ($asmdef in $asmdefs) {
 
 foreach ($asmdef in $asmdefs) {
     $json = Get-Content $asmdef.FullName -Raw | ConvertFrom-Json
-    $references = @($json.references)
+    $references = @()
+    $refProp = $json.PSObject.Properties['references']
+    if ($null -ne $refProp -and $null -ne $refProp.Value) {
+        $references = @($json.references)
+    }
 
     foreach ($reference in $references) {
         if ($null -eq $reference) {

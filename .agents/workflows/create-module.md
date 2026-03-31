@@ -2,7 +2,7 @@
 description: Scaffolds a new module following the project's structure guidelines.
 ---
 
-1.  **Determine Module Path**: Ask the user where the module should be created (e.g., `Assets/Scripts/Infra/[ModuleName]`).
+1.  **Determine Module Path**: Ask the user where the module should be created. For publishable first-party modules, default to **`Assets/Packages/com.scaffold.<short-name>/`** (UPM layout with `package.json` at the package root). Legacy examples under `Assets/Scripts/` are no longer the default in this repository.
 2.  **Verify GUID Preservation**: Remind the agent/user that `.meta` files are critical for GUID preservation if moving folders.
 3.  **Create Top-Level Folders**: Create the following directory structure:
     - `[ModulePath]/Runtime`

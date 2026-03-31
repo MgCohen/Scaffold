@@ -4,7 +4,7 @@ This document is the architecture entrypoint for this Unity repository. It descr
 
 ## TL;DR
 
-- The host project is a modular Unity tree with explicit assembly boundaries under `Assets/Scripts/`.
+- The host project is a modular Unity tree with explicit assembly boundaries: first-party modules live under `Assets/Packages/com.scaffold.*/` (UPM-style folders with `package.json`) and compile as project assets in the holder.
 - The **`Core/`** script folder groups shared gameplay foundations; it is **not** a guarantee that every assembly under it is Unity-free. Some Core assemblies use `UnityEngine` on purpose (for example **`Scaffold.Entities`**: ScriptableObjects, `MonoBehaviour` health and lifecycle hooks). Other modules may set `noEngineReferences: true` in `.asmdef` when they are intentionally engine-agnostic.
 - UI and app-specific presentation stay in App/Infra; keep cross-module dependencies explicit and avoid leaking view concerns into unrelated modules.
 - Architecture enforcement is layered: docs standards, `.asmdef` dependency boundaries, and custom Roslyn analyzers.
@@ -24,20 +24,20 @@ This repository is a modular Unity project with architecture controls enforced t
 
 - A written record of what was trimmed from the upstream game project: [`Docs/REFERENCE_DECISIONS.md`](Docs/REFERENCE_DECISIONS.md).
 - Documentation standards under `Docs/Standards/` (when present).
-- Explicit assembly boundaries under `Assets/Scripts/**/*.asmdef`.
+- Explicit assembly boundaries under `Assets/Packages/com.scaffold.*/**/*.asmdef` (and any remaining roots you add under `Assets/`).
 - Custom Roslyn analyzers under `Analyzers/Scaffold/Scaffold.Analyzers`.
 - Repository validation scripts under `.agents/scripts/`.
 
 ## Constraints and Invariants
 
-- **`Assets/Scripts/Core/` is a physical grouping, not “Unity-free by definition.”** Whether an assembly references `UnityEngine` is determined per `.asmdef` (for example `Scaffold.Entities` uses the engine; some other assemblies use `noEngineReferences: true` where they stay agnostic).
+- **Core packages** (for example `com.scaffold.entities`) are not “Unity-free by definition.” Whether an assembly references `UnityEngine` is determined per `.asmdef` (for example `Scaffold.Entities` uses the engine; some other assemblies use `noEngineReferences: true` where they stay agnostic).
 - MonoBehaviour usage is allowed in Core when the module owns engine-facing gameplay building blocks (again, `Scaffold.Entities` is the canonical example). Prefer keeping UI-specific MonoBehaviours in App/Infra presentation layers.
 - All cross-module dependencies must be declared in `.asmdef` files; no hidden references.
 - Bootstrap/composition root owns concrete wiring; runtime modules consume contracts/interfaces.
 
 ## Tech Stack
 
-- Engine: Unity `2022.3.50f1` (see `ProjectSettings/ProjectVersion.txt` for the active editor version).
+- Engine: Unity `6000.3.x` (see `ProjectSettings/ProjectVersion.txt` for the active editor version).
 - Language: C#
 - Architecture: MVVM
 - Dependency Injection: VContainer (`jp.hadashikick.vcontainer`)
@@ -49,7 +49,7 @@ This repository is a modular Unity project with architecture controls enforced t
 
 Intent: show how external actors/systems interact with this Unity client at runtime.
 
-Source of truth: your bootstrap scene and composition wiring under `Assets/Scripts/App/Bootstrap/` (no fixed scene path is documented here).
+Source of truth: your bootstrap scene and composition wiring under `Assets/Packages/com.scaffold.bootstrap/` (no fixed scene path is documented here).
 
 Update trigger: changes to startup sequence, external service integrations, or root scene flow.
 
@@ -76,7 +76,7 @@ flowchart LR
 
 Intent: show static module groups in **this** repository.
 
-Source of truth: `Assets/Scripts/**/*.asmdef`, and the Unity-generated solution (`.sln`) at the repository root when present (name follows the project folder; often gitignored alongside `*.csproj`).
+Source of truth: `Assets/Packages/com.scaffold.*/**/*.asmdef`, and the Unity-generated solution (`.sln`) at the repository root when present (name follows the project folder; often gitignored alongside `*.csproj`).
 
 Update trigger: add/rename/remove assemblies or change `.asmdef` references.
 
@@ -102,7 +102,8 @@ Current module documentation map (see `Docs/`):
 - `Docs/Core/ViewModel.md`, `Docs/Core/LiveOps.md`, `Docs/Core/Entities.md`
 - `Docs/Infra/Addressables.md`, `Docs/Infra/MVVM.md`, `Docs/Infra/Events.md`, `Docs/Infra/Model.md`, `Docs/Infra/Navigation.md`, `Docs/Infra/Scope.md`, `Docs/Infra/SceneFlow.md`
 - `Docs/Tools/Maps.md`, `Docs/Tools/Records.md`, `Docs/Tools/Types.md`
-- `Docs/Analyzers/Analyzers.md`, `Docs/Testing.md`, `Docs/AutomatedTesting.md`
+- `Docs/ConsumingScaffoldPackages.md` (UPM consumer `manifest.json` patterns for Git subpath and `file:`)
+- `Docs/Analyzers/Analyzers.md`, `Docs/Testing/Testing.md`, `Docs/AutomatedTesting.md`
 
 ## Runtime Flows
 
@@ -157,7 +158,7 @@ Forbidden:
 
 ## Verification
 
-Run from repository root. For **how** scripts invoke Unity and `dotnet` safely when the repo path contains spaces (Windows PowerShell 5.x), see `Docs/Testing.md` → "Implementation notes".
+Run from repository root. For **how** scripts invoke Unity and `dotnet` safely when the repo path contains spaces (Windows PowerShell 5.x), see `Docs/Testing/Testing.md` → "Implementation notes".
 
 - Full gate (optional: skip automated Unity tests with `-SkipTests`):
   - `powershell -NoProfile -ExecutionPolicy Bypass -File ".\.agents\scripts\validate-changes.ps1" -SkipTests`
@@ -174,7 +175,7 @@ Architecture controls and policy files:
 - Analyzer source: `Analyzers/Scaffold/Scaffold.Analyzers` (`Rules/CategoryNN-*/` per disposition, `Support/` for shared config)
 - Analyzer tests: `Analyzers/Scaffold/Scaffold.Analyzers.Tests` (SCA); MVVM analyzer tests: `Generators/Scaffold.Mvvm.Analyzers.Tests`
 - Analyzer output: `Analyzers/Output/Scaffold.Analyzers.dll` (and `Scaffold.Mvvm.Analyzers.dll` from `Generators/Scaffold.Mvvm.Analyzers`)
-- Assembly boundaries: `Assets/Scripts/**/*.asmdef`
+- Assembly boundaries: `Assets/Packages/com.scaffold.*/**/*.asmdef` (first-party packages in the holder)
 - Operational docs: `AGENTS.md`, `PLANS.md`, `MILESTONE.md`
 
 ## Operational policy
@@ -189,6 +190,7 @@ Architecture controls and policy files:
 
 ## Change Log
 
+- First-party modules moved to UPM-style roots under `Assets/Packages/com.scaffold.*/` (holder compiles them as assets; see `Docs/ConsumingScaffoldPackages.md`).
 - Documented that Core script folders may include Unity-engine references (notably `Scaffold.Entities`); removed the outdated invariant that all Core/domain assemblies must be Unity-free.
 - Reorganized the document to match architecture documentation standard; added system context, module dependency, startup/battle/runtime state diagrams, invariants, and quality-tradeoff sections.
 - Synced docs map with current module docs and aligned startup/runtime language with research flow documents.

@@ -3,7 +3,7 @@
 ## TL;DR
 
 - Purpose: Unity-facing MVVM view layer for typed view binding and view-event routing.
-- Location: `Assets/Scripts/App/View/`.
+- Location: `Assets/Packages/com.scaffold.view/`.
 - Depends on: `Scaffold.MVVM.ViewModel`, `Scaffold.MVVM`, `Scaffold.Navigation`, `Scaffold.Types`.
 - Used by: app presentation modules and screen implementations.
 - Runtime/Editor: runtime + samples + EditMode tests.

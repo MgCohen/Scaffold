@@ -5,6 +5,7 @@ root = true
 # 2. [*.cs] — disabled / archived rules (severity none + legacy keys)
 # 3. Path overrides — SCA3005 / SCA3006 (namespaces / layout)
 # 4. Path overrides — SCA2003 (hot-spot files)
+# 5. Path overrides — third-party AAGen (vendor package under Assets/Packages/AAGen-0.3.0)
 
 [*.cs]
 # Scaffold Analyzer Severity Configuration
@@ -94,3 +95,28 @@ dotnet_diagnostic.SCA3006.severity = none
 # LiveOps level module keeps assembly identity Madbox.Level (distinct from Madbox.Levels); lives under Meta/Levels for discoverability.
 dotnet_diagnostic.SCA3005.severity = none
 dotnet_diagnostic.SCA3006.severity = none
+
+# Third-party AAGen — vendor code; same path may compile in Tests or other projects (see Directory.Build.props for AAGen.Editor).
+[Assets/Packages/AAGen-0.3.0/**]
+dotnet_diagnostic.SCA1001.severity = none
+dotnet_diagnostic.SCA1002.severity = none
+dotnet_diagnostic.SCA1003.severity = none
+dotnet_diagnostic.SCA1004.severity = none
+dotnet_diagnostic.SCA1005.severity = none
+dotnet_diagnostic.SCA1006.severity = none
+dotnet_diagnostic.SCA1007.severity = none
+dotnet_diagnostic.SCA2001.severity = none
+dotnet_diagnostic.SCA2002.severity = none
+dotnet_diagnostic.SCA2003.severity = none
+dotnet_diagnostic.SCA2004.severity = none
+dotnet_diagnostic.SCA3002.severity = none
+dotnet_diagnostic.SCA3003.severity = none
+dotnet_diagnostic.SCA3005.severity = none
+dotnet_diagnostic.SCA3006.severity = none
+dotnet_diagnostic.SCA6001.severity = none
+dotnet_diagnostic.SCA6002.severity = none
+dotnet_diagnostic.SCA8001.severity = none
+dotnet_diagnostic.SCA8002.severity = none
+dotnet_diagnostic.SCM001.severity = none
+dotnet_diagnostic.SCM002.severity = none
+dotnet_diagnostic.SCM003.severity = none

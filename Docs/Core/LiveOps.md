@@ -3,7 +3,7 @@
 ## TL;DR
 
 - Purpose: typed client for the deployed Cloud Code **LiveOps** module using shared DTO requests and responses; **bootstrap** runs an initial **`GameDataRequest`** via `IAsyncLayerInitializable` on `LiveOpsService`.
-- Location: `Assets/Scripts/Core/LiveOps/Runtime/` (`Scaffold.LiveOps`), installer `Scaffold.LiveOps.Container`.
+- Location: `Assets/Packages/com.scaffold.liveops/Runtime/` (`Scaffold.LiveOps`), installer `Scaffold.LiveOps.Container`.
 - Depends on: `Scaffold.CloudCode`, `Scaffold.Scope` (for `IAsyncLayerInitializable`), `Scaffold.Ugs` (optional `IUgs` gate before Cloud Code), precompiled plugin `Scaffold.LiveOps.DTO.dll` (see `Docs/LiveOps.md`), `Newtonsoft.Json`, `VContainer`.
 - Used by: bootstrap, feature modules (`IGameClientModule` implementations, `GameClientModuleBase<T>`), and any code that calls LiveOps endpoints.
 
@@ -36,4 +36,4 @@ Register concrete feature modules as `IGameClientModule` and `IAsyncLayerInitial
 
 ## Tests
 
-EditMode: `Assets/Scripts/Core/LiveOps/Tests` (`LiveOpsInitializationTests`, `GameClientModuleBaseTests`).
+EditMode: `Assets/Packages/com.scaffold.liveops/Tests` (`LiveOpsInitializationTests`, `GameClientModuleBaseTests`).

@@ -3,7 +3,7 @@
 ## TL;DR
 
 - Purpose: keep Addressables runtime small and focused on loading APIs.
-- Location: `Assets/Scripts/Assets/Addressables/Runtime/`.
+- Location: `Assets/Packages/com.scaffold.addressables/Runtime/`.
 - Depends on: `Scaffold.Scope`, `Unity.Addressables`, `VContainer`, `Scaffold.Maps`. Editor also references `com.unity.services.ccd.management` for CCD **Build & Release** (see `Packages/manifest.json`).
 - Used by: bootstrap startup and runtime services that load assets.
 
@@ -86,13 +86,13 @@ Run from repository root:
 
 - `Architecture.md`
 - `Docs/Infra/Scope.md`
-- `Assets/Scripts/Assets/Addressables/Runtime/Contracts/IAddressablesGateway.cs`
-- `Assets/Scripts/Assets/Addressables/Runtime/Contracts/IAssetProvider.cs`
-- `Assets/Scripts/Assets/Addressables/Runtime/Implementation/AddressablesGateway.cs`
-- `Assets/Scripts/Assets/Addressables/Runtime/Implementation/AddressablesAssetReferenceHandler.cs`
+- `Assets/Packages/com.scaffold.addressables/Runtime/Contracts/IAddressablesGateway.cs`
+- `Assets/Packages/com.scaffold.addressables/Runtime/Contracts/IAssetProvider.cs`
+- `Assets/Packages/com.scaffold.addressables/Runtime/Implementation/AddressablesGateway.cs`
+- `Assets/Packages/com.scaffold.addressables/Runtime/Implementation/AddressablesAssetReferenceHandler.cs`
 
 ## Changelog
 
-- Documented CCD remote catalog setup, **Remote Weapons (Sample)** group, and corrected runtime source paths under `Assets/Scripts/Assets/Addressables/`.
+- Documented CCD remote catalog setup, **Remote Weapons (Sample)** group, and corrected runtime source paths under `Assets/Packages/com.scaffold.addressables/`.
 - Moved preload ownership out of `AddressablesGateway` to provider/registrar bootstrap flow; removed preload config pipeline files and contracts.
 - Updated for gateway-centered simplification and reference-first loading API.

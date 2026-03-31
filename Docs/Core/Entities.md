@@ -3,7 +3,7 @@
 ## TL;DR
 
 - Purpose: Float-backed attributes (`EntityAttribute` + `EntityAttributeEntry`), additive modifiers, and an ordered behavior runner (`EntityBehaviorRunner<TData,TInput>`) with per-frame input contracts.
-- Location: `Assets/Scripts/Core/Entities/Runtime/` (`Scaffold.Entities`), tests in `Assets/Scripts/Core/Entities/Tests/` (`Scaffold.Entities.Tests`) when present.
+- Location: `Assets/Packages/com.scaffold.entities/Runtime/` (`Scaffold.Entities`), tests in `Assets/Packages/com.scaffold.entities/Tests/` (`Scaffold.Entities.Tests`) when present.
 - **Unity coupling:** References `UnityEngine` (`MonoBehaviour`, `ScriptableObject`). `Scaffold.Entities.asmdef` has `noEngineReferences: false`. See `Architecture.md` — “Core folder” does not mean “no Unity.”
 - Depends on: Unity engine only (no cross-assembly references to other first-party modules in this repository snapshot).
 - **Consumers:** Add a reference from `Scaffold.Entities` in your module’s `.asmdef` when you use these types in gameplay or presentation code.
@@ -22,7 +22,7 @@
 
 ## Testing
 
-- Assembly: `Scaffold.Entities.Tests` (EditMode) when test sources are added under `Assets/Scripts/Core/Entities/Tests/`.
+- Assembly: `Scaffold.Entities.Tests` (EditMode) when test sources are added under `Assets/Packages/com.scaffold.entities/Tests/`.
 
 ## Related
 

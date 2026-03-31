@@ -1,0 +1,11 @@
+{
+    "name":  "com.scaffold.model",
+    "version":  "0.1.0",
+    "displayName":  "Scaffold MVVM Model",
+    "description":  "MVVM model layer.",
+    "unity":  "6000.0",
+    "dependencies":  {
+                         "com.scaffold.mvvm":  "0.1.0"
+                     },
+    "path":  "https://github.com/MgCohen/Scaffold.git?path=/Assets/Packages/com.scaffold.model#main"
+}

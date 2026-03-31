@@ -3,7 +3,7 @@
 ## TL;DR
 
 - Purpose: Unity-free observable model base for MVVM state.
-- Location: `Assets/Scripts/Infra/Model/Runtime/`.
+- Location: `Assets/Packages/com.scaffold.model/Runtime/`.
 - Depends on: `Scaffold.MVVM.Model` runtime depends on `Scaffold.MVVM`.
 - Used by: `Scaffold.MVVM.ViewModel`, `Scaffold.MVVM.View`, and app/runtime modules that expose observable model state.
 - Runtime/Editor: runtime + EditMode tests.

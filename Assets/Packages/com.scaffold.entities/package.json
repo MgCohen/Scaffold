@@ -1,0 +1,11 @@
+{
+    "name":  "com.scaffold.entities",
+    "version":  "0.1.0",
+    "displayName":  "Scaffold Entities",
+    "description":  "Gameplay entity building blocks.",
+    "unity":  "6000.0",
+    "dependencies":  {
+
+                     },
+    "path":  "https://github.com/MgCohen/Scaffold.git?path=/Assets/Packages/com.scaffold.entities#main"
+}

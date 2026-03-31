@@ -1,0 +1,12 @@
+{
+    "name":  "com.scaffold.mvvm",
+    "version":  "0.1.0",
+    "displayName":  "Scaffold MVVM",
+    "description":  "MVVM core and MVVM-related generators in this repo.",
+    "unity":  "6000.0",
+    "dependencies":  {
+                         "com.scaffold.maps":  "0.1.0",
+                         "com.scaffold.records":  "0.1.0"
+                     },
+    "path":  "https://github.com/MgCohen/Scaffold.git?path=/Assets/Packages/com.scaffold.mvvm#main"
+}

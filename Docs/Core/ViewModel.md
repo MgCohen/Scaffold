@@ -3,7 +3,7 @@
 ## TL;DR
 
 - Purpose: MVVM orchestration layer for bind registration, lifecycle reset, and navigation-aware context.
-- Location: `Assets/Scripts/Core/ViewModel/`.
+- Location: `Assets/Packages/com.scaffold.viewmodel/`.
 - Depends on: `Scaffold.MVVM`, `Scaffold.Navigation` (plus CommunityToolkit.Mvvm precompiled refs for `ObservableObject` on `ViewModel`).
 - Used by: `Scaffold.MVVM.View` and app presentation controllers.
 - Runtime/Editor: runtime + EditMode tests.

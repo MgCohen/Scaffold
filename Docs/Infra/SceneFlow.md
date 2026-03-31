@@ -3,7 +3,7 @@
 ## TL;DR
 
 - Purpose: load and unload **Addressable scenes** in **Additive** mode while the **Bootstrap** scene stays loaded.
-- Location: `Assets/Scripts/Infra/SceneFlow/Runtime/` (`Scaffold.SceneFlow` assembly).
+- Location: `Assets/Packages/com.scaffold.sceneflow/Runtime/` (`Scaffold.SceneFlow` assembly).
 - Depends on: Unity Addressables, ResourceManager, VContainer (`SceneFlowInstaller` implements `IInstaller`).
 - Used by: any composition layer that registers `SceneFlowInstaller` (not wired from default Bootstrap infra).
 - Runtime/Editor: runtime; EditMode tests in `Scaffold.SceneFlow.Tests`.

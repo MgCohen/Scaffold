@@ -1,0 +1,11 @@
+{
+    "name":  "com.scaffold.maps",
+    "version":  "0.1.0",
+    "displayName":  "Scaffold Maps",
+    "description":  "Map/index utilities for Scaffold.",
+    "unity":  "6000.0",
+    "dependencies":  {
+                         "com.scaffold.records":  "0.1.0"
+                     },
+    "path":  "https://github.com/MgCohen/Scaffold.git?path=/Assets/Packages/com.scaffold.maps#main"
+}

@@ -35,8 +35,8 @@ Do not spend most of coverage on visual assertions or fragile hierarchy checks.
 
 Example in repo (add or adjust paths as your test tree grows):
 
-- `Assets/Scripts/Core/Entities/Tests/` (when `.cs` tests are present)
-- `Assets/Scripts/App/Bootstrap/Tests/` (when `.cs` tests are present)
+- `Assets/Packages/com.scaffold.entities/Tests/` (when `.cs` tests are present)
+- `Assets/Packages/com.scaffold.bootstrap/Tests/` (when `.cs` tests are present)
 
 ### Infra/App EditMode Tests
 
@@ -46,7 +46,7 @@ Example in repo (add or adjust paths as your test tree grows):
 
 Example in repo (when present):
 
-- `Assets/Scripts/App/Bootstrap/Tests/PlayMode/` (PlayMode smoke tests, if any)
+- `Assets/Packages/com.scaffold.bootstrap/Tests/PlayMode/` (PlayMode smoke tests, if any)
 
 ### PlayMode Tests
 
@@ -56,7 +56,7 @@ Example in repo (when present):
 
 Example in repo:
 
-- `Assets/Scripts/App/Bootstrap/Tests/PlayMode/BootstrapScenePlayModeTests.cs`
+- `Assets/Packages/com.scaffold.bootstrap/Tests/PlayMode/BootstrapScenePlayModeTests.cs`
 
 ## How To Set Up A New Test Assembly
 
@@ -71,8 +71,8 @@ Create test assemblies per module in a local `Tests/` folder next to the module:
 
 Use existing asmdefs as templates:
 
-- `Assets/Scripts/App/Bootstrap/Tests/Scaffold.Bootstrap.Tests.asmdef`
-- `Assets/Scripts/Core/Entities/Tests/Scaffold.Entities.Tests.asmdef`
+- `Assets/Packages/com.scaffold.bootstrap/Tests/Scaffold.Bootstrap.Tests.asmdef`
+- `Assets/Packages/com.scaffold.entities/Tests/Scaffold.Entities.Tests.asmdef`
 
 ## Test Design Checklist
 

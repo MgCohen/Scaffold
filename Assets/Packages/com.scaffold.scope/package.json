@@ -1,0 +1,11 @@
+{
+    "name":  "com.scaffold.scope",
+    "version":  "0.1.0",
+    "displayName":  "Scaffold Scope",
+    "description":  "Layered scope and DI composition helpers.",
+    "unity":  "6000.0",
+    "dependencies":  {
+
+                     },
+    "path":  "https://github.com/MgCohen/Scaffold.git?path=/Assets/Packages/com.scaffold.scope#main"
+}

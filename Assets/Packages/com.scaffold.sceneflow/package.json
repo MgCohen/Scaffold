@@ -1,0 +1,11 @@
+{
+    "name":  "com.scaffold.sceneflow",
+    "version":  "0.1.0",
+    "displayName":  "Scaffold Scene Flow",
+    "description":  "Scene flow and Addressables scene loading.",
+    "unity":  "6000.0",
+    "dependencies":  {
+                         "com.unity.addressables":  "2.9.1"
+                     },
+    "path":  "https://github.com/MgCohen/Scaffold.git?path=/Assets/Packages/com.scaffold.sceneflow#main"
+}

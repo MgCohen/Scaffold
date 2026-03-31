@@ -3,7 +3,7 @@
 ## TL;DR
 
 - Purpose: compose runtime scopes and open the first app screen.
-- Location: `Assets/Scripts/App/Bootstrap/Runtime/`.
+- Location: `Assets/Packages/com.scaffold.bootstrap/Runtime/`.
 - Depends on: `Scaffold.Navigation`, `Scaffold.Navigation.Container`, `Scaffold.Events.Container`, `Scaffold.Scope`, `Scaffold.MVVM.Model`, `Scaffold.MVVM.ViewModel`, `VContainer`, `Scaffold.Addressables.Container`.
 - Used by: scene startup.
 

@@ -3,7 +3,7 @@
 ## TL;DR
 
 - Purpose: composite-key map with dynamic predicate indexers.
-- Location: `Assets/Scripts/Tools/Maps/`.
+- Location: `Assets/Packages/com.scaffold.maps/`.
 - Depends on: `Scaffold.Records`.
 - Used by: modules requiring indexed grouped lookups.
 - Runtime/Editor: runtime with samples/tests.

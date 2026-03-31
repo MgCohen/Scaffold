@@ -658,12 +658,12 @@ Diagnostics show the **full** expected namespace. The root segment used for that
 - `scaffold.SCA3006.first_segment_ignore` — optional. When **omitted**, the first folder segment under the content root is skipped (legacy). When **set**, it is a semicolon-separated list of first-segment folder names to remove once (match `*` to always skip the first segment). An empty value can be supplied to disable legacy skip when tests or a folder layout need every segment.
 - `scaffold.SCA3006.suffix_ignore_globs` — optional semicolon-separated globs; paths matching a glob skip **SCA3006** only (not **SCA3005**).
 
-Generated paths (`obj/`, `bin/`, `*.g.cs`, etc.) are skipped. `Assets/Scripts/Tools/Records/Runtime/IsExternalInit.cs` is exempt. Files that are not under any configured content root are skipped for both **SCA3005** and **SCA3006**. Assembly/module–only compilation units (metadata-only `AssemblyInfo.cs`) are skipped.
+Generated paths (`obj/`, `bin/`, `*.g.cs`, etc.) are skipped. `Assets/Packages/com.scaffold.records/Runtime/IsExternalInit.cs` is exempt. Files that are not under any configured content root are skipped for both **SCA3005** and **SCA3006**. Assembly/module–only compilation units (metadata-only `AssemblyInfo.cs`) are skipped.
 
 **Multiple top-level namespaces** and **types outside a block `namespace { }`** are **SCA3004** (`SingleTopLevelNamespaceAnalyzer`), not **SCA3005**/**SCA3006**.
 
 ```csharp
-// File: Assets/Scripts/Infra/Navigation/Container/NavigationInstaller.cs
+// File: Assets/Packages/com.scaffold.navigation/Container/NavigationInstaller.cs
 // VIOLATION (namespace does not match folder-derived path for an allowed root)
 namespace Utilities.Container.Navigation { }
 
@@ -672,13 +672,13 @@ namespace Scaffold.Navigation.Container { }
 ```
 
 ```csharp
-// File: Assets/Scripts/Infra/MVVM/Runtime/Binding/BindSet.cs
+// File: Assets/Packages/com.scaffold.mvvm/Runtime/Binding/BindSet.cs
 // COMPLIANT (Runtime/Implementation skipped from folder suffix)
 namespace Scaffold.MVVM.Binding { }
 ```
 
 ```csharp
-// File: Assets/Scripts/Infra/Navigation/Runtime/Contracts/INavigation.cs
+// File: Assets/Packages/com.scaffold.navigation/Runtime/Contracts/INavigation.cs
 // COMPLIANT (Contracts kept in suffix)
 namespace Scaffold.Navigation.Contracts { }
 ```
@@ -704,7 +704,7 @@ Files under `Assets/Scripts/` must follow **one** of these layout rules:
 
 This prevents sibling namespace declarations from bypassing namespace/folder conventions, and prevents “split” files that close a namespace block then declare more types at file scope.
 
-`Assets/Scripts/Tools/Records/Runtime/IsExternalInit.cs` is explicitly exempted for C# record compatibility.
+`Assets/Packages/com.scaffold.records/Runtime/IsExternalInit.cs` is explicitly exempted for C# record compatibility.
 Assembly/module-attributes-only files (for example `AssemblyInfo.cs`) are exempt as metadata-only files.
 
 ```csharp
@@ -876,7 +876,7 @@ public sealed class MainMenuView
 Classes inside the MVVM module should not manually implement MVVM notifier interfaces.  
 Prefer inheriting from `Scaffold.MVVM.Model` or `Scaffold.MVVM.ViewModel` so shared behavior and source-generated features stay consistent.
 
-This rule checks files under `Assets/Scripts/Core/MVVM/`, `Assets/Scripts/Infra/Model/`, `Assets/Scripts/Infra/ViewModel/`, and `Assets/Scripts/Infra/View/`, and skips `Tests/` and `Samples/`.
+This rule checks files under `Assets/Packages/com.scaffold.viewmodel/`, `Assets/Packages/com.scaffold.model/`, `Assets/Packages/com.scaffold.mvvm/`, and `Assets/Packages/com.scaffold.view/`, and skips `Tests/` and `Samples/`.
 
 ```csharp
 // VIOLATION
