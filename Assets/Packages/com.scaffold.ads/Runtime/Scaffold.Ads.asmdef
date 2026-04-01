@@ -1,0 +1,16 @@
+{
+    "name": "Scaffold.Ads.Runtime",
+    "rootNamespace": "Scaffold.Ads",
+    "references": [],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [
+        "Scaffold.LiveOps.DTO.dll"
+    ],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
