@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace Scaffold.Ads
 {
-    public class BannerAdManager : MonoBehaviour
+    public class BannerAdManager : IDisposable
     {
         private AdConfigurationSO _adConfiguration;
         private IBannerAdService _adService;
@@ -67,7 +67,7 @@ namespace Scaffold.Ads
             BannerLoaded?.Invoke(loaded);
         }
 
-        private void OnDestroy()
+        public void Dispose()
         {
             if (_adService != null)
             {

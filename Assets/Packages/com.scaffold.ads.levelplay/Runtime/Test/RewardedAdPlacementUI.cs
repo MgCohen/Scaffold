@@ -3,7 +3,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace Scaffold.Ads.Test
+namespace Scaffold.Ads.Levelplay.Test
 {
     [Serializable]
     public class RewardedAdPlacementUI

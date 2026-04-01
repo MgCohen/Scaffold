@@ -1,16 +1,18 @@
 {
-    "name": "Scaffold.Ads.Runtime",
-    "rootNamespace": "Scaffold.Ads",
+    "name": "Scaffold.Ads.Levelplay.Container",
+    "rootNamespace": "Scaffold.Ads.Levelplay.Container",
     "references": [
+        "Scaffold.Ads.Levelplay.Runtime",
+        "Scaffold.Ads.Runtime",
+        "Scaffold.Ads.Container",
+        "Scaffold.Scope",
         "VContainer"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,
-    "precompiledReferences": [
-        "Scaffold.LiveOps.DTO.dll"
-    ],
+    "precompiledReferences": [],
     "autoReferenced": true,
     "defineConstraints": [],
     "versionDefines": [],

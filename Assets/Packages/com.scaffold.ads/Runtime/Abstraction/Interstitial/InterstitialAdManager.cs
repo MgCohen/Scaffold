@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace Scaffold.Ads
 {
-    public class InterstitialAdManager : MonoBehaviour
+    public class InterstitialAdManager : IDisposable
     {
         private AdConfigurationSO _adConfiguration;
         private IInterstitialAdService _adService;
@@ -90,7 +90,7 @@ namespace Scaffold.Ads
             return true;
         }
 
-        private void OnDestroy()
+        public void Dispose()
         {
             if (_adService != null)
             {

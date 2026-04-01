@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using Unity.Services.LevelPlay;
 using UnityEngine;
 
-namespace Scaffold.Ads
+namespace Scaffold.Ads.Levelplay
 {
     public class LevelPlayBannerAdService : IBannerAdService, IDisposable
     {

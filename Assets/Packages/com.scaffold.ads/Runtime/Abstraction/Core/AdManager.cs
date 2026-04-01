@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace Scaffold.Ads
@@ -6,49 +7,36 @@ namespace Scaffold.Ads
     /// Serves as the global entry point for all advertising logic.
     /// Manages initialization via IAdProvider and delegates types to specific managers.
     /// </summary>
-    public class AdManager : MonoBehaviour
+    public class AdManager : IDisposable
     {
-        [Header("Configuration")]
-        [SerializeField]
-        private AdConfigurationSO _adConfiguration;
+        private readonly AdConfigurationSO _adConfiguration;
 
         // Specialized Managers
-        private RewardedAdManager _rewardedAdManager;
-        private InterstitialAdManager _interstitialAdManager;
-        private BannerAdManager _bannerAdManager;
+        private readonly RewardedAdManager _rewardedAdManager;
+        private readonly InterstitialAdManager _interstitialAdManager;
+        private readonly BannerAdManager _bannerAdManager;
 
         private IAdProvider _adProvider;
         private bool _isInitialized;
 
-        public RewardedAdManager RewardedAds
-        {
-            get { return _rewardedAdManager; }
-        }
+        public RewardedAdManager RewardedAds => _rewardedAdManager;
+        public InterstitialAdManager InterstitialAds => _interstitialAdManager;
+        public BannerAdManager BannerAds => _bannerAdManager;
 
-        public InterstitialAdManager InterstitialAds
+        public AdManager(AdConfigurationSO adConfiguration, RewardedAdManager rewardedAdManager, InterstitialAdManager interstitialAdManager, BannerAdManager bannerAdManager)
         {
-            get { return _interstitialAdManager; }
-        }
+            _adConfiguration = adConfiguration;
+            _rewardedAdManager = rewardedAdManager;
+            _interstitialAdManager = interstitialAdManager;
+            _bannerAdManager = bannerAdManager;
 
-        public BannerAdManager BannerAds
-        {
-            get { return _bannerAdManager; }
-        }
-
-        private void Awake()
-        {
             if (_adConfiguration == null)
             {
-                Debug.LogError("AdConfigurationSO is not set on GlobalAdManager.");
+                Debug.LogError("AdConfigurationSO is not set on AdManager.");
                 return;
             }
 
             _adProvider = _adConfiguration.CreateProvider();
-
-            // Construct child managers
-            _rewardedAdManager = gameObject.AddComponent<RewardedAdManager>();
-            _interstitialAdManager = gameObject.AddComponent<InterstitialAdManager>();
-            _bannerAdManager = gameObject.AddComponent<BannerAdManager>();
         }
 
         public void SetRewardEndpointClient(IRewardEndpointClient rewardClient)
@@ -104,7 +92,7 @@ namespace Scaffold.Ads
             }
         }
 
-        private void OnDestroy()
+        public void Dispose()
         {
             _adProvider?.Dispose();
         }

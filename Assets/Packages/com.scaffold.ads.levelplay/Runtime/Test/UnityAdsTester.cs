@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace Scaffold.Ads.Test
+namespace Scaffold.Ads.Levelplay.Test
 {
     /// <summary>
     /// Handles the Initialization of the GlobalAdManager and injects it into specific testers.

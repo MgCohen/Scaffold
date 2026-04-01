@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Scaffold.Ads
+namespace Scaffold.Ads.Levelplay
 {
     [CreateAssetMenu(fileName = "LevelPlayAdConfiguration", menuName = "Ads/LevelPlay Configuration")]
     public class LevelPlayAdConfigurationSO : AdConfigurationSO

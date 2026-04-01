@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Scaffold.Ads.Test
+namespace Scaffold.Ads.Levelplay.Test
 {
     public class RewardedAdTester : MonoBehaviour
     {

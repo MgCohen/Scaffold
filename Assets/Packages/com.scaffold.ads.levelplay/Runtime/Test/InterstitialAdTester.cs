@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace Scaffold.Ads.Test
+namespace Scaffold.Ads.Levelplay.Test
 {
     public class InterstitialAdTester : MonoBehaviour
     {

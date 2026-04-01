@@ -1,5 +1,6 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
+using VContainer;
 
 namespace Scaffold.Ads
 {
@@ -9,8 +10,7 @@ namespace Scaffold.Ads
         [SerializeField]
         private Button _rewardButton;
 
-        [Header("Ads Settings")]
-        [SerializeField]
+        [Inject]
         private AdManager adManager;
 
         [SerializeField]
@@ -18,18 +18,7 @@ namespace Scaffold.Ads
 
         private RewardedAdManager RewardedAds => adManager != null ? adManager.RewardedAds : null;
 
-        private void Awake()
-        {
-            if (adManager == null)
-            {
-#if UNITY_2023_1_OR_NEWER
-                adManager = FindFirstObjectByType<AdManager>();
-#else
-                _globalAdManager = FindObjectOfType<GlobalAdManager>();
-#endif
-            }
-        }
-
+        // Awake removed since AdManager is injected via VContainer
         private void Start()
         {
             if (_rewardButton != null)

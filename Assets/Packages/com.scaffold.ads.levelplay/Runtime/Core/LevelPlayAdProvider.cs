@@ -2,7 +2,7 @@ using System.Threading.Tasks;
 using Unity.Services.LevelPlay;
 using UnityEngine;
 
-namespace Scaffold.Ads
+namespace Scaffold.Ads.Levelplay
 {
     public class LevelPlayAdProvider : IAdProvider
     {

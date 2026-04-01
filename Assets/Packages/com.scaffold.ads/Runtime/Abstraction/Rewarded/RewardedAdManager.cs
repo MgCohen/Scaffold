@@ -7,7 +7,7 @@ namespace Scaffold.Ads
     /// Governs rewarded video ad pacing, events, and endpoint reward validation.
     /// Operates entirely via the IRewardedAdService abstraction.
     /// </summary>
-    public class RewardedAdManager : MonoBehaviour
+    public class RewardedAdManager : IDisposable
     {
         private AdConfigurationSO _adConfiguration;
 
@@ -189,7 +189,7 @@ namespace Scaffold.Ads
 
         #endregion
 
-        private void OnDestroy()
+        public void Dispose()
         {
             if (_adService != null)
             {

@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Scaffold.Ads
+namespace Scaffold.Ads.Levelplay
 {
     [Serializable]
     public struct LevelPlayPlatformConfig
