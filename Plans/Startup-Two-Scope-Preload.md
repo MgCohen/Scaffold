@@ -88,4 +88,4 @@ Add interfaces such as `IEarlyStartupCheck` with `Task VerifyAsync(CancellationT
 |-------|-----------|
 | **Two scopes** | Scope 1 build → init runner → preload via gateway → Scope 2 build with `RegisterInstance` → init runner. |
 
-This outline is ready to be turned into an ExecPlan with file paths, asmdef impact, and migration steps from `LayeredScope` / `IAsyncLayerInitializable`.
+This outline is ready to be turned into an ExecPlan with file paths, asmdef impact, and migration steps from legacy `IAsyncLayerInitializable` usage where applicable.

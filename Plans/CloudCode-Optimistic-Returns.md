@@ -1,23 +1,115 @@
 # Cloud Code optimistic returns — design notes
 
-**Status:** Implemented (registry + `CloudCodeOptimisticOrchestrator` inside `CloudCodeService` + DI)  
-**Related code:** `Assets/Packages/com.scaffold.cloudcode/` (`ICloudCodeService`, `ICloudCodeCallHandler`, `CloudCodeService`)
+**Status:** Implemented (registry + optimistic path + `CloudCodeErrorHandler` in `CloudCodeService` + DI)  
+**Related code:** `Assets/Packages/com.scaffold.cloudcode/` (`ICloudCodeService`, `ICloudCodeCallHandler`, `CloudCodeService`, `CloudCodeOptimisticHandlerRegistry`, `IRequestHandler*.cs`, `CloudCodeErrorHandler`)
 
 ## Purpose
 
-Explore an optional layer that can **return a client-side inferred response immediately** for some Cloud Code calls, while the **real network call continues in the background**. This improves perceived latency when the response is knowable from the request (or from app rules) before the server responds.
+Optional layer that can **return a client-side inferred response immediately** for some Cloud Code calls while the **real network call continues in the background**. This improves perceived latency when the response is knowable from the request (or from app rules) before the server responds.
 
-This document captures agreed decisions and remaining implementation work.
+This document captures **decided behavior**, **reconciliation + error flow**, and **references**.
 
 ---
 
-## Current architecture (snapshot)
+## Current architecture (2026-04 snapshot)
 
-- `ICloudCodeService.CallEndpointAsync<T>(module, endpoint, payload, ct)` validates input, converts the **request object** to the wire payload (see **Payload shape** below), starts **`Task<string> serverTask = callHandler.InvokeAsync(...)`** (handler chain **without** optimistic), then **`CloudCodeOptimisticOrchestrator`**: if a registered `IRequestHandler<T>` **accepts** (`TryMatch`), returns deserialized optimistic JSON immediately and **schedules reconciliation** that **awaits the same `serverTask`** and compares JSON; otherwise **awaits `serverTask`** and deserializes.
-- Handler order (innermost → outermost): **SDK** → timeout → response logging → **retry** → **single-flight (per module)**. Optimistic logic is **not** an `ICloudCodeCallHandler`.
-- `CloudCodeInstaller` registers `CloudCodeOptimisticHandlerRegistry`, **`CloudCodeOptimisticOrchestrator`**, and builds `ICloudCodeService` as a singleton with `CloudCodeSettings`.
+- `ICloudCodeService.CallEndpointAsync<T>(module, endpoint, payload, ct)` validates input, wraps the request as **`{ "request", payload }`** (or empty dict when `payload` is null), starts **`Task<string> serverTask = callHandler.InvokeAsync(...)`**, then:
+  - If **`TryGetOptimisticResponse<T>`** resolves a registered handler and **`TryMatch(module, endpoint, payload)`** succeeds: returns the **optimistic `T`** immediately and schedules **background reconciliation** on the **same** `serverTask` (no second network call).
+  - Otherwise **awaits** `serverTask` and deserializes to `T` — failures go through **`CloudCodeErrorHandler.Handle`** then **rethrow**.
+- Handler order (innermost → outermost): **SDK** → timeout → response logging → **retry** → **single-flight (per module)**. Optimistic logic is **not** an `ICloudCodeCallHandler`; it lives **inside** `CloudCodeService`.
+- `CloudCodeInstaller` registers **`CloudCodeOptimisticHandlerRegistry`** (singleton), **`CloudCodeErrorHandler`** (singleton), and **`ICloudCodeService` → `CloudCodeService`**. Subclass **`CloudCodeErrorHandler`** and register your subclass as **`CloudCodeErrorHandler`** if you need custom behavior.
 
-Optimistic behavior will be **internal** (callers keep `Task<T>`); it must cooperate with **cancellation**, **retries**, and **single-flight** per module.
+---
+
+## Decided: handler API (final)
+
+| Piece | Decision |
+|--------|-----------|
+| **Registry** | **`(TRequest, TResponse)`** — `Register<TRequest, TResponse>(IRequestHandler<TRequest, TResponse>)`; lookup uses **`payload.GetType()`** (null payload → no optimistic path) and **`typeof(T)`** from `CallEndpointAsync<T>`. |
+| **`IRequestHandler`** | **`TryMatch` only** — non-generic registry slot. |
+| **`IRequestHandler<TResponse>`** | **`GetOptimisticResponse`**, **`Validate(server, optimistic)`** only. |
+| **`IRequestHandler<TRequest, TResponse>`** | App implements typed **`TryMatch`**, **`GetOptimisticResponse(TRequest)`**; inherits **`Validate`**. |
+| **Errors** | **`CloudCodeErrorHandler.Handle`** — one concrete type; not optimistic-specific. |
+
+---
+
+## Cloud Code errors (all calls)
+
+**`CloudCodeErrorHandler`** is invoked for:
+
+- **Direct await path** — any exception from **`CallAsync`** (network/SDK chain, deserialization).
+- **Optimistic trailing path** — any exception from **`CallAsync`** or **`Validate`** in background reconciliation.
+
+Signature:
+
+```csharp
+public virtual void Handle(
+    Exception exception,
+    string module,
+    string endpoint,
+    object requestPayload,
+    object optimisticResponseOrNull)
+```
+
+Use **`optimisticResponseOrNull`** only when the failure came from **after** an optimistic return; otherwise it is **`null`**. Add logging, invalidation, or other app logic in **`Handle`** or in a subclass.
+
+Direct path: **`Handle`** is called, then the exception is **rethrown**. Background path: **`Handle`** only (caller already completed).
+
+---
+
+## Reconciliation (optimistic only)
+
+After an optimistic return, the **same** `serverTask` is awaited off the caller’s continuation.
+
+1. **Success** — Deserialize JSON to `T`, then **`Validate(TResponse serverResponse, TResponse optimisticResponse)`**.
+
+2. **Failure** — **`CloudCodeErrorHandler.Handle`** with the **optimistic** value passed as **`optimisticResponseOrNull`**.
+
+```csharp
+private async void RunReconciliationInTheBackground<T>(...)
+{
+    try
+    {
+        T response = await CallAsync<T>(serverTask);
+        handler.Validate(response, optimisticResponse);
+    }
+    catch (Exception ex)
+    {
+        cloudCodeErrorHandler.Handle(ex, module, endpoint, requestPayload, optimisticResponse);
+    }
+}
+```
+
+---
+
+## Interface summary (repo)
+
+```csharp
+public interface IRequestHandler
+{
+    bool TryMatch(string module, string endpoint, object request);
+}
+
+public interface IRequestHandler<TResponse> : IRequestHandler
+{
+    TResponse GetOptimisticResponse(object request);
+    void Validate(TResponse serverResponse, TResponse optimisticResponse);
+}
+
+public interface IRequestHandler<TRequest, TResponse> : IRequestHandler<TResponse>
+    where TRequest : class
+{
+    bool TryMatch(string module, string endpoint, TRequest request);
+    TResponse GetOptimisticResponse(TRequest request);
+}
+```
+
+---
+
+## Resolver safety (implemented)
+
+- **`payload == null`** → optimistic path skipped (`TryResolveOptimisticHandler` returns false).
+- **Registry entry must implement `IRequestHandler<TResponse>`** — if not, skip; **`TryMatch`** runs only after a successful typed reference.
 
 ---
 
@@ -28,94 +120,21 @@ Optimistic behavior will be **internal** (callers keep `Task<T>`); it must coope
 | **Optimistic return** | The async method completes with a value **before** the server response is available, using a locally computed guess. |
 | **Background / trailing call** | The real `InvokeAsync` continues after the caller already received `T`. |
 | **Deterministic inference** | The guessed `T` is **guaranteed** to match what the server would return for that payload (pure function of payload + known rules). **Intended use for now.** |
-| **Speculative inference** | A guess that **might** differ from the server. Infrastructure may support it later; reconciliation still applies if used. |
-| **Single-flight** | At most one in-flight **real** Cloud Code call per **serialization key** (here: **module name**). |
+| **Single-flight** | At most one in-flight **real** Cloud Code call per **module name**. |
 
 ---
 
-## Decided: design placement
-
-**Orchestration inside `CloudCodeService` (not a call handler)**
-
-- Optimism applies to **whatever is registered** in the handler registry. **Usage is deterministic-only for now**, but the design does not hard-code “deterministic only.”
-- The server pipeline stays **`ICloudCodeCallHandler` only** (through single-flight). **`CloudCodeOptimisticOrchestrator`** runs beside it: start `InvokeAsync` first, then decide optimistic vs await server.
-
----
-
-## Decided: reconciliation when server disagrees
-
-If the trailing call completes with a result that **does not match** the optimistic guess (or handler indicates invalid state):
-
-- Show an **error message** and **restart the game** (hard-fail consistency).
-
-This is stricter than “silent overwrite” and must be wired in app/LiveOps layer when optimistic paths are enabled.
-
----
-
-## Decided: concurrency
-
-- **Serialization key:** **module name** (`string module` passed to `CallEndpointAsync`). **Single-flight per module** so all endpoints in that module share one queue, avoiding cross-call races on client state tied to that module.
-- **Strategy:** **Single-flight** — a second call for the same module **waits** until the previous **real** invocation completes (queue behavior under contention).
-
----
-
-## Decided: registration
-
-- **Code registration** in DI: **`CloudCodeOptimisticHandlerRegistry.Register<TRequest>(IRequestHandler<TRequest>)`** (singleton registry resolved from the container).
-- When dispatching, **match by `payload.GetType()`** (requires **typed object payload**; see **Payload shape**).
-- If **no** handler matches, **await** the server task (normal path).
-- If a handler is registered for the request type but **`TryMatch` is false**, **await** the server task (no optimistic return).
-
----
-
-## Decided: API shape (public)
-
-- **Keep `Task<T>`** — no new public result type; optimistic behavior must not change the **observable contract** for callers.
-- **Internal only:** call sites that only depend on `ICloudCodeService` do not need new parameters for “optimistic mode” in v1.
-
----
-
-## Payload shape (request object → wire dictionary)
-
-**Decided refactor:**
-
-- Public API accepts a **single object** `payload` (the request DTO), not `Dictionary<string, object>`.
-- **Internally** the service builds the dictionary passed to Unity Cloud Code. The existing game convention is preserved: **`{ "request", payload }`** (same as previous `LiveOpsService` usage).
-
-This enables **`payload.GetType()`** for optimistic handler lookup without exposing dictionaries at call sites.
-
-**Consumer update:** `LiveOpsService` passes **`request`** directly instead of building a dictionary.
-
----
-
-## Cross-cutting policies (answered)
+## Cross-cutting policies
 
 | # | Topic | Decision |
 |---|--------|-----------|
-| 1 | Handler mismatch / ineligible request | **Await server** (no optimistic shortcut); reconciliation N/A for that call. |
-| 2 | Deterministic vs speculative | **Indifferent** for plumbing; **behavior** will be **deterministic** for now. |
+| 1 | Handler mismatch / ineligible request | **Await server** (no optimistic shortcut). |
+| 2 | Deterministic vs speculative | Plumbing is neutral; **behavior** aimed at **deterministic** first. |
 | 3 | Single-flight key | **Per module name**. |
-| 4 | Registry key | **By request type** (`System.Type` from payload). Requires object payload refactor above. |
+| 4 | Registry key | **Request type + response type**. |
 | 5 | Return type | **Keep `Task<T>`.** |
-| 6 | Retry vs optimistic | **Independent** — no special coupling in v1 (each layer keeps its own policy). |
-| 7 | Cancellation after optimistic return | Treat as **error** (same severity family as mismatch; exact UX TBD with product). |
-
----
-
-## Implementation notes (as built)
-
-- **`IRequestHandler<TRequest>`** — `TryMatch(module, endpoint, request)`, `GetOptimisticJsonResponse(request)` (JSON string for the wire response).
-- **`CloudCodeOptimisticHandlerRegistry`** — public `Register<TRequest>(IRequestHandler<TRequest>)` only; internal dispatch uses typed slots.
-- **`CloudCodeOptimisticOrchestrator`** — `TryGetOptimisticResponse` / `ScheduleReconciliation`: same lookup and `JToken.DeepEquals` comparison; mismatch or cancellation after optimistic return → **`Debug.LogError`** (customize by editing this type or subclassing if needed).
-- **`CloudCodeSingleFlightCallHandler`** — one in-flight inner invocation per **module** name.
-- **Game wiring** — resolve `CloudCodeOptimisticHandlerRegistry` and call `Register<MyRequest>(handler)` during composition (or from a `RegisterBuildCallback` after `IRequestHandler<MyRequest>` is registered).
-
----
-
-## Testing considerations
-
-- Unit tests: fake baseline + optional fake optimistic handler; assert ordering and single-flight per module.
-- Regression: object payload serializes to the same dictionary shape as before for LiveOps.
+| 6 | Retry vs optimistic | **Independent** in v1. |
+| 7 | Cancellation after optimistic return | Treat as **error** (exact UX with product). |
 
 ---
 
@@ -124,25 +143,28 @@ This enables **`payload.GetType()`** for optimistic handler lookup without expos
 | Date | Decision | Rationale |
 |------|----------|-----------|
 | 2026-03-31 | Orchestrator in `CloudCodeService`; deterministic use first | Start server `InvokeAsync` first; optimistic is not an `ICloudCodeCallHandler`. |
-| 2026-03-31 | Mismatch → error + restart | Hard consistency guarantee. |
-| 2026-03-31 | Single-flight per **module** | Avoid races; queue all calls in a module. |
-| 2026-03-31 | `IRequestHandler<T>` + type match | Code registration; `GetType()` on payload. |
+| 2026-03-31 | Mismatch → error + restart | Hard consistency (app/LiveOps). |
+| 2026-03-31 | Single-flight per **module** | Avoid races. |
 | 2026-03-31 | Keep `Task<T>` | No public surface change for optimism. |
-| 2026-03-31 | Payload = `object`; internal `{ "request", payload }` | Enables type-based routing; keeps wire format. |
-| 2026-03-31 | Retry independent of optimism | Simpler v1 policies. |
-| 2026-03-31 | Post-return cancel → error | Fail-safe vs silent background. |
+| 2026-03-31 | Payload = `object`; internal `{ "request", payload }` | Type-based routing; keeps wire format. |
+| 2026-04-01 | **`CloudCodeErrorHandler`** concrete, all Cloud Code failures | No optimistic-only interface; same hook for direct and trailing paths. |
+| 2026-04-01 | Null payload skips optimistic | Avoid `GetType()` on null. |
 
 ---
 
-## Next steps (optional)
+## Next steps
 
-1. Add concrete **`IRequestHandler<T>`** implementations for specific DTOs in feature assemblies (or extend **`CloudCodeOptimisticOrchestrator`** for restart-on-mismatch behavior).
+1. Implement or subclass **`CloudCodeErrorHandler`** for global Cloud Code error behavior.
+2. Concrete **`IRequestHandler<TRequest, TResponse>`** implementations (**`Validate`** for success-path reconciliation).
+3. Optional: unit tests for null payload, failed cast guard, and **`Handle`** invocation.
 
 ---
 
 ## References (local)
 
-- `Assets/Packages/com.scaffold.cloudcode/Runtime/CloudCodeService.cs` — `CallEndpointAsync` and optimistic orchestration.
-- `Assets/Packages/com.scaffold.cloudcode/Runtime/CloudCodeOptimisticOrchestrator.cs` — optimistic resolution and reconciliation.
-- `Assets/Packages/com.scaffold.cloudcode/Runtime/ICloudCodeCallHandler.cs` — decorator contract.
-- `Assets/Packages/com.scaffold.liveops/Runtime/LiveOpsService.cs` — typed module requests.
+- `Assets/Packages/com.scaffold.cloudcode/Runtime/CloudCodeService.cs` — `CallEndpointAsync`, `TryResolveOptimisticHandler`, `RunReconciliationInTheBackground`.
+- `Assets/Packages/com.scaffold.cloudcode/Runtime/CloudCodeErrorHandler.cs` — error hook.
+- `Assets/Packages/com.scaffold.cloudcode/Runtime/Optimistic/CloudCodeOptimisticHandlerRegistry.cs` — `Register<TRequest, TResponse>`.
+- `Assets/Packages/com.scaffold.cloudcode/Runtime/Optimistic/IRequestHandler.cs` — handler contracts (`IRequestHandler`, `IRequestHandler<TResponse>`, `IRequestHandler<TRequest,TResponse>`).
+- `Assets/Packages/com.scaffold.cloudcode/Runtime/Handlers/` — `ICloudCodeCallHandler` and decorator implementations (including single-flight).
+- `Assets/Packages/com.scaffold.cloudcode/Container/CloudCodeInstaller.cs` — DI registration.

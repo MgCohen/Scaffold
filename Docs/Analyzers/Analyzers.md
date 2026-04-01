@@ -818,7 +818,9 @@ public class ViewModel
 
 Each file under `Assets/Scripts/` may contain **at most one top-level** type (class, struct, interface, enum, record). **Nested** types inside a type body are allowed and do not count toward the limit.
 
-**Primary** type: name matches the file name (e.g. `Game.cs` → `Game`); if no match, the **first** top-level type in the file is primary. Every **other** top-level type is a violation (move to its own file, or nest inside the primary type).
+**Exception — generic arity variants:** several top-level types may share the **same simple name** if they differ only by **type parameter arity** (e.g. `IRequestHandler`, `IRequestHandler<TResponse>`, `IRequestHandler<TRequest, TResponse>` in `IRequestHandler.cs`). This keeps non-generic and generic “overloads” in one file.
+
+**Primary** type: name matches the file name (e.g. `Game.cs` → `Game`); if no match, the **first** top-level type in the file is primary. Every **other** top-level type is a violation (move to its own file, or nest inside the primary type), unless it is part of a **same-name generic arity group** (another top-level type in the file has the same simple name but a different number of type parameters).
 
 Skips `Tests/`, `Samples/`, and typical generated paths.
 
@@ -833,6 +835,11 @@ public sealed class Game
     private enum LocalState { A, B }
     private LocalState state;
 }
+
+// COMPLIANT — same simple name, distinct type parameter counts (single file IRequestHandler.cs)
+public interface IRequestHandler { }
+public interface IRequestHandler<TResponse> : IRequestHandler { }
+public interface IRequestHandler<TRequest, TResponse> : IRequestHandler<TResponse> where TRequest : class { }
 ```
 
 ---

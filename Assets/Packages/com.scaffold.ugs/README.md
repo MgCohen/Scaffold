@@ -7,7 +7,7 @@
 - Purpose: initialize Unity Gaming Services (UGS) Core and perform anonymous authentication during scoped startup, before other services that depend on UGS identity.
 - Location: `Assets/Packages/com.scaffold.ugs/Runtime/Ugs.cs` and `Container/UgsInstaller.cs`.
 - Depends on: `Scaffold.Scope` (for `IAsyncLayerInitializable`), `Unity.Services.Core`, `Unity.Services.Authentication`, `VContainer`.
-- Used by: bootstrap infra layer (`BootstrapInfraInstaller` registers `UgsInstaller` alongside other infra installers).
+- Used by: application composition root (register `UgsInstaller` in your main scope alongside other infra installers).
 - Runtime/Editor: runtime-only service registration and async initialization.
 - Keywords: Unity Gaming Services, anonymous sign-in, IAsyncLayerInitializable, UnityServices.
 
@@ -37,8 +37,8 @@ If services are already initialized and the user is signed in, calls complete wi
 
 1. Ensure the project includes **Unity Services Core** and **Authentication** packages (and UGS project/linking in the Services dashboard) so `Unity.Services.Core` and `Unity.Services.Authentication` resolve.
 2. Reference `Scaffold.Ugs` and, for composition roots, `Scaffold.Ugs.Container`.
-3. Register `UgsInstaller` in the infra layer (see `BootstrapInfraInstaller` in `com.scaffold.bootstrap`).
-4. Ensure your `LayeredScope` pipeline runs `IAsyncLayerInitializable` instances so `Ugs` executes before modules that assume UGS is ready.
+3. Register `UgsInstaller` in the main application scope (see [Docs/App/AppStartup.md](../../../Docs/App/AppStartup.md)).
+4. Ensure `TwoScopeApplicationHost` (or your host) runs the legacy `IAsyncLayerInitializable` pass on the main scope so `Ugs` executes before modules that assume UGS is ready.
 
 **Common mistakes**
 
@@ -48,7 +48,7 @@ If services are already initialized and the user is signed in, calls complete wi
 ## How to Use
 
 1. Add `UgsInstaller` to the container builder for the scope that should own UGS initialization (typically shared infra).
-2. Let the scope base class resolve all `IAsyncLayerInitializable` services during layer startup (same pattern as `AddressablesGateway`, `LiveOpsService`, etc.).
+2. Let your startup host resolve all `IAsyncLayerInitializable` services on the main scope after build (same pattern as `LiveOpsService`, etc.).
 3. Consume Unity Authentication / other UGS APIs only after that layer has finished initializing.
 4. If you need a different auth policy (Steam, Apple, etc.), replace or extend this module’s behavior in a dedicated installer rather than patching `Ugs` ad hoc.
 
@@ -56,12 +56,10 @@ If services are already initialized and the user is signed in, calls complete wi
 
 ### Integration (conceptual)
 
-`BootstrapInfraInstaller` already composes infra installers:
+Example registration:
 
 ```csharp
-// From BootstrapInfraInstaller — pattern only
-UgsInstaller ugsInstaller = new UgsInstaller();
-Install(builder, ugsInstaller);
+new UgsInstaller().Install(builder);
 ```
 
 ### Minimal consumer
@@ -108,15 +106,15 @@ After infra initialization completes, other services may call Authentication or 
 - Forbidden Dependencies:
   - do not reference Cloud Code, LiveOps, or gameplay assemblies from `Scaffold.Ugs` runtime code.
 - Change Checklist:
-  - verify `BootstrapInfraInstaller` (or consumer) still registers `UgsInstaller` before dependent services.
-  - confirm async initializer ordering with `LayerInstallerBase` expectations.
+  - verify the composition root still registers `UgsInstaller` before dependent services.
+  - confirm async initializer ordering with your startup host (`TwoScopeApplicationHost` runs `IAsyncLayerInitializable` after `IAsyncInitializationRunner` on the main scope).
 - Known Tricky Areas:
   - UGS dashboard and package versions must match; failures often surface as runtime exceptions inside `InitializeAsync`.
 
 ## Related
 
 - `../../../Architecture.md`
-- `../com.scaffold.bootstrap/README.md`
+- `../../../Docs/App/AppStartup.md`
 - `../com.scaffold.scope/README.md`
 - `../../../Docs/Testing/Testing.md`
 

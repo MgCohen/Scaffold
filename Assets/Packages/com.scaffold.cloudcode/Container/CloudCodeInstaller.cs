@@ -34,13 +34,12 @@ namespace Scaffold.CloudCode.Container
         private void RegisterOptimisticRegistry(IContainerBuilder builder)
         {
             builder.Register<CloudCodeOptimisticHandlerRegistry>(Lifetime.Singleton);
+            builder.Register<CloudCodeErrorHandler>(Lifetime.Singleton);
         }
 
         private void RegisterModuleService(IContainerBuilder builder)
         {
-            builder.Register(
-                c => new CloudCodeSdkCallHandler(global::Unity.Services.CloudCode.CloudCodeService.Instance),
-                Lifetime.Singleton);
+            builder.Register<CloudCodeSdkCallHandler>(Lifetime.Singleton);
             builder.Register<ICloudCodeService, CloudCodeService>(Lifetime.Singleton);
         }
     }

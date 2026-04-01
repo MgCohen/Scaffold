@@ -16,7 +16,7 @@
 - Owns `ISceneFlowService` for additive load/unload with tracked `SceneFlowLoadResult` tokens.
 - Owns `IAddressablesSceneOperations` as the single seam for `Addressables.LoadSceneAsync` / `Addressables.UnloadSceneAsync` (tests use fakes).
 - Owns optional `ISceneFlowBootstrapShell` (e.g. `SceneFlowBootstrapShell` MonoBehaviour in the shell scene) to disable Bootstrap camera/listener while additive content owns the world.
-- Does **not** own transition loading UI; callers that load scenes also own `Show`/`Hide` for loading presentation (see `LoadingView` in `Scaffold.App.Bootstrap`).
+- Does **not** own transition loading UI; callers that load scenes also own `Show`/`Hide` for loading presentation (see `LoadingView` in this package).
 - Does **not** own `INavigation`, view models, or domain gameplay logic.
 - Does **not** replace `IAddressablesGateway` for **asset** loads (prefabs, etc.); scene loads use the Addressables **scene** API explicitly.
 
@@ -33,9 +33,9 @@
 
 ## Setup / Integration
 
-1. Reference `Scaffold.SceneFlow` from the assembly that should register scene flow (e.g. a dedicated installer layer or future bootstrap extension).
-2. From that layer’s `Install(IContainerBuilder)` implementation, call `Install(builder, new SceneFlowInstaller(sceneFlowBootstrapShell))` using `LayerInstallerBase.Install`, or `new SceneFlowInstaller(shell).Install(builder)` directly.
-3. Optionally place `SceneFlowBootstrapShell` in the Bootstrap scene and pass its component instance into `SceneFlowInstaller` so `ManageBootstrapShell` loads toggle camera/listener.
+1. Reference `Scaffold.SceneFlow` from the assembly that registers scene flow (typically your application composition root).
+2. From `Install(IContainerBuilder)`, call `new SceneFlowInstaller(sceneFlowBootstrapShell).Install(builder)` (or pass `null` for `ISceneFlowBootstrapShell`, which registers a null-object shell).
+3. Optionally place `SceneFlowBootstrapShell` in the startup scene and pass its component instance into `SceneFlowInstaller` so additive loads toggle `ISceneFlowBootstrapShell`, camera/listener, and event system.
 4. Resolve `ISceneFlowService` from the container after the layer that registers it has been built.
 
 Common mistakes: registering `SceneFlowInstaller` in multiple layers; releasing Addressables scene handles manually outside `ISceneFlowService`.
@@ -110,7 +110,7 @@ Main menu (Navigation) → user picks a level → coordinator shows loading → 
 
 - `../com.scaffold.addressables/README.md` — asset gateway (not scene loads).
 - `../com.scaffold.navigation/README.md` — UI stack ownership.
-- `../com.scaffold.bootstrap/README.md` — `LoadingView` for caller-owned transition UI.
+- `Runtime/LoadingView.cs` — optional caller-owned transition UI.
 - `Plans/SceneFlow/SceneFlow-ExecPlan.md` — delivery plan and progress.
 
 ## Changelog

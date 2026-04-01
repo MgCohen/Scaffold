@@ -1,0 +1,26 @@
+{
+    "name": "Scaffold.CloudCode.Tests",
+    "rootNamespace": "Scaffold.CloudCode.Tests",
+    "references": [
+        "Scaffold.CloudCode",
+        "Unity.Services.CloudCode",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner",
+        "Scaffold.Records"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -31,4 +31,4 @@ description: Scaffolds a new module following the project's structure guidelines
 9.  **Boundary Hygiene (Best Practice)**:
     - Keep cross-module API types in `Runtime/Contracts` and concrete logic in `Runtime`.
     - Default non-boundary classes to `internal`.
-    - Default external dependencies to `<Module>`; reserve foreign runtime-only dependencies for composition roots (for example `App/Bootstrap`) and module-local wiring.
+    - Default external dependencies to `<Module>`; reserve foreign runtime-only dependencies for composition roots (your application startup / `TwoScopeApplicationHost` subclass) and module-local wiring.

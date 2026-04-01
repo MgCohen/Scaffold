@@ -47,13 +47,25 @@ namespace Scaffold.Analyzers
         /// </summary>
         public static bool TryGetPathAfterAssetsScripts(string normalized, out string remainder)
         {
+            return TryGetPathAfterToken(normalized, "Assets/Scripts/", out remainder);
+        }
+
+        /// <summary>
+        /// Embedded UPM packages under <c>Assets/Packages/...</c> (same path shape as <see cref="TryGetPathAfterAssetsScripts"/>).
+        /// </summary>
+        public static bool TryGetPathAfterAssetsPackages(string normalized, out string remainder)
+        {
+            return TryGetPathAfterToken(normalized, "Assets/Packages/", out remainder);
+        }
+
+        private static bool TryGetPathAfterToken(string normalized, string token, out string remainder)
+        {
             remainder = string.Empty;
             if (string.IsNullOrWhiteSpace(normalized))
             {
                 return false;
             }
 
-            const string token = "Assets/Scripts/";
             int remainderStart;
             if (normalized.StartsWith(token, StringComparison.OrdinalIgnoreCase))
             {
@@ -77,6 +89,19 @@ namespace Scaffold.Analyzers
         public static bool IsUnderAssetsScripts(string normalized)
         {
             return TryGetPathAfterAssetsScripts(normalized, out _);
+        }
+
+        public static bool IsUnderAssetsPackages(string normalized)
+        {
+            return TryGetPathAfterAssetsPackages(normalized, out _);
+        }
+
+        /// <summary>
+        /// Project-owned sources under <c>Assets/Scripts/</c> or embedded packages under <c>Assets/Packages/</c>.
+        /// </summary>
+        public static bool IsUnderAssetsScriptsOrPackages(string normalized)
+        {
+            return IsUnderAssetsScripts(normalized) || IsUnderAssetsPackages(normalized);
         }
 
         public static bool IsTestOrSamplePath(string normalized)
@@ -139,12 +164,12 @@ namespace Scaffold.Analyzers
         }
 
         /// <summary>
-        /// Project-owned Unity scripts under Assets/Scripts; excludes tests, samples, and build/generated artifacts used by placement rules.
+        /// Project-owned Unity scripts under <c>Assets/Scripts/</c> or <c>Assets/Packages/</c>; excludes tests, samples, and build/generated artifacts used by placement rules.
         /// </summary>
         public static bool IsUnityScriptPath(string? filePath)
         {
             var n = Normalize(filePath);
-            if (!IsUnderAssetsScripts(n))
+            if (!IsUnderAssetsScriptsOrPackages(n))
             {
                 return false;
             }
@@ -163,12 +188,12 @@ namespace Scaffold.Analyzers
         }
 
         /// <summary>
-        /// Scripts under Assets/Scripts with a /Runtime/ segment; excludes tests, samples, and build artifacts (SCA8002).
+        /// Scripts under <c>Assets/Scripts/</c> or <c>Assets/Packages/</c> with a <c>/Runtime/</c> segment; excludes tests, samples, and build artifacts (SCA8002).
         /// </summary>
         public static bool IsRuntimeUnityScriptPath(string? filePath)
         {
             var n = Normalize(filePath);
-            if (!IsUnderAssetsScripts(n))
+            if (!IsUnderAssetsScriptsOrPackages(n))
             {
                 return false;
             }
@@ -192,7 +217,7 @@ namespace Scaffold.Analyzers
         }
 
         /// <summary>
-        /// SCA8001: trees that may contain dead-code candidates (/Runtime/ under Assets/Scripts, excluding tests/samples/generated).
+        /// SCA8001: trees that may contain dead-code candidates (<c>/Runtime/</c> under <c>Assets/Scripts/</c> or <c>Assets/Packages/</c>, excluding tests/samples/generated).
         /// </summary>
         public static bool IsSca0030RuntimeCandidatePath(string? filePath)
         {
@@ -202,7 +227,7 @@ namespace Scaffold.Analyzers
                 return false;
             }
 
-            if (!IsUnderAssetsScripts(n))
+            if (!IsUnderAssetsScriptsOrPackages(n))
             {
                 return false;
             }

@@ -15,58 +15,24 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-function Invoke-PowerShellScript {
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$ScriptPath,
-        [hashtable]$Parameters
-    )
-
-    # Call in-process: Windows PowerShell 5.x Start-Process -ArgumentList breaks paths that contain spaces.
-    $boundParams = @{}
-    if ($Parameters) {
-        foreach ($entry in $Parameters.GetEnumerator()) {
-            if ($null -eq $entry.Value) {
-                continue
-            }
-
-            if ($entry.Value -is [array]) {
-                $boundParams[$entry.Key] = $entry.Value
-            } else {
-                $boundParams[$entry.Key] = $entry.Value
-            }
-        }
-    }
-
-    # Run the script without piping into ForEach-Object first; pipelines can clear $LASTEXITCODE on Windows PowerShell 5.x.
-    $rawOutput = & $ScriptPath @boundParams 2>&1
-    $exit = if (Test-Path variable:LASTEXITCODE) { [int]$LASTEXITCODE } else { 0 }
-    $output = @($rawOutput | ForEach-Object { "$_" })
-
-    return [pscustomobject]@{
-        ExitCode = $exit
-        Output = $output
-    }
-}
+$scriptDirectory = Split-Path -Parent $PSCommandPath
+. (Join-Path $scriptDirectory (Join-Path "lib" "InvokeChildScript.ps1"))
 
 if ($TestTimeoutMinutes -gt 0) {
     $EditModeTimeoutMinutes = $TestTimeoutMinutes
     $PlayModeTimeoutMinutes = $TestTimeoutMinutes
 }
 
-$scriptDirectory = Split-Path -Parent $PSCommandPath
 $checkScriptsAsmdefReferencesPath = Join-Path $scriptDirectory "check-scripts-asmdef-references.ps1"
 $checkPragmaWarningSuppressionsPath = Join-Path $scriptDirectory "check-pragma-warning-suppressions.ps1"
 $checkCompilationPath = Join-Path $scriptDirectory "check-unity-compilation.ps1"
-$runEditModeTestsPath = Join-Path $scriptDirectory "run-editmode-tests.ps1"
-$runPlayModeTestsPath = Join-Path $scriptDirectory "run-playmode-tests.ps1"
+$runUnityTestsPath = Join-Path $scriptDirectory "run-unity-tests.ps1"
 $checkAnalyzersPath = Join-Path $scriptDirectory "check-analyzers.ps1"
 
 if (-not (Test-Path $checkScriptsAsmdefReferencesPath)) { throw "Missing script: $checkScriptsAsmdefReferencesPath" }
 if (-not (Test-Path $checkPragmaWarningSuppressionsPath)) { throw "Missing script: $checkPragmaWarningSuppressionsPath" }
 if (-not (Test-Path $checkCompilationPath)) { throw "Missing script: $checkCompilationPath" }
-if (-not (Test-Path $runEditModeTestsPath)) { throw "Missing script: $runEditModeTestsPath" }
-if (-not (Test-Path $runPlayModeTestsPath)) { throw "Missing script: $runPlayModeTestsPath" }
+if (-not (Test-Path $runUnityTestsPath)) { throw "Missing script: $runUnityTestsPath" }
 if (-not (Test-Path $checkAnalyzersPath)) { throw "Missing script: $checkAnalyzersPath" }
 
 $asmdefAuditExitCode = 1
@@ -147,7 +113,7 @@ $compilationArgs = @{
 if ($UnityPath) { $compilationArgs.UnityPath = $UnityPath }
 
 try {
-    $compilationResult = Invoke-PowerShellScript -ScriptPath $checkCompilationPath -Parameters $compilationArgs
+    $compilationResult = Invoke-ChildPowerShellScript -ScriptPath $checkCompilationPath -Parameters $compilationArgs
     $compilationOutput = @($compilationResult.Output)
     $compilationExitCode = [int]$compilationResult.ExitCode
     foreach ($line in $compilationOutput) { Write-Host $line }
@@ -172,13 +138,14 @@ if ($SkipTests) {
     $editModeArgs = @{
         ProjectPath = $ProjectPath
         TimeoutMinutes = $EditModeTimeoutMinutes
+        TestPlatform = "EditMode"
     }
     if ($UnityPath) { $editModeArgs.UnityPath = $UnityPath }
     if ($AssemblyNames -and $AssemblyNames.Count -gt 0) { $editModeArgs.AssemblyNames = $AssemblyNames }
 
     if ($compilationExitCode -eq 0) {
         try {
-            $editModeResult = Invoke-PowerShellScript -ScriptPath $runEditModeTestsPath -Parameters $editModeArgs
+            $editModeResult = Invoke-ChildPowerShellScript -ScriptPath $runUnityTestsPath -Parameters $editModeArgs
             $editModeOutput = @($editModeResult.Output)
             $editModeExitCode = [int]$editModeResult.ExitCode
             foreach ($line in $editModeOutput) { Write-Host $line }
@@ -202,13 +169,14 @@ if ($SkipTests) {
     $playModeArgs = @{
         ProjectPath = $ProjectPath
         TimeoutMinutes = $PlayModeTimeoutMinutes
+        TestPlatform = "PlayMode"
     }
     if ($UnityPath) { $playModeArgs.UnityPath = $UnityPath }
     if ($AssemblyNames -and $AssemblyNames.Count -gt 0) { $playModeArgs.AssemblyNames = $AssemblyNames }
 
     if ($compilationExitCode -eq 0) {
         try {
-            $playModeResult = Invoke-PowerShellScript -ScriptPath $runPlayModeTestsPath -Parameters $playModeArgs
+            $playModeResult = Invoke-ChildPowerShellScript -ScriptPath $runUnityTestsPath -Parameters $playModeArgs
             $playModeOutput = @($playModeResult.Output)
             $playModeExitCode = [int]$playModeResult.ExitCode
             foreach ($line in $playModeOutput) { Write-Host $line }

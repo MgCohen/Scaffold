@@ -75,6 +75,9 @@ crashlytics-build.properties
 .plastic/
 .vscode/
 .cursor/
+
+# Local agent / Unity paths (optional)
+/.agents/local.env
 .idea/
 .vsconfig/
 

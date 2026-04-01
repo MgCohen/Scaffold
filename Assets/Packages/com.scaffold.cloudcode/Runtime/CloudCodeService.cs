@@ -4,13 +4,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
-using UnityEngine;
 
 namespace Scaffold.CloudCode
 {
     internal sealed class CloudCodeService : ICloudCodeService
     {
-        internal CloudCodeService(CloudCodeSettings settings, CloudCodeSdkCallHandler sdkCallHandler, CloudCodeOptimisticHandlerRegistry optimisticRegistry)
+        internal CloudCodeService(CloudCodeSettings settings, CloudCodeSdkCallHandler sdkCallHandler, CloudCodeOptimisticHandlerRegistry optimisticRegistry, CloudCodeErrorHandler cloudCodeErrorHandler)
         {
             if (settings == null)
             {
@@ -30,7 +29,14 @@ namespace Scaffold.CloudCode
             this.settings = settings;
             callHandler = BuildCallHandlerChain(sdkCallHandler);
             this.optimisticRegistry = optimisticRegistry ?? throw new ArgumentNullException(nameof(optimisticRegistry));
+            this.cloudCodeErrorHandler = cloudCodeErrorHandler ?? throw new ArgumentNullException(nameof(cloudCodeErrorHandler));
         }
+
+        private readonly JsonSerializerSettings jsonSettings;
+        private readonly CloudCodeSettings settings;
+        private readonly ICloudCodeCallHandler callHandler;
+        private readonly CloudCodeOptimisticHandlerRegistry optimisticRegistry;
+        private readonly CloudCodeErrorHandler cloudCodeErrorHandler;
 
         private ICloudCodeCallHandler BuildCallHandlerChain(CloudCodeSdkCallHandler sdkCallHandler)
         {
@@ -41,114 +47,120 @@ namespace Scaffold.CloudCode
             return new CloudCodeSingleFlightCallHandler(inner);
         }
 
-        private readonly JsonSerializerSettings jsonSettings;
-        private readonly CloudCodeSettings settings;
-        private readonly ICloudCodeCallHandler callHandler;
-        private readonly CloudCodeOptimisticHandlerRegistry optimisticRegistry;
-
         public async Task<T> CallEndpointAsync<T>(string module, string endpoint, object payload = null, CancellationToken cancellationToken = default)
         {
             ValidateModuleEndpoint(module, endpoint);
             cancellationToken.ThrowIfCancellationRequested();
-            Dictionary<string, object> finalPayload = payload == null
-                ? new Dictionary<string, object>()
-                : new Dictionary<string, object> { { "request", payload } };
-            Task<string> serverTask = callHandler.InvokeAsync(module, endpoint, finalPayload, cancellationToken);
-            if (TryGetOptimisticResponse<T>(module, endpoint, finalPayload, out object optimisticResponse, out IRequestHandler handler, out object requestBody))
+            Task<string> serverTask = callHandler.InvokeAsync(module, endpoint, WrapPayload(payload), cancellationToken);
+            if (TryGetOptimisticResponse<T>(module, endpoint, payload, out IRequestHandler<T> handler, out T optimisticResponse))
             {
-                _ = ReconcileAfterOptimisticReturnAsync<T>(handler, module, endpoint, finalPayload, serverTask, requestBody, optimisticResponse);
-                return CoerceOptimisticToT<T>(optimisticResponse);
+                RunReconciliationInTheBackground<T>(serverTask, handler, optimisticResponse, module, endpoint, payload);
+                return optimisticResponse;
             }
 
-            string response = await serverTask.ConfigureAwait(false);
-            return DeserializeResponse<T>(response);
+            return await AwaitServerWithCloudCodeErrorHandling<T>(serverTask, module, endpoint, payload);
         }
 
-        private bool TryGetOptimisticResponse<TResponse>(string module, string endpoint, Dictionary<string, object> payload, out object optimisticResponse, out IRequestHandler handler, out object requestBody)
+        private async Task<T> AwaitServerWithCloudCodeErrorHandling<T>(Task<string> serverTask, string module, string endpoint, object payload)
         {
-            optimisticResponse = null;
-            handler = null;
-            requestBody = null;
-            if (!TryGetRequestBody(payload, out object body))
+            try
             {
-                return false;
+                return await CallAsync<T>(serverTask);
             }
+            catch (Exception ex)
+            {
+                cloudCodeErrorHandler.Handle(ex, module, endpoint, payload, null);
+                throw;
+            }
+        }
 
-            if (!TryResolveOptimisticHandler<TResponse>(module, endpoint, body, out IRequestHandler found, out object optimistic))
+        private Dictionary<string, object> WrapPayload(object payload)
+        {
+            return payload == null ? new() : new() { { "request", payload } };
+        }
+
+        private bool TryGetOptimisticResponse<TResponse>(string module, string endpoint, object payload, out IRequestHandler<TResponse> handler, out TResponse optimisticResponse)
+        {
+            optimisticResponse = default;
+            handler = null;
+            if (!TryResolveOptimisticHandler(module, endpoint, payload, out IRequestHandler<TResponse> found, out TResponse optimistic))
             {
                 return false;
             }
 
             optimisticResponse = optimistic;
             handler = found;
-            requestBody = body;
             return true;
         }
 
-        private bool TryGetRequestBody(Dictionary<string, object> payload, out object body)
-        {
-            body = null;
-            if (payload == null || payload.Count == 0)
-            {
-                return false;
-            }
-
-            return payload.TryGetValue("request", out body) && body != null;
-        }
-
-        private bool TryResolveOptimisticHandler<TResponse>(string module, string endpoint, object body, out IRequestHandler handler, out object optimisticResponse)
+        private bool TryResolveOptimisticHandler<TResponse>(string module, string endpoint, object body, out IRequestHandler<TResponse> handler, out TResponse optimisticResponse)
         {
             handler = null;
-            optimisticResponse = null;
-            Type requestType = body.GetType();
-            Type responseType = typeof(TResponse);
-            if (!optimisticRegistry.TryGetHandler(requestType, responseType, out IRequestHandler found) || found == null)
+            optimisticResponse = default;
+            if (body == null)
             {
                 return false;
             }
 
+            if (!TryGetRegistryHandler<TResponse>(body, out IRequestHandler found, out IRequestHandler<TResponse> typedHandler))
+            {
+                return false;
+            }
+
+            return TryMatchAndAssignOptimistic(module, endpoint, body, found, typedHandler, out handler, out optimisticResponse);
+        }
+
+        private bool TryMatchAndAssignOptimistic<TResponse>(string module, string endpoint, object body, IRequestHandler found, IRequestHandler<TResponse> typedHandler, out IRequestHandler<TResponse> handler, out TResponse optimisticResponse)
+        {
+            handler = typedHandler;
             if (!found.TryMatch(module, endpoint, body))
             {
+                handler = null;
+                optimisticResponse = default;
                 return false;
             }
 
-            optimisticResponse = found.GetOptimisticResponse(body);
-            handler = found;
+            optimisticResponse = handler.GetOptimisticResponse(body);
             return true;
         }
 
-        private async Task ReconcileAfterOptimisticReturnAsync<TResponse>(IRequestHandler handler, string module, string endpoint, IReadOnlyDictionary<string, object> wirePayload, Task<string> serverTask, object requestBody, object optimisticResponse)
+        private bool TryGetRegistryHandler<TResponse>(object body, out IRequestHandler found, out IRequestHandler<TResponse> typedHandler)
+        {
+            found = null;
+            typedHandler = null;
+            Type requestType = body.GetType();
+            Type responseType = typeof(TResponse);
+            if (!optimisticRegistry.TryGetHandler(requestType, responseType, out found) || found == null)
+            {
+                return false;
+            }
+
+            if (found is not IRequestHandler<TResponse> typed)
+            {
+                return false;
+            }
+
+            typedHandler = typed;
+            return true;
+        }
+
+        private async void RunReconciliationInTheBackground<T>(Task<string> serverTask, IRequestHandler<T> handler, T optimisticResponse, string module, string endpoint, object requestPayload)
         {
             try
             {
-                string json = await serverTask.ConfigureAwait(false);
-                TResponse serverResponse = JsonConvert.DeserializeObject<TResponse>(json, jsonSettings);
-                handler.OnDeferredServerResponse(requestBody, optimisticResponse, serverResponse, wirePayload);
-            }
-            catch (OperationCanceledException)
-            {
-                Debug.LogError($"Cloud Code call was cancelled after an optimistic return for {module}/{endpoint}.");
+                T response = await CallAsync<T>(serverTask);
+                handler.Validate(response, optimisticResponse);
             }
             catch (Exception ex)
             {
-                Debug.LogException(ex);
+                cloudCodeErrorHandler.Handle(ex, module, endpoint, requestPayload, optimisticResponse);
             }
         }
 
-        private T CoerceOptimisticToT<T>(object optimisticResponse)
+        private async Task<T> CallAsync<T>(Task<string> serverTask)
         {
-            if (optimisticResponse is T typed)
-            {
-                return typed;
-            }
-
-            if (optimisticResponse == null && default(T) == null)
-            {
-                return default;
-            }
-
-            throw new InvalidOperationException(
-                $"Optimistic response type {optimisticResponse?.GetType().Name ?? "null"} is not compatible with {typeof(T).Name}.");
+            string response = await serverTask;
+            return DeserializeResponse<T>(response);
         }
 
         private T DeserializeResponse<T>(string response)

@@ -28,5 +28,5 @@
 
 ## Related
 
-- `../com.scaffold.bootstrap/README.md` (composition; wire consumers when you add gameplay modules that reference `Scaffold.Entities`).
+- `../../../Docs/App/AppStartup.md` (composition; wire consumers when you add gameplay modules that reference `Scaffold.Entities`).
 - `../../../Architecture.md` (module boundaries).

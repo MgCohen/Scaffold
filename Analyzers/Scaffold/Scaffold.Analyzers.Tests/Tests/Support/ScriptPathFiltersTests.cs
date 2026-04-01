@@ -39,4 +39,34 @@ public sealed class ScriptPathFiltersTests
         Assert.True(ScriptPathFilters.TryGetPathAfterAssetsScripts(ScriptPathFilters.Normalize(path), out var remainder));
         Assert.Equal("App/View/Runtime/UIView.cs", remainder);
     }
+
+    [Fact]
+    public void IsUnderAssetsPackages_MatchesEmbeddedPackagePath()
+    {
+        const string path = "Assets/Packages/com.scaffold.cloudcode/Runtime/Optimistic/IRequestHandler.cs";
+        Assert.True(ScriptPathFilters.IsUnderAssetsPackages(ScriptPathFilters.Normalize(path)));
+    }
+
+    [Fact]
+    public void TryGetPathAfterAssetsPackages_ReturnsRemainder_AfterRelativePrefix()
+    {
+        const string path = "Assets/Packages/com.scaffold.cloudcode/Runtime/CloudCodeService.cs";
+        Assert.True(ScriptPathFilters.TryGetPathAfterAssetsPackages(ScriptPathFilters.Normalize(path), out var remainder));
+        Assert.Equal("com.scaffold.cloudcode/Runtime/CloudCodeService.cs", remainder);
+    }
+
+    [Fact]
+    public void IsUnderAssetsScriptsOrPackages_True_ForEitherRoot()
+    {
+        Assert.True(ScriptPathFilters.IsUnderAssetsScriptsOrPackages("Assets/Scripts/Core/Game.cs"));
+        Assert.True(ScriptPathFilters.IsUnderAssetsScriptsOrPackages("Assets/Packages/com.foo/Runtime/Bar.cs"));
+        Assert.False(ScriptPathFilters.IsUnderAssetsScriptsOrPackages("Assets/Plugins/SomePlugin/Foo.cs"));
+    }
+
+    [Fact]
+    public void IsUnityScriptPath_True_ForPackagesRuntime_WhenNotTestOrGenerated()
+    {
+        const string path = "Assets/Packages/com.scaffold.cloudcode/Runtime/Optimistic/IRequestHandler.cs";
+        Assert.True(ScriptPathFilters.IsUnityScriptPath(path));
+    }
 }

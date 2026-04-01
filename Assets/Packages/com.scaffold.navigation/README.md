@@ -17,6 +17,7 @@
 - Owns view-controller stack behavior (`NavigationStack`, `NavigationPoint`).
 - Owns transition orchestration (`NavigationTransitions` and schemas).
 - Owns DI integration (`NavigationInstaller`, `NavigationInjection`).
+- Provides `Providers.NavigationAssetProvider` for Addressables preload of `NavigationSettings` during startup (see [Docs/App/AppStartup.md](../../../Docs/App/AppStartup.md)).
 - Owns non-context view runtime loading via Addressables gateway, resident prefab-handle usage, and instance buffer/cache lifecycle.
 - Does not own app-specific business decisions or domain mutation logic.
 

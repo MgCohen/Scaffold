@@ -2,7 +2,7 @@
 
 This document is an **implementation outline** only—no code in the repo is required to match it until an ExecPlan adopts it.
 
-**Related:** [Startup: two-scope preload](Startup-Two-Scope-Preload.md) — base scope, preload, main scope, and how init ordering runs per scope. [Startup: ordering prototype (groups only)](Startup-Ordering-Prototype.md) — minimal marker, resolve list, compute ordered type groups **without** initialization.
+**Related:** [Startup: two-scope preload](Startup-Two-Scope-Preload.md) — base scope, preload, main scope, and how init ordering runs per scope.
 
 ## Goal
 
@@ -155,7 +155,7 @@ Keep **interface→implementation ambiguity** aligned with VContainer only—do 
 | **Scope** | **Per container** — repeat for each built scope as needed. |
 | **No hand order** | Edges only from **DI-shaped** dependencies between **participants**; optional marker attributes for gaps. |
 
-This outline is ready to be turned into an ExecPlan with file paths, asmdef impact, and migration steps from `LayeredScope` / `IAsyncLayerInitializable`.
+This outline is ready to be turned into an ExecPlan with file paths, asmdef impact, and migration steps from legacy `IAsyncLayerInitializable` usage where applicable.
 
 ---
 

@@ -30,7 +30,7 @@
 
 ## Registration
 
-`LiveOpsInstaller` registers `LiveOpsService` as `ILiveOpsService` and `IAsyncLayerInitializable` (scoped). Runs from **`BootstrapCoreInstaller`** alongside other installers (for example `AdsInstaller`). Infra layer registers UGS and Cloud Code on the parent scope.
+`LiveOpsInstaller` registers `LiveOpsService` as `ILiveOpsService` and `IAsyncLayerInitializable` (scoped). Register it from your application composition root alongside other installers (for example `AdsInstaller`). UGS and Cloud Code should be registered on the same main scope per your startup plan.
 
 Register each concrete handler with `AsImplementedInterfaces()` so `IResponseHandler` and `IResponseHandler<T>` are both registered (for example `builder.Register<MyHandler>(Lifetime.Scoped).AsImplementedInterfaces()` or `builder.RegisterInstance(handler).AsImplementedInterfaces()`). Multiple handlers for the same nested response type are all invoked. Dispatch resolves the handler collection from the current scope’s `IObjectResolver` when a response is handled, which avoids constructor ordering issues between `LiveOpsService` and handler registration.
 
