@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using GameModuleDTO.GameModule;
@@ -13,11 +12,11 @@ namespace Scaffold.LiveOps
 {
     internal sealed class LiveOpsService : ILiveOpsService, IAsyncLayerInitializable
     {
-        public LiveOpsService(ICloudCodeModuleService cloudCodeModuleService, IObjectResolver objectResolver)
+        public LiveOpsService(ICloudCodeService cloudCodeService, IObjectResolver objectResolver)
         {
-            if (cloudCodeModuleService == null)
+            if (cloudCodeService == null)
             {
-                throw new ArgumentNullException(nameof(cloudCodeModuleService));
+                throw new ArgumentNullException(nameof(cloudCodeService));
             }
 
             if (objectResolver == null)
@@ -25,11 +24,11 @@ namespace Scaffold.LiveOps
                 throw new ArgumentNullException(nameof(objectResolver));
             }
 
-            this.cloudCodeModuleService = cloudCodeModuleService;
+            this.cloudCodeService = cloudCodeService;
             this.moduleResponseDispatchService = new ModuleResponseDispatchService(objectResolver);
         }
 
-        private readonly ICloudCodeModuleService cloudCodeModuleService;
+        private readonly ICloudCodeService cloudCodeService;
         private readonly ModuleResponseDispatchService moduleResponseDispatchService;
         private GameData gameData;
 
@@ -64,8 +63,7 @@ namespace Scaffold.LiveOps
             }
 
             cancellationToken.ThrowIfCancellationRequested();
-            Dictionary<string, object> payload = new Dictionary<string, object> { { "request", request } };
-            Task<TResponse> endpointCall = cloudCodeModuleService.CallEndpointAsync<TResponse>(request.ModuleName, request.FunctionName, payload: payload, cancellationToken: cancellationToken);
+            Task<TResponse> endpointCall = cloudCodeService.CallEndpointAsync<TResponse>(request.ModuleName, request.FunctionName, payload: request, cancellationToken: cancellationToken);
             TResponse response = await endpointCall;
             moduleResponseDispatchService.DispatchNestedResponses(response);
             return response;

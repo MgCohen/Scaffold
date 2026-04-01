@@ -96,14 +96,12 @@ flowchart LR
     Tools --> App
 ```
 
-Current module documentation map (see `Docs/`):
+Module documentation: each first-party package under `Assets/Packages/com.scaffold.*/` owns a **`README.md`** at the package root (full module doc). `Docs/` keeps short pointers for the same modules (for example `Docs/Tools/Types.md` → `Assets/Packages/com.scaffold.types/README.md`).
 
-- `Docs/App/Bootstrap.md`, `Docs/App/View.md`
-- `Docs/Core/ViewModel.md`, `Docs/Core/LiveOps.md`, `Docs/Core/Entities.md`
-- `Docs/Infra/Addressables.md`, `Docs/Infra/MVVM.md`, `Docs/Infra/Events.md`, `Docs/Infra/Model.md`, `Docs/Infra/Navigation.md`, `Docs/Infra/Scope.md`, `Docs/Infra/SceneFlow.md`
-- `Docs/Tools/Maps.md`, `Docs/Tools/Records.md`, `Docs/Tools/Types.md`
+Additional repository docs:
+
 - `Docs/ConsumingScaffoldPackages.md` (UPM consumer `manifest.json` patterns for Git subpath and `file:`)
-- `Docs/Analyzers/Analyzers.md`, `Docs/Testing/Testing.md`, `Docs/AutomatedTesting.md`
+- `Docs/Analyzers/Analyzers.md`, `Docs/Testing/Testing.md`, `Docs/Testing/AutomatedTesting.md`
 
 ## Runtime Flows
 
