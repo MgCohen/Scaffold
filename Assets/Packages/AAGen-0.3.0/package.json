@@ -1,0 +1,15 @@
+{
+  "name": "com.unity.aagen",
+  "version": "0.3.0",
+  "displayName": "AAGen",
+  "description": "AAGen(Automated Addressable Group Generator) is a Unity Editor tool designed to automatically generate optimized addressable groups based on asset dependencies, simplifying asset management and improving performance.",
+  "unity": "2021.3",
+  "author": {
+    "name": "Unity"
+  },
+  "dependencies": {
+    "com.unity.nuget.newtonsoft-json": "3.2.1",
+    "com.unity.addressables": "1.22.3",
+    "com.unity.editorcoroutines": "1.0.0"
+  }
+}

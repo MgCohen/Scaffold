@@ -1,0 +1,19 @@
+{
+    "name": "Scaffold.Ugs",
+    "rootNamespace": "Scaffold.Ugs",
+    "references": [
+        "Scaffold.Scope",
+        "Unity.Services.Core",
+        "Unity.Services.Authentication",
+        "VContainer"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

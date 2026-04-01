@@ -1,0 +1,19 @@
+{
+    "name": "Scaffold.SceneFlow",
+    "rootNamespace": "Scaffold.SceneFlow",
+    "references": [
+        "Unity.Addressables",
+        "Unity.ResourceManager",
+        "VContainer",
+        "VContainer.Unity"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

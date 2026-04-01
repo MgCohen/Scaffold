@@ -1,0 +1,16 @@
+{
+    "name":  "com.scaffold.autopacker",
+    "version":  "0.1.0",
+    "displayName":  "Scaffold AutoPacker",
+    "description":  "Source generator for record packing.",
+    "unity":  "6000.0",
+    "author":  {
+                   "name":  "Matheus Gandolf Cohen",
+                   "email":  "matheus@duckduckweasel.com",
+                   "url":  "https://github.com/MgCohen/Scaffold"
+               },
+    "dependencies":  {
+
+                     },
+    "path":  "https://github.com/MgCohen/Scaffold.git?path=/Assets/Packages/com.scaffold.autopacker#main"
+}

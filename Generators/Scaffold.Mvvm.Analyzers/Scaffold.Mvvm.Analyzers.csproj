@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>Scaffold.Mvvm.Analyzers</AssemblyName>
+    <RootNamespace>Scaffold.Mvvm.Analyzers</RootNamespace>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <NoWarn>$(NoWarn);RS2008</NoWarn>
+    <MvvmAnalyzerOutputDir>$(MSBuildThisFileDirectory)..\..\Analyzers\Output\</MvvmAnalyzerOutputDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.11.0" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.4" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\Analyzers\Scaffold\Scaffold.Analyzers\Support\AnalyzerConfig.cs" Link="Shared\AnalyzerConfig.cs" />
+    <Compile Include="..\..\Analyzers\Scaffold\Scaffold.Analyzers\Support\ModuleConventions.cs" Link="Shared\ModuleConventions.cs" />
+    <Compile Include="..\..\Analyzers\Scaffold\Scaffold.Analyzers\Support\ScriptPathFilters.cs" Link="Shared\ScriptPathFilters.cs" />
+  </ItemGroup>
+
+  <Target Name="CopyMvvmAnalyzerToOutput" AfterTargets="Build">
+    <MakeDir Directories="$(MvvmAnalyzerOutputDir)" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(MvvmAnalyzerOutputDir)" SkipUnchangedFiles="true" />
+  </Target>
+</Project>

@@ -1,0 +1,3 @@
+C:\Users\user\Documents\Unity\Scaffold\Generators\AutoPacker\src\Contracts\bin\Release\netstandard2.0\publish\AutoPackerContracts.dll
+C:\Users\user\Documents\Unity\Scaffold\Generators\AutoPacker\src\Contracts\bin\Release\netstandard2.0\publish\AutoPackerContracts.deps.json
+C:\Users\user\Documents\Unity\Scaffold\Generators\AutoPacker\src\Contracts\bin\Release\netstandard2.0\publish\AutoPackerContracts.pdb

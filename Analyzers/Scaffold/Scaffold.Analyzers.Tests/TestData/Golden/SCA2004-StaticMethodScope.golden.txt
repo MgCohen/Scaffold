@@ -1,0 +1,1 @@
+SCA2004|6|29|warning|Error SCA2004: Static method 'EnsureWaitTimeout' in non-static class 'Game' is not allowed. Convert it to an instance method, or rename it to an allowed parsing/conversion (`Parse*`, `TryParse*`, `From*`, `To*`) or factory (`Create*`, `Build*`, `New*`) pattern; extension methods are also allowed.

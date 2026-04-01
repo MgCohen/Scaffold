@@ -1,0 +1,9 @@
+<Project>
+  <!-- Third-party AAGen (Assets/Packages/AAGen-0.3.0): do not run Scaffold analyzers on vendor code. -->
+  <ItemGroup Condition="'$(MSBuildProjectName)' != 'Scaffold.Analyzers' and '$(MSBuildProjectName)' != 'Scaffold.Analyzers.Tests' and '$(MSBuildProjectName)' != 'Scaffold.Mvvm.Analyzers' and '$(MSBuildProjectName)' != 'Scaffold.Mvvm.Analyzers.Tests' and '$(MSBuildProjectName)' != 'AAGen.Editor'">
+    <Analyzer Include="$(MSBuildThisFileDirectory)Analyzers/Output/Scaffold.Analyzers.dll"
+              Condition="Exists('$(MSBuildThisFileDirectory)Analyzers/Output/Scaffold.Analyzers.dll')" />
+    <Analyzer Include="$(MSBuildThisFileDirectory)Analyzers/Output/Scaffold.Mvvm.Analyzers.dll"
+              Condition="Exists('$(MSBuildThisFileDirectory)Analyzers/Output/Scaffold.Mvvm.Analyzers.dll')" />
+  </ItemGroup>
+</Project>

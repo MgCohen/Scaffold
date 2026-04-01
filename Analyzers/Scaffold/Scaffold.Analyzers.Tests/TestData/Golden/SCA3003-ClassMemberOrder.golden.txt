@@ -1,0 +1,1 @@
+SCA3003|7|9|warning|Error SCA3003: Member 'Sample' is out of order. Move it to follow this order: static properties, const fields, constructors, indexers, properties, fields, events, instance methods, static methods, private nested types, operators. Backing fields may appear directly below their property.

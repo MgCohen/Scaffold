@@ -1,0 +1,21 @@
+{
+    "name": "Scaffold.LiveOps.Tests",
+    "rootNamespace": "Scaffold.LiveOps.Tests",
+    "references": [
+        "Scaffold.LiveOps"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false,
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
+}

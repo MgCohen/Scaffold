@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <Configurations>Debug;Release</Configurations>
+    <AssemblyName>LiveOps</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Com.Unity.Services.CloudCode.Apis" Version="0.0.9" />
+    <PackageReference Include="Com.Unity.Services.CloudCode.Core" Version="0.0.1" />
+    <PackageReference Include="Microsoft.AspNetCore.Http" Version="2.3.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.3.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="7.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\LiveOps.DTO\Scaffold.LiveOps.DTO.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Implementation\**" />
+    <EmbeddedResource Remove="Implementation\**" />
+    <None Remove="Implementation\**" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <PublishReadyToRunComposite>true</PublishReadyToRunComposite>
+  </PropertyGroup>
+</Project>

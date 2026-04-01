@@ -1,0 +1,1 @@
+SCA3002|4|19|warning|Error SCA3002: Type 'GameState' in file 'Game.cs' violates placement rules. Move 'GameState' to its own file (e.g. 'GameState.cs'). Only one top-level type is allowed in 'Game.cs'; nested types may remain inside 'Game'..

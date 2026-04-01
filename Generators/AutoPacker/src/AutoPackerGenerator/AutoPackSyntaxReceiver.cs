@@ -9,11 +9,14 @@ namespace AutoPackerGenerator
     {
         public Dictionary<INamedTypeSymbol, List<(IFieldSymbol Field, ITypeSymbol TargetType)>> TypeFields { get; }
             = new Dictionary<INamedTypeSymbol, List<(IFieldSymbol Field, ITypeSymbol TargetType)>>(SymbolEqualityComparer.Default);
+            
+        public List<IMethodSymbol> ExtensionMethods { get; } = new List<IMethodSymbol>();
 
         public void OnVisitSyntaxNode(GeneratorSyntaxContext context)
         {
             VisitTypeDeclaration(context);
             VisitFieldDeclaration(context);
+            VisitMethodDeclaration(context);
         }
 
         private void VisitTypeDeclaration(GeneratorSyntaxContext context)
@@ -87,6 +90,28 @@ namespace AutoPackerGenerator
                     return true;
             }
             return false;
+        }
+
+        private void VisitMethodDeclaration(GeneratorSyntaxContext context)
+        {
+            if (!(context.Node is MethodDeclarationSyntax methodDeclaration))
+                return;
+
+            if (methodDeclaration.Identifier.Text != "Resolve")
+                return;
+
+            var methodSymbol = context.SemanticModel.GetDeclaredSymbol(methodDeclaration) as IMethodSymbol;
+            if (methodSymbol == null || !methodSymbol.IsStatic || !methodSymbol.IsExtensionMethod)
+                return;
+
+            if (methodSymbol.Parameters.Length < 1)
+                return;
+
+            var firstParamType = methodSymbol.Parameters[0].Type;
+            if (firstParamType.Name == "IPackingHandler")
+            {
+                ExtensionMethods.Add(methodSymbol);
+            }
         }
     }
 }

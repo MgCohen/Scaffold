@@ -1,0 +1,3 @@
+# Paths (repo-relative, '/' separators) where new '#pragma warning disable' is allowed.
+# Wildcards are supported ('*' and '?').
+# Keep entries narrow and documented in code review.

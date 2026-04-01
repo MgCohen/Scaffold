@@ -1,0 +1,1 @@
+SCA2003|6|21|warning|Error SCA2003: Method 'Execute' has 16 lines of code, exceeding the 15-line limit. Refactor and extract procedural parts into smaller, well-named private methods.

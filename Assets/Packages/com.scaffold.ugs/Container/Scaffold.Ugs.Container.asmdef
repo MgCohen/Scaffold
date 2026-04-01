@@ -1,0 +1,18 @@
+{
+    "name": "Scaffold.Ugs.Container",
+    "rootNamespace": "Scaffold.Ugs.Container",
+    "references": [
+        "Scaffold.Scope",
+        "Scaffold.Ugs",
+        "VContainer"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

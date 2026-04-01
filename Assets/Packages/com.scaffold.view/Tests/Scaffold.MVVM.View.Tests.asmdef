@@ -1,0 +1,21 @@
+{
+    "name": "Scaffold.MVVM.View.Tests",
+    "rootNamespace": "Scaffold.MVVM.View.Tests",
+    "references": [
+        "Scaffold.MVVM.View"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false,
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
+}

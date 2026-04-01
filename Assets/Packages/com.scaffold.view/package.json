@@ -1,0 +1,20 @@
+{
+    "name":  "com.scaffold.view",
+    "version":  "0.1.0",
+    "displayName":  "Scaffold View",
+    "description":  "MVVM views and UI wiring.",
+    "unity":  "6000.0",
+    "author":  {
+                   "name":  "Matheus Gandolf Cohen",
+                   "email":  "matheus@duckduckweasel.com",
+                   "url":  "https://github.com/MgCohen/Scaffold"
+               },
+    "dependencies":  {
+                         "com.scaffold.types":  "0.1.0",
+                         "com.scaffold.navigation":  "0.1.0",
+                         "com.unity.ugui":  "2.0.0",
+                         "com.scaffold.mvvm":  "0.1.0",
+                         "com.scaffold.viewmodel":  "0.1.0"
+                     },
+    "path":  "https://github.com/MgCohen/Scaffold.git?path=/Assets/Packages/com.scaffold.view#main"
+}

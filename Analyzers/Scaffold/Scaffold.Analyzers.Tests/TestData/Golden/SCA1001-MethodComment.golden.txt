@@ -1,0 +1,1 @@
+SCA1001|6|9|warning|Error SCA1001: Method 'Execute' has an invalid comment. Remove the comment entirely or change it to include 'todo' or 'sample'.

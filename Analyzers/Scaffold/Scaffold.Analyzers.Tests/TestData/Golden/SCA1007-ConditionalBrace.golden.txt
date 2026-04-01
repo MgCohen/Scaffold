@@ -1,0 +1,1 @@
+SCA1007|8|13|warning|Error SCA1007: if branch must use braces with body on the next line. Only single-line `if (...) statement;` without `else` may omit braces.

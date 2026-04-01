@@ -1,9 +1,0 @@
-<!-- hash: root -->
-# GameModule Documentation
-
-This is the entry point for `GameModule` documentation.
-
-## Sub-Modules
-
-- [GameModuleDTO](GameModuleDTO/GameModuleDTORead.md)
-- [Project](Project/ProjectRead.md)

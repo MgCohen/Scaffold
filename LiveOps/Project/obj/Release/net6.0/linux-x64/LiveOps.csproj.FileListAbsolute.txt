@@ -1,0 +1,16 @@
+C:\Unity\Madbox\LiveOps\Project\bin\Release\net6.0\linux-x64\LiveOps.deps.json
+C:\Unity\Madbox\LiveOps\Project\bin\Release\net6.0\linux-x64\LiveOps.dll
+C:\Unity\Madbox\LiveOps\Project\bin\Release\net6.0\linux-x64\LiveOps.pdb
+C:\Unity\Madbox\LiveOps\Project\bin\Release\net6.0\linux-x64\Madbox.LiveOps.DTO.dll
+C:\Unity\Madbox\LiveOps\Project\bin\Release\net6.0\linux-x64\Madbox.LiveOps.DTO.pdb
+C:\Unity\Madbox\LiveOps\Project\obj\Release\net6.0\linux-x64\LiveOps.csproj.AssemblyReference.cache
+C:\Unity\Madbox\LiveOps\Project\obj\Release\net6.0\linux-x64\LiveOps.GeneratedMSBuildEditorConfig.editorconfig
+C:\Unity\Madbox\LiveOps\Project\obj\Release\net6.0\linux-x64\LiveOps.AssemblyInfoInputs.cache
+C:\Unity\Madbox\LiveOps\Project\obj\Release\net6.0\linux-x64\LiveOps.AssemblyInfo.cs
+C:\Unity\Madbox\LiveOps\Project\obj\Release\net6.0\linux-x64\LiveOps.csproj.CoreCompileInputs.cache
+C:\Unity\Madbox\LiveOps\Project\obj\Release\net6.0\linux-x64\LiveOps.sourcelink.json
+C:\Unity\Madbox\LiveOps\Project\obj\Release\net6.0\linux-x64\LiveOps.csproj.Up2Date
+C:\Unity\Madbox\LiveOps\Project\obj\Release\net6.0\linux-x64\LiveOps.dll
+C:\Unity\Madbox\LiveOps\Project\obj\Release\net6.0\linux-x64\refint\LiveOps.dll
+C:\Unity\Madbox\LiveOps\Project\obj\Release\net6.0\linux-x64\LiveOps.pdb
+C:\Unity\Madbox\LiveOps\Project\obj\Release\net6.0\linux-x64\ref\LiveOps.dll

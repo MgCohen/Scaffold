@@ -1,0 +1,20 @@
+{
+    "name": "Scaffold.MVVM",
+    "rootNamespace": "Scaffold.MVVM",
+    "references": [
+        "Scaffold.Maps",
+        "Scaffold.Records"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "CommunityToolkit.Mvvm.dll",
+        "System.Runtime.CompilerServices.Unsafe.dll"
+    ],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

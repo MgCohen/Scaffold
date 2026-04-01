@@ -1,0 +1,17 @@
+{
+    "name": "Scaffold.CloudCode.Container",
+    "rootNamespace": "Scaffold.CloudCode.Container",
+    "references": [
+        "Scaffold.CloudCode",
+        "VContainer"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

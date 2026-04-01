@@ -1,0 +1,1 @@
+SCA1006|9|17|warning|Error SCA1006: for statement must use braces and place the body on the next line.

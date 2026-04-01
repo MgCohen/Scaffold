@@ -1,0 +1,11 @@
+C:\Unity\Cleanup Project\Analyzers\Scaffold\Scaffold.Analyzers\bin\Debug\netstandard2.0\Scaffold.Analyzers.deps.json
+C:\Unity\Cleanup Project\Analyzers\Scaffold\Scaffold.Analyzers\bin\Debug\netstandard2.0\Scaffold.Analyzers.dll
+C:\Unity\Cleanup Project\Analyzers\Scaffold\Scaffold.Analyzers\bin\Debug\netstandard2.0\Scaffold.Analyzers.pdb
+C:\Unity\Cleanup Project\Analyzers\Scaffold\Scaffold.Analyzers\obj\Debug\netstandard2.0\Scaffold.Analyzers.csproj.AssemblyReference.cache
+C:\Unity\Cleanup Project\Analyzers\Scaffold\Scaffold.Analyzers\obj\Debug\netstandard2.0\Scaffold.Analyzers.GeneratedMSBuildEditorConfig.editorconfig
+C:\Unity\Cleanup Project\Analyzers\Scaffold\Scaffold.Analyzers\obj\Debug\netstandard2.0\Scaffold.Analyzers.AssemblyInfoInputs.cache
+C:\Unity\Cleanup Project\Analyzers\Scaffold\Scaffold.Analyzers\obj\Debug\netstandard2.0\Scaffold.Analyzers.AssemblyInfo.cs
+C:\Unity\Cleanup Project\Analyzers\Scaffold\Scaffold.Analyzers\obj\Debug\netstandard2.0\Scaffold.Analyzers.csproj.CoreCompileInputs.cache
+C:\Unity\Cleanup Project\Analyzers\Scaffold\Scaffold.Analyzers\obj\Debug\netstandard2.0\Scaffold.Analyzers.dll
+C:\Unity\Cleanup Project\Analyzers\Scaffold\Scaffold.Analyzers\obj\Debug\netstandard2.0\Scaffold.Analyzers.pdb
+C:\Unity\Cleanup Project\Analyzers\Scaffold\Scaffold.Analyzers\obj\Debug\netstandard2.0\Scaffold.Analyzers.sourcelink.json
