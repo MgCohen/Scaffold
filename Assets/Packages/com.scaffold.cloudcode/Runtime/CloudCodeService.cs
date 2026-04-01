@@ -10,11 +10,16 @@ namespace Scaffold.CloudCode
 {
     internal sealed class CloudCodeService : ICloudCodeService
     {
-        internal CloudCodeService(CloudCodeSettings settings, ICloudCodeCallHandler callHandler, CloudCodeOptimisticHandlerRegistry optimisticRegistry)
+        internal CloudCodeService(CloudCodeSettings settings, CloudCodeSdkCallHandler sdkCallHandler, CloudCodeOptimisticHandlerRegistry optimisticRegistry)
         {
             if (settings == null)
             {
                 throw new ArgumentNullException(nameof(settings));
+            }
+
+            if (sdkCallHandler == null)
+            {
+                throw new ArgumentNullException(nameof(sdkCallHandler));
             }
 
             jsonSettings = new JsonSerializerSettings
@@ -22,11 +27,22 @@ namespace Scaffold.CloudCode
                 TypeNameHandling = TypeNameHandling.Auto,
                 ContractResolver = new CamelCasePropertyNamesContractResolver(),
             };
-            this.callHandler = callHandler ?? throw new ArgumentNullException(nameof(callHandler));
+            this.settings = settings;
+            callHandler = BuildCallHandlerChain(sdkCallHandler);
             this.optimisticRegistry = optimisticRegistry ?? throw new ArgumentNullException(nameof(optimisticRegistry));
         }
 
+        private ICloudCodeCallHandler BuildCallHandlerChain(CloudCodeSdkCallHandler sdkCallHandler)
+        {
+            ICloudCodeCallHandler inner = sdkCallHandler;
+            inner = new CloudCodeTimeoutCallHandler(settings, inner);
+            inner = new CloudCodeResponseBodyLoggingCallHandler(settings, inner);
+            inner = new CloudCodeRetryCallHandler(settings, inner);
+            return new CloudCodeSingleFlightCallHandler(inner);
+        }
+
         private readonly JsonSerializerSettings jsonSettings;
+        private readonly CloudCodeSettings settings;
         private readonly ICloudCodeCallHandler callHandler;
         private readonly CloudCodeOptimisticHandlerRegistry optimisticRegistry;
 

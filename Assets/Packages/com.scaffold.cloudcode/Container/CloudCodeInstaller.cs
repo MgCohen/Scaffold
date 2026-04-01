@@ -1,5 +1,4 @@
 using Scaffold.CloudCode;
-using Unity.Services.CloudCode;
 using VContainer;
 using VContainer.Unity;
 
@@ -39,17 +38,10 @@ namespace Scaffold.CloudCode.Container
 
         private void RegisterModuleService(IContainerBuilder builder)
         {
-            builder.Register<ICloudCodeService>(c => CreateCloudCodeService(c), Lifetime.Singleton);
-        }
-
-        private static ICloudCodeService CreateCloudCodeService(IObjectResolver resolver)
-        {
-            CloudCodeSettings resolvedSettings = resolver.Resolve<CloudCodeSettings>();
-            ICloudCodeCallHandler baseline = new CloudCodeSdkCallHandler(global::Unity.Services.CloudCode.CloudCodeService.Instance);
-            ICloudCodeCallHandler stack = CloudCodeCallHandlerFactory.CreateDefaultStack(resolvedSettings, baseline);
-            stack = new CloudCodeSingleFlightCallHandler(stack);
-            CloudCodeOptimisticHandlerRegistry optimisticRegistry = resolver.Resolve<CloudCodeOptimisticHandlerRegistry>();
-            return new CloudCodeService(resolvedSettings, stack, optimisticRegistry);
+            builder.Register(
+                c => new CloudCodeSdkCallHandler(global::Unity.Services.CloudCode.CloudCodeService.Instance),
+                Lifetime.Singleton);
+            builder.Register<ICloudCodeService, CloudCodeService>(Lifetime.Singleton);
         }
     }
 }
