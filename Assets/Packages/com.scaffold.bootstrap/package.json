@@ -21,7 +21,7 @@
                          "com.scaffold.navigation":  "0.1.0",
                          "com.scaffold.cloudcode":  "0.1.0",
                          "jp.hadashikick.vcontainer":  "1.17.0",
-                         "com.scaffold.schemas":  "https://github.com/ScaffoldLibrary/Schemas.git",
+                         "com.scaffold.schemas":  "0.1.0",
                          "com.scaffold.sceneflow":  "0.1.0",
                          "com.scaffold.mvvm":  "0.1.0",
                          "com.scaffold.types":  "0.1.0",

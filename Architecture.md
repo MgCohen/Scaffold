@@ -42,7 +42,7 @@ This repository is a modular Unity project with architecture controls enforced t
 - Architecture: MVVM
 - Dependency Injection: VContainer (`jp.hadashikick.vcontainer`)
 - Rendering: Universal Render Pipeline (URP)
-- Core Packages: Addressables, AI Navigation, Cinemachine, TextMeshPro, Unity Test Framework, Scaffold Schemas (`com.scaffold.schemas`)
+- Core Packages: Addressables, AI Navigation, Cinemachine, TextMeshPro, Unity Test Framework, Scaffold Schemas (`com.scaffold.schemas` in `Assets/Packages/com.scaffold.schemas/`)
 - Code Quality: Roslyn analyzers (`Analyzers/Scaffold/Scaffold.Analyzers`)
 
 ## System Context

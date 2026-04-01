@@ -14,13 +14,6 @@
       "dependencies": {},
       "hash": "c2af83c9d4f8cdaada9d4a0e94de2f195d8e1d01"
     },
-    "com.scaffold.schemas": {
-      "version": "https://github.com/ScaffoldLibrary/Schemas.git",
-      "depth": 0,
-      "source": "git",
-      "dependencies": {},
-      "hash": "b180e09f5daaa8acd05380590ba5264f67bb9402"
-    },
     "com.unity.2d.animation": {
       "version": "13.0.4",
       "depth": 0,

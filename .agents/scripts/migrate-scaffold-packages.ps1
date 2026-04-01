@@ -4,7 +4,6 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 $destRoot = Join-Path $root "Assets\Packages"
-$schemasGit = "https://github.com/ScaffoldLibrary/Schemas.git"
 
 function New-ScaffoldPackageJson {
     param(
@@ -95,7 +94,7 @@ $packageSpecs = @{
             "com.scaffold.events"       = "0.1.0"
             "com.scaffold.addressables" = "0.1.0"
             "com.scaffold.types"        = "0.1.0"
-            "com.scaffold.schemas"      = $schemasGit
+            "com.scaffold.schemas"      = "0.1.0"
             "com.unity.addressables"    = "2.9.1"
         }
     }
@@ -105,7 +104,7 @@ $packageSpecs = @{
         Desc    = "Application bootstrap and composition root."
         Deps    = @{
             "com.scaffold.navigation"   = "0.1.0"
-            "com.scaffold.schemas"      = $schemasGit
+            "com.scaffold.schemas"      = "0.1.0"
             "com.scaffold.scope"        = "0.1.0"
             "com.scaffold.mvvm"         = "0.1.0"
             "com.scaffold.view"         = "0.1.0"

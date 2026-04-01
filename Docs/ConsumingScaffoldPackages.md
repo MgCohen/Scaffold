@@ -34,4 +34,4 @@ Adjust the relative or absolute path to match your machine.
 
 ## External dependencies
 
-Some packages depend on **`com.scaffold.schemas`** (Git URL in the holder `Packages/manifest.json`), **VContainer**, **Unity Addressables**, **UGUI**, and other Unity/registry packages. Consumer projects must still have compatible versions in their own `manifest.json` or rely on transitive resolution from your Scaffold packages where UPM supports it.
+Some packages depend on **`com.scaffold.schemas`** (same monorepo layout as other `com.scaffold.*` modules), **VContainer**, **Unity Addressables**, **UGUI**, and other Unity/registry packages. Consumer projects must still have compatible versions in their own `manifest.json` or rely on transitive resolution from your Scaffold packages where UPM supports it.

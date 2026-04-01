@@ -1,0 +1,23 @@
+{
+    "name":  "com.scaffold.schemas",
+    "version":  "0.1.0",
+    "displayName":  "Scaffold Schemas",
+    "description":  "Component-like structures for ScriptableObjects (SchemaObject, Schema, editor tooling).",
+    "unity":  "6000.0",
+    "keywords":  [
+                      "scriptableobjects",
+                      "inspector",
+                      "asset",
+                      "editor"
+                  ],
+    "category":  "editor extensions",
+    "author":  {
+                   "name":  "Matheus Gandolf Cohen",
+                   "email":  "matheus@duckduckweasel.com",
+                   "url":  "https://github.com/MgCohen/Scaffold"
+               },
+    "dependencies":  {
+
+                     },
+    "path":  "https://github.com/MgCohen/Scaffold.git?path=/Assets/Packages/com.scaffold.schemas#main"
+}
