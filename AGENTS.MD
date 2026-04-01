@@ -80,9 +80,7 @@ For every milestone, follow this sequence before marking it complete:
 
 ## Where to Put Documentation
 
-All module documentation lives in `Docs/`. Every module **must** have a corresponding `.md` file or subfolder there. No exceptions.
-
-Use the module and directory structure defined in `Architecture.md` to derive documentation paths under `Docs/`.
+Every first-party module **must** have a documentation pointer under `Docs/` (path derived from `Architecture.md`) **and** authoritative long-form documentation in `Assets/Packages/<packageId>/README.md` at the package root. The `Docs/` entry links to that README; update the README when you change module documentation.
 
 Documentation standards:
 

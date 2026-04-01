@@ -3,6 +3,7 @@
     "rootNamespace": "Scaffold.CloudCode.Container",
     "references": [
         "Scaffold.CloudCode",
+        "Unity.Services.CloudCode",
         "VContainer"
     ],
     "includePlatforms": [],

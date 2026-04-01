@@ -38,8 +38,10 @@ function Invoke-PowerShellScript {
         }
     }
 
-    $output = @(& $ScriptPath @boundParams 2>&1 | ForEach-Object { "$_" })
+    # Run the script without piping into ForEach-Object first; pipelines can clear $LASTEXITCODE on Windows PowerShell 5.x.
+    $rawOutput = & $ScriptPath @boundParams 2>&1
     $exit = if (Test-Path variable:LASTEXITCODE) { [int]$LASTEXITCODE } else { 0 }
+    $output = @($rawOutput | ForEach-Object { "$_" })
 
     return [pscustomobject]@{
         ExitCode = $exit
@@ -261,7 +263,7 @@ $playModePassed = ($compilationPassed -and $playModeExitCode -eq 0)
 $testsPassed = ($editModePassed -and $playModePassed)
 $asmdefAuditPassed = ($asmdefAuditExitCode -eq 0 -and $asmdefAuditTotal -eq 0 -and $asmdefAuditIssues.Count -eq 0)
 $pragmaGatePassed = ($pragmaGateExitCode -eq 0 -and $pragmaGateTotal -eq 0 -and $pragmaGateIssues.Count -eq 0)
-$validationGatePassed = ($asmdefAuditPassed -and $pragmaGatePassed -and $testsPassed)
+$validationGatePassed = ($asmdefAuditPassed -and $pragmaGatePassed -and $compilationPassed -and $testsPassed)
 $analyzersPassed = ($analyzerTotal -eq 0 -and $analyzerBlockers.Count -eq 0)
 
 $finalExitCode = 0
