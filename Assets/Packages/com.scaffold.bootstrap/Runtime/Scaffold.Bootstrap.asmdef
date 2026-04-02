@@ -19,6 +19,8 @@
         "Scaffold.CloudCode.Container",
         "Scaffold.LiveOps",
         "Scaffold.LiveOps.Container",
+        "Scaffold.DirectPush",
+        "Scaffold.DirectPush.Container",
         "Scaffold.SceneFlow",
         "Scaffold.Types",
         "Unity.Addressables",

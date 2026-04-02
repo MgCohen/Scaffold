@@ -1,0 +1,19 @@
+{
+    "name": "Scaffold.DirectPush.Container",
+    "rootNamespace": "Scaffold.DirectPush.Container",
+    "references": [
+        "Scaffold.DirectPush",
+        "Scaffold.Scope",
+        "VContainer",
+        "VContainer.Unity"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
