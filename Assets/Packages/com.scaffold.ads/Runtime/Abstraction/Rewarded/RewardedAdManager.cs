@@ -123,15 +123,7 @@ namespace Scaffold.Ads
                 return;
             }
 
-            if (!_adConfiguration.GetRewardedPlacement(placementName, out RewardedAdConfig placement) || string.IsNullOrEmpty(placement.rewardEndpointUrl))
-            {
-                Debug.LogWarning($"No endpoint configured for placement: {placementName}. Cannot grant reward.");
-                AdSuccessfullyCompleted?.Invoke(false, placementName);
-                return;
-            }
-
-            string endpointUrl = placement.rewardEndpointUrl;
-            bool endpointSuccess = await _rewardEndpointClient.CallRewardEndpointAsync(_unityUserId, token, endpointUrl);
+            bool endpointSuccess = await _rewardEndpointClient.CallRewardEndpointAsync(_unityUserId, placementName, token);
 
             if (endpointSuccess)
             {

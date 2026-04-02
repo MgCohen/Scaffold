@@ -159,6 +159,10 @@ Utility/**/bin
 # LiveOps Cloud Code .NET projects
 !LiveOps/**/*.csproj
 !LiveOps/**/*.sln
+LiveOps/**/obj
+LiveOps/**/bin
+LiveOps/**/.local
+.local/
 !/Generators/AutoPacker/src/Contracts/*.csproj
 Analyzers/**/bin
 Analyzers/**/obj

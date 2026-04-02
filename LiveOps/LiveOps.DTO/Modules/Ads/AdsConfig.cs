@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using GameModuleDTO.GameModule;
 using Newtonsoft.Json;
 
@@ -12,16 +13,17 @@ namespace GameModuleDTO.Modules.Ads
         public string Key => typeof(AdsConfig).Name;
 
         [JsonProperty]
-        private float _cooldown;
+        private Dictionary<string, AdPlacementConfig> _placements = new Dictionary<string, AdPlacementConfig>();
 
-        /// <summary>Gets the cooldown in seconds until the next ad can be shown.</summary>
+        /// <summary>Gets the configuration per placement.</summary>
         [JsonIgnore]
-        public float Cooldown => _cooldown;
+        public IReadOnlyDictionary<string, AdPlacementConfig> Placements => _placements;
 
-        /// <summary>Sets cooldown (remote config merge).</summary>
-        public void SetCooldown(float value)
+        /// <summary>Gets a specific placement configuration or default if not found.</summary>
+        public AdPlacementConfig GetPlacement(string placementId)
         {
-            _cooldown = value;
+            if (string.IsNullOrEmpty(placementId)) return new AdPlacementConfig();
+            return _placements.TryGetValue(placementId, out var config) ? config : new AdPlacementConfig();
         }
     }
 }

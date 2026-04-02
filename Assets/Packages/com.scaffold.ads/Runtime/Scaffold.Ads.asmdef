@@ -2,7 +2,8 @@
     "name": "Scaffold.Ads.Runtime",
     "rootNamespace": "Scaffold.Ads",
     "references": [
-        "VContainer"
+        "VContainer",
+        "Scaffold.LiveOps"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

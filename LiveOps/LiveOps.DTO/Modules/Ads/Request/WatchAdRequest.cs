@@ -5,5 +5,6 @@ namespace GameModuleDTO.ModuleRequests
     /// </summary>
     public class WatchAdRequest : ModuleRequest<WatchAdResponse>
     {
+        public string PlacementId { get; set; }
     }
 }

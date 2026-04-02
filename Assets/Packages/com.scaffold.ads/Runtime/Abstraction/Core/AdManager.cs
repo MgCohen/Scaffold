@@ -19,6 +19,7 @@ namespace Scaffold.Ads
         private IAdProvider _adProvider;
         private bool _isInitialized;
 
+        public AdConfigurationSO Configuration => _adConfiguration;
         public RewardedAdManager RewardedAds => _rewardedAdManager;
         public InterstitialAdManager InterstitialAds => _interstitialAdManager;
         public BannerAdManager BannerAds => _bannerAdManager;

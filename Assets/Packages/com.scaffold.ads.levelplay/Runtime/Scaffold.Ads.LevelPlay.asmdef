@@ -4,7 +4,9 @@
     "references": [
         "GUID:a17cae9fe3203457d917c88be8acb6ed",
         "GUID:760a4c7888534400e882b82c5b3fba06",
-        "GUID:6055be8ebefd69e48b49212b09b47b2f"
+        "GUID:6055be8ebefd69e48b49212b09b47b2f",
+        "Scaffold.LiveOps",
+        "VContainer"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

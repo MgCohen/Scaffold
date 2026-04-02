@@ -1,4 +1,7 @@
 using UnityEngine;
+using VContainer;
+using Scaffold.Ads;
+using Scaffold.LiveOps;
 
 namespace Scaffold.Ads.Levelplay.Test
 {
@@ -15,6 +18,9 @@ namespace Scaffold.Ads.Levelplay.Test
         public InterstitialAdTester interstitialAdTester;
         public BannerAdTester bannerAdTester;
 
+        [Header("System Dependencies")]
+        [Inject] private ILiveOpsService liveOpsService;
+
         private void Start()
         {
             Initialize();
@@ -24,7 +30,11 @@ namespace Scaffold.Ads.Levelplay.Test
         {
             if (adManager != null)
             {
-                adManager.InitializeAds(userId, new RewardEndpointClient());
+                IRewardEndpointClient endpointClient = liveOpsService != null
+                    ? new LiveOpsRewardEndpointClient(liveOpsService)
+                    : new HttpRewardEndpointClient(adManager.Configuration.FallbackRewardEndpointUrl);
+
+                adManager.InitializeAds(userId, endpointClient);
 
                 // Auto-inject AdManager into testers if they are assigned but missing the reference
                 if (rewardedAdTester != null && rewardedAdTester.adManager == null)

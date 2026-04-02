@@ -9,6 +9,12 @@ namespace Scaffold.Ads
     /// </summary>
     public abstract class AdConfigurationSO : ScriptableObject
     {
+        [Header("Fallback Reward Endpoint")]
+        [Tooltip("HTTP endpoint URL used when LiveOps is not available")]
+        [SerializeField] private string fallbackRewardEndpointUrl;
+
+        public string FallbackRewardEndpointUrl => fallbackRewardEndpointUrl;
+
         public abstract List<RewardedAdConfig> GetRewardedPlacements();
         public abstract List<InterstitialAdConfig> GetInterstitialPlacements();
         public abstract List<BannerAdConfig> GetBannerPlacements();
