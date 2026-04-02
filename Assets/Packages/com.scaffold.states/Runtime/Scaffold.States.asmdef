@@ -1,0 +1,17 @@
+{
+    "name": "Scaffold.States",
+    "rootNamespace": "",
+    "references": [
+        "GUID:b967d18ed9aae19488f12b55c25800dd",
+        "GUID:f30ff1085e955d34794c55aab203d2bd"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
