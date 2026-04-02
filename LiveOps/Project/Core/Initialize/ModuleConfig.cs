@@ -11,6 +11,7 @@ using GameModule.Modules.Gold;
 using GameModule.Modules.Level;
 using GameModule.ModuleFetchData.Http;
 using GameModule.Modules.Global;
+using GameModule.Modules.DirectPush;
 
 /// <summary>
 /// Configures the dependency injection container for cloud code execution.
@@ -39,6 +40,7 @@ public partial class ModuleConfig : ICloudCodeSetup
         RegisterModuleScoped<GoldModule>(config);
         RegisterModuleScoped<LevelService>(config);
         RegisterModuleScoped<GlobalConfigModule>(config);
+        RegisterScoped<DirectPushService>(config);
     }
 
     private void RegisterScoped<T>(ICloudCodeConfig config) where T : class
