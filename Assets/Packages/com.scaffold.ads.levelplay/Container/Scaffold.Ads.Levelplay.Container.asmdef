@@ -1,0 +1,20 @@
+{
+    "name": "Scaffold.Ads.Levelplay.Container",
+    "rootNamespace": "Scaffold.Ads.Levelplay.Container",
+    "references": [
+        "Scaffold.Ads.Levelplay.Runtime",
+        "Scaffold.Ads.Runtime",
+        "Scaffold.Ads.Container",
+        "Scaffold.Scope",
+        "VContainer"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

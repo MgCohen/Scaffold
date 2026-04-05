@@ -1,5 +1,9 @@
 fileFormatVersion: 2
+<<<<<<<< HEAD:Assets/LevelPlay/Editor/IronSourceSDKDependencies.xml.meta
+guid: 8db35c08a51424a39bb85c3f492bb82a
+========
 guid: 2a6b44f74ce4fb547a9208bd3d484f51
+>>>>>>>> c05ec8bb96aa023da2b56fa79ef3d7c10441055e:Assets/Packages/com.scaffold.addressables/package.json.meta
 TextScriptImporter:
   externalObjects: {}
   userData: 

@@ -1,5 +1,5 @@
 using System;
-using System.Globalization;
+using System.Collections.Generic;
 using GameModuleDTO.GameModule;
 using Newtonsoft.Json;
 
@@ -14,18 +14,10 @@ namespace GameModuleDTO.Modules.Ads
         public string Key => typeof(AdData).Name;
 
         [JsonProperty]
-        private float _cooldownSeconds;
+        private Dictionary<string, AdPlacementClientData> _placements = new Dictionary<string, AdPlacementClientData>();
 
-        [JsonProperty]
-        private string _nextAdAvailableUtc = string.Empty;
-
-        /// <summary>Cooldown in seconds after a successful watch before another ad is allowed.</summary>
         [JsonIgnore]
-        public float CooldownSeconds => _cooldownSeconds;
-
-        /// <summary>ISO-8601 UTC instant when the next ad becomes available; empty when available immediately.</summary>
-        [JsonIgnore]
-        public string NextAdAvailableUtc => _nextAdAvailableUtc;
+        public IReadOnlyDictionary<string, AdPlacementClientData> Placements => _placements;
 
         /// <summary>Used by Newtonsoft when deserializing <c>GameData</c>.</summary>
         [JsonConstructor]
@@ -36,51 +28,34 @@ namespace GameModuleDTO.Modules.Ads
         /// <summary>Build from persistence + config (server).</summary>
         public AdData(AdsPersistence persistence, AdsConfig config)
         {
-            if (persistence == null)
-            {
-                throw new ArgumentNullException(nameof(persistence));
-            }
+            if (persistence == null) throw new ArgumentNullException(nameof(persistence));
+            if (config == null) throw new ArgumentNullException(nameof(config));
 
-            if (config == null)
+            foreach (var kvp in config.Placements)
             {
-                throw new ArgumentNullException(nameof(config));
-            }
+                string placementId = kvp.Key;
+                AdPlacementConfig placementConfig = kvp.Value;
+                AdPlacementState placementState = persistence.GetOrCreateState(placementId);
 
-            _cooldownSeconds = config.Cooldown;
-            _nextAdAvailableUtc = persistence.ComputeNextAdAvailableUtcIso(config.Cooldown);
+                _placements[placementId] = new AdPlacementClientData
+                {
+                    CooldownSeconds = placementConfig.CooldownSeconds,
+                    MaxViews = placementConfig.MaxViews,
+                    WatchCount = placementState.WatchCount,
+                    HasReachedMaxViews = persistence.HasReachedMaxViews(placementId, placementConfig.MaxViews),
+                    NextAdAvailableUtc = persistence.ComputeNextAdAvailableUtcIso(placementId, placementConfig.CooldownSeconds),
+                    RewardType = placementConfig.RewardType,
+                    RewardAmount = placementConfig.RewardAmount
+                };
+            }
         }
 
-        /// <summary>Whether an ad can be watched now (client-side check against server-supplied next-available time).</summary>
-        public bool IsAdAvailable()
+        public AdPlacementClientData GetPlacementData(string placementId)
         {
-            if (string.IsNullOrEmpty(_nextAdAvailableUtc))
-            {
-                return true;
-            }
+            if (string.IsNullOrEmpty(placementId)) placementId = "default";
+            if (_placements.TryGetValue(placementId, out var data)) return data;
 
-            if (DateTime.TryParse(_nextAdAvailableUtc, null, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out DateTime until))
-            {
-                return DateTime.UtcNow >= until;
-            }
-
-            return true;
-        }
-
-        /// <summary>Remaining cooldown before the next ad.</summary>
-        public TimeSpan GetRemainingCooldown()
-        {
-            if (string.IsNullOrEmpty(_nextAdAvailableUtc))
-            {
-                return TimeSpan.Zero;
-            }
-
-            if (DateTime.TryParse(_nextAdAvailableUtc, null, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out DateTime until))
-            {
-                TimeSpan diff = until - DateTime.UtcNow;
-                return diff > TimeSpan.Zero ? diff : TimeSpan.Zero;
-            }
-
-            return TimeSpan.Zero;
+            return new AdPlacementClientData { CooldownSeconds = 0, NextAdAvailableUtc = string.Empty };
         }
     }
 }

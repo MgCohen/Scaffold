@@ -1,0 +1,57 @@
+using UnityEngine;
+using VContainer;
+using Scaffold.Ads;
+using Scaffold.LiveOps;
+
+namespace Scaffold.Ads.Levelplay.Test
+{
+    /// <summary>
+    /// Handles the Initialization of the GlobalAdManager and injects it into specific testers.
+    /// </summary>
+    public class UnityAdsTester : MonoBehaviour
+    {
+        [Header("Ad System Components")]
+        public AdManager adManager;
+
+        [Header("Testers (Optional Auto-Inject)")]
+        public RewardedAdTester rewardedAdTester;
+        public InterstitialAdTester interstitialAdTester;
+        public BannerAdTester bannerAdTester;
+
+        [Header("System Dependencies")]
+        [Inject] private ILiveOpsService liveOpsService;
+
+        private void Start()
+        {
+            Initialize();
+        }
+
+        private void Initialize(string userId = "")
+        {
+            if (adManager != null)
+            {
+                IRewardEndpointClient endpointClient = liveOpsService != null
+                    ? new LiveOpsRewardEndpointClient(liveOpsService)
+                    : new HttpRewardEndpointClient(adManager.Configuration.FallbackRewardEndpointUrl);
+
+                adManager.InitializeAds(userId, endpointClient);
+
+                // Auto-inject AdManager into testers if they are assigned but missing the reference
+                if (rewardedAdTester != null && rewardedAdTester.adManager == null)
+                {
+                    rewardedAdTester.adManager = adManager;
+                }
+
+                if (interstitialAdTester != null && interstitialAdTester.adManager == null)
+                {
+                    interstitialAdTester.adManager = adManager;
+                }
+
+                if (bannerAdTester != null && bannerAdTester.adManager == null)
+                {
+                    bannerAdTester.adManager = adManager;
+                }
+            }
+        }
+    }
+}

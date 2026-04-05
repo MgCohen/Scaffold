@@ -1,0 +1,40 @@
+{
+    "name": "Scaffold.Bootstrap.Runtime",
+    "rootNamespace": "Scaffold.Bootstrap",
+    "references": [
+        "Scaffold.Navigation",
+        "Scaffold.Schemas",
+        "Scaffold.Scope",
+        "Scaffold.MVVM",
+        "Scaffold.MVVM.View",
+        "Scaffold.MVVM.Model",
+        "Scaffold.MVVM.ViewModel",
+        "VContainer",
+        "Scaffold.Events",
+        "Scaffold.Events.Container",
+        "Scaffold.Navigation.Container",
+        "Scaffold.Addressables.Container",
+        "Scaffold.Addressables",
+        "Scaffold.Ugs.Container",
+        "Scaffold.CloudCode.Container",
+        "Scaffold.LiveOps",
+        "Scaffold.LiveOps.Container",
+        "Scaffold.DirectPush",
+        "Scaffold.DirectPush.Container",
+        "Scaffold.SceneFlow",
+        "Scaffold.Types",
+        "Unity.Addressables",
+        "UnityEngine.UI"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [
+        "Scaffold.LiveOps.DTO.dll"
+    ],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
