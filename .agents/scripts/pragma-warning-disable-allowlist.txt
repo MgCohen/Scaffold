@@ -1,3 +1,6 @@
 # Paths (repo-relative, '/' separators) where new '#pragma warning disable' is allowed.
 # Wildcards are supported ('*' and '?').
 # Keep entries narrow and documented in code review.
+
+# IReadOnlyMap is merged into this file: Unity-generated Scaffold.Maps.csproj omits new .cs files from its explicit Compile list after regen, so a separate IReadOnlyMap.cs breaks dotnet/IDE builds (CS0246).
+Assets/Packages/com.scaffold.maps/Runtime/IReadOnlyBaseMap.cs

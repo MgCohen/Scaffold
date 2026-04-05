@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace Scaffold.Maps
 {
-    public class Map<TPrimary, TSecondary, TValue> : BaseMap<Index<TPrimary, TSecondary>, TValue>
+    public class Map<TPrimary, TSecondary, TValue> : BaseMap<Index<TPrimary, TSecondary>, TValue>, IReadOnlyMap<TPrimary, TSecondary, TValue>
     {
         public Map()
         {
@@ -207,5 +207,41 @@ namespace Scaffold.Maps
                 indexer.Clear();
             }
         }
+
+        public IReadOnlyList<TValue> GetAll(TPrimary primary)
+        {
+            if (predicateIndexers == null)
+            {
+                throw new InvalidOperationException("Map indexers were not initialized.");
+            }
+
+            return GetValueFromKey(primary, i => i.Primary);
+        }
+
+        public IReadOnlyList<TValue> GetAll(TSecondary secondary)
+        {
+            if (predicateIndexers == null)
+            {
+                throw new InvalidOperationException("Map indexers were not initialized.");
+            }
+
+            return GetValueFromKey(secondary, i => i.Secondary);
+        }
+
+        private IReadOnlyList<TValue> GetValueFromKey<T>(T key, Func<Index<TPrimary, TSecondary>, T> getter)
+        {
+            List<TValue> list = new List<TValue>();
+            IEqualityComparer<T> comparer = EqualityComparer<T>.Default;
+            foreach (KeyValuePair<Index<TPrimary, TSecondary>, Holder<TValue>> entry in GetEntries())
+            {
+                T value = getter(entry.Key);
+                if (comparer.Equals(value, key))
+                {
+                    list.Add(entry.Value.Value);
+                }
+            }
+            return list;
+        }
+
     }
 }
