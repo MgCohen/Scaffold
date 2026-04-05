@@ -13,7 +13,7 @@ public sealed class ScaRuleGoldenTests
     public Task SCA1001_MethodComment() =>
         DiagnosticGoldenFixture.AssertMatchesGoldenAsync(
             "SCA1001-MethodComment",
-            new MethodCommentAnalyzer(),
+            new DeclarationCommentAnalyzer(),
             @"C:\Repo\Assets\Scripts\Core\Sample.cs");
 
     [Fact]

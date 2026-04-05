@@ -3,7 +3,7 @@ using Xunit;
 
 namespace Scaffold.Analyzers.Tests;
 
-public sealed class MethodCommentAnalyzerTests
+public sealed class DeclarationCommentAnalyzerTests
 {
     [Fact]
     public async Task Diagnostic_WhenMethodHasRegularLeadingComment()
@@ -21,8 +21,8 @@ namespace Demo
         var diagnostics = await AnalyzerTestHarness.GetDiagnosticsByIdAsync(
             source,
             @"C:\Repo\Assets\Scripts\Core\Sample.cs",
-            new MethodCommentAnalyzer(),
-            MethodCommentAnalyzer.DiagnosticId);
+            new DeclarationCommentAnalyzer(),
+            DeclarationCommentAnalyzer.DiagnosticId);
 
         Assert.Single(diagnostics);
     }
@@ -43,8 +43,8 @@ namespace Demo
         var diagnostics = await AnalyzerTestHarness.GetDiagnosticsByIdAsync(
             source,
             @"C:\Repo\Assets\Scripts\Core\Sample.cs",
-            new MethodCommentAnalyzer(),
-            MethodCommentAnalyzer.DiagnosticId);
+            new DeclarationCommentAnalyzer(),
+            DeclarationCommentAnalyzer.DiagnosticId);
 
         Assert.Empty(diagnostics);
     }

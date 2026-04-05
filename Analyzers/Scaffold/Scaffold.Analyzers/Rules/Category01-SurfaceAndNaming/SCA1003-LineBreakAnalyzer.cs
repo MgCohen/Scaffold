@@ -99,8 +99,11 @@ namespace Scaffold.Analyzers
             var typeParameterList = typeDeclaration.TypeParameterList;
             var hasTypeParameters = typeParameterList != null && typeParameterList.Parameters.Count > 0;
             var hasConstraints = typeDeclaration.ConstraintClauses.Count > 0;
+            var hasPrimaryCtorParams = typeDeclaration is RecordDeclarationSyntax recordDecl &&
+                recordDecl.ParameterList != null &&
+                recordDecl.ParameterList.Parameters.Count > 0;
 
-            if (!hasTypeParameters && !hasConstraints)
+            if (!hasTypeParameters && !hasConstraints && !hasPrimaryCtorParams)
             {
                 return;
             }
@@ -282,6 +285,13 @@ namespace Scaffold.Analyzers
             {
                 var lastClause = typeDeclaration.ConstraintClauses[typeDeclaration.ConstraintClauses.Count - 1];
                 return lastClause.GetLocation().GetLineSpan().EndLinePosition.Line;
+            }
+
+            if (typeDeclaration is RecordDeclarationSyntax recordDeclaration &&
+                recordDeclaration.ParameterList != null &&
+                recordDeclaration.ParameterList.Parameters.Count > 0)
+            {
+                return recordDeclaration.ParameterList.GetLocation().GetLineSpan().EndLinePosition.Line;
             }
 
             var typeParameterList = typeDeclaration.TypeParameterList;
