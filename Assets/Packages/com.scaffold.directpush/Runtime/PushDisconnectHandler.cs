@@ -14,14 +14,14 @@ namespace Scaffold.DirectPush
     /// </summary>
     public sealed class PushDisconnectHandler : IAsyncLayerInitializable, IDisposable
     {
-        private readonly PushSubscriptionService _subscriptionService;
-        private readonly DirectPushClient _pushClient;
-
         public PushDisconnectHandler(PushSubscriptionService subscriptionService, DirectPushClient pushClient)
         {
-            _subscriptionService = subscriptionService;
-            _pushClient = pushClient;
+            this.subscriptionService = subscriptionService;
+            this.pushClient = pushClient;
         }
+
+        private readonly PushSubscriptionService subscriptionService;
+        private readonly DirectPushClient pushClient;
 
         /// <summary>
         /// Registers push listeners for disconnect messages.
@@ -31,11 +31,11 @@ namespace Scaffold.DirectPush
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            _subscriptionService.SubscribeToPlayerMessage(
+            subscriptionService.SubscribeToPlayerMessage(
                 PushToPlayerKeys.PushDisconnectMultiplePlayerAccounts,
                 OnDisconnectReceived);
 
-            _subscriptionService.SubscribeToProjectMessage(
+            subscriptionService.SubscribeToProjectMessage(
                 PushToProjectKeys.Disconnect,
                 OnDisconnectReceived);
 
@@ -49,7 +49,7 @@ namespace Scaffold.DirectPush
         public Task SendDisconnectSelfAsync(CancellationToken cancellationToken = default)
         {
             Debug.Log("[PushDisconnectHandler] Sending self disconnect push.");
-            return _pushClient.SendSelfPushAsync(
+            return pushClient.SendSelfPushAsync(
                 "disconnect",
                 PushToPlayerKeys.PushDisconnectMultiplePlayerAccounts,
                 cancellationToken);
@@ -64,7 +64,7 @@ namespace Scaffold.DirectPush
         public Task SendDisconnectProjectAsync(string accessKeyGuid, CancellationToken cancellationToken = default)
         {
             Debug.Log("[PushDisconnectHandler] Sending project disconnect push.");
-            return _pushClient.SendProjectPushAsync(
+            return pushClient.SendProjectPushAsync(
                 "disconnect",
                 PushToProjectKeys.Disconnect,
                 accessKeyGuid,

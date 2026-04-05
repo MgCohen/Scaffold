@@ -7,12 +7,12 @@ namespace Scaffold.Ads
 {
     public class LiveOpsRewardEndpointClient : IRewardEndpointClient
     {
-        private readonly ILiveOpsService liveOpsService;
-
         public LiveOpsRewardEndpointClient(ILiveOpsService liveOpsService)
         {
             this.liveOpsService = liveOpsService;
         }
+
+        private readonly ILiveOpsService liveOpsService;
 
         public async Task<bool> CallRewardEndpointAsync(string unityUserId, string placementId, string rewardAdId)
         {

@@ -21,7 +21,7 @@ namespace Scaffold.Schemas.Editor
 
         public SchemaObjectEditor Editor { get; private set; }
 
-        public Dictionary<Type, bool> duplicateLookup { get; private set; }
+        public Dictionary<Type, bool> DuplicateLookup { get; private set; }
 
         public void Validate()
         {
@@ -56,12 +56,12 @@ namespace Scaffold.Schemas.Editor
         public bool CanAddType(Type type)
         {
             bool hasDuplicate = SchemaObject.HasSchema(type);
-            if (duplicateLookup.TryGetValue(type, out bool allow))
+            if (DuplicateLookup.TryGetValue(type, out bool allow))
             {
                 return allow || !hasDuplicate;
             }
 
-            if (duplicateLookup.TryGetValue(SchemaObject.GetType(), out allow))
+            if (DuplicateLookup.TryGetValue(SchemaObject.GetType(), out allow))
             {
                 return allow || !hasDuplicate;
             }
@@ -71,13 +71,13 @@ namespace Scaffold.Schemas.Editor
 
         private void CreateDuplicateLookup()
         {
-            duplicateLookup = new Dictionary<Type, bool>();
+            DuplicateLookup = new Dictionary<Type, bool>();
 
             var duplicateTypes = TypeCache.GetTypesWithAttribute<AllowDuplicateSchemasAttribute>();
             foreach (var type in duplicateTypes)
             {
                 var attribute = type.GetCustomAttributes<AllowDuplicateSchemasAttribute>(true).FirstOrDefault();
-                duplicateLookup.Add(type, attribute.AllowMultiple);
+                DuplicateLookup.Add(type, attribute.AllowMultiple);
             }
         }
     }

@@ -9,15 +9,12 @@ namespace Scaffold.Ads
     /// </summary>
     public abstract class AdConfigurationSO : ScriptableObject
     {
-        [Header("Fallback Reward Endpoint")]
-        [Tooltip("HTTP endpoint URL used when LiveOps is not available")]
-        [SerializeField] private string fallbackRewardEndpointUrl;
-
         public string FallbackRewardEndpointUrl => fallbackRewardEndpointUrl;
 
-        public abstract List<RewardedAdConfig> GetRewardedPlacements();
-        public abstract List<InterstitialAdConfig> GetInterstitialPlacements();
-        public abstract List<BannerAdConfig> GetBannerPlacements();
+        [Header("Fallback Reward Endpoint")]
+        [Tooltip("HTTP endpoint URL used when LiveOps is not available")]
+        [SerializeField]
+        private string fallbackRewardEndpointUrl;
 
         public virtual bool GetRewardedPlacement(string placementName, out RewardedAdConfig placement)
         {
@@ -26,7 +23,7 @@ namespace Scaffold.Ads
             {
                 foreach (RewardedAdConfig config in placements)
                 {
-                    if (config.placementKey == placementName)
+                    if (config.PlacementKey == placementName)
                     {
                         placement = config;
                         return true;
@@ -37,6 +34,10 @@ namespace Scaffold.Ads
             placement = null;
             return false;
         }
+
+        public abstract List<RewardedAdConfig> GetRewardedPlacements();
+        public abstract List<InterstitialAdConfig> GetInterstitialPlacements();
+        public abstract List<BannerAdConfig> GetBannerPlacements();
 
         public abstract IAdProvider CreateProvider();
     }

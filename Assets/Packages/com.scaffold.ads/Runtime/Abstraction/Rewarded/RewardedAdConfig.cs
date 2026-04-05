@@ -7,6 +7,6 @@ namespace Scaffold.Ads
     public class RewardedAdConfig : AdPlacementConfig
     {
         [Tooltip("The secure endpoint URL to hit upon reward completion")]
-        public string rewardEndpointUrl;
+        public string RewardEndpointUrl;
     }
 }

@@ -5,61 +5,64 @@ namespace Scaffold.Ads
 {
     public class BannerAdManager : IDisposable
     {
-        private AdConfigurationSO _adConfiguration;
-        private IBannerAdService _adService;
+        private IBannerAdService adService;
+        private bool isInitialized;
 
         public event Action<bool> BannerLoaded;
 
-        private bool _isInitialized;
-
-        public void Initialize(IBannerAdService bannerAdService, AdConfigurationSO config)
+        public void Initialize(IBannerAdService bannerAdService, AdConfigurationSO _)
         {
-            if (_isInitialized)
+            if (isInitialized)
             {
                 return;
             }
 
-            _adService = bannerAdService;
-            _adConfiguration = config;
+            adService = bannerAdService;
 
-            _adService.BannerLoaded += HandleBannerLoaded;
+            adService.BannerLoaded += HandleBannerLoaded;
 
-            _isInitialized = true;
+            isInitialized = true;
         }
 
         public void LoadBanner(string placementName = null)
         {
-            if (!_isInitialized || _adService == null)
+            if (!isInitialized || adService == null)
             {
                 Debug.LogWarning("BannerAdManager not initialized");
                 return;
             }
 
-            _adService.LoadBanner(placementName);
+            adService.LoadBanner(placementName);
         }
 
         public void ShowBanner(string placementName = null, BannerPosition? position = null)
         {
-            if (!_isInitialized || _adService == null)
+            if (!isInitialized || adService == null)
             {
                 return;
             }
 
-            _adService.ShowBanner(placementName, position);
+            adService.ShowBanner(placementName, position);
         }
 
         public void HideBanner(string placementName = null)
         {
-            if (!_isInitialized || _adService == null) return;
+            if (!isInitialized || adService == null)
+            {
+                return;
+            }
 
-            _adService.HideBanner(placementName);
+            adService.HideBanner(placementName);
         }
 
         public void DestroyBanner(string placementName = null)
         {
-            if (!_isInitialized || _adService == null) return;
+            if (!isInitialized || adService == null)
+            {
+                return;
+            }
 
-            _adService.DestroyBanner(placementName);
+            adService.DestroyBanner(placementName);
         }
 
         private void HandleBannerLoaded(bool loaded)
@@ -69,9 +72,9 @@ namespace Scaffold.Ads
 
         public void Dispose()
         {
-            if (_adService != null)
+            if (adService != null)
             {
-                _adService.BannerLoaded -= HandleBannerLoaded;
+                adService.BannerLoaded -= HandleBannerLoaded;
             }
         }
     }

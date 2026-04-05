@@ -8,28 +8,27 @@ namespace Scaffold.Ads.Levelplay
     {
         [Header("Editor Configuration")]
         [Tooltip("The configuration used when running in the Unity Editor.")]
-        public LevelPlayPlatformConfig editorConfig;
+        public LevelPlayPlatformConfig EditorConfig;
 
         [Header("Platform Configurations")]
-        public List<LevelPlayPlatformConfig> platformConfigs = new List<LevelPlayPlatformConfig>();
+        public List<LevelPlayPlatformConfig> PlatformConfigs = new List<LevelPlayPlatformConfig>();
 
-        public LevelPlayPlatformConfig GetActiveConfiguration()
+        public override List<RewardedAdConfig> GetRewardedPlacements()
         {
-            if (Application.isEditor)
-            {
-                return editorConfig;
-            }
+            LevelPlayPlatformConfig activeConfig = GetActiveConfiguration();
+            return activeConfig.RewardedPlacements ?? new List<RewardedAdConfig>();
+        }
 
-            foreach (LevelPlayPlatformConfig config in platformConfigs)
-            {
-                if (config.platform == Application.platform)
-                {
-                    return config;
-                }
-            }
+        public override List<InterstitialAdConfig> GetInterstitialPlacements()
+        {
+            LevelPlayPlatformConfig activeConfig = GetActiveConfiguration();
+            return activeConfig.InterstitialPlacements ?? new List<InterstitialAdConfig>();
+        }
 
-            Debug.LogWarning($"[LevelPlay] No config found for platform: {Application.platform}. Falling back to Editor config.");
-            return editorConfig;
+        public override List<BannerAdConfig> GetBannerPlacements()
+        {
+            LevelPlayPlatformConfig activeConfig = GetActiveConfiguration();
+            return activeConfig.BannerPlacements ?? new List<BannerAdConfig>();
         }
 
         public override IAdProvider CreateProvider()
@@ -37,22 +36,23 @@ namespace Scaffold.Ads.Levelplay
             return new LevelPlayAdProvider(this);
         }
 
-        public override List<RewardedAdConfig> GetRewardedPlacements()
+        public LevelPlayPlatformConfig GetActiveConfiguration()
         {
-            LevelPlayPlatformConfig activeConfig = GetActiveConfiguration();
-            return activeConfig.rewardedPlacements ?? new List<RewardedAdConfig>();
-        }
+            if (Application.isEditor)
+            {
+                return EditorConfig;
+            }
 
-        public override List<InterstitialAdConfig> GetInterstitialPlacements()
-        {
-            LevelPlayPlatformConfig activeConfig = GetActiveConfiguration();
-            return activeConfig.interstitialPlacements ?? new List<InterstitialAdConfig>();
-        }
+            foreach (LevelPlayPlatformConfig config in PlatformConfigs)
+            {
+                if (config.Platform == Application.platform)
+                {
+                    return config;
+                }
+            }
 
-        public override List<BannerAdConfig> GetBannerPlacements()
-        {
-            LevelPlayPlatformConfig activeConfig = GetActiveConfiguration();
-            return activeConfig.bannerPlacements ?? new List<BannerAdConfig>();
+            Debug.LogWarning($"[LevelPlay] No config found for platform: {Application.platform}. Falling back to Editor config.");
+            return EditorConfig;
         }
     }
 }

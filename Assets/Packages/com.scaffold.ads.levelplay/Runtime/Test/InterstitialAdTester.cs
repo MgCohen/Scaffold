@@ -6,44 +6,44 @@ namespace Scaffold.Ads.Levelplay.Test
     public class InterstitialAdTester : MonoBehaviour
     {
         [Header("Ad System")]
-        public AdManager adManager;
+        public AdManager AdManager;
 
         [Header("Interstitial Ads")]
-        public AdPlacementKeySO interstitialDefaultKey;
-        public AdPlacementKeySO interstitialAltKey;
-        public Button btnShowInterstitialDefault;
-        public Button btnShowInterstitialAlt;
+        public AdPlacementKeySO InterstitialDefaultKey;
+        public AdPlacementKeySO InterstitialAltKey;
+        public Button BtnShowInterstitialDefault;
+        public Button BtnShowInterstitialAlt;
 
         private void Start()
         {
-            if (btnShowInterstitialDefault != null)
+            if (BtnShowInterstitialDefault != null)
             {
-                btnShowInterstitialDefault.onClick.AddListener(() => ShowInterstitialAd(interstitialDefaultKey));
+                BtnShowInterstitialDefault.onClick.AddListener(() => ShowInterstitialAd(InterstitialDefaultKey));
             }
-            if (btnShowInterstitialAlt != null)
+            if (BtnShowInterstitialAlt != null)
             {
-                btnShowInterstitialAlt.onClick.AddListener(() => ShowInterstitialAd(interstitialAltKey));
+                BtnShowInterstitialAlt.onClick.AddListener(() => ShowInterstitialAd(InterstitialAltKey));
             }
         }
 
         private void OnDestroy()
         {
-            if (btnShowInterstitialDefault != null)
+            if (BtnShowInterstitialDefault != null)
             {
-                btnShowInterstitialDefault.onClick.RemoveAllListeners();
+                BtnShowInterstitialDefault.onClick.RemoveAllListeners();
             }
-            if (btnShowInterstitialAlt != null)
+            if (BtnShowInterstitialAlt != null)
             {
-                btnShowInterstitialAlt.onClick.RemoveAllListeners();
+                BtnShowInterstitialAlt.onClick.RemoveAllListeners();
             }
         }
 
         public void ShowInterstitialAd(string placement)
         {
             Debug.Log($"Test.ShowInterstitialAd [{placement}] via new GlobalAdManager");
-            if (adManager != null && adManager.InterstitialAds != null)
+            if (AdManager != null && AdManager.InterstitialAds != null)
             {
-                adManager.InterstitialAds.ShowInterstitial(placement);
+                AdManager.InterstitialAds.ShowInterstitial(placement);
             }
         }
     }

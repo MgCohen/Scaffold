@@ -76,6 +76,7 @@ internal static class DiagnosticGoldenFixture
         }
 
         var expected = NormalizeNewlines(File.ReadAllText(expectedPath)).TrimEnd();
+        actual = NormalizeNewlines(actual).TrimEnd();
         Assert.Equal(expected, actual);
     }
 

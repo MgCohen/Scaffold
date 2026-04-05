@@ -9,14 +9,14 @@ namespace Scaffold.Ads.Levelplay.Test
     public class RewardedAdPlacementUI
     {
         [HideInInspector]
-        public bool isFetching;
+        public bool IsFetching;
         [HideInInspector]
-        public bool isAdAvailable;
+        public bool IsAdAvailable;
 
-        public AdPlacementKeySO key;
-        public Button buttonShow;
-        public Button buttonFetch;
-        public TextMeshProUGUI statusText;
-        public TextMeshProUGUI cooldownText;
+        public AdPlacementKeySO Key;
+        public Button ButtonShow;
+        public Button ButtonFetch;
+        public TextMeshProUGUI StatusText;
+        public TextMeshProUGUI CooldownText;
     }
 }

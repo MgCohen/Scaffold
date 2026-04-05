@@ -6,24 +6,23 @@ namespace Scaffold.Ads
 {
     public class AdRewardUIController : MonoBehaviour
     {
+        private RewardedAdManager RewardedAds => adManager != null ? adManager.RewardedAds : null;
+
         [Header("UI Dependencies")]
         [SerializeField]
-        private Button _rewardButton;
+        private Button rewardButton;
 
         [Inject]
         private AdManager adManager;
 
         [SerializeField]
-        private string _placementName = "Main_Menu";
+        private string placementName = "Main_Menu";
 
-        private RewardedAdManager RewardedAds => adManager != null ? adManager.RewardedAds : null;
-
-        // Awake removed since AdManager is injected via VContainer
         private void Start()
         {
-            if (_rewardButton != null)
+            if (rewardButton != null)
             {
-                _rewardButton.onClick.AddListener(HandleClickAdReward);
+                rewardButton.onClick.AddListener(HandleClickAdReward);
             }
         }
 
@@ -46,36 +45,41 @@ namespace Scaffold.Ads
                 RewardedAds.AdAvailable -= HandleAdAvailabilityChanged;
             }
 
-            if (_rewardButton != null)
+            if (rewardButton != null)
             {
-                _rewardButton.onClick.RemoveListener(HandleClickAdReward);
+                rewardButton.onClick.RemoveListener(HandleClickAdReward);
             }
         }
 
         private void HandleClickAdReward()
         {
-            if (_rewardButton != null)
-                _rewardButton.interactable = false;
+            if (rewardButton != null)
+            {
+                rewardButton.interactable = false;
+            }
 
             if (RewardedAds != null)
             {
-                RewardedAds.ClickShowAdReward(_placementName);
-                Debug.Log($"Requested ad for placement: {_placementName}");
+                RewardedAds.ClickShowAdReward(placementName);
+                Debug.Log($"Requested ad for placement: {placementName}");
             }
         }
 
-        private void HandleAdCompleted(bool success, string placementName)
+        private void HandleAdCompleted(bool success, string placement)
         {
-            if (placementName != _placementName) return;
+            if (placement != placementName)
+            {
+                return;
+            }
 
             UpdateButtonState();
             if (success)
             {
-                Debug.Log($"Ad completed successfully for placement: {_placementName}");
+                Debug.Log($"Ad completed successfully for placement: {placementName}");
             }
             else
             {
-                Debug.LogWarning($"Ad failed to complete for placement: {_placementName}");
+                Debug.LogWarning($"Ad failed to complete for placement: {placementName}");
             }
         }
 
@@ -87,20 +91,31 @@ namespace Scaffold.Ads
 
         private async void UpdateButtonState()
         {
-            if (_rewardButton == null) return;
+            if (rewardButton == null)
+            {
+                return;
+            }
 
             if (RewardedAds == null)
             {
-                _rewardButton.interactable = false;
+                rewardButton.interactable = false;
                 Debug.LogWarning("Ad manager not available");
                 return;
             }
 
-            bool isAvailable = await RewardedAds.CanShowAd(_placementName);
-            _rewardButton.interactable = isAvailable;
+            bool isAvailable = await RewardedAds.CanShowAd(placementName);
+            rewardButton.interactable = isAvailable;
+            LogButtonState(placementName, isAvailable);
+            LogCooldownIfNeeded();
+        }
 
-            Debug.Log($"Button state updated for placement '{_placementName}': {(isAvailable ? "enabled" : "disabled")}");
+        private void LogButtonState(string placement, bool isAvailable)
+        {
+            Debug.Log($"Button state updated for placement '{placement}': {(isAvailable ? "enabled" : "disabled")}");
+        }
 
+        private void LogCooldownIfNeeded()
+        {
             float cooldownRemaining = RewardedAds.GetRemainingCooldownSeconds();
             if (cooldownRemaining > 0)
             {

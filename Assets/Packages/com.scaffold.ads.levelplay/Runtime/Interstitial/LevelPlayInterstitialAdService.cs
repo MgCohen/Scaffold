@@ -9,94 +9,132 @@ namespace Scaffold.Ads.Levelplay
 {
     public class LevelPlayInterstitialAdService : IInterstitialAdService, IDisposable
     {
-        private readonly LevelPlayAdConfigurationSO _configuration;
-        private readonly Dictionary<string, LevelPlayInterstitialAd> _interstitialAds = new Dictionary<string, LevelPlayInterstitialAd>();
-        private readonly Dictionary<string, int> _loadRetryCounts = new Dictionary<string, int>();
+        private const int maxRetryAttempts = 3;
+        private const float retryDelaySeconds = 5f;
 
-        private const int MaxRetryAttempts = 3;
-        private const float RetryDelaySeconds = 5f;
+        public LevelPlayInterstitialAdService(LevelPlayAdConfigurationSO configuration)
+        {
+            this.configuration = configuration;
+        }
+
+        private readonly LevelPlayAdConfigurationSO configuration;
+        private readonly Dictionary<string, LevelPlayInterstitialAd> interstitialAds = new Dictionary<string, LevelPlayInterstitialAd>();
+        private readonly Dictionary<string, int> loadRetryCounts = new Dictionary<string, int>();
 
         public event Action<bool> AdAvailable;
         public event Action<bool, string> AdSuccessfullyCompleted;
 
-        public LevelPlayInterstitialAdService(LevelPlayAdConfigurationSO configuration)
-        {
-            _configuration = configuration;
-        }
-
         public void Initialize()
         {
-            List<InterstitialAdConfig> activePlacements = _configuration.GetInterstitialPlacements();
-            if (activePlacements != null)
+            List<InterstitialAdConfig> activePlacements = configuration.GetInterstitialPlacements();
+            if (activePlacements == null)
             {
-                foreach (InterstitialAdConfig placement in activePlacements)
-                {
-                    string unitId = placement.adUnitId;
-                    if (string.IsNullOrEmpty(unitId)) continue;
+                return;
+            }
 
-                    if (!_interstitialAds.ContainsKey(placement.placementKey))
-                    {
-                        LevelPlayInterstitialAd ad = new LevelPlayInterstitialAd(unitId);
-                        string key = placement.placementKey;
-
-                        ad.OnAdLoaded += (adInfo) => HandleAdLoadedSuccessfully(key, adInfo);
-                        ad.OnAdLoadFailed += (error) => HandleAdLoadFailed(key, ad, error);
-                        ad.OnAdDisplayed += (adInfo) => HandleAdDisplayed(key, adInfo);
-                        ad.OnAdDisplayFailed += (adInfo, error) => HandleAdFailedToDisplay(key, adInfo, error);
-                        ad.OnAdClosed += (adInfo) => HandleAdClosed(key, ad, adInfo);
-
-                        _interstitialAds[key] = ad;
-                        _loadRetryCounts[key] = 0;
-
-                        ad.LoadAd();
-                    }
-                }
+            foreach (InterstitialAdConfig placement in activePlacements)
+            {
+                RegisterInterstitialPlacement(placement);
             }
         }
 
-        public async Awaitable<bool> CanShowAd(string placementName = null)
+        private void RegisterInterstitialPlacement(InterstitialAdConfig placement)
         {
-            await Task.Yield();
-
-            if (_interstitialAds.Count == 0) return false;
-
-            if (!string.IsNullOrEmpty(placementName) && _interstitialAds.TryGetValue(placementName, out LevelPlayInterstitialAd ad))
+            string unitId = placement.AdUnitId;
+            if (string.IsNullOrEmpty(unitId))
             {
-                return ad.IsAdReady();
+                return;
             }
 
-            return _interstitialAds.Values.Any(x => x.IsAdReady());
+            string key = placement.PlacementKey;
+            if (interstitialAds.ContainsKey(key))
+            {
+                return;
+            }
+
+            LevelPlayInterstitialAd ad = new LevelPlayInterstitialAd(unitId);
+            WireInterstitialAdEvents(ad, key);
+            interstitialAds[key] = ad;
+            loadRetryCounts[key] = 0;
+            ad.LoadAd();
+        }
+
+        private void WireInterstitialAdEvents(LevelPlayInterstitialAd ad, string key)
+        {
+            ad.OnAdLoaded += (adInfo) => HandleAdLoadedSuccessfully(key, adInfo);
+            ad.OnAdLoadFailed += (error) => HandleAdLoadFailed(key, ad, error);
+            ad.OnAdDisplayed += (adInfo) => HandleAdDisplayed(key, adInfo);
+            ad.OnAdDisplayFailed += (adInfo, error) => HandleAdFailedToDisplay(key, adInfo, error);
+            ad.OnAdClosed += (adInfo) => HandleAdClosed(key, ad, adInfo);
         }
 
         public async void ShowAd(string placementName = null)
         {
             bool canShow = await CanShowAd(placementName);
-            LevelPlayInterstitialAd targetAd = null;
-
-            if (!string.IsNullOrEmpty(placementName))
-            {
-                _interstitialAds.TryGetValue(placementName, out targetAd);
-            }
-            else if (_interstitialAds.Count > 0)
-            {
-                targetAd = _interstitialAds.Values.First();
-            }
-
-            if (canShow && targetAd != null)
-            {
-                if (string.IsNullOrEmpty(placementName)) targetAd.ShowAd();
-                else targetAd.ShowAd(placementName);
-            }
-            else
+            LevelPlayInterstitialAd targetAd = ResolveTargetAd(placementName);
+            if (!TryShowInterstitial(placementName, canShow, targetAd))
             {
                 Debug.LogWarning("Ad not ready or unable to show right now.");
                 targetAd?.LoadAd();
             }
         }
 
+        private bool TryShowInterstitial(string placementName, bool canShow, LevelPlayInterstitialAd targetAd)
+        {
+            if (!canShow || targetAd == null)
+            {
+                return false;
+            }
+
+            if (string.IsNullOrEmpty(placementName))
+            {
+                targetAd.ShowAd();
+            }
+            else
+            {
+                targetAd.ShowAd(placementName);
+            }
+            return true;
+        }
+
+        public async Awaitable<bool> CanShowAd(string placementName = null)
+        {
+            await Task.Yield();
+
+            if (interstitialAds.Count == 0)
+            {
+                return false;
+            }
+
+            if (!string.IsNullOrEmpty(placementName) && interstitialAds.TryGetValue(placementName, out LevelPlayInterstitialAd ad))
+            {
+                return ad.IsAdReady();
+            }
+
+            return interstitialAds.Values.Any(x => x.IsAdReady());
+        }
+
+        private LevelPlayInterstitialAd ResolveTargetAd(string placementName)
+        {
+            if (!string.IsNullOrEmpty(placementName) && interstitialAds.TryGetValue(placementName, out LevelPlayInterstitialAd named))
+            {
+                return named;
+            }
+
+            if (interstitialAds.Count > 0)
+            {
+                return interstitialAds.Values.First();
+            }
+
+            return null;
+        }
+
         private void HandleAdLoadedSuccessfully(string placementName, LevelPlayAdInfo adInfo)
         {
-            if (_loadRetryCounts.ContainsKey(placementName)) _loadRetryCounts[placementName] = 0;
+            if (loadRetryCounts.ContainsKey(placementName))
+            {
+                loadRetryCounts[placementName] = 0;
+            }
             AdAvailable?.Invoke(true);
             Debug.Log($"Interstitial ad loaded for {placementName}: {adInfo.AdNetwork}");
         }
@@ -105,20 +143,19 @@ namespace Scaffold.Ads.Levelplay
         {
             Debug.LogError($"Interstitial ad failed to load for {placementName}: {error.ErrorMessage}");
 
-            if (!_loadRetryCounts.ContainsKey(placementName)) return;
+            if (!loadRetryCounts.ContainsKey(placementName))
+            {
+                return;
+            }
 
-            _loadRetryCounts[placementName]++;
-            if (_loadRetryCounts[placementName] >= MaxRetryAttempts)
+            loadRetryCounts[placementName]++;
+            if (loadRetryCounts[placementName] >= maxRetryAttempts)
             {
                 AdAvailable?.Invoke(false);
                 return;
             }
 
-            Task.Run(async () =>
-            {
-                await Task.Delay(TimeSpan.FromSeconds(RetryDelaySeconds));
-                ad?.LoadAd();
-            });
+            ScheduleReloadAdInterstitial(ad);
         }
 
         private void HandleAdDisplayed(string placementName, LevelPlayAdInfo adInfo)
@@ -140,8 +177,17 @@ namespace Scaffold.Ads.Levelplay
 
         public void Dispose()
         {
-            _interstitialAds.Clear();
-            _loadRetryCounts.Clear();
+            interstitialAds.Clear();
+            loadRetryCounts.Clear();
+        }
+
+        private void ScheduleReloadAdInterstitial(LevelPlayInterstitialAd ad)
+        {
+            Task.Run(async () =>
+            {
+                await Task.Delay(TimeSpan.FromSeconds(retryDelaySeconds));
+                ad?.LoadAd();
+            });
         }
     }
 }

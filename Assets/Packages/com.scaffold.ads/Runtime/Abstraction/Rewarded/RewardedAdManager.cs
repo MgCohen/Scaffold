@@ -9,58 +9,49 @@ namespace Scaffold.Ads
     /// </summary>
     public class RewardedAdManager : IDisposable
     {
-        private AdConfigurationSO _adConfiguration;
+        private const float rewardCooldownSeconds = 10;
+        private const string defaultPlacementKey = "default";
 
-        // Cooldown between rewarded ad completions
-        private const float k_RewardCooldownSeconds = 10;
-        private const string k_DefaultPlacementKey = "default";
-
-        // Dependencies
-        private IRewardedAdService _adService;
-        private IRewardEndpointClient _rewardEndpointClient;
-
-        private string _unityUserId;
-        private string _lastAdToken;
-        private System.Collections.Generic.Dictionary<string, DateTime> _lastAdCompletionTimes = new(StringComparer.OrdinalIgnoreCase);
+        private IRewardedAdService adService;
+        private IRewardEndpointClient rewardEndpointClient;
+        private string unityUserId;
+        private string lastAdToken;
+        private System.Collections.Generic.Dictionary<string, DateTime> lastAdCompletionTimes = new(StringComparer.OrdinalIgnoreCase);
+        private bool isInitialized;
 
         public event Action<bool, string> AdSuccessfullyCompleted;
         public event Action<bool> AdAvailable;
 
-        private bool _isInitialized;
-
-        public void Initialize(IRewardedAdService rewardedAdService, AdConfigurationSO config, string userId)
+        public void Initialize(IRewardedAdService rewardedAdService, AdConfigurationSO _, string userId)
         {
-            if (_isInitialized)
+            if (isInitialized)
             {
                 return;
             }
 
-            _adService = rewardedAdService;
-            _adConfiguration = config;
-            _unityUserId = userId;
+            adService = rewardedAdService;
+            unityUserId = userId;
 
-            _adService.AdAvailable += HandleAdAvailable;
-            _adService.AdSuccessfullyCompletedWithToken += HandleAdSuccessfullyCompletedWithToken;
-            _adService.AdSuccessfullyCompleted += HandleAdSuccessfullyCompleted;
+            adService.AdAvailable += HandleAdAvailable;
+            adService.AdSuccessfullyCompletedWithToken += HandleAdSuccessfullyCompletedWithToken;
+            adService.AdSuccessfullyCompleted += HandleAdSuccessfullyCompleted;
 
-            _isInitialized = true;
+            isInitialized = true;
         }
 
         public void SetRewardEndpointClient(IRewardEndpointClient endpointClient)
         {
-            _rewardEndpointClient = endpointClient;
+            rewardEndpointClient = endpointClient;
         }
-
-        #region Public Interface
 
         public async void ClickShowAdReward(string placementName = null)
         {
-            string key = string.IsNullOrEmpty(placementName) ? k_DefaultPlacementKey : placementName;
+            string key = string.IsNullOrEmpty(placementName) ? defaultPlacementKey : placementName;
             bool canShow = await CanShowAd(key);
             if (canShow)
             {
                 Debug.Log($"Showing ad with placement: '{key}'");
-                _adService.ShowAd(key);
+                adService.ShowAd(key);
             }
             else
             {
@@ -70,20 +61,13 @@ namespace Scaffold.Ads
 
         public async Awaitable<bool> CanShowAd(string placementName = null)
         {
-            if (!_isInitialized)
+            if (!TryValidateAdServiceReady())
             {
-                Debug.LogWarning("RewardedAdManager not initialized");
-                return false;
-            }
-
-            if (_adService == null)
-            {
-                Debug.LogWarning("_adService == null");
                 return false;
             }
 
             bool isCooldownExpired = HasCooldownExpired(placementName);
-            bool isAdReady = await _adService.CanShowAd(placementName);
+            bool isAdReady = await adService.CanShowAd(placementName);
 
             if (!isAdReady)
             {
@@ -93,9 +77,22 @@ namespace Scaffold.Ads
             return isAdReady && isCooldownExpired;
         }
 
-        #endregion
+        private bool TryValidateAdServiceReady()
+        {
+            if (!isInitialized)
+            {
+                Debug.LogWarning("RewardedAdManager not initialized");
+                return false;
+            }
 
-        #region Event Handlers
+            if (adService == null)
+            {
+                Debug.LogWarning("adService == null");
+                return false;
+            }
+
+            return true;
+        }
 
         private void HandleAdAvailable(bool available)
         {
@@ -104,27 +101,53 @@ namespace Scaffold.Ads
 
         private async void HandleAdSuccessfullyCompletedWithToken(bool success, string placementName, string token)
         {
-            if (!success) return;
+            if (!success)
+            {
+                return;
+            }
 
-            _lastAdToken = token;
+            lastAdToken = token;
             RecordCompletionTime(placementName);
 
-            if (_rewardEndpointClient == null)
+            if (!await TryCompleteRewardEndpoint(placementName))
+            {
+                return;
+            }
+        }
+
+        private async System.Threading.Tasks.Task<bool> TryCompleteRewardEndpoint(string placementName)
+        {
+            if (!ValidateRewardEndpointClaims(placementName))
+            {
+                return false;
+            }
+
+            bool endpointSuccess = await rewardEndpointClient.CallRewardEndpointAsync(unityUserId, placementName, lastAdToken);
+            NotifyRewardEndpointOutcome(placementName, endpointSuccess);
+            return true;
+        }
+
+        private bool ValidateRewardEndpointClaims(string placementName)
+        {
+            if (rewardEndpointClient == null)
             {
                 Debug.LogError("No IRewardEndpointClient provided to RewardedAdManager. Cannot grant reward.");
                 AdSuccessfullyCompleted?.Invoke(false, placementName);
-                return;
+                return false;
             }
 
-            if (string.IsNullOrEmpty(_unityUserId))
+            if (string.IsNullOrEmpty(unityUserId))
             {
                 Debug.LogError("No UnityUserId provided to RewardedAdManager. Cannot grant reward.");
                 AdSuccessfullyCompleted?.Invoke(false, placementName);
-                return;
+                return false;
             }
 
-            bool endpointSuccess = await _rewardEndpointClient.CallRewardEndpointAsync(_unityUserId, placementName, token);
+            return true;
+        }
 
+        private void NotifyRewardEndpointOutcome(string placementName, bool endpointSuccess)
+        {
             if (endpointSuccess)
             {
                 Debug.Log($"Endpoint granted reward successfully for {placementName}.");
@@ -146,30 +169,9 @@ namespace Scaffold.Ads
             AdSuccessfullyCompleted?.Invoke(success, placementName);
         }
 
-        #endregion
-
-        #region Helper Methods
-
-        public float GetRemainingCooldownSeconds(string placementName = null)
-        {
-            string key = string.IsNullOrEmpty(placementName) ? k_DefaultPlacementKey : placementName;
-            if (!_lastAdCompletionTimes.TryGetValue(key, out DateTime lastTime)) return 0f;
-
-            TimeSpan timeSinceLastAd = DateTime.UtcNow - lastTime;
-            float remaining = k_RewardCooldownSeconds - (float)timeSinceLastAd.TotalSeconds;
-            return Math.Max(0f, remaining);
-        }
-
-        private void RecordCompletionTime(string placementName)
-        {
-            string key = string.IsNullOrEmpty(placementName) ? k_DefaultPlacementKey : placementName;
-            _lastAdCompletionTimes[key] = DateTime.UtcNow;
-            Debug.Log($"[RewardedAdManager] Recorded completion for '{key}' at {DateTime.UtcNow}");
-        }
-
         private bool HasCooldownExpired(string placementName)
         {
-            string key = string.IsNullOrEmpty(placementName) ? k_DefaultPlacementKey : placementName;
+            string key = string.IsNullOrEmpty(placementName) ? defaultPlacementKey : placementName;
             float remaining = GetRemainingCooldownSeconds(key);
             if (remaining > 0f)
             {
@@ -179,15 +181,33 @@ namespace Scaffold.Ads
             return true;
         }
 
-        #endregion
+        public float GetRemainingCooldownSeconds(string placementName = null)
+        {
+            string key = string.IsNullOrEmpty(placementName) ? defaultPlacementKey : placementName;
+            if (!lastAdCompletionTimes.TryGetValue(key, out DateTime lastTime))
+            {
+                return 0f;
+            }
+
+            TimeSpan timeSinceLastAd = DateTime.UtcNow - lastTime;
+            float remaining = rewardCooldownSeconds - (float)timeSinceLastAd.TotalSeconds;
+            return Math.Max(0f, remaining);
+        }
+
+        private void RecordCompletionTime(string placementName)
+        {
+            string key = string.IsNullOrEmpty(placementName) ? defaultPlacementKey : placementName;
+            lastAdCompletionTimes[key] = DateTime.UtcNow;
+            Debug.Log($"[RewardedAdManager] Recorded completion for '{key}' at {DateTime.UtcNow}");
+        }
 
         public void Dispose()
         {
-            if (_adService != null)
+            if (adService != null)
             {
-                _adService.AdAvailable -= HandleAdAvailable;
-                _adService.AdSuccessfullyCompletedWithToken -= HandleAdSuccessfullyCompletedWithToken;
-                _adService.AdSuccessfullyCompleted -= HandleAdSuccessfullyCompleted;
+                adService.AdAvailable -= HandleAdAvailable;
+                adService.AdSuccessfullyCompletedWithToken -= HandleAdSuccessfullyCompletedWithToken;
+                adService.AdSuccessfullyCompleted -= HandleAdSuccessfullyCompleted;
             }
         }
     }

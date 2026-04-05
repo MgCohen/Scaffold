@@ -5,28 +5,28 @@ namespace Scaffold.Ads
 {
     public class InterstitialAdManager : IDisposable
     {
-        private AdConfigurationSO _adConfiguration;
-        private IInterstitialAdService _adService;
+        private const float interstitialCooldownSeconds = 5;
 
-        private const float k_InterstitialCooldownSeconds = 5;
-        private DateTime _lastAdCompletionTime;
+        private IInterstitialAdService adService;
+        private DateTime lastAdCompletionTime;
+        private bool isInitialized;
 
         public event Action<bool, string> AdSuccessfullyCompleted;
         public event Action<bool> AdAvailable;
 
-        private bool _isInitialized;
-
-        public void Initialize(IInterstitialAdService interstitialAdService, AdConfigurationSO config)
+        public void Initialize(IInterstitialAdService interstitialAdService, AdConfigurationSO _)
         {
-            if (_isInitialized) return;
+            if (isInitialized)
+            {
+                return;
+            }
 
-            _adService = interstitialAdService;
-            _adConfiguration = config;
+            adService = interstitialAdService;
 
-            _adService.AdAvailable += HandleAdAvailable;
-            _adService.AdSuccessfullyCompleted += HandleAdSuccessfullyCompleted;
+            adService.AdAvailable += HandleAdAvailable;
+            adService.AdSuccessfullyCompleted += HandleAdSuccessfullyCompleted;
 
-            _isInitialized = true;
+            isInitialized = true;
         }
 
         public async void ShowInterstitial(string placementName = null)
@@ -35,7 +35,7 @@ namespace Scaffold.Ads
             if (canShow)
             {
                 Debug.Log($"Showing Interstitial with placement: {placementName ?? "default"}");
-                _adService.ShowAd(placementName);
+                adService.ShowAd(placementName);
             }
             else
             {
@@ -45,16 +45,19 @@ namespace Scaffold.Ads
 
         public async Awaitable<bool> CanShowAd(string placementName = null)
         {
-            if (!_isInitialized || _adService == null)
+            if (!isInitialized || adService == null)
             {
                 Debug.LogWarning("InterstitialAdManager not initialized");
                 return false;
             }
 
             bool isCooldownExpired = HasCooldownExpired();
-            bool isAdReady = await _adService.CanShowAd(placementName);
+            bool isAdReady = await adService.CanShowAd(placementName);
 
-            if (!isAdReady) Debug.LogWarning("Interstitial Ad not ready");
+            if (!isAdReady)
+            {
+                Debug.LogWarning("Interstitial Ad not ready");
+            }
 
             return isAdReady && isCooldownExpired;
         }
@@ -66,17 +69,8 @@ namespace Scaffold.Ads
 
         private void HandleAdSuccessfullyCompleted(bool success, string placementName)
         {
-            _lastAdCompletionTime = DateTime.UtcNow;
+            lastAdCompletionTime = DateTime.UtcNow;
             AdSuccessfullyCompleted?.Invoke(success, placementName);
-        }
-
-        private float GetRemainingCooldownSeconds()
-        {
-            if (_lastAdCompletionTime == default) return 0f;
-
-            TimeSpan timeSinceLastAd = DateTime.UtcNow - _lastAdCompletionTime;
-            float remaining = k_InterstitialCooldownSeconds - (float)timeSinceLastAd.TotalSeconds;
-            return Math.Max(0f, remaining);
         }
 
         private bool HasCooldownExpired()
@@ -90,12 +84,24 @@ namespace Scaffold.Ads
             return true;
         }
 
+        private float GetRemainingCooldownSeconds()
+        {
+            if (lastAdCompletionTime == default)
+            {
+                return 0f;
+            }
+
+            TimeSpan timeSinceLastAd = DateTime.UtcNow - lastAdCompletionTime;
+            float remaining = interstitialCooldownSeconds - (float)timeSinceLastAd.TotalSeconds;
+            return Math.Max(0f, remaining);
+        }
+
         public void Dispose()
         {
-            if (_adService != null)
+            if (adService != null)
             {
-                _adService.AdAvailable -= HandleAdAvailable;
-                _adService.AdSuccessfullyCompleted -= HandleAdSuccessfullyCompleted;
+                adService.AdAvailable -= HandleAdAvailable;
+                adService.AdSuccessfullyCompleted -= HandleAdSuccessfullyCompleted;
             }
         }
     }

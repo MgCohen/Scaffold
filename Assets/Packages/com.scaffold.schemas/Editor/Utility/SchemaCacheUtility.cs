@@ -8,26 +8,27 @@ namespace Scaffold.Schemas
 {
     public static class SchemaCacheUtility
     {
-        private static Dictionary<Type, string> CachedTypeNames = new Dictionary<Type, string>();
-        private static Dictionary<Type, string> CachedTypePaths = new Dictionary<Type, string>();
+        private static Dictionary<Type, string> cachedTypeNames = new Dictionary<Type, string>();
+        private static Dictionary<Type, string> cachedTypePaths = new Dictionary<Type, string>();
+        private static Dictionary<Type, List<Type>> cachedDerivedTypes = new Dictionary<Type, List<Type>>();
 
         public static string GetTypeDisplayName(Type type)
         {
-            if (!CachedTypeNames.TryGetValue(type, out string name))
+            if (!cachedTypeNames.TryGetValue(type, out string name))
             {
                 name = type switch
                 {
                     { IsGenericType: true } => $"{type.Name.Split('`')[0]}<{string.Join(", ", type.GetGenericArguments().Select(GetTypeDisplayName))}>",
                     _ => type.Name
                 };
-                CachedTypeNames[type] = name;
+                cachedTypeNames[type] = name;
             }
             return name;
         }
 
         public static string GetTypeGroupPath(Type type)
         {
-            if (!CachedTypePaths.TryGetValue(type, out string name))
+            if (!cachedTypePaths.TryGetValue(type, out string name))
             {
                 name = GetTypeDisplayName(type);
                 var menuGroupAttribute = type.GetCustomAttribute<SchemaMenuGroupAttribute>();
@@ -35,34 +36,26 @@ namespace Scaffold.Schemas
                 {
                     name = $"{menuGroupAttribute.Path}/{name}";
                 }
-                CachedTypePaths[type] = name;
+                cachedTypePaths[type] = name;
             }
             return name;
         }
 
-        private static Dictionary<Type, List<Type>> CachedDerivedTypes = new Dictionary<Type, List<Type>>();
-
         public static List<Type> GetDerivedTypes(Type type)
         {
-
-            if (!CachedDerivedTypes.TryGetValue(type, out List<Type> list))
+            if (!cachedDerivedTypes.TryGetValue(type, out List<Type> list))
             {
-                var domain = AppDomain.CurrentDomain;
-                list = domain
-                  .GetAssemblies()
-                  .SelectMany(x => x.GetTypes())
-                  .Where(t => !t.IsAbstract && type.IsAssignableFrom(t))
-                  .ToList();
+                AppDomain domain = AppDomain.CurrentDomain;
+                list = domain.GetAssemblies().SelectMany(x => x.GetTypes()).Where(t => !t.IsAbstract && type.IsAssignableFrom(t)).ToList();
 
                 if (type.IsAbstract)
                 {
                     list.Remove(type);
                 }
 
-                CachedDerivedTypes[type] = list;
+                cachedDerivedTypes[type] = list;
             }
             return list;
         }
-
     }
 }

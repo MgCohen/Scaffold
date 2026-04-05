@@ -7,10 +7,10 @@ namespace Scaffold.Ads.Levelplay
     [Serializable]
     public struct LevelPlayPlatformConfig
     {
-        public RuntimePlatform platform;
-        public string appKey;
-        public List<RewardedAdConfig> rewardedPlacements;
-        public List<InterstitialAdConfig> interstitialPlacements;
-        public List<BannerAdConfig> bannerPlacements;
+        public RuntimePlatform Platform;
+        public string AppKey;
+        public List<RewardedAdConfig> RewardedPlacements;
+        public List<InterstitialAdConfig> InterstitialPlacements;
+        public List<BannerAdConfig> BannerPlacements;
     }
 }

@@ -8,12 +8,12 @@ namespace Scaffold.Ads
 {
     public class HttpRewardEndpointClient : IRewardEndpointClient
     {
-        private readonly string endpointUrl;
-
         public HttpRewardEndpointClient(string endpointUrl)
         {
             this.endpointUrl = endpointUrl;
         }
+
+        private readonly string endpointUrl;
 
         public async Task<bool> CallRewardEndpointAsync(string unityUserId, string placementId, string rewardAdId)
         {
@@ -34,8 +34,8 @@ namespace Scaffold.Ads
         {
             RewardRequestPayload payload = new RewardRequestPayload
             {
-                unityUserId = unityUserId,
-                rewardAdId = rewardAdId
+                UnityUserId = unityUserId,
+                RewardAdId = rewardAdId
             };
             return JsonUtility.ToJson(payload);
         }
@@ -48,11 +48,8 @@ namespace Scaffold.Ads
                 www.downloadHandler = new DownloadHandlerBuffer();
                 www.SetRequestHeader("Content-Type", "application/json");
 
-                var operation = www.SendWebRequest();
-                while (!operation.isDone)
-                {
-                    await Task.Yield();
-                }
+                UnityWebRequestAsyncOperation operation = www.SendWebRequest();
+                await AwaitWebRequestAsync(operation);
 
                 if (www.result == UnityWebRequest.Result.ConnectionError || www.result == UnityWebRequest.Result.ProtocolError)
                 {
@@ -61,6 +58,14 @@ namespace Scaffold.Ads
                 }
 
                 return true;
+            }
+        }
+
+        private async Task AwaitWebRequestAsync(UnityWebRequestAsyncOperation operation)
+        {
+            while (!operation.isDone)
+            {
+                await Task.Yield();
             }
         }
     }

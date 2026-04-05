@@ -8,11 +8,11 @@ namespace Scaffold.Schemas.Editor
 {
     public static class SchemaDrawerFactory
     {
-        private static Dictionary<Type, Type> DrawerLookUp = new Dictionary<Type, Type>();
+        private static Dictionary<Type, Type> drawerLookUp = new Dictionary<Type, Type>();
 
         public static SchemaDrawer CreateDrawer(SerializedProperty property, SchemaObjectEditor editor)
         {
-            if (DrawerLookUp.Count <= 0)
+            if (drawerLookUp.Count <= 0)
             {
                 FillDrawerList();
             }
@@ -25,7 +25,7 @@ namespace Scaffold.Schemas.Editor
         private static Type GetDrawerType(Type targetType)
         {
             Type drawerType;
-            while (!DrawerLookUp.TryGetValue(targetType, out drawerType))
+            while (!drawerLookUp.TryGetValue(targetType, out drawerType))
             {
                 targetType = targetType.BaseType;
             }
@@ -40,7 +40,7 @@ namespace Scaffold.Schemas.Editor
                 var drawerAttribute = type.GetCustomAttribute<SchemaCustomDrawerAttribute>();
                 if (drawerAttribute != null)
                 {
-                    DrawerLookUp[drawerAttribute.Type] = type;
+                    drawerLookUp[drawerAttribute.Type] = type;
                 }
             }
         }

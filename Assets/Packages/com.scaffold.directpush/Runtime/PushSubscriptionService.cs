@@ -17,8 +17,8 @@ namespace Scaffold.DirectPush
     /// </summary>
     public sealed class PushSubscriptionService : IAsyncLayerInitializable, IDisposable
     {
-        private readonly Dictionary<string, List<Action>> _playerHandlers = new Dictionary<string, List<Action>>();
-        private readonly Dictionary<string, List<Action>> _projectHandlers = new Dictionary<string, List<Action>>();
+        private readonly Dictionary<string, List<Action>> playerHandlers = new Dictionary<string, List<Action>>();
+        private readonly Dictionary<string, List<Action>> projectHandlers = new Dictionary<string, List<Action>>();
 
         /// <summary>
         /// Registers a handler to be invoked when a player push message of the specified type is received.
@@ -27,10 +27,10 @@ namespace Scaffold.DirectPush
         /// <param name="handler">The callback to invoke when a matching message arrives.</param>
         public void SubscribeToPlayerMessage(string messageType, Action handler)
         {
-            if (!_playerHandlers.TryGetValue(messageType, out List<Action> handlers))
+            if (!playerHandlers.TryGetValue(messageType, out List<Action> handlers))
             {
                 handlers = new List<Action>();
-                _playerHandlers[messageType] = handlers;
+                playerHandlers[messageType] = handlers;
             }
 
             handlers.Add(handler);
@@ -43,10 +43,10 @@ namespace Scaffold.DirectPush
         /// <param name="handler">The callback to invoke when a matching message arrives.</param>
         public void SubscribeToProjectMessage(string messageType, Action handler)
         {
-            if (!_projectHandlers.TryGetValue(messageType, out List<Action> handlers))
+            if (!projectHandlers.TryGetValue(messageType, out List<Action> handlers))
             {
                 handlers = new List<Action>();
-                _projectHandlers[messageType] = handlers;
+                projectHandlers[messageType] = handlers;
             }
 
             handlers.Add(handler);
@@ -70,67 +70,43 @@ namespace Scaffold.DirectPush
         /// </summary>
         public void Dispose()
         {
-            _playerHandlers.Clear();
-            _projectHandlers.Clear();
+            playerHandlers.Clear();
+            projectHandlers.Clear();
         }
 
         private Task SubscribeToPlayerMessages()
         {
-            SubscriptionEventCallbacks callbacks = new SubscriptionEventCallbacks();
-
-            callbacks.MessageReceived += @event =>
-            {
-                Debug.Log($"[DirectPush] Player message received — type: {@event.MessageType}");
-                DispatchHandlers(@event.MessageType, _playerHandlers);
-            };
-
-            callbacks.ConnectionStateChanged += @event =>
-            {
-                Debug.Log($"[DirectPush] Player subscription state changed: {@event}");
-            };
-
-            callbacks.Kicked += () =>
-            {
-                Debug.LogWarning("[DirectPush] Player subscription kicked.");
-            };
-
-            callbacks.Error += @event =>
-            {
-                Debug.LogError($"[DirectPush] Player subscription error: {JsonConvert.SerializeObject(@event, Formatting.Indented)}");
-            };
-
+            SubscriptionEventCallbacks callbacks = BuildPlayerCallbacks();
             return CloudCodeService.Instance.SubscribeToPlayerMessagesAsync(callbacks);
         }
 
         private Task SubscribeToProjectMessages()
         {
-            SubscriptionEventCallbacks callbacks = new SubscriptionEventCallbacks();
-
-            callbacks.MessageReceived += @event =>
-            {
-                Debug.Log($"[DirectPush] Project message received — type: {@event.MessageType}");
-                DispatchHandlers(@event.MessageType, _projectHandlers);
-            };
-
-            callbacks.ConnectionStateChanged += @event =>
-            {
-                Debug.Log($"[DirectPush] Project subscription state changed: {@event}");
-            };
-
-            callbacks.Kicked += () =>
-            {
-                Debug.LogWarning("[DirectPush] Project subscription kicked.");
-            };
-
-            callbacks.Error += @event =>
-            {
-                Debug.LogError($"[DirectPush] Project subscription error: {JsonConvert.SerializeObject(@event, Formatting.Indented)}");
-            };
-
+            SubscriptionEventCallbacks callbacks = BuildProjectCallbacks();
             return CloudCodeService.Instance.SubscribeToProjectMessagesAsync(callbacks);
         }
 
-        private static void DispatchHandlers(string messageType, Dictionary<string, List<Action>> registry)
+        private SubscriptionEventCallbacks BuildPlayerCallbacks()
+        {
+            SubscriptionEventCallbacks callbacks = new SubscriptionEventCallbacks();
+            callbacks.MessageReceived += @event => { Debug.Log($"[DirectPush] Player message received — type: {@event.MessageType}"); DispatchHandlers(@event.MessageType, playerHandlers); };
+            callbacks.ConnectionStateChanged += @event => { Debug.Log($"[DirectPush] Player subscription state changed: {@event}"); };
+            callbacks.Kicked += () => { Debug.LogWarning("[DirectPush] Player subscription kicked."); };
+            callbacks.Error += @event => { Debug.LogError("[DirectPush] Player subscription error: " + JsonConvert.SerializeObject(@event, Formatting.Indented)); };
+            return callbacks;
+        }
+
+        private SubscriptionEventCallbacks BuildProjectCallbacks()
+        {
+            SubscriptionEventCallbacks callbacks = new SubscriptionEventCallbacks();
+            callbacks.MessageReceived += @event => { Debug.Log($"[DirectPush] Project message received — type: {@event.MessageType}"); DispatchHandlers(@event.MessageType, projectHandlers); };
+            callbacks.ConnectionStateChanged += @event => { Debug.Log($"[DirectPush] Project subscription state changed: {@event}"); };
+            callbacks.Kicked += () => { Debug.LogWarning("[DirectPush] Project subscription kicked."); };
+            callbacks.Error += @event => { Debug.LogError("[DirectPush] Project subscription error: " + JsonConvert.SerializeObject(@event, Formatting.Indented)); };
+            return callbacks;
+        }
+
+        private void DispatchHandlers(string messageType, Dictionary<string, List<Action>> registry)
         {
             if (registry.TryGetValue(messageType, out List<Action> handlers))
             {

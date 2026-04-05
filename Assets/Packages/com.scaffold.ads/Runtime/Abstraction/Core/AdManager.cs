@@ -9,59 +9,48 @@ namespace Scaffold.Ads
     /// </summary>
     public class AdManager : IDisposable
     {
-        private readonly AdConfigurationSO _adConfiguration;
-
-        // Specialized Managers
-        private readonly RewardedAdManager _rewardedAdManager;
-        private readonly InterstitialAdManager _interstitialAdManager;
-        private readonly BannerAdManager _bannerAdManager;
-
-        private IAdProvider _adProvider;
-        private bool _isInitialized;
-
-        public AdConfigurationSO Configuration => _adConfiguration;
-        public RewardedAdManager RewardedAds => _rewardedAdManager;
-        public InterstitialAdManager InterstitialAds => _interstitialAdManager;
-        public BannerAdManager BannerAds => _bannerAdManager;
-
         public AdManager(AdConfigurationSO adConfiguration, RewardedAdManager rewardedAdManager, InterstitialAdManager interstitialAdManager, BannerAdManager bannerAdManager)
         {
-            _adConfiguration = adConfiguration;
-            _rewardedAdManager = rewardedAdManager;
-            _interstitialAdManager = interstitialAdManager;
-            _bannerAdManager = bannerAdManager;
+            this.adConfiguration = adConfiguration;
+            this.rewardedAdManager = rewardedAdManager;
+            this.interstitialAdManager = interstitialAdManager;
+            this.bannerAdManager = bannerAdManager;
 
-            if (_adConfiguration == null)
+            if (this.adConfiguration == null)
             {
                 Debug.LogError("AdConfigurationSO is not set on AdManager.");
                 return;
             }
 
-            _adProvider = _adConfiguration.CreateProvider();
+            adProvider = this.adConfiguration.CreateProvider();
         }
 
-        public void SetRewardEndpointClient(IRewardEndpointClient rewardClient)
-        {
-            if (_rewardedAdManager != null)
-            {
-                if (rewardClient != null)
-                {
-                    _rewardedAdManager.SetRewardEndpointClient(rewardClient);
-                }
-            }
-        }
+        public AdConfigurationSO Configuration => adConfiguration;
+        public RewardedAdManager RewardedAds => rewardedAdManager;
+        public InterstitialAdManager InterstitialAds => interstitialAdManager;
+        public BannerAdManager BannerAds => bannerAdManager;
+
+        private readonly AdConfigurationSO adConfiguration;
+
+        // Specialized Managers
+        private readonly RewardedAdManager rewardedAdManager;
+        private readonly InterstitialAdManager interstitialAdManager;
+        private readonly BannerAdManager bannerAdManager;
+
+        private IAdProvider adProvider;
+        private bool isInitialized;
 
         public async void InitializeAds(string userId, IRewardEndpointClient rewardClient)
         {
-            if (_isInitialized)
+            if (isInitialized)
             {
                 return;
             }
-            _isInitialized = true;
+            isInitialized = true;
 
             SetRewardEndpointClient(rewardClient);
 
-            await _adProvider.Initialize(userId);
+            await adProvider.Initialize(userId);
 
             // Give the active ad services to their respective managers
             InitializeRewardedAdManager();
@@ -69,33 +58,44 @@ namespace Scaffold.Ads
             InitializeBannerAdManager();
         }
 
+        public void SetRewardEndpointClient(IRewardEndpointClient rewardClient)
+        {
+            if (rewardedAdManager != null)
+            {
+                if (rewardClient != null)
+                {
+                    rewardedAdManager.SetRewardEndpointClient(rewardClient);
+                }
+            }
+        }
+
         private void InitializeRewardedAdManager()
         {
-            if (_adProvider.RewardedAdService != null)
+            if (adProvider.RewardedAdService != null)
             {
-                _rewardedAdManager.Initialize(_adProvider.RewardedAdService, _adConfiguration, _adProvider.UserId);
+                rewardedAdManager.Initialize(adProvider.RewardedAdService, adConfiguration, adProvider.UserId);
             }
         }
 
         private void InitializeInterstitialAdManager()
         {
-            if (_adProvider.InterstitialAdService != null)
+            if (adProvider.InterstitialAdService != null)
             {
-                _interstitialAdManager.Initialize(_adProvider.InterstitialAdService, _adConfiguration);
+                interstitialAdManager.Initialize(adProvider.InterstitialAdService, adConfiguration);
             }
         }
 
         private void InitializeBannerAdManager()
         {
-            if (_adProvider.BannerAdService != null)
+            if (adProvider.BannerAdService != null)
             {
-                _bannerAdManager.Initialize(_adProvider.BannerAdService, _adConfiguration);
+                bannerAdManager.Initialize(adProvider.BannerAdService, adConfiguration);
             }
         }
 
         public void Dispose()
         {
-            _adProvider?.Dispose();
+            adProvider?.Dispose();
         }
     }
 }

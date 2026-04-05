@@ -11,15 +11,16 @@ namespace Scaffold.Ads.Levelplay.Test
     public class UnityAdsTester : MonoBehaviour
     {
         [Header("Ad System Components")]
-        public AdManager adManager;
+        public AdManager AdManager;
 
         [Header("Testers (Optional Auto-Inject)")]
-        public RewardedAdTester rewardedAdTester;
-        public InterstitialAdTester interstitialAdTester;
-        public BannerAdTester bannerAdTester;
+        public RewardedAdTester RewardedAdTester;
+        public InterstitialAdTester InterstitialAdTester;
+        public BannerAdTester BannerAdTester;
 
         [Header("System Dependencies")]
-        [Inject] private ILiveOpsService liveOpsService;
+        [Inject]
+        private ILiveOpsService liveOpsService;
 
         private void Start()
         {
@@ -28,30 +29,41 @@ namespace Scaffold.Ads.Levelplay.Test
 
         private void Initialize(string userId = "")
         {
-            if (adManager != null)
+            if (AdManager == null)
             {
-                IRewardEndpointClient endpointClient = liveOpsService != null
-                    ? new LiveOpsRewardEndpointClient(liveOpsService)
-                    : new HttpRewardEndpointClient(adManager.Configuration.FallbackRewardEndpointUrl);
-
-                adManager.InitializeAds(userId, endpointClient);
-
-                // Auto-inject AdManager into testers if they are assigned but missing the reference
-                if (rewardedAdTester != null && rewardedAdTester.adManager == null)
-                {
-                    rewardedAdTester.adManager = adManager;
-                }
-
-                if (interstitialAdTester != null && interstitialAdTester.adManager == null)
-                {
-                    interstitialAdTester.adManager = adManager;
-                }
-
-                if (bannerAdTester != null && bannerAdTester.adManager == null)
-                {
-                    bannerAdTester.adManager = adManager;
-                }
+                return;
             }
+
+            AdManager.InitializeAds(userId, CreateRewardEndpointClient());
+            AssignAdManagerToTesters();
+        }
+
+        private void AssignAdManagerToTesters()
+        {
+            if (RewardedAdTester != null && RewardedAdTester.AdManager == null)
+            {
+                RewardedAdTester.AdManager = AdManager;
+            }
+
+            if (InterstitialAdTester != null && InterstitialAdTester.AdManager == null)
+            {
+                InterstitialAdTester.AdManager = AdManager;
+            }
+
+            if (BannerAdTester != null && BannerAdTester.AdManager == null)
+            {
+                BannerAdTester.AdManager = AdManager;
+            }
+        }
+
+        private IRewardEndpointClient CreateRewardEndpointClient()
+        {
+            if (liveOpsService != null)
+            {
+                return new LiveOpsRewardEndpointClient(liveOpsService);
+            }
+
+            return new HttpRewardEndpointClient(AdManager.Configuration.FallbackRewardEndpointUrl);
         }
     }
 }

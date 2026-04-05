@@ -8,8 +8,6 @@ namespace Scaffold.Schemas
     [Serializable]
     public class SchemaSet
     {
-        [SerializeReference, SerializeField] public List<Schema> Collection = new List<Schema>();
-
         public List<Type> Types
         {
             get
@@ -23,6 +21,9 @@ namespace Scaffold.Schemas
         }
 
         private List<Type> types;
+
+        [SerializeReference, SerializeField]
+        public List<Schema> Collection = new List<Schema>();
 
         public bool AddSchema(Type schema)
         {

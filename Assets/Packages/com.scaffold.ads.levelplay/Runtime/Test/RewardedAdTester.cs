@@ -7,35 +7,35 @@ namespace Scaffold.Ads.Levelplay.Test
     public class RewardedAdTester : MonoBehaviour
     {
         [Header("Ad System")]
-        public AdManager adManager;
+        public AdManager AdManager;
 
         [Header("Rewarded Ads Config")]
-        public List<RewardedAdPlacementUI> placements = new();
+        public List<RewardedAdPlacementUI> Placements = new();
 
         private void Start()
         {
-            foreach (RewardedAdPlacementUI placement in placements)
+            foreach (RewardedAdPlacementUI placement in Placements)
             {
-                if (placement.buttonShow != null)
+                if (placement.ButtonShow != null)
                 {
-                    placement.buttonShow.onClick.AddListener(() => ShowRewardedAd(placement.key));
+                    placement.ButtonShow.onClick.AddListener(() => ShowRewardedAd(placement.Key));
                 }
 
-                if (placement.buttonFetch != null)
+                if (placement.ButtonFetch != null)
                 {
-                    placement.buttonFetch.onClick.AddListener(() => FetchAdStatus(placement));
+                    placement.ButtonFetch.onClick.AddListener(() => FetchAdStatus(placement));
                 }
             }
         }
 
         private void Update()
         {
-            if (adManager == null || adManager.RewardedAds == null)
+            if (AdManager == null || AdManager.RewardedAds == null)
             {
                 return;
             }
 
-            foreach (RewardedAdPlacementUI placement in placements)
+            foreach (RewardedAdPlacementUI placement in Placements)
             {
                 UpdatePlacementUI(placement);
             }
@@ -43,79 +43,101 @@ namespace Scaffold.Ads.Levelplay.Test
 
         private void UpdatePlacementUI(RewardedAdPlacementUI entry)
         {
-            if (entry.key == null) return;
-
-            // Update Cooldown Text
-            if (entry.cooldownText != null)
+            if (entry.Key == null)
             {
-                float remaining = adManager.RewardedAds.GetRemainingCooldownSeconds(entry.key);
-                if (remaining > 0)
-                {
-                    TimeSpan t = TimeSpan.FromSeconds(remaining);
-                    entry.cooldownText.text = $"Cooldown: {t.Hours:D2}:{t.Minutes:D2}:{t.Seconds:D2}";
-                }
-                else
-                {
-                    entry.cooldownText.text = "Cooldown: Ready";
-                }
+                return;
             }
 
-            // Update Status Text and Button Interactivity
-            bool onCooldown = adManager.RewardedAds.GetRemainingCooldownSeconds(entry.key) > 0;
-            bool canShow = entry.isAdAvailable && !onCooldown;
+            UpdateCooldownLabel(entry);
+            UpdateStatusAndButtons(entry);
+        }
 
-            if (entry.statusText != null)
+        private void UpdateCooldownLabel(RewardedAdPlacementUI entry)
+        {
+            if (entry.CooldownText == null)
             {
-                if (onCooldown)
-                {
-                    entry.statusText.text = "<color=orange>COOLDOWN</color>";
-                }
-                else
-                {
-                    entry.statusText.text = entry.isAdAvailable ? "<color=green>READY</color>" : "<color=red>UNAVAILABLE</color>";
-                }
+                return;
             }
 
-            if (entry.buttonShow != null)
+            float remaining = AdManager.RewardedAds.GetRemainingCooldownSeconds(entry.Key);
+            if (remaining > 0)
             {
-                entry.buttonShow.interactable = canShow;
+                TimeSpan t = TimeSpan.FromSeconds(remaining);
+                entry.CooldownText.text = $"Cooldown: {t.Hours:D2}:{t.Minutes:D2}:{t.Seconds:D2}";
+            }
+            else
+            {
+                entry.CooldownText.text = "Cooldown: Ready";
+            }
+        }
+
+        private void UpdateStatusAndButtons(RewardedAdPlacementUI entry)
+        {
+            bool onCooldown = AdManager.RewardedAds.GetRemainingCooldownSeconds(entry.Key) > 0;
+            bool canShow = entry.IsAdAvailable && !onCooldown;
+            ApplyStatusText(entry, onCooldown);
+            ApplyButtonInteractable(entry, canShow);
+        }
+
+        private void ApplyStatusText(RewardedAdPlacementUI entry, bool onCooldown)
+        {
+            if (entry.StatusText == null)
+            {
+                return;
             }
 
-            if (entry.buttonFetch != null)
+            if (onCooldown)
             {
-                entry.buttonFetch.interactable = !entry.isFetching && !entry.isAdAvailable;
+                entry.StatusText.text = "<color=orange>COOLDOWN</color>";
+            }
+            else
+            {
+                entry.StatusText.text = entry.IsAdAvailable ? "<color=green>READY</color>" : "<color=red>UNAVAILABLE</color>";
+            }
+        }
+
+        private void ApplyButtonInteractable(RewardedAdPlacementUI entry, bool canShow)
+        {
+            if (entry.ButtonShow != null)
+            {
+                entry.ButtonShow.interactable = canShow;
+            }
+
+            if (entry.ButtonFetch != null)
+            {
+                entry.ButtonFetch.interactable = !entry.IsFetching && !entry.IsAdAvailable;
             }
         }
 
         private async void FetchAdStatus(RewardedAdPlacementUI entry)
         {
-            if (adManager == null || adManager.RewardedAds == null || entry.key == null)
+            if (AdManager == null || AdManager.RewardedAds == null || entry.Key == null)
             {
                 return;
             }
 
-            entry.isFetching = true;
+            entry.IsFetching = true;
             try
             {
-                entry.isAdAvailable = await adManager.RewardedAds.CanShowAd(entry.key);
+                entry.IsAdAvailable = await AdManager.RewardedAds.CanShowAd(entry.Key);
             }
             finally
             {
-                entry.isFetching = false;
+                entry.IsFetching = false;
             }
         }
 
         private void OnDestroy()
         {
-            foreach (var placement in placements)
+            foreach (RewardedAdPlacementUI placement in Placements)
             {
-                if (placement.buttonShow != null)
+                if (placement.ButtonShow != null)
                 {
-                    placement.buttonShow.onClick.RemoveAllListeners();
+                    placement.ButtonShow.onClick.RemoveAllListeners();
                 }
-                if (placement.buttonFetch != null)
+                if (placement.ButtonFetch != null)
                 {
-                    placement.buttonFetch.onClick.RemoveAllListeners();
+                    placement.ButtonFetch.onClick.RemoveAllListeners();
                 }
             }
         }
@@ -123,31 +145,46 @@ namespace Scaffold.Ads.Levelplay.Test
         public void ShowRewardedAd(string placement)
         {
             Debug.Log($"Test.ShowRewardedAd [{placement}] via GlobalAdManager");
-            if (adManager != null && adManager.RewardedAds != null)
+            if (AdManager != null && AdManager.RewardedAds != null)
             {
-                adManager.RewardedAds.ClickShowAdReward(placement);
+                AdManager.RewardedAds.ClickShowAdReward(placement);
             }
         }
 
         private void OnValidate()
         {
-            if (placements == null) return;
-
-            HashSet<AdPlacementKeySO> seenKeys = new HashSet<AdPlacementKeySO>();
-            for (int i = 0; i < placements.Count; i++)
+            if (Placements == null)
             {
-                if (placements[i].key != null)
-                {
-                    if (seenKeys.Contains(placements[i].key))
-                    {
-                        Debug.LogWarning($"Duplicate AdPlacementKeySO found: {placements[i].key.name}. Please use unique keys.");
-                        placements[i].key = null;
-                    }
-                    else
-                    {
-                        seenKeys.Add(placements[i].key);
-                    }
-                }
+                return;
+            }
+
+            DeduplicatePlacementKeys();
+        }
+
+        private void DeduplicatePlacementKeys()
+        {
+            HashSet<AdPlacementKeySO> seenKeys = new HashSet<AdPlacementKeySO>();
+            for (int i = 0; i < Placements.Count; i++)
+            {
+                DeduplicatePlacementKeyAtIndex(seenKeys, i);
+            }
+        }
+
+        private void DeduplicatePlacementKeyAtIndex(HashSet<AdPlacementKeySO> seenKeys, int index)
+        {
+            if (Placements[index].Key == null)
+            {
+                return;
+            }
+
+            if (seenKeys.Contains(Placements[index].Key))
+            {
+                Debug.LogWarning($"Duplicate AdPlacementKeySO found: {Placements[index].Key.name}. Please use unique keys.");
+                Placements[index].Key = null;
+            }
+            else
+            {
+                seenKeys.Add(Placements[index].Key);
             }
         }
     }

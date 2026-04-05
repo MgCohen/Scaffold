@@ -7,46 +7,65 @@ namespace Scaffold.Ads.Levelplay
 {
     public class LevelPlayBannerAdService : IBannerAdService, IDisposable
     {
-        private readonly LevelPlayAdConfigurationSO _configuration;
-        private readonly Dictionary<string, LevelPlayBannerAd> _bannerAds = new Dictionary<string, LevelPlayBannerAd>();
+        public LevelPlayBannerAdService(LevelPlayAdConfigurationSO configuration)
+        {
+            this.configuration = configuration;
+        }
+
+        private readonly LevelPlayAdConfigurationSO configuration;
+        private readonly Dictionary<string, LevelPlayBannerAd> bannerAds = new Dictionary<string, LevelPlayBannerAd>();
 
         public event Action<bool> BannerLoaded;
 
-        public LevelPlayBannerAdService(LevelPlayAdConfigurationSO configuration)
-        {
-            _configuration = configuration;
-        }
-
         public void Initialize()
         {
-            var activePlacements = _configuration.GetBannerPlacements();
-            if (activePlacements != null)
+            List<BannerAdConfig> activePlacements = configuration.GetBannerPlacements();
+            if (activePlacements == null)
             {
-                foreach (var placement in activePlacements)
-                {
-                    string unitId = placement.adUnitId;
-                    if (string.IsNullOrEmpty(unitId)) continue;
-
-                    if (!_bannerAds.ContainsKey(placement.placementKey))
-                    {
-                        LevelPlayBannerPosition position = GetLevelPlayPosition(placement.bannerPosition);
-                        LevelPlayBannerAd.Config config = new LevelPlayBannerAd.Config.Builder()
-                            .SetPosition(position)
-                            .Build();
-                        var ad = new LevelPlayBannerAd(unitId, config);
-                        string key = placement.placementKey;
-
-                        ad.OnAdLoaded += (adInfo) => HandleAdLoadedSuccessfully(key, adInfo);
-                        ad.OnAdLoadFailed += (error) => HandleAdLoadFailed(key, error);
-                        ad.OnAdDisplayed += (adInfo) => HandleAdDisplayed(key, adInfo);
-                        ad.OnAdDisplayFailed += (adInfo, error) => HandleAdFailedToDisplay(key, adInfo, error);
-                        ad.OnAdCollapsed += (adInfo) => HandleAdCollapsed(key, adInfo);
-                        ad.OnAdExpanded += (adInfo) => HandleAdExpanded(key, adInfo);
-
-                        _bannerAds[key] = ad;
-                    }
-                }
+                return;
             }
+
+            foreach (BannerAdConfig placement in activePlacements)
+            {
+                RegisterBannerPlacement(placement);
+            }
+        }
+
+        private void RegisterBannerPlacement(BannerAdConfig placement)
+        {
+            string unitId = placement.AdUnitId;
+            if (string.IsNullOrEmpty(unitId))
+            {
+                return;
+            }
+
+            string placementKey = placement.PlacementKey;
+            if (bannerAds.ContainsKey(placementKey))
+            {
+                return;
+            }
+
+            LevelPlayBannerAd ad = CreateBannerAd(placement, unitId, placementKey);
+            bannerAds[placementKey] = ad;
+        }
+
+        private LevelPlayBannerAd CreateBannerAd(BannerAdConfig placement, string unitId, string placementKey)
+        {
+            LevelPlayBannerPosition position = GetLevelPlayPosition(placement.BannerPosition);
+            LevelPlayBannerAd.Config config = new LevelPlayBannerAd.Config.Builder().SetPosition(position).Build();
+            LevelPlayBannerAd ad = new LevelPlayBannerAd(unitId, config);
+            WireBannerAdEvents(ad, placementKey);
+            return ad;
+        }
+
+        private void WireBannerAdEvents(LevelPlayBannerAd ad, string placementKey)
+        {
+            ad.OnAdLoaded += (adInfo) => HandleAdLoadedSuccessfully(placementKey, adInfo);
+            ad.OnAdLoadFailed += (error) => HandleAdLoadFailed(placementKey, error);
+            ad.OnAdDisplayed += (adInfo) => HandleAdDisplayed(placementKey, adInfo);
+            ad.OnAdDisplayFailed += (adInfo, error) => HandleAdFailedToDisplay(placementKey, adInfo, error);
+            ad.OnAdCollapsed += (adInfo) => HandleAdCollapsed(placementKey, adInfo);
+            ad.OnAdExpanded += (adInfo) => HandleAdExpanded(placementKey, adInfo);
         }
 
         private LevelPlayBannerPosition GetLevelPlayPosition(BannerPosition pos)
@@ -62,7 +81,7 @@ namespace Scaffold.Ads.Levelplay
 
         public void LoadBanner(string placementName = null)
         {
-            var targetAd = GetTargetAd(placementName);
+            LevelPlayBannerAd targetAd = GetTargetAd(placementName);
             if (targetAd != null)
             {
                 targetAd.LoadAd();
@@ -71,9 +90,7 @@ namespace Scaffold.Ads.Levelplay
 
         public void ShowBanner(string placementName = null, BannerPosition? position = null)
         {
-            // LevelPlay Banner ads show automatically when loaded if not hidden, 
-            // but we can call ShowAd explicitly to un-hide if hidden previously.
-            var targetAd = GetTargetAd(placementName);
+            LevelPlayBannerAd targetAd = GetTargetAd(placementName);
             if (targetAd != null)
             {
                 if (position.HasValue)
@@ -86,17 +103,16 @@ namespace Scaffold.Ads.Levelplay
 
         public void HideBanner(string placementName = null)
         {
-            var targetAd = GetTargetAd(placementName);
+            LevelPlayBannerAd targetAd = GetTargetAd(placementName);
             targetAd?.HideAd();
         }
 
         public void DestroyBanner(string placementName = null)
         {
-            var targetAd = GetTargetAd(placementName);
+            LevelPlayBannerAd targetAd = GetTargetAd(placementName);
             if (targetAd != null)
             {
                 targetAd.DestroyAd();
-                // Optionally remove from dictionary or keep for reloading later.
             }
         }
 
@@ -104,16 +120,14 @@ namespace Scaffold.Ads.Levelplay
         {
             if (string.IsNullOrEmpty(placementName))
             {
-                if (_bannerAds.Count > 0)
+                foreach (LevelPlayBannerAd ad in bannerAds.Values)
                 {
-                    var enumerator = _bannerAds.Values.GetEnumerator();
-                    enumerator.MoveNext();
-                    return enumerator.Current;
+                    return ad;
                 }
                 return null;
             }
 
-            _bannerAds.TryGetValue(placementName, out var targetAd);
+            bannerAds.TryGetValue(placementName, out LevelPlayBannerAd targetAd);
             return targetAd;
         }
 
@@ -151,11 +165,11 @@ namespace Scaffold.Ads.Levelplay
 
         public void Dispose()
         {
-            foreach (var ad in _bannerAds.Values)
+            foreach (LevelPlayBannerAd ad in bannerAds.Values)
             {
                 ad.DestroyAd();
             }
-            _bannerAds.Clear();
+            bannerAds.Clear();
         }
     }
 }

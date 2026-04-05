@@ -5,16 +5,16 @@ namespace Scaffold.Ads
 {
     public sealed class AdsInstaller : IInstaller
     {
-        private readonly AdConfigurationSO _adConfiguration;
-
         public AdsInstaller(AdConfigurationSO adConfiguration)
         {
-            _adConfiguration = adConfiguration;
+            this.adConfiguration = adConfiguration;
         }
+
+        private readonly AdConfigurationSO adConfiguration;
 
         public void Install(IContainerBuilder builder)
         {
-            builder.RegisterInstance(_adConfiguration);
+            builder.RegisterInstance(adConfiguration);
 
             builder.Register<RewardedAdManager>(Lifetime.Singleton);
             builder.Register<InterstitialAdManager>(Lifetime.Singleton);

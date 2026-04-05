@@ -9,15 +9,15 @@ namespace Scaffold.Schemas.Editor
     [CustomEditor(typeof(SchemaObject), true)]
     public class SchemaObjectEditor : UnityEditor.Editor
     {
-        private List<Type> schemaOptions = new List<Type>();
-
-        private SchemaValidator validator;
-
         protected virtual string[] PropertiesToIgnore => new string[]
         {
             "m_Script",
             "schemas"
         };
+
+        private List<Type> schemaOptions = new List<Type>();
+
+        private SchemaValidator validator;
 
         protected void OnEnable()
         {
@@ -34,7 +34,6 @@ namespace Scaffold.Schemas.Editor
 
         protected virtual void Setup()
         {
-
         }
 
         public override void OnInspectorGUI()
@@ -52,7 +51,7 @@ namespace Scaffold.Schemas.Editor
 
         private void DrawSchemas()
         {
-            var collectionProp = serializedObject.FindProperty("schemas.Collection");
+            SerializedProperty collectionProp = serializedObject.FindProperty("schemas.Collection");
             if (collectionProp.arraySize == 0)
             {
                 SchemaLayout.Divider(0, 0);
@@ -61,21 +60,26 @@ namespace Scaffold.Schemas.Editor
 
             for (int i = 0; i < collectionProp.arraySize; i++)
             {
-                SerializedProperty prop = collectionProp.GetArrayElementAtIndex(i);
-                if (prop == null || prop.boxedValue == null)
-                {
-                    continue;
-                }
-                SchemaDrawer drawer = SchemaDrawerContainer.instance.GetDrawer(prop, this);
-                if (drawer.Expired)
-                {
-                    continue;
-                }
-                drawer.Draw();
-                if (i == collectionProp.arraySize - 1 && prop.isExpanded)
-                {
-                    SchemaLayout.Divider(0, 0);
-                }
+                DrawSingleSchemaElement(collectionProp, i);
+            }
+        }
+
+        private void DrawSingleSchemaElement(SerializedProperty collectionProp, int index)
+        {
+            SerializedProperty prop = collectionProp.GetArrayElementAtIndex(index);
+            if (prop == null || prop.boxedValue == null)
+            {
+                return;
+            }
+            SchemaDrawer drawer = SchemaDrawerContainer.instance.GetDrawer(prop, this);
+            if (drawer.Expired)
+            {
+                return;
+            }
+            drawer.Draw();
+            if (index == collectionProp.arraySize - 1 && prop.isExpanded)
+            {
+                SchemaLayout.Divider(0, 0);
             }
         }
 
@@ -83,7 +87,6 @@ namespace Scaffold.Schemas.Editor
         {
             DrawPropertiesExcluding(serializedObject, PropertiesToIgnore);
         }
-
 
         private void DrawControls()
         {
@@ -102,12 +105,17 @@ namespace Scaffold.Schemas.Editor
 
         private void ShowSchemaMenu()
         {
-            SchemaSet set = serializedObject.FindProperty("schemas").boxedValue as SchemaSet;
-            var menu = new GenericMenu();
+            GenericMenu menu = new GenericMenu();
+            AddSchemaMenuItems(menu);
+            menu.ShowAsContext();
+        }
+
+        private void AddSchemaMenuItems(GenericMenu menu)
+        {
             for (int i = 0; i < schemaOptions.Count; i++)
             {
-                var type = schemaOptions[i];
-                var menuOption = new GUIContent(SchemaCacheUtility.GetTypeGroupPath(type), "");
+                Type type = schemaOptions[i];
+                GUIContent menuOption = new GUIContent(SchemaCacheUtility.GetTypeGroupPath(type), "");
                 bool canAdd = validator.CanAddType(type);
 
                 if (canAdd)
@@ -118,9 +126,7 @@ namespace Scaffold.Schemas.Editor
                 {
                     menu.AddDisabledItem(menuOption, true);
                 }
-                
             }
-            menu.ShowAsContext();
         }
 
         public void AddSchema(Type schema)

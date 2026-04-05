@@ -11,12 +11,12 @@ namespace Scaffold.DirectPush
     /// </summary>
     public sealed class DirectPushClient
     {
-        private readonly ILiveOpsService _liveOpsService;
-
         public DirectPushClient(ILiveOpsService liveOpsService)
         {
-            _liveOpsService = liveOpsService;
+            this.liveOpsService = liveOpsService;
         }
+
+        private readonly ILiveOpsService liveOpsService;
 
         /// <summary>
         /// Sends a push notification to the calling player (self-push).
@@ -33,7 +33,7 @@ namespace Scaffold.DirectPush
                 MessageType = messageType
             };
 
-            return _liveOpsService.CallAsync(request, cancellationToken);
+            return liveOpsService.CallAsync(request, cancellationToken);
         }
 
         /// <summary>
@@ -56,7 +56,7 @@ namespace Scaffold.DirectPush
                 Guid = guid
             };
 
-            return _liveOpsService.CallAsync(request, cancellationToken);
+            return liveOpsService.CallAsync(request, cancellationToken);
         }
 
         /// <summary>
@@ -77,7 +77,7 @@ namespace Scaffold.DirectPush
                 Guid = guid
             };
 
-            return _liveOpsService.CallAsync(request, cancellationToken);
+            return liveOpsService.CallAsync(request, cancellationToken);
         }
     }
 }

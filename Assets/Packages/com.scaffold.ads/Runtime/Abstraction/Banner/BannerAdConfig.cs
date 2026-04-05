@@ -7,6 +7,6 @@ namespace Scaffold.Ads
     public class BannerAdConfig : AdPlacementConfig
     {
         [Tooltip("Where the banner should be positioned")]
-        public BannerPosition bannerPosition;
+        public BannerPosition BannerPosition;
     }
 }

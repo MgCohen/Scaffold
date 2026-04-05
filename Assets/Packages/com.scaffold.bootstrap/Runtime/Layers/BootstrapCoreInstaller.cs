@@ -16,10 +16,10 @@ namespace Scaffold.Bootstrap.Layers
             }
 
             var liveOpsInstaller = new LiveOpsInstaller();
-            Install(builder, liveOpsInstaller);
+            BuildInstaller(builder, liveOpsInstaller);
 
             var directPushInstaller = new DirectPushInstaller();
-            Install(builder, directPushInstaller);
+            BuildInstaller(builder, directPushInstaller);
         }
     }
 }

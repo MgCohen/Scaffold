@@ -5,7 +5,7 @@ namespace Scaffold.Ads
     [Serializable]
     public class RewardRequestPayload
     {
-        public string unityUserId;
-        public string rewardAdId;
+        public string UnityUserId;
+        public string RewardAdId;
     }
 }
