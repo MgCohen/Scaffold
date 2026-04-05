@@ -169,4 +169,32 @@ namespace Scaffold.GameEngine
 
         Assert.Empty(diagnostics);
     }
+
+    [Fact]
+    public async Task NoDiagnostic_WhenSameSimpleNameDistinctTypeParameterArities()
+    {
+        const string source = @"
+namespace App.CloudCode
+{
+    public interface IRequestHandler
+    {
+    }
+
+    public interface IRequestHandler<TResponse>
+    {
+    }
+
+    public interface IRequestHandler<TRequest, TResponse> where TRequest : class
+    {
+    }
+}";
+
+        var diagnostics = await AnalyzerTestHarness.GetDiagnosticsByIdAsync(
+            source,
+            @"C:\Repo\Assets\Packages\com.scaffold.cloudcode\Runtime\IRequestHandler.cs",
+            new TypePlacementAnalyzer(),
+            TypePlacementAnalyzer.DiagnosticId);
+
+        Assert.Empty(diagnostics);
+    }
 }

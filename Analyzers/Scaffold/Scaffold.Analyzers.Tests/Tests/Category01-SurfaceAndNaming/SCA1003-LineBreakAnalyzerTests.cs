@@ -238,6 +238,44 @@ namespace Demo
     }
 
     [Fact]
+    public async Task Diagnostic_WhenPositionalRecordPrimaryConstructorSpansMultipleLines()
+    {
+        const string source = @"
+namespace Demo
+{
+    public sealed record Sample(
+        int A,
+        int B);
+}";
+
+        var diagnostics = await AnalyzerTestHarness.GetDiagnosticsByIdAsync(
+            source,
+            @"C:\Repo\Assets\Scripts\Core\Sample.cs",
+            new LineBreakAnalyzer(),
+            LineBreakAnalyzer.DiagnosticId);
+
+        Assert.Single(diagnostics);
+    }
+
+    [Fact]
+    public async Task NoDiagnostic_WhenPositionalRecordPrimaryConstructorIsSingleLine()
+    {
+        const string source = @"
+namespace Demo
+{
+    public sealed record Sample(int A, int B);
+}";
+
+        var diagnostics = await AnalyzerTestHarness.GetDiagnosticsByIdAsync(
+            source,
+            @"C:\Repo\Assets\Scripts\Core\Sample.cs",
+            new LineBreakAnalyzer(),
+            LineBreakAnalyzer.DiagnosticId);
+
+        Assert.Empty(diagnostics);
+    }
+
+    [Fact]
     public async Task NoDiagnostic_ForSingleLineGenericInterfaceWithConstraints()
     {
         const string source = @"

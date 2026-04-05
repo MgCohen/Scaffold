@@ -6,11 +6,10 @@ using Scaffold.Addressables.Contracts;
 using Scaffold.Scope.Contracts;
 using UnityEngine.AddressableAssets;
 using UnityAddressables = UnityEngine.AddressableAssets.Addressables;
-using VContainer;
 
 namespace Scaffold.Addressables
 {
-    public sealed class AddressablesGateway : IAddressablesGateway, IAsyncLayerInitializable
+    public sealed class AddressablesGateway : IAddressablesGateway, IAsyncInitializable
     {
         public AddressablesGateway(IAddressablesAssetClient client, IAssetReferenceHandler assetReferenceHandler)
         {
@@ -77,11 +76,6 @@ namespace Scaffold.Addressables
             AssetGroupHandle<T> group = new AssetGroupHandle<T>(client.Release);
             _ = CompleteGroupLoadAsync<T>(label, group, cancellationToken);
             return group;
-        }
-
-        Task IAsyncLayerInitializable.InitializeAsync(IObjectResolver resolver, CancellationToken cancellationToken)
-        {
-            return InitializeCoreAsync(cancellationToken);
         }
 
         private async Task InitializeCoreAsync(CancellationToken cancellationToken)

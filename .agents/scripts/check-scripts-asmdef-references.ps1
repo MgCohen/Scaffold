@@ -10,7 +10,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $scriptDirectory = Split-Path -Parent $PSCommandPath
-. (Join-Path $scriptDirectory "..\testing\TestingSuite.Config.ps1")
+. (Join-Path (Split-Path $scriptDirectory -Parent) (Join-Path "testing" "TestingSuite.Config.ps1"))
 
 $resolvedProjectPath = (Resolve-Path $ProjectPath).Path
 $testingSuiteConfig = Get-TestingSuiteConfig -ProjectPath $resolvedProjectPath

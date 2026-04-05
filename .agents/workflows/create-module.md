@@ -26,9 +26,9 @@ description: Scaffolds a new module following the project's structure guidelines
 7.  **Create Container**:
     - Create `Container/[ModuleName]Container.cs` (Inheriting from `Container`).
 8.  **Documentation Update**:
-    - Add or update module documentation under `Docs/` following repository module-doc conventions.
+    - Add authoritative module documentation to `Assets/Packages/<packageId>/README.md` and a short pointer under `Docs/` that links to it, following repository module-doc conventions.
     - Check for circular dependencies.
 9.  **Boundary Hygiene (Best Practice)**:
     - Keep cross-module API types in `Runtime/Contracts` and concrete logic in `Runtime`.
     - Default non-boundary classes to `internal`.
-    - Default external dependencies to `<Module>`; reserve foreign runtime-only dependencies for composition roots (for example `App/Bootstrap`) and module-local wiring.
+    - Default external dependencies to `<Module>`; reserve foreign runtime-only dependencies for composition roots (your application startup / `TwoScopeApplicationHost` subclass) and module-local wiring.

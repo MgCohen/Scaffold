@@ -33,7 +33,7 @@ This repository is a modular Unity project with architecture controls enforced t
 - **Core packages** (for example `com.scaffold.entities`) are not “Unity-free by definition.” Whether an assembly references `UnityEngine` is determined per `.asmdef` (for example `Scaffold.Entities` uses the engine; some other assemblies use `noEngineReferences: true` where they stay agnostic).
 - MonoBehaviour usage is allowed in Core when the module owns engine-facing gameplay building blocks (again, `Scaffold.Entities` is the canonical example). Prefer keeping UI-specific MonoBehaviours in App/Infra presentation layers.
 - All cross-module dependencies must be declared in `.asmdef` files; no hidden references.
-- Bootstrap/composition root owns concrete wiring; runtime modules consume contracts/interfaces.
+- The application composition root (your scene / assembly) owns concrete wiring; runtime modules consume contracts/interfaces.
 
 ## Tech Stack
 
@@ -49,7 +49,7 @@ This repository is a modular Unity project with architecture controls enforced t
 
 Intent: show how external actors/systems interact with this Unity client at runtime.
 
-Source of truth: your bootstrap scene and composition wiring under `Assets/Packages/com.scaffold.bootstrap/` (no fixed scene path is documented here).
+Source of truth: your startup scene and composition wiring (typically a subclass of `Scaffold.Scope.TwoScopeApplicationHost` in your game assembly; no fixed path is documented here).
 
 Update trigger: changes to startup sequence, external service integrations, or root scene flow.
 
@@ -96,14 +96,12 @@ flowchart LR
     Tools --> App
 ```
 
-Current module documentation map (see `Docs/`):
+Module documentation: each first-party package under `Assets/Packages/com.scaffold.*/` owns a **`README.md`** at the package root (full module doc). `Docs/` keeps short pointers for the same modules (for example `Docs/Tools/Types.md` → `Assets/Packages/com.scaffold.types/README.md`).
 
-- `Docs/App/Bootstrap.md`, `Docs/App/View.md`
-- `Docs/Core/ViewModel.md`, `Docs/Core/LiveOps.md`, `Docs/Core/Entities.md`
-- `Docs/Infra/Addressables.md`, `Docs/Infra/MVVM.md`, `Docs/Infra/Events.md`, `Docs/Infra/Model.md`, `Docs/Infra/Navigation.md`, `Docs/Infra/Scope.md`, `Docs/Infra/SceneFlow.md`
-- `Docs/Tools/Maps.md`, `Docs/Tools/Records.md`, `Docs/Tools/Types.md`
+Additional repository docs:
+
 - `Docs/ConsumingScaffoldPackages.md` (UPM consumer `manifest.json` patterns for Git subpath and `file:`)
-- `Docs/Analyzers/Analyzers.md`, `Docs/Testing/Testing.md`, `Docs/AutomatedTesting.md`
+- `Docs/Analyzers/Analyzers.md`, `Docs/Testing/Testing.md`, `Docs/Testing/AutomatedTesting.md`
 
 ## Runtime Flows
 
@@ -161,14 +159,14 @@ Forbidden:
 Run from repository root. For **how** scripts invoke Unity and `dotnet` safely when the repo path contains spaces (Windows PowerShell 5.x), see `Docs/Testing/Testing.md` → "Implementation notes".
 
 - Full gate (optional: skip automated Unity tests with `-SkipTests`):
-  - `powershell -NoProfile -ExecutionPolicy Bypass -File ".\.agents\scripts\validate-changes.ps1" -SkipTests`
-  - or `& ".\.agents\scripts\validate-changes.cmd" -SkipTests`
+  - `pwsh -NoProfile -File ".agents/scripts/validate-changes.ps1" -SkipTests` (cross-platform)
+  - or `powershell -NoProfile -ExecutionPolicy Bypass -File ".\.agents\scripts\validate-changes.ps1" -SkipTests`
+  - or `& ".\.agents\scripts\validate-changes.cmd" -SkipTests` (Windows)
+  - or `./.agents/scripts/validate-changes.sh -SkipTests` (Unix, requires `pwsh`)
 - Analyzer diagnostics:
-  - `powershell -NoProfile -ExecutionPolicy Bypass -File ".\.agents\scripts\check-analyzers.ps1"`
-- EditMode tests (when you add tests again):
-  - `powershell -NoProfile -ExecutionPolicy Bypass -File ".\.agents\scripts\run-editmode-tests.ps1"`
-- PlayMode tests (when you add tests again):
-  - `powershell -NoProfile -ExecutionPolicy Bypass -File ".\.agents\scripts\run-playmode-tests.ps1"`
+  - `pwsh -NoProfile -File ".agents/scripts/check-analyzers.ps1"`
+- EditMode / PlayMode tests (when you add tests again):
+  - `pwsh -NoProfile -File ".agents/scripts/run-unity-tests.ps1" -TestPlatform EditMode` (or `-TestPlatform PlayMode`; shims `run-editmode-tests.ps1` / `run-playmode-tests.ps1` still work)
 
 Architecture controls and policy files:
 

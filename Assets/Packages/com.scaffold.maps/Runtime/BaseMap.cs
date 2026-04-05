@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 namespace Scaffold.Maps
 {
-    public class BaseMap<TKey, TValue> : IEnumerable<KeyValuePair<TKey, TValue>>
+    public class BaseMap<TKey, TValue> : IReadOnlyBaseMap<TKey, TValue>
     {
         protected BaseMap()
         {

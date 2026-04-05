@@ -2,7 +2,8 @@
     "name": "Scaffold.Scope.Tests",
     "rootNamespace": "Scaffold.Scope.Tests",
     "references": [
-        "Scaffold.Scope"
+        "Scaffold.Scope",
+        "VContainer"
     ],
     "includePlatforms": [
         "Editor"

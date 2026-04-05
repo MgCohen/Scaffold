@@ -1,4 +1,4 @@
-# Shared loader for `.agents/testing/TestingSuite.config.json`. Dot-source from `.agents/scripts/*.ps1`.
+# Shared loader for `.agents/testing/TestingSuite.config.json`. Dot-source from `.agents/scripts/*.ps1` and `lib/`.
 # If the JSON file is missing, returns the same defaults the repo used before config existed.
 
 function Get-TestingSuiteConfig {

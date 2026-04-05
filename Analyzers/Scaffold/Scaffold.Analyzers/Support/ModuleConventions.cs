@@ -71,6 +71,32 @@ namespace Scaffold.Analyzers
             return normalized.IndexOf("/Assets/Plugins/Demigiant/DOTween/", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
+        internal static bool IsExcludedFromDeclarationCommentAnalysis(string filePath)
+        {
+            if (string.IsNullOrWhiteSpace(filePath))
+            {
+                return false;
+            }
+
+            var normalized = ScriptPathFilters.Normalize(filePath);
+            if (normalized.IndexOf("/Analyzers/", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return true;
+            }
+
+            if (normalized.IndexOf("/Generators/", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return true;
+            }
+
+            if (normalized.IndexOf("/Assets/Packages/", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return true;
+            }
+
+            return false;
+        }
+
         internal static string GetModuleRootName(string assemblyName)
         {
             var suffixes = new[]

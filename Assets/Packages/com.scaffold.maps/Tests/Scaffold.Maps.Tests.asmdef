@@ -1,0 +1,21 @@
+{
+    "name": "Scaffold.Maps.Tests",
+    "rootNamespace": "Scaffold.Maps.Tests",
+    "references": [
+        "Scaffold.Maps"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false,
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
+}

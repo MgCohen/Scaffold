@@ -36,14 +36,14 @@ public sealed class RuntimeAssemblyBoundaryAnalyzerTests
     }
 
     [Fact]
-    public async Task NoDiagnostic_WhenBootstrapReferencesForeignRuntimeAssembly()
+    public async Task NoDiagnostic_WhenCompositionRootReferencesForeignRuntimeAssembly()
     {
         var graph = StructuralTestGraph
-            .Create("Scaffold.Bootstrap.Runtime")
-            .Assembly("Scaffold.Bootstrap.Runtime")
+            .Create("Scaffold.AppHost.Runtime")
+            .Assembly("Scaffold.AppHost.Runtime")
                 .WithSource(
-                    "Assets/Scripts/App/Bootstrap/Runtime/BootstrapCompositionRoot.cs",
-                    @"namespace Scaffold.Bootstrap { public sealed class BootstrapCompositionRoot { } }")
+                    "Assets/Scripts/App/Runtime/AppCompositionRoot.cs",
+                    @"namespace Scaffold.AppHost { public sealed class AppCompositionRoot { } }")
                 .References("Scaffold.Meta.Gold.Runtime")
             .Assembly("Scaffold.Meta.Gold.Runtime")
                 .WithSource(
