@@ -5,10 +5,17 @@
 ## TL;DR
 
 - Purpose: Float-backed attributes (`EntityAttribute` + `EntityAttributeEntry`), additive modifiers, and an ordered behavior runner (`EntityBehaviorRunner<TData,TInput>`) with per-frame input contracts.
-- Location: `Assets/Packages/com.scaffold.entities/Runtime/` (`Scaffold.Entities`), tests in `Assets/Packages/com.scaffold.entities/Tests/` (`Scaffold.Entities.Tests`) when present.
+- Location: `Assets/Packages/com.scaffold.entities/Runtime/` — **`Core/`** (definitions, attributes, modifiers, `Entity`) and **`Behavior/`** (behavior contracts and runner). Single assembly `Scaffold.Entities`; tests in `Assets/Packages/com.scaffold.entities/Tests/` (`Scaffold.Entities.Tests`) when present.
 - **Unity coupling:** References `UnityEngine` (`MonoBehaviour`, `ScriptableObject`). `Scaffold.Entities.asmdef` has `noEngineReferences: false`. See [Architecture.md](../../../Architecture.md): the Core folder does not mean “no Unity.”
 - Depends on: Unity engine only (no cross-assembly references to other first-party modules in this repository snapshot).
 - **Consumers:** Add a reference from `Scaffold.Entities` in your module’s `.asmdef` when you use these types in gameplay or presentation code.
+
+## Folder layout (conceptual split)
+
+| Folder | Responsibility |
+|--------|----------------|
+| `Runtime/Core/` | `EntityAttribute`, `EntityAttributeEntry`, `EntityAttributeModifierEntry`, `Entity` — stats, modifiers, instance storage. |
+| `Runtime/Behavior/` | `IEntityBehavior`, `IEntityFrameInputProvider`, `EntityBehaviorRunner` — per-frame behavior arbitration. |
 
 ## Public API
 
