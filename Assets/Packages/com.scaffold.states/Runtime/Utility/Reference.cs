@@ -1,7 +1,14 @@
+#nullable enable
+
 namespace Scaffold.States
 {
-    internal class Reference : IReference
+    /// <summary>Default reference key for slices that are not keyed by a domain reference.</summary>
+    public sealed class Reference : IReference
     {
-        internal static Reference Null = new Reference();
+        public static IReference Null { get; } = new Reference();
+
+        private Reference()
+        {
+        }
     }
 }

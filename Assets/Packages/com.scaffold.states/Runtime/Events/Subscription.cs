@@ -2,7 +2,7 @@ using System;
 
 namespace Scaffold.States
 {
-    internal class Subscription<TState> : ISubscription
+    internal class Subscription<TState> : ISubscription where TState : BaseState
     {
         public Subscription(Action<IReference, TState> action)
         {
@@ -18,7 +18,7 @@ namespace Scaffold.States
             return type;
         }
 
-        public void Notify(IReference reference, State state)
+        public void Notify(IReference reference, BaseState state)
         {
             if(state is not TState tState)
             {

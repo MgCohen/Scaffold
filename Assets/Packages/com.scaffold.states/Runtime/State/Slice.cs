@@ -1,27 +1,24 @@
+#nullable enable
+
+using System;
+
 namespace Scaffold.States
 {
-    public class Slice
+    /// <summary>
+    /// Canonical slice row: committed <see cref="State"/> values are replaced by mutators or snapshot load.
+    /// </summary>
+    public sealed class Slice : BaseSlice<State>
     {
-        private Slice()
+        public Slice(IReference reference, State state) : base(reference, state)
         {
-
         }
 
-        private Slice(IReference reference, State state)
+        public override void Set(State state)
         {
-            this.Reference = reference;
-            this.State = state;
+            State = state;
         }
 
-        public IReference Reference { get; private set; }
-        public State State { get; private set; }
-
-        public void Set(State state)
-        {
-            this.State = state;
-        }
-
-        public static Slice Create(IReference reference, State state)
+        public static Slice Create(IReference? reference, State state)
         {
             reference ??= States.Reference.Null;
             return new Slice(reference, state);
