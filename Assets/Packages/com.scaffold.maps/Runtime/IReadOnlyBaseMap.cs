@@ -32,6 +32,10 @@ namespace Scaffold.Maps
         IReadOnlyList<TValue> GetAll(TPrimary primary);
 
         IReadOnlyList<TValue> GetAll(TSecondary secondary);
+
+        IReadOnlyCollection<TPrimary> GetPrimaryKeys();
+
+        IReadOnlyCollection<TSecondary> GetSecondaryKeys();
     }
 }
 

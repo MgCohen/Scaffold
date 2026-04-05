@@ -243,5 +243,36 @@ namespace Scaffold.Maps
             return list;
         }
 
+        public IReadOnlyCollection<TPrimary> GetPrimaryKeys()
+        {
+            if (predicateIndexers == null)
+            {
+                throw new InvalidOperationException("Map indexers were not initialized.");
+            }
+
+            HashSet<TPrimary> keys = new HashSet<TPrimary>(EqualityComparer<TPrimary>.Default);
+            foreach (KeyValuePair<Index<TPrimary, TSecondary>, Holder<TValue>> entry in GetEntries())
+            {
+                keys.Add(entry.Key.Primary);
+            }
+
+            return new List<TPrimary>(keys);
+        }
+
+        public IReadOnlyCollection<TSecondary> GetSecondaryKeys()
+        {
+            if (predicateIndexers == null)
+            {
+                throw new InvalidOperationException("Map indexers were not initialized.");
+            }
+
+            HashSet<TSecondary> keys = new HashSet<TSecondary>(EqualityComparer<TSecondary>.Default);
+            foreach (KeyValuePair<Index<TPrimary, TSecondary>, Holder<TValue>> entry in GetEntries())
+            {
+                keys.Add(entry.Key.Secondary);
+            }
+
+            return new List<TSecondary>(keys);
+        }
     }
 }

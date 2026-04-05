@@ -71,5 +71,39 @@ namespace Scaffold.Maps.Tests
             Assert.That(readOnly.TryGetValue(index, out string value), Is.True);
             Assert.That(value, Is.EqualTo("X"));
         }
+
+        [Test]
+        public void GetPrimaryKeys_ReturnsDistinctPrimaries()
+        {
+            Map<string, int, string> map = new Map<string, int, string>();
+            map.Add("A", 1, "X");
+            map.Add("A", 2, "Y");
+            map.Add("B", 1, "Z");
+
+            IReadOnlyCollection<string> keys = map.GetPrimaryKeys();
+
+            Assert.That(keys, Is.EquivalentTo(new[] { "A", "B" }));
+        }
+
+        [Test]
+        public void GetSecondaryKeys_ReturnsDistinctSecondaries()
+        {
+            Map<string, int, string> map = new Map<string, int, string>();
+            map.Add("A", 1, "X");
+            map.Add("A", 2, "Y");
+            map.Add("B", 1, "Z");
+
+            IReadOnlyCollection<int> keys = map.GetSecondaryKeys();
+
+            Assert.That(keys, Is.EquivalentTo(new[] { 1, 2 }));
+        }
+
+        [Test]
+        public void GetPrimaryKeys_EmptyMap_ReturnsEmpty()
+        {
+            Map<string, int, string> map = new Map<string, int, string>();
+
+            Assert.That(map.GetPrimaryKeys().Count, Is.Zero);
+        }
     }
 }
