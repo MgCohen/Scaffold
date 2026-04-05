@@ -15,14 +15,12 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $scriptDirectory = Split-Path -Parent $PSCommandPath
-. (Join-Path $scriptDirectory "..\testing\TestingSuite.Config.ps1")
+. (Join-Path (Split-Path $scriptDirectory -Parent) (Join-Path "testing" "TestingSuite.Config.ps1"))
 $checkCompilationPath = Join-Path $scriptDirectory "check-unity-compilation.ps1"
-$runEditModeTestsPath = Join-Path $scriptDirectory "run-editmode-tests.ps1"
-$runPlayModeTestsPath = Join-Path $scriptDirectory "run-playmode-tests.ps1"
+$runUnityTestsPath = Join-Path $scriptDirectory "run-unity-tests.ps1"
 
 if (-not (Test-Path $checkCompilationPath)) { throw "Missing script: $checkCompilationPath" }
-if (-not (Test-Path $runEditModeTestsPath)) { throw "Missing script: $runEditModeTestsPath" }
-if (-not (Test-Path $runPlayModeTestsPath)) { throw "Missing script: $runPlayModeTestsPath" }
+if (-not (Test-Path $runUnityTestsPath)) { throw "Missing script: $runUnityTestsPath" }
 
 $compilationExitCode = 1
 $editModeExitCode = 1
@@ -78,6 +76,7 @@ Write-Host "[2/4] Running EditMode tests with coverage"
 $editModeArgs = @{
     ProjectPath = $ProjectPath
     TimeoutMinutes = $EditModeTimeoutMinutes
+    TestPlatform = "EditMode"
     EnableCoverage = $true
     CoverageResultsPath = $resolvedCoveragePath
     CoverageOptions = ("assemblyFilters:{0};dontClear" -f $CoverageAssemblyFilters)
@@ -86,7 +85,7 @@ if ($UnityPath) { $editModeArgs.UnityPath = $UnityPath }
 if ($AssemblyNames -and $AssemblyNames.Count -gt 0) { $editModeArgs.AssemblyNames = $AssemblyNames }
 
 try {
-    & $runEditModeTestsPath @editModeArgs
+    & $runUnityTestsPath @editModeArgs
     $editModeExitCode = if (Test-Path variable:LASTEXITCODE) { [int]$LASTEXITCODE } else { 1 }
 } catch {
     Write-Host ("EditMode test runner failed before completion: {0}" -f $_.Exception.Message)
@@ -99,6 +98,7 @@ Write-Host "[3/4] Running PlayMode tests with coverage"
 $playModeArgs = @{
     ProjectPath = $ProjectPath
     TimeoutMinutes = $PlayModeTimeoutMinutes
+    TestPlatform = "PlayMode"
     EnableCoverage = $true
     CoverageResultsPath = $resolvedCoveragePath
     CoverageOptions = ("assemblyFilters:{0};dontClear;generateAdditionalReports;generateHtmlReport;generateAdditionalMetrics" -f $CoverageAssemblyFilters)
@@ -107,7 +107,7 @@ if ($UnityPath) { $playModeArgs.UnityPath = $UnityPath }
 if ($AssemblyNames -and $AssemblyNames.Count -gt 0) { $playModeArgs.AssemblyNames = $AssemblyNames }
 
 try {
-    & $runPlayModeTestsPath @playModeArgs
+    & $runUnityTestsPath @playModeArgs
     $playModeExitCode = if (Test-Path variable:LASTEXITCODE) { [int]$LASTEXITCODE } else { 1 }
 } catch {
     Write-Host ("PlayMode test runner failed before completion: {0}" -f $_.Exception.Message)

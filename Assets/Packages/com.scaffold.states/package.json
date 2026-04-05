@@ -1,0 +1,17 @@
+{
+    "name": "com.scaffold.states",
+    "version": "0.1.0",
+    "displayName": "Scaffold States",
+    "description": "Slice/store state container with mutators, subscriptions, and snapshots (recovered from pre-refactor Game/State).",
+    "unity": "6000.0",
+    "author": {
+        "name": "Matheus Gandolf Cohen",
+        "email": "matheus@duckduckweasel.com",
+        "url": "https://github.com/MgCohen/Scaffold"
+    },
+    "dependencies": {
+        "com.scaffold.records": "0.1.0",
+        "com.scaffold.maps": "0.1.0"
+    },
+    "path": "https://github.com/MgCohen/Scaffold.git?path=/Assets/Packages/com.scaffold.states#main"
+}

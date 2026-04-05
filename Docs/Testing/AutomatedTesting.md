@@ -4,7 +4,7 @@
 
 This guide defines how to create effective automated tests for this Unity project: what to cover, how to structure tests, setup patterns, and best practices.
 
-For test execution commands and CI/local quality gate behavior, see [Testing.md](Testing.md). For script internals (Unity CLI quoting via `UnityProcess.ps1`, `dotnet` path quoting in `check-analyzers.ps1`, pragma gate without `.git`), see `Testing.md` → "Implementation notes".
+For test execution commands and CI/local quality gate behavior, see [Testing.md](Testing.md). For script internals (Unity CLI quoting via `lib/UnityProcess.ps1`, `dotnet` path quoting in `check-analyzers.ps1`, pragma gate without `.git`), see `Testing.md` → "Implementation notes".
 
 ## Testing Strategy (What To Cover)
 
@@ -36,7 +36,7 @@ Do not spend most of coverage on visual assertions or fragile hierarchy checks.
 Example in repo (add or adjust paths as your test tree grows):
 
 - `Assets/Packages/com.scaffold.entities/Tests/` (when `.cs` tests are present)
-- `Assets/Packages/com.scaffold.bootstrap/Tests/` (when `.cs` tests are present)
+- `Assets/Packages/com.scaffold.scope/Tests/` (when `.cs` tests are present)
 
 ### Infra/App EditMode Tests
 
@@ -46,17 +46,12 @@ Example in repo (add or adjust paths as your test tree grows):
 
 Example in repo (when present):
 
-- `Assets/Packages/com.scaffold.bootstrap/Tests/PlayMode/` (PlayMode smoke tests, if any)
 
 ### PlayMode Tests
 
 - Keep to critical end-to-end checks only.
 - Use frame/time bounded waits.
 - Capture Unity error/assert/exception logs and fail the test if any occur.
-
-Example in repo:
-
-- `Assets/Packages/com.scaffold.bootstrap/Tests/PlayMode/BootstrapScenePlayModeTests.cs`
 
 ## How To Set Up A New Test Assembly
 
@@ -71,7 +66,7 @@ Create test assemblies per module in a local `Tests/` folder next to the module:
 
 Use existing asmdefs as templates:
 
-- `Assets/Packages/com.scaffold.bootstrap/Tests/Scaffold.Bootstrap.Tests.asmdef`
+- `Assets/Packages/com.scaffold.scope/Tests/Scaffold.Scope.Tests.asmdef`
 - `Assets/Packages/com.scaffold.entities/Tests/Scaffold.Entities.Tests.asmdef`
 
 ## Test Design Checklist
@@ -211,7 +206,7 @@ This scaffold does not ship a frozen per-module test count table. After you add 
 Suggested focus areas for new coverage (tune to your tree):
 
 - `Infra/Navigation`, `Infra/MVVM`, `Infra/SceneFlow` (wiring-heavy).
-- `Core/Entities`, `App/Bootstrap` (behavior and startup).
+- `Core/Entities`, application composition / startup (`TwoScopeApplicationHost` in your game assembly).
 - `Tools/*` (pure logic where applicable).
 
 ## Allowed Low-Test Module Exceptions

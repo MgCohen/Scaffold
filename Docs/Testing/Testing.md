@@ -15,9 +15,9 @@ Coverage default assembly filters and asmdef audit rules (excluded GUIDs or asse
 1. Copy `.agents/` (scripts, workflows, optional pragma allowlist) and `.agents/TestingSuite.config.json` (or start from `TestingSuite.config.example.json`).
 2. Set `asmdefReferences.firstPartyAssemblyNamePatterns` and `coverage.defaultAssemblyFilters` to your first-party assembly name prefixes (this repo uses `Scaffold.*` only; a game repo might list `Scaffold.*` and `NewGameProject.*`).
 3. Open the Unity project once so it regenerates root `.sln` / `.csproj` files (ignored by git in the default Unity `.gitignore`); without a solution at the repo root, `check-analyzers.ps1` skips the solution build step and reports `TOTAL:0` with a note.
-4. Run `validate-changes.cmd` from the host project root on Windows with PowerShell available, or invoke the individual `.ps1` scripts as documented below.
+4. Run `validate-changes.cmd` (Windows) or `pwsh -File .agents/scripts/validate-changes.ps1` / `./.agents/scripts/validate-changes.sh` (macOS/Linux with `pwsh` on `PATH`), or invoke the individual `.ps1` scripts as documented below.
 
-Unity editor version expectations are defined in `ProjectSettings/ProjectVersion.txt` on each machine; the batch scripts resolve the editor from that file (or `UNITY_PATH` / `-UnityPath`), not from a hardcoded install path in the repo.
+Unity editor version expectations are defined in `ProjectSettings/ProjectVersion.txt` on each machine; the batch scripts resolve the editor from that file (or `UNITY_PATH` / `-UnityPath`), not from a hardcoded install path in the repo. Hub layout is detected on **Windows, macOS, and Linux** (see `.agents/scripts/README.md`).
 
 ## Running Tests And Gates
 
@@ -51,8 +51,8 @@ Current pipeline order:
 1. `.agents/scripts/check-scripts-asmdef-references.ps1`
 2. `.agents/scripts/check-pragma-warning-suppressions.ps1`
 3. `.agents/scripts/check-unity-compilation.ps1`
-4. `.agents/scripts/run-editmode-tests.ps1` (only if compilation precheck passes)
-5. `.agents/scripts/run-playmode-tests.ps1` (only if compilation precheck passes)
+4. `.agents/scripts/run-unity-tests.ps1 -TestPlatform EditMode` (only if compilation precheck passes; `run-editmode-tests.ps1` is a shim to this)
+5. `.agents/scripts/run-unity-tests.ps1 -TestPlatform PlayMode` (only if compilation precheck passes; `run-playmode-tests.ps1` is a shim)
 6. `.agents/scripts/check-analyzers.ps1`
    Analyzer gate order inside this script:
    1. `dotnet test -c Release Analyzers/Scaffold/Scaffold.Analyzers.Tests/Scaffold.Analyzers.Tests.csproj`
@@ -69,8 +69,9 @@ The scripts apply these mitigations:
 
 | Mechanism | Used by | Purpose |
 |-----------|---------|---------|
-| **`UnityProcess.ps1`** (`Start-UnityEditorProcess`) | `check-unity-compilation.ps1`, `run-editmode-tests.ps1`, `run-playmode-tests.ps1` | Builds a single `ProcessStartInfo.Arguments` string with **quoted** arguments so `-projectPath` and log paths stay one token. |
-| **Child script invocation** | `validate-changes.ps1` (`Invoke-PowerShellScript`) | Runs nested `.ps1` files with **`& $path @params`** instead of `Start-Process`, so `-ProjectPath` with spaces is passed correctly. |
+| **`lib/UnityProcess.ps1`** (`Start-UnityEditorProcess`) | `check-unity-compilation.ps1`, `run-unity-tests.ps1` | Builds a single `ProcessStartInfo.Arguments` string with **quoted** arguments so `-projectPath` and log paths stay one token. |
+| **`lib/UnityEditorPaths.ps1`** | Same | Resolves Unity from `-UnityPath`, `UNITY_PATH`, or Unity Hub (cross-platform). |
+| **Child script invocation** | `validate-changes.ps1` (`Invoke-ChildPowerShellScript` in `lib/InvokeChildScript.ps1`) | Runs nested `.ps1` files with **`& $path @params`** instead of `Start-Process`, so `-ProjectPath` with spaces is passed correctly. |
 | **`Invoke-CmdDotNet`** (`cmd.exe /c dotnet … > log 2>&1`) | `check-analyzers.ps1` | Runs `dotnet build` / `dotnet test` with merged stdout/stderr to a log file so **exit codes** match real builds and paths with spaces are quoted correctly (no stray `Start-Process` argv quoting). |
 
 Do not remove these without retesting on a **folder path that contains spaces**.
@@ -86,8 +87,9 @@ For explicit coverage audits, run:
 Targeted runs:
 
 ```powershell
-& ".\.agents\scripts\run-editmode-tests.ps1"
-& ".\.agents\scripts\run-playmode-tests.ps1"
+& ".\.agents\scripts\run-unity-tests.ps1" -TestPlatform EditMode
+& ".\.agents\scripts\run-unity-tests.ps1" -TestPlatform PlayMode
+# Shims still work: run-editmode-tests.ps1 / run-playmode-tests.ps1
 powershell -ExecutionPolicy Bypass -File ".\.agents\scripts\check-analyzers.ps1"
 powershell -ExecutionPolicy Bypass -File ".\.agents\scripts\check-scripts-asmdef-references.ps1"
 powershell -ExecutionPolicy Bypass -File ".\.agents\scripts\check-pragma-warning-suppressions.ps1"
@@ -101,8 +103,7 @@ Coverage goals and best practices are documented in [AutomatedTesting.md](Automa
 ### Script Parameters
 
 - `check-unity-compilation.ps1`: `-ProjectPath`, `-UnityPath`, `-TimeoutMinutes` (default `10`)
-- `run-editmode-tests.ps1`: `-ProjectPath`, `-UnityPath`, `-AssemblyNames`, `-EnableCoverage`, `-CoverageResultsPath`, `-CoverageOptions`, `-TimeoutMinutes` (default `30`)
-- `run-playmode-tests.ps1`: `-ProjectPath`, `-UnityPath`, `-AssemblyNames`, `-EnableCoverage`, `-CoverageResultsPath`, `-CoverageOptions`, `-TimeoutMinutes` (default `30`)
+- `run-unity-tests.ps1`: **`-TestPlatform`** `EditMode` \| `PlayMode`, plus `-ProjectPath`, `-UnityPath`, `-AssemblyNames`, `-EnableCoverage`, `-CoverageResultsPath`, `-CoverageOptions`, `-TimeoutMinutes` (default `30`). **`run-editmode-tests.ps1`** / **`run-playmode-tests.ps1`** forward to this script.
 - `check-analyzers.ps1`: `-ProjectPath`, `-TimeoutMinutes` (default `10`), `-AnalyzerTestsTimeoutMinutes` (default `10`)
   Default behavior excludes diagnostics from test assemblies. Add `-IncludeTestAssemblies` to include them.
   Emits `BUILD_EXIT` (from `dotnet build`), `TOTAL` (SCA + SCM hits), `BLOCKER:` for non-analyzer errors; **exits 1** if the build failed or any blocker line was reported (analyzer warning count alone does not force exit 1).
@@ -126,16 +127,18 @@ Coverage goals and best practices are documented in [AutomatedTesting.md](Automa
 
 ## Related Files
 
-- `.agents/scripts/UnityProcess.ps1` (shared `Start-UnityEditorProcess` helper)
+- `.agents/scripts/README.md` (cross-platform notes, `UNITY_PATH`)
+- `.agents/scripts/lib/UnityProcess.ps1` (shared `Start-UnityEditorProcess` helper)
+- `.agents/scripts/lib/UnityEditorPaths.ps1`
+- `.agents/scripts/lib/InvokeChildScript.ps1`
 - `.agents/scripts/check-unity-compilation.ps1`
-- `.agents/scripts/run-editmode-tests.ps1`
-- `.agents/scripts/run-playmode-tests.ps1`
+- `.agents/scripts/run-unity-tests.ps1`
 - `.agents/scripts/check-analyzers.ps1`
 - `.agents/scripts/check-scripts-asmdef-references.ps1`
 - `.agents/scripts/check-pragma-warning-suppressions.ps1`
-- `.agents/scripts/run-coverage-audit.cmd`
+- `.agents/scripts/run-coverage-audit.cmd` / `run-coverage-audit.sh`
 - `.agents/scripts/run-coverage-audit.ps1`
-- `.agents/scripts/validate-changes.cmd`
+- `.agents/scripts/validate-changes.cmd` / `validate-changes.sh`
 - `.agents/scripts/validate-changes.ps1`
 - `Architecture.md`
 - `AGENTS.md`

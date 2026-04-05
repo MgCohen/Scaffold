@@ -8,7 +8,9 @@ This repository needs module docs that are:
 - precise for implementation and maintenance
 - structured for AI agents to consume reliably
 
-This standard defines one required shape for every module document under `Docs/`.
+This standard defines one required shape for module documentation. **Authoritative long-form content** for each `com.scaffold.*` package lives in **`Assets/Packages/<packageId>/README.md`**. A short pointer file under `Docs/` links to that README and keeps the `Docs/` path stable for agents and cross-links.
+
+Apply the same section order and rules below to the package **`README.md`**.
 
 ## Required section order
 

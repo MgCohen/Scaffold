@@ -4,7 +4,7 @@
 
 Rule ID | Category | Severity | Notes
 --------|----------|----------|--------------------
-SCA1001 | Style | Warning | MethodCommentAnalyzer
+SCA1001 | Style | Warning | DeclarationCommentAnalyzer
 SCA2001 | Style | Warning | MethodOrderAnalyzer
 SCA2002 | Style | Warning | NestedCallAnalyzer
 SCA1002 | Style | Warning | ExpressionBodiedMethodAnalyzer

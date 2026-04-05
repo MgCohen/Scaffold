@@ -23,7 +23,7 @@ namespace Scaffold.Analyzers
             Category,
             DiagnosticSeverity.Warning,
             isEnabledByDefault: true,
-            description: "Each Unity script file may contain at most one top-level type (class, struct, interface, enum, record). Nested types are allowed. Move extra types to their own files or nest them inside the primary type.");
+            description: "Each Unity script file may contain at most one top-level type (class, struct, interface, enum, record), except that multiple top-level types with the same simple name and distinct type parameter arities (non-generic and generic overloads) may share a file. Nested types are allowed. Move other extra types to their own files or nest them inside the primary type.");
 
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => ImmutableArray.Create(Rule);
 
@@ -54,6 +54,7 @@ namespace Scaffold.Analyzers
             foreach (var extraType in topLevelTypes)
             {
                 if (extraType == primaryType) continue;
+                if (IsSameNameDistinctAritySibling(extraType, topLevelTypes)) continue;
 
                 var fixMessage =
                     $"Move '{extraType.Identifier.Text}' to its own file (e.g. '{extraType.Identifier.Text}.cs'). Only one top-level type is allowed in '{fileName}'; nested types may remain inside '{primaryType.Identifier.Text}'.";
@@ -90,6 +91,34 @@ namespace Scaffold.Analyzers
             }
 
             return topLevelTypes[0];
+        }
+
+        /// <summary>
+        /// Another top-level type in the file shares this simple name but has a different type parameter arity
+        /// (e.g. <c>IRequestHandler</c>, <c>IRequestHandler&lt;T&gt;</c>, <c>IRequestHandler&lt;T1,T2&gt;</c>).
+        /// </summary>
+        private static bool IsSameNameDistinctAritySibling(
+            BaseTypeDeclarationSyntax extra,
+            IReadOnlyList<BaseTypeDeclarationSyntax> topLevelTypes)
+        {
+            var arity = GetTypeParameterArity(extra);
+            foreach (var other in topLevelTypes)
+            {
+                if (ReferenceEquals(other, extra)) continue;
+                if (!string.Equals(extra.Identifier.Text, other.Identifier.Text, StringComparison.Ordinal))
+                    continue;
+                if (GetTypeParameterArity(other) != arity)
+                    return true;
+            }
+
+            return false;
+        }
+
+        private static int GetTypeParameterArity(BaseTypeDeclarationSyntax type)
+        {
+            return type is TypeDeclarationSyntax typeDecl
+                ? typeDecl.TypeParameterList?.Parameters.Count ?? 0
+                : 0;
         }
 
         private static void ReportDiagnostic(
