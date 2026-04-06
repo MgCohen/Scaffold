@@ -13,18 +13,21 @@ Someone can see it working when: unit tests (or a tiny sample type) construct a 
 ## Progress
 
 - [x] Author initial ExecPlan at `Plans/EntitiesExpand/EntitiesExpand-ExecPlan.md`.
-- [ ] Milestone 1 — Core model: `Attribute` record (string payload), `AttributeSO`, implicit cast, definition base type, instance id type, and lookup contracts: **reference-first** (`AttributeSO` / `Attribute`), **string** as secondary scan when no reference exists. No MonoBehaviour yet beyond what is required for SO assets and drawers.
-- [ ] Milestone 2 — Instance data core: serializable instance state (definition ref, id, modifier storage only on instance), attribute resolution path definition → instance (flyweight), factory API with generic hooks for subclasses.
-- [ ] Milestone 3 — Unity hosts: MonoBehaviour adapter and/or serializable host with shared internals; property drawers for `Attribute` and `AttributeSO` fields; Editor assembly updates.
-- [ ] Milestone 4 — Migration and cleanup: replace or adapt legacy `Entity` / `EntityAttribute` / float pipeline in `Assets/Packages/com.scaffold.entities/Runtime/Core/`; update `README.md`; add `Scaffold.Entities.Tests` coverage; run validation gate.
-- [ ] Outcomes & Retrospective filled for completion.
+- [x] Milestone 1 — Core model: `Attribute` struct (string payload + optional `MatchKey`), `AttributeSO`, implicit cast, `EntityDefinition`, `InstanceId`, lookup contracts (**reference-first**, string scan secondary). Implemented in `Assets/Packages/com.scaffold.entities/Runtime/Core/`.
+- [x] Milestone 2 — `EntityInstanceState`, `EntityModifierEntry`, `EntityInstanceFactory`, flyweight resolution, `EntityInstance<TDefinition>` typed subclass.
+- [x] Milestone 3 — `Entity` MonoBehaviour host, `AttributePropertyDrawer`, legacy `EntityAttributeEntryPropertyDrawer` removed.
+- [x] Milestone 4 — Legacy float `Entity` / `EntityAttribute` / entry types removed; `README.md` updated; `EntityInstanceStateTests` added; `validate-changes.ps1 -SkipTests` clean; EditMode suite pass (68/68).
+- [x] Outcomes & Retrospective updated below.
 
 ## Surprises & Discoveries
 
 Document unexpected behaviors, bugs, optimizations, or insights discovered during implementation. Provide concise evidence.
 
-- Observation: (none yet)
-  Evidence: (none yet)
+- Observation: Roslyn **SCA2001** / **SCA2003** required careful member and method order on `EntityInstanceState` (public `TryGetAttribute` overloads could not call a later overload without tripping call-order rules; string scan path uses `GetEffectiveAttribute` directly). Private helpers were split to satisfy **SCA2003** line limits.
+  Evidence: Analyzer failures until `TryFindAttributeByStringScan` / `TryMatchSlotByString` extraction; `validate-changes.ps1` **TOTAL:0** after fixes.
+
+- Observation: **SCA1007** flagged `else if` in `Assets/Packages/com.scaffold.states/Runtime/Store.cs` because the `else` branch was not a braced block starting on the next line; wrapped `else { if (...) { } }` to satisfy the gate (same validation run as entities work).
+  Evidence: Analyzer output listed `Store.cs` until brace fix; then **TOTAL:0**.
 
 ## Decision Log
 
@@ -44,6 +47,10 @@ Document unexpected behaviors, bugs, optimizations, or insights discovered durin
   Rationale: Stakeholder asked for child classes of definitions and instances with generic support.
   Author: Stakeholder (ExecPlan author), initial draft.
 
+- Decision: **Implementation naming (2026-04-05)** — Shipped `EntityInstance<TDefinition> : Entity where TDefinition : EntityDefinition` for typed instance access. **Non-generic** `EntityDefinition : ScriptableObject` (Unity-friendly) instead of a generic `ScriptableObject` definition type; games subclass `EntityDefinition` concretely per archetype.
+  Rationale: Unity serialization and asset workflows favor concrete `ScriptableObject` subclasses; generic instance wrapper covers the typed-instance requirement without generic SO complexity.
+  Author: Implementation pass (ExecPlan maintainer), 2026-04-05.
+
 - Decision: **Unique instance id** — Use **`System.Guid`** as the canonical unique id, exposed via a small wrapper or readonly property (e.g. `InstanceId` struct wrapping `Guid`) so instances are easy to map in dictionaries and serialize deterministically when needed.
   Rationale: Stable, unique, and serialization-friendly without a central allocator.
   Author: Stakeholder (ExecPlan author), initial draft.
@@ -60,7 +67,8 @@ Document unexpected behaviors, bugs, optimizations, or insights discovered durin
 
 Summarize outcomes, gaps, and lessons learned at major milestones or at completion. Compare the result against the original purpose.
 
-- (Pending implementation.)
+- **Achieved:** Definition-bound `EntityInstanceState` with `InstanceId`, `EntityDefinition` defaults keyed by `AttributeSO`, instance-only `EntityModifierEntry` list, `TryGetAttribute` overloads (`AttributeSO`, `Attribute` with `MatchKey`, string scan), `AttributeSO` implicit conversion to `Attribute`, `Entity` MonoBehaviour host + `EntityInstanceFactory`, `EntityInstance<TDefinition>`, Editor drawer for `Attribute`, EditMode tests, package README refresh, legacy float attribute API removed.
+- **Gaps / follow-ups:** Optional events/callbacks on attribute value change (not in v1). Behavior runner unchanged; games migrate to new `Entity` surface. Modifier combination uses float-sum when all segments parse, else string concat—documented in README.
 
 ## Context and Orientation
 
@@ -158,5 +166,6 @@ Implementation note: **Never** imply that the string is the primary key for **fi
 
 ## Revision history
 
+- **2026-04-05** — Implementation pass: milestones 1–4 delivered in `com.scaffold.entities`; ExecPlan **Progress**, **Surprises**, **Decision Log** (implementation naming), **Outcomes** updated.
 - **2026-04-05** — Stakeholder clarification: **first-party** identification is **reference** (`Attribute` / **`AttributeSO`**); **string** is **second-party** (iterate to match) when no reference exists; APIs **prefer reference-first** resolution, string as slower fallback.
 - **2026-04-05** — Initial ExecPlan authored from stakeholder requirements (definition/instance binding, flyweight, factory, id, generics, string attribute records, AttributeSO + drawers, dual hosting).

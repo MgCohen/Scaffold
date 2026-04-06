@@ -21,10 +21,13 @@ namespace Scaffold.States
                 {
                     map.Add(slice.Reference, slice.StateType, slice);
                 }
-                else if (baseSlice is AggregateSlice aSlice)
+                else
                 {
-                    aggregates.Add(aSlice.Reference, aSlice.StateType, aSlice);
-                    aSlice.OnAttachedToStore(this);
+                    if (baseSlice is AggregateSlice aSlice)
+                    {
+                        aggregates.Add(aSlice.Reference, aSlice.StateType, aSlice);
+                        aSlice.OnAttachedToStore(this);
+                    }
                 }
             }
         }
