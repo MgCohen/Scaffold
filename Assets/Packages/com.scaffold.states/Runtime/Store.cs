@@ -230,8 +230,6 @@ namespace Scaffold.States
         }
         #endregion
 
-
-
         private sealed class Scratchpad : IStoreScratchpad
         {
             public Scratchpad(Store owner)

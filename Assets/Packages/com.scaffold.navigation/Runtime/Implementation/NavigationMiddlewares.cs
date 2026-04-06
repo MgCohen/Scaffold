@@ -26,9 +26,9 @@ namespace Scaffold.Navigation
         {
             GuardHandlers();
             foreach (var openHandler in openHandlers)
-{
-    openHandler.OnOpen(viewModel);
-}
+            {
+                openHandler.OnOpen(viewModel);
+            }
         }
 
         private void GuardHandlers()
