@@ -12,7 +12,7 @@ namespace Scaffold.States
     {
         private readonly Dictionary<Type, List<IPayloadMutatorBinding>> registrations = new();
 
-        public void Register<TState, TPayload>(Mutator<TState, TPayload> mutator, IReference? reference = null) where TState : State
+        public void Register<TState, TPayload>(Mutator<TState, TPayload> mutator) where TState : State
         {
             var key = typeof(TPayload);
             if (!registrations.TryGetValue(key, out var list))
@@ -21,7 +21,7 @@ namespace Scaffold.States
                 registrations[key] = list;
             }
 
-            list.Add(new RegisteredMutator<TState, TPayload>(reference ?? Reference.Null, mutator));
+            list.Add(new RegisteredMutator<TState, TPayload>(mutator));
         }
 
         internal bool TryGet(Type payloadType, out IReadOnlyList<IPayloadMutatorBinding>? bindings)

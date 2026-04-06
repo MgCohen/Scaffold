@@ -3,7 +3,9 @@ param(
     [string]$ProjectPath = (Get-Location).Path,
     [int]$TimeoutMinutes = 10,
     [int]$AnalyzerTestsTimeoutMinutes = 10,
-    [switch]$IncludeTestAssemblies
+    [switch]$IncludeTestAssemblies,
+    # Use when Windows Application Control / WDAC blocks Scaffold.Mvvm.Analyzers.dll during dotnet test (0x800711C7).
+    [switch]$SkipMvvmAnalyzerTests
 )
 
 Set-StrictMode -Version Latest
@@ -184,6 +186,11 @@ $analyzerTestsProjects = @(
     @{ Path = $mvvmAnalyzerTestsProjectPath; Label = "Scaffold.Mvvm.Analyzers.Tests" }
 ) | Where-Object { Test-Path $_.Path }
 
+if ($SkipMvvmAnalyzerTests.IsPresent) {
+    $analyzerTestsProjects = @($analyzerTestsProjects | Where-Object { $_.Label -ne "Scaffold.Mvvm.Analyzers.Tests" })
+    Write-Output "NOTE:Skipping Scaffold.Mvvm.Analyzers.Tests (SkipMvvmAnalyzerTests). Run those tests on a machine where the analyzer DLL is not blocked by policy."
+}
+
 if ($analyzerTestsProjects.Count -eq 0) {
     Write-Output ("NOTE:No analyzer test projects found (e.g. '{0}'). Analyzer unit tests skipped." -f $analyzerTestsProjectPath)
 }
@@ -274,7 +281,7 @@ try {
 
     $buildTimeoutMilliseconds = $TimeoutMinutes * 60 * 1000
     $buildRun = Invoke-CmdDotNet `
-        -DotNetArguments @("build", $selectedSolution.FullName, "--no-incremental") `
+        -DotNetArguments @("build", $selectedSolution.FullName, "--no-incremental", "-p:MaxCpuCount=1") `
         -LogFilePath $buildLogPath `
         -TimeoutMilliseconds $buildTimeoutMilliseconds
 

@@ -4,46 +4,108 @@ namespace Scaffold.MVVM.Binding
 {
     public class BindContext<T> : IBindContext
     {
-        public BindContext(Func<T> getter)
+        public BindContext(Func<T> getter, IBindingDeferredCoordinator coordinator)
         {
             if (getter is null)
-{
-    throw new ArgumentNullException(nameof(getter));
-}
+            {
+                throw new ArgumentNullException(nameof(getter));
+            }
+            if (coordinator is null)
+            {
+                throw new ArgumentNullException(nameof(coordinator));
+            }
             source = getter;
+            this.coordinator = coordinator;
         }
 
         public bool IsEmpty => binds.Count == 0;
 
         private Func<T> source;
+        private readonly IBindingDeferredCoordinator coordinator;
         private readonly List<BindRegistration> binds = new List<BindRegistration>();
 
         public void Bind(IBind<T> binding, BindingOptions options)
         {
-            if (binding is null)
-{
-    throw new ArgumentNullException(nameof(binding));
-}
-            BindRegistration registration = new BindRegistration(binding, options);
+            BindRegistration registration = CreateRegistration(binding, options);
             binds.Add(registration);
-            if (registration.Options.LazyEvaluation)
-{
-    return;
-}
-            T value = source();
-            binding.Update(value);
+            ApplyInitialIfNeeded(registration);
         }
 
-        public void Update()
+        public void OnBindingKeyChanged()
         {
             if (!TryGetValue(out T value))
-{
-    return;
-}
+            {
+                return;
+            }
+
+            if (UpdateImmediateBinds(value))
+            {
+                coordinator.RequestDeferredFlush(this);
+            }
+        }
+
+        private BindRegistration CreateRegistration(IBind<T> binding, BindingOptions options)
+        {
+            if (binding is null)
+            {
+                throw new ArgumentNullException(nameof(binding));
+            }
+
+            if (options is null)
+            {
+                throw new ArgumentNullException(nameof(options));
+            }
+
+            BindingUpdateTiming effectiveTiming = options.UpdateTiming ?? BindingUpdateTiming.Immediate;
+            return new BindRegistration(binding, options, effectiveTiming);
+        }
+
+        private void ApplyInitialIfNeeded(BindRegistration registration)
+        {
+            if (registration.Options.LazyEvaluation)
+            {
+                return;
+            }
+
+            T value = source();
+            registration.Bind.Update(value);
+        }
+
+        private bool UpdateImmediateBinds(T value)
+        {
+            bool anyDeferred = false;
             foreach (BindRegistration bind in binds)
-{
-    bind.Bind.Update(value);
-}
+            {
+                if (bind.EffectiveTiming == BindingUpdateTiming.Immediate)
+                {
+                    bind.Bind.Update(value);
+                }
+                else
+                {
+                    anyDeferred = true;
+                }
+            }
+
+            return anyDeferred;
+        }
+
+        public void FlushDeferredUpdates()
+        {
+            if (coordinator.IsUnbinding)
+            {
+                return;
+            }
+            if (!TryGetValue(out T value))
+            {
+                return;
+            }
+            foreach (BindRegistration bind in binds)
+            {
+                if (bind.EffectiveTiming != BindingUpdateTiming.Immediate)
+                {
+                    bind.Bind.Update(value);
+                }
+            }
         }
 
         private bool TryGetValue(out T value)
@@ -70,9 +132,9 @@ namespace Scaffold.MVVM.Binding
         public void Unbind(IBind<T> binding)
         {
             if (binding is null)
-{
-    throw new ArgumentNullException(nameof(binding));
-}
+            {
+                throw new ArgumentNullException(nameof(binding));
+            }
             for (int i = binds.Count - 1; i >= 0; i--)
             {
                 if (ReferenceEquals(binds[i].Bind, binding))
@@ -86,9 +148,9 @@ namespace Scaffold.MVVM.Binding
         public void Unbind()
         {
             if (source == null && binds.Count == 0)
-{
-    return;
-}
+            {
+                return;
+            }
             source = null;
             DisposeBinds();
             binds.Clear();
@@ -104,18 +166,20 @@ namespace Scaffold.MVVM.Binding
 
         private sealed class BindRegistration
         {
-            public BindRegistration(IBind<T> bind, BindingOptions options)
+            public BindRegistration(IBind<T> bind, BindingOptions options, BindingUpdateTiming effectiveTiming)
             {
                 if (bind is null)
-{
-    throw new ArgumentNullException(nameof(bind));
-}
+                {
+                    throw new ArgumentNullException(nameof(bind));
+                }
                 Bind = bind;
-                Options = options ?? BindingOptions.Strict;
+                Options = options;
+                EffectiveTiming = effectiveTiming;
             }
 
             public IBind<T> Bind { get; }
             public BindingOptions Options { get; }
+            public BindingUpdateTiming EffectiveTiming { get; }
         }
     }
 }

@@ -16,16 +16,16 @@ namespace Scaffold.MVVM.Binding
             contexts.Add(context);
         }
 
-        public void Update()
+        public void NotifyBindingKeyChanged()
         {
             if (contexts.Count == 0)
             {
                 return;
             }
-            foreach (var context in contexts)
-{
-    context.Update();
-}
+            foreach (IBindContext context in contexts)
+            {
+                context.OnBindingKeyChanged();
+            }
         }
 
         public void Unbind(IBindContext context)
@@ -38,10 +38,3 @@ namespace Scaffold.MVVM.Binding
         }
     }
 }
-
-
-
-
-
-
-

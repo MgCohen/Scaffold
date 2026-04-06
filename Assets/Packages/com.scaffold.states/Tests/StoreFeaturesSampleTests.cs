@@ -107,13 +107,13 @@ namespace Scaffold.States.Tests
         }
 
         [Test]
-        public void Execute_WithReference_OverridesPayloadAndRegistrationKey()
+        public void Execute_WithReference_OverridesPayloadRouting()
         {
             Store store = SampleStoreFactory.CreateKeyedCounterDemo();
             var keyA = new SampleKey("A");
             var keyB = new SampleKey("B");
 
-            // Payload says A, but explicit reference forces slice B.
+            // Payload says A, but explicit execute reference targets slice B.
             store.Execute(keyB, new RoutedCounterPayload(keyA, 5));
 
             Assert.That(store.Get<CounterState>(keyA).Value, Is.EqualTo(0));
@@ -150,6 +150,62 @@ namespace Scaffold.States.Tests
 
             Assert.That(store.Get<CounterState>().Value, Is.EqualTo(3));
             Assert.That(store.Get<NotesState>().Text.Length, Is.EqualTo(3));
+        }
+
+        [Test]
+        public void RegisterSlice_AfterBuild_AddsRowAndNotifies()
+        {
+            var builder = new StoreBuilder();
+            builder.AddState(new CounterState(0));
+            Store store = builder.Build();
+            var keys = new List<IReference>();
+            store.SubscribeAllReferences<CounterState>((r, _) => keys.Add(r));
+            var key = new SampleKey("X");
+            store.RegisterSlice(key, new CounterState(99));
+
+            Assert.That(store.Get<CounterState>(key).Value, Is.EqualTo(99));
+            Assert.That(keys, Does.Contain(key));
+        }
+
+        [Test]
+        public void RegisterSlice_DuplicateReferenceAndStateType_Throws()
+        {
+            var builder = new StoreBuilder();
+            Store store = builder.Build();
+            var key = new SampleKey("X");
+            store.RegisterSlice(key, new CounterState(1));
+            Assert.Throws<InvalidOperationException>(() => store.RegisterSlice(key, new CounterState(2)));
+        }
+
+        [Test]
+        public void UnregisterSlice_RemovesRow()
+        {
+            var builder = new StoreBuilder();
+            Store store = builder.Build();
+            var key = new SampleKey("X");
+            store.RegisterSlice(key, new CounterState(5));
+            Assert.That(store.UnregisterSlice<CounterState>(key), Is.True);
+            Assert.Throws<KeyNotFoundException>(() => store.Get<CounterState>(key));
+        }
+
+        [Test]
+        public void UnregisterSlice_WhenMissing_ReturnsFalse()
+        {
+            var builder = new StoreBuilder();
+            builder.AddState(new CounterState(0));
+            Store store = builder.Build();
+            Assert.That(store.UnregisterSlice(new SampleKey("missing"), typeof(CounterState)), Is.False);
+        }
+
+        [Test]
+        public void RegisterMutator_OnStore_AfterBuild_ExecutesPayload()
+        {
+            var builder = new StoreBuilder();
+            builder.AddState(new CounterState(0));
+            Store store = builder.Build();
+            store.RegisterMutator(new ApplyCombinedTickToCounter());
+            store.Execute(new CombinedTickPayload(2));
+            Assert.That(store.Get<CounterState>().Value, Is.EqualTo(2));
         }
     }
 }

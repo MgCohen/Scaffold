@@ -172,6 +172,82 @@ namespace Scaffold.States
 
             runner.RunMutatorBindingsWithoutCommit(payload, bindings, executeReference);
         }
+
+        /// <summary>
+        /// Registers a payload-driven mutator on this store (same behavior as <see cref="StoreBuilder.RegisterMutator{TState, TPayload}"/> at build time).
+        /// </summary>
+        public void RegisterMutator<TState, TPayload>(Mutator<TState, TPayload> mutator) where TState : State
+        {
+            if (mutator is null)
+            {
+                throw new ArgumentNullException(nameof(mutator));
+            }
+
+            mutatorRegistry.Register(mutator);
+        }
+        #endregion
+
+        #region Slice registration
+
+        /// <summary>
+        /// Adds a canonical slice row at runtime. Throws if a slice or aggregate for the same reference and state type already exists.
+        /// Notifies subscribers with the initial state.
+        /// </summary>
+        public void RegisterSlice(IReference? reference, State state)
+        {
+            if (state is null)
+            {
+                throw new ArgumentNullException(nameof(state));
+            }
+
+            var r = reference ?? Reference.Null;
+            Slice slice = Slice.Create(r, state);
+            Type t = slice.StateType;
+            ThrowIfSliceConflict(r, t, map.Contains(r, t), aggregates.Contains(r, t));
+            map.Add(r, t, slice);
+            eventHandler.Notify(r, state);
+        }
+
+        private void ThrowIfSliceConflict(IReference r, Type t, bool hasCanonical, bool hasAggregate)
+        {
+            if (hasCanonical)
+            {
+                throw new InvalidOperationException(
+                    $"A canonical slice for state type {t.Name} is already registered at this reference.");
+            }
+
+            if (hasAggregate)
+            {
+                throw new InvalidOperationException(
+                    $"An aggregate slice for state type {t.Name} is already registered at this reference.");
+            }
+        }
+
+        /// <inheritdoc cref="UnregisterSlice(IReference?, Type)"/>
+        public bool UnregisterSlice<TState>(IReference? reference) where TState : State
+        {
+            return UnregisterSlice(reference, typeof(TState));
+        }
+
+        /// <summary>
+        /// Removes a canonical slice row. Returns <c>false</c> if no matching slice was present. Does not remove aggregate slices.
+        /// </summary>
+        public bool UnregisterSlice(IReference? reference, Type stateType)
+        {
+            if (stateType is null)
+            {
+                throw new ArgumentNullException(nameof(stateType));
+            }
+
+            var r = reference ?? Reference.Null;
+            if (!map.TryGetValue(r, stateType, out _))
+            {
+                return false;
+            }
+
+            return map.Remove(r, stateType);
+        }
+
         #endregion
 
         #region Setters

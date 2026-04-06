@@ -5,16 +5,22 @@ namespace Scaffold.MVVM.Binding
 {
     internal class BindRegistry
     {
-        public BindRegistry(BindGroups groups)
+        public BindRegistry(BindGroups groups, IBindingDeferredCoordinator coordinator)
         {
             if (groups is null)
-{
-    throw new ArgumentNullException(nameof(groups));
-}
+            {
+                throw new ArgumentNullException(nameof(groups));
+            }
+            if (coordinator is null)
+            {
+                throw new ArgumentNullException(nameof(coordinator));
+            }
             this.groups = groups;
+            this.coordinator = coordinator;
         }
 
         private readonly BindGroups groups;
+        private readonly IBindingDeferredCoordinator coordinator;
         private readonly Map<string, Type, IBindContext> registeredContexts = new Map<string, Type, IBindContext>();
 
         public RegistrationContext<TSource> GetOrCreateContext<TSource>(Expression<Func<TSource>> source)
@@ -27,7 +33,7 @@ namespace Scaffold.MVVM.Binding
                 return new RegistrationContext<TSource>(path, type, existing);
             }
             Func<TSource> getter = source.Compile();
-            BindContext<TSource> context = new BindContext<TSource>(getter);
+            BindContext<TSource> context = new BindContext<TSource>(getter, coordinator);
             registeredContexts.Add(path, type, context);
             groups.Register(path, context);
             return new RegistrationContext<TSource>(path, type, context);
@@ -53,9 +59,9 @@ namespace Scaffold.MVVM.Binding
         internal void Clear()
         {
             foreach (IBindContext context in registeredContexts.Values)
-{
-    context.Unbind();
-}
+            {
+                context.Unbind();
+            }
 
             registeredContexts.Clear();
         }

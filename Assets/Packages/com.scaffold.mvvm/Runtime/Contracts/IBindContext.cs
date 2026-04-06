@@ -4,11 +4,10 @@
     {
         bool IsEmpty { get; }
 
-        void Update();
+        void OnBindingKeyChanged();
+
+        void FlushDeferredUpdates();
 
         void Unbind();
     }
 }
-
-
-

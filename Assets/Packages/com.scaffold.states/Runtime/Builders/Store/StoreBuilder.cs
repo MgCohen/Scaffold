@@ -16,10 +16,10 @@ namespace Scaffold.States
             this.eventHandler = eventHandler;
         }
 
-        public void RegisterMutator<TState, TPayload>(Mutator<TState, TPayload> mutator, IReference? reference = null) where TState : State
+        public void RegisterMutator<TState, TPayload>(Mutator<TState, TPayload> mutator) where TState : State
         {
             mutatorRegistry ??= new MutatorRegistry();
-            mutatorRegistry.Register(mutator, reference);
+            mutatorRegistry.Register(mutator);
         }
 
         public void RegisterAggregate(IAggregateProvider provider)
@@ -82,7 +82,7 @@ namespace Scaffold.States
 
         private IStateEventHandler GetDefaultStateEventHandler()
         {
-            return new StateEventHandler();
+            return StateEventHandlers.CreateDefault();
         }
     }
 }

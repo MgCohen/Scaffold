@@ -159,6 +159,11 @@ public partial class {classSymbol.Name}{bindSourceClause}
         _bindSourceBindings.RegisterConverter(converter);
     }}
 
+    public void RegisterBindingUpdatePolicy(BindingUpdateTiming timing, IDeferredBindingScheduler scheduler)
+    {{
+        _bindSourceBindings.RegisterBindingUpdatePolicy(timing, scheduler);
+    }}
+
     public IBindedCollection<TSource, TTarget> BindCollection<TSource, TTarget>(Expression<Func<ICollection<TSource>>> source, ICollectionHandler<TSource, TTarget> handler, BindingOptions options = null)
     {{
         return _bindSourceBindings.RegisterBindCollection(source, handler, options);
@@ -200,7 +205,7 @@ public partial class {classSymbol.Name}{bindSourceClause}
                 context.AddSource($"{group.Key.Name}_nested.g.cs", SourceText.From(classSource, Encoding.UTF8));
             }
 
-            foreach (var baseClass in baseClasses)
+            foreach (INamedTypeSymbol baseClass in baseClasses.Distinct(SymbolEqualityComparer.Default))
             {
                 var classSource = ProcessNestedClass(baseClass, Enumerable.Empty<IFieldSymbol>());
                 context.AddSource($"{baseClass.Name}_nested.g.cs", SourceText.From(classSource, Encoding.UTF8));

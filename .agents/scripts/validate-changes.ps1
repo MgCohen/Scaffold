@@ -4,6 +4,8 @@ param(
     [string]$UnityPath,
     [string[]]$AssemblyNames,
     [switch]$SkipTests,
+    # Passes through to check-analyzers.ps1 when WDAC blocks Scaffold.Mvvm.Analyzers.dll (0x800711C7).
+    [switch]$SkipMvvmAnalyzerTests,
     [int]$CompilationTimeoutMinutes = 10,
     [int]$TestTimeoutMinutes = 0,
     [int]$EditModeTimeoutMinutes = 30,
@@ -199,7 +201,15 @@ Write-Host ""
 Write-Host "[6/6] Running analyzer check (includes analyzer unit tests)"
 
 try {
-    $analyzerOutput = & $checkAnalyzersPath -ProjectPath $ProjectPath -TimeoutMinutes $AnalyzerTimeoutMinutes -AnalyzerTestsTimeoutMinutes $AnalyzerTestsTimeoutMinutes | ForEach-Object { "$_" }
+    $analyzerParams = @{
+        ProjectPath = $ProjectPath
+        TimeoutMinutes = $AnalyzerTimeoutMinutes
+        AnalyzerTestsTimeoutMinutes = $AnalyzerTestsTimeoutMinutes
+    }
+    if ($SkipMvvmAnalyzerTests.IsPresent) {
+        $analyzerParams.SkipMvvmAnalyzerTests = $true
+    }
+    $analyzerOutput = & $checkAnalyzersPath @analyzerParams | ForEach-Object { "$_" }
 } catch {
     $analyzerOutput = @(
         "TOTAL:-1",

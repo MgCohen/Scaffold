@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 namespace Scaffold.States
 {
-    internal class StateEventHandler : IStateEventHandler
+    internal sealed class StateEventHandler : IStateEventHandler
     {
         public Dictionary<IReference, Ledger> Subscriptions = new();
         private readonly List<Action<IReference, BaseState>> anySubscriptions = new();

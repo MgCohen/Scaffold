@@ -27,8 +27,10 @@
 | `NestedPropertyAttribute` | Marks nested properties for observable traversal. | Attribute placement on property/member. | Metadata used by binding/observable consumers. | Invalid placement is surfaced by analyzer/consumer checks. |
 | `Adapter<T>` | Defines target adaptation contract for bindings. | Source value/context from binder. | Adapted target value/type. | Adapter implementation decides guard behavior. |
 | `Converter<TFrom, TTo>` | Defines value conversion contract. | `TFrom` source value. | `TTo` converted value. | Converter implementation decides guard behavior. |
-| `BindingOptions` | Shared options for strict/lazy binding behavior. | Option flags/values. | Consistent options payload for bind registration. | Invalid combinations are handled by bind consumers. |
-| `TreeBinding` / `IBindings` | Bind registration and update graph. | Source/target expressions, handlers, converters. | Propagates updates on property/collection changes. | Strict mode can throw on bad paths; lazy mode swallows some null-path cases. |
+| `BindingOptions` | Shared options for strict/lazy binding behavior and optional per-bind update timing. | Option flags/values; `UpdateTiming` null inherits bind-source default. | Consistent options payload for bind registration. | Invalid combinations are handled by bind consumers; deferred timing without a scheduler throws at registration. |
+| `BindingUpdateTiming` / `IDeferredBindingScheduler` | Deferred binding refresh (next frame / end of frame) via an injected scheduler. | Policy from `RegisterBindingUpdatePolicy` and per-bind `BindingOptions`. | Batches deferred updates per `TreeBinding` flush; immediate mode still updates on every `UpdateBind`. | Deferred timing requires a non-null scheduler when registering binds. |
+| `UnityDeferredBindingScheduler` | Optional Unity `MonoBehaviour` scheduler (coroutine pump). | Attach to a scene object; assign `BindingUpdateTiming` mode. | Invokes scheduled binding flushes after `yield return null` or `WaitForEndOfFrame`. | Must run on a live `GameObject`; not used by host-agnostic tests. |
+| `TreeBinding` / `IBindings` | Bind registration and update graph. | Source/target expressions, handlers, converters, optional `RegisterBindingUpdatePolicy`. | Propagates updates on property/collection changes. | Strict mode can throw on bad paths; lazy mode swallows some null-path cases. |
 | `IBindedProperty<,>` / `IBindedCollection<,>` | Disposable binding handles. | Return values from `RegisterBind` APIs. | Per-handle teardown. | Disposing detaches only that registration. |
 
 ## Setup / Integration
@@ -44,6 +46,9 @@
 2. Annotate relevant types/members with nested-observable attributes where registration metadata is needed.
 3. Use `Adapter<>` and `Converter<,>` contracts for binding translation points in dependent modules.
 4. Pass shared `BindingOptions` through higher-level bind setup to keep behavior consistent.
+5. Optional: call `RegisterBindingUpdatePolicy(BindingUpdateTiming, IDeferredBindingScheduler)` once on the bind source (same pattern as converters) so all binds inherit deferred refresh; override a single bind with `BindingOptions` (`UpdateTiming` or `BindingOptions.StrictImmediate`).
+
+**VContainer:** implement `IDeferredBindingScheduler` with a small type that queues `Action` continuations and drains them from `ITickable.Tick()` (registration order determines ordering relative to other tickables).
 
 ## Examples
 
@@ -141,6 +146,7 @@ dotnet test "Generators/Scaffold.Mvvm.Analyzers.Tests/Scaffold.Mvvm.Analyzers.Te
 
 ## Changelog
 
+- Added deferred binding updates: `BindingUpdateTiming`, `IDeferredBindingScheduler`, `RegisterBindingUpdatePolicy`, per-bind `BindingOptions.UpdateTiming`, and optional `UnityDeferredBindingScheduler`.
 - Folder and assembly renamed from `BaseMVVM` / `Scaffold.MVVM.Base` to `MVVM` / `Scaffold.MVVM`; test assembly `Scaffold.MVVM.Tests`.
 - Documented that runtime binding implementation (`TreeBinding`, registry, contracts) lives in this module alongside base contracts.
 - Reworked to module documentation standard sections, added usage/examples/anti-pattern/testing and AI context details.
