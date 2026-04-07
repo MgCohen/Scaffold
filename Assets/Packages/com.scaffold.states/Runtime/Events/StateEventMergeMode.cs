@@ -3,7 +3,7 @@
 namespace Scaffold.States
 {
     /// <summary>
-    /// How buffered <see cref="IStateEventHandler.Notify"/> calls are merged before the inner handler runs them on <see cref="IStateEventDeferralController.Flush"/>.
+    /// How buffered <see cref="IStateEventHandler.Notify(IReference, BaseState, StateChangeEvent)"/> calls are merged before the inner handler runs them on <see cref="IStateEventDeferralController.Flush"/>.
     /// </summary>
     public enum StateEventMergeMode
     {

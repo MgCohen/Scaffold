@@ -7,17 +7,22 @@ namespace Scaffold.States
     internal sealed class StateEventHandler : IStateEventHandler
     {
         public Dictionary<IReference, Ledger> Subscriptions = new();
-        private readonly List<Action<IReference, BaseState>> anySubscriptions = new();
+        private readonly List<Action<IReference, BaseState, StateChangeEvent>> anySubscriptions = new();
         private readonly Dictionary<Type, List<ISubscription>> typeWideSubscriptions = new();
 
-        public void Notify(IReference reference, BaseState state)
+        public void Notify(IReference reference, BaseState state, StateChangeEvent changeEvent)
         {
-            NotifyReferenceSubscriptions(reference, state);
-            NotifyAnySubscriptions(reference, state);
-            NotifyTypeWideSubscriptions(state, reference);
+            if (state is null)
+            {
+                throw new ArgumentNullException(nameof(state));
+            }
+
+            NotifyReferenceSubscriptions(reference, state, changeEvent);
+            NotifyAnySubscriptions(reference, state, changeEvent);
+            NotifyTypeWideSubscriptions(state, reference, changeEvent);
         }
 
-        private void NotifyReferenceSubscriptions(IReference reference, BaseState state)
+        private void NotifyReferenceSubscriptions(IReference reference, BaseState state, StateChangeEvent changeEvent)
         {
             if (!Subscriptions.ContainsKey(reference))
             {
@@ -28,11 +33,11 @@ namespace Scaffold.States
             var list = ledger.Get(state.GetType());
             foreach (var item in list)
             {
-                item.Notify(reference, state);
+                item.Notify(reference, state, changeEvent);
             }
         }
 
-        private void NotifyTypeWideSubscriptions(BaseState state, IReference reference)
+        private void NotifyTypeWideSubscriptions(BaseState state, IReference reference, StateChangeEvent changeEvent)
         {
             if (!typeWideSubscriptions.TryGetValue(state.GetType(), out var typeSubs))
             {
@@ -41,35 +46,59 @@ namespace Scaffold.States
 
             foreach (var sub in typeSubs)
             {
-                sub.Notify(reference, state);
+                sub.Notify(reference, state, changeEvent);
             }
         }
 
-        private void NotifyAnySubscriptions(IReference reference, BaseState state)
+        private void NotifyAnySubscriptions(IReference reference, BaseState state, StateChangeEvent changeEvent)
         {
             for (var i = 0; i < anySubscriptions.Count; i++)
             {
-                anySubscriptions[i](reference, state);
+                anySubscriptions[i](reference, state, changeEvent);
             }
         }
 
-        public void SubscribeAny(Action<IReference, BaseState> action)
+        public void SubscribeAny(Action<IReference, BaseState, StateChangeEvent> action)
         {
+            if (action is null)
+            {
+                throw new ArgumentNullException(nameof(action));
+            }
+
             anySubscriptions.Add(action);
         }
 
-        public void Subscribe<TState>(IReference reference, Action<IReference, TState> action) where TState : BaseState
+        public void Subscribe<TState>(IReference reference, Action<IReference, TState, StateChangeEvent> action) where TState : BaseState
+        {
+            if (action is null)
+            {
+                throw new ArgumentNullException(nameof(action));
+            }
+
+            AddReferenceSubscription(reference, action);
+        }
+
+        public void SubscribeAllReferences<TState>(Action<IReference, TState, StateChangeEvent> action) where TState : BaseState
+        {
+            if (action is null)
+            {
+                throw new ArgumentNullException(nameof(action));
+            }
+
+            AddAllReferencesSubscription(action);
+        }
+
+        private void AddReferenceSubscription<TState>(IReference reference, Action<IReference, TState, StateChangeEvent> action) where TState : BaseState
         {
             if (!Subscriptions.ContainsKey(reference))
             {
                 Subscriptions[reference] = new Ledger();
             }
 
-            Subscription<TState> sub = new Subscription<TState>(action);
-            Subscriptions[reference].Add(sub);
+            Subscriptions[reference].Add(new TypedSubscription<TState>(action));
         }
 
-        public void SubscribeAllReferences<TState>(Action<IReference, TState> action) where TState : BaseState
+        private void AddAllReferencesSubscription<TState>(Action<IReference, TState, StateChangeEvent> action) where TState : BaseState
         {
             Type t = typeof(TState);
             if (!typeWideSubscriptions.TryGetValue(t, out var list))
@@ -78,7 +107,7 @@ namespace Scaffold.States
                 typeWideSubscriptions[t] = list;
             }
 
-            list.Add(new Subscription<TState>(action));
+            list.Add(new TypedSubscription<TState>(action));
         }
     }
 }

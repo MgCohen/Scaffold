@@ -48,7 +48,7 @@ namespace Scaffold.States
             var built = provider.Build(attachedStore);
             var aggregate = (AggregateState)built;
             ReplaceState(aggregate);
-            attachedStore.Events.Notify(Reference, aggregate);
+            attachedStore.Events.Notify(Reference, aggregate, StateChangeEvent.Updated);
         }
 
         private void ReplaceState(AggregateState aggregate)

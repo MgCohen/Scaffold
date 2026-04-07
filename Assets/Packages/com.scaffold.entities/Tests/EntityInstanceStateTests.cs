@@ -114,5 +114,69 @@ namespace Scaffold.Entities.Tests
 
             Assert.That(state.Id.IsEmpty, Is.False);
         }
+
+        [Test]
+        public void RemoveModifierAt_AfterNumericCombine_RestoresDefinitionBase()
+        {
+            AttributeSO hp = CreateAttributeSo("HP", "10");
+            EntityDefinition def = CreateDefinition((hp, null));
+            EntityInstanceState state = EntityInstanceFactory.CreateState(def);
+            state.AddModifier(new EntityModifierEntry(hp, "5"));
+
+            Assert.That(state.TryGetAttribute(hp, out Attribute combined), Is.True);
+            Assert.That(combined.Payload, Is.EqualTo("15"));
+
+            Assert.That(state.RemoveModifierAt(0), Is.True);
+            Assert.That(state.TryGetAttribute(hp, out Attribute restored), Is.True);
+            Assert.That(restored.Payload, Is.EqualTo("10"));
+        }
+
+        [Test]
+        public void ClearModifiers_RemovesAllContributionsRestoresDefinitionBase()
+        {
+            AttributeSO hp = CreateAttributeSo("HP", "10");
+            EntityDefinition def = CreateDefinition((hp, null));
+            EntityInstanceState state = EntityInstanceFactory.CreateState(def);
+            state.AddModifier(new EntityModifierEntry(hp, "4"));
+            state.AddModifier(new EntityModifierEntry(hp, "1"));
+
+            Assert.That(state.TryGetAttribute(hp, out Attribute stacked), Is.True);
+            Assert.That(stacked.Payload, Is.EqualTo("15"));
+
+            state.ClearModifiers();
+            Assert.That(state.TryGetAttribute(hp, out Attribute cleared), Is.True);
+            Assert.That(cleared.Payload, Is.EqualTo("10"));
+        }
+
+        [Test]
+        public void RemoveModifierAt_InvalidIndex_ReturnsFalse()
+        {
+            AttributeSO hp = CreateAttributeSo("HP", "10");
+            EntityDefinition def = CreateDefinition((hp, null));
+            EntityInstanceState state = EntityInstanceFactory.CreateState(def);
+
+            Assert.That(state.RemoveModifierAt(0), Is.False);
+            Assert.That(state.RemoveModifierAt(-1), Is.False);
+        }
+
+        [Test]
+        public void CreateOnGameObject_Entity_TryGetAttribute_UsesDefinitionBase()
+        {
+            AttributeSO hp = CreateAttributeSo("HP", "42");
+            EntityDefinition def = CreateDefinition((hp, null));
+            GameObject go = new GameObject("EntityFactoryTest");
+            try
+            {
+                Entity entity = EntityInstanceFactory.CreateOnGameObject<Entity>(go, def);
+
+                Assert.That(entity.State.Id.IsEmpty, Is.False);
+                Assert.That(entity.TryGetAttribute(hp, out Attribute a), Is.True);
+                Assert.That(a.Payload, Is.EqualTo("42"));
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
     }
 }

@@ -5,7 +5,7 @@ using System.Collections.Generic;
 namespace Scaffold.States
 {
     /// <summary>
-    /// Decorates an <see cref="IStateEventHandler"/>: forwards subscriptions to the inner handler and optionally buffers <see cref="Notify"/> while deferral depth is greater than zero.
+    /// Decorates an <see cref="IStateEventHandler"/>: forwards subscriptions to the inner handler and optionally buffers <see cref="IStateEventHandler.Notify"/> while deferral depth is greater than zero.
     /// Single-threaded (main thread); not safe for concurrent use.
     /// </summary>
     public sealed class DeferredStateEventHandler : IStateEventHandler, IStateEventDeferralController
@@ -19,11 +19,17 @@ namespace Scaffold.States
         private readonly IStateEventHandler inner;
         private readonly StateEventMergeMode mergeMode;
         private int deferralDepth;
-        private readonly List<(IReference Reference, BaseState State)> preserveAll = new();
+        private readonly List<(IReference Reference, BaseState State, StateChangeEvent Change)> preserveAll = new();
         private readonly List<(IReference Reference, Type StateType)> latestKeyOrder = new();
-        private readonly Dictionary<(IReference Reference, Type StateType), BaseState> latestByKey = new();
+        private readonly Dictionary<(IReference Reference, Type StateType), (BaseState State, StateChangeEvent Change)> latestByKey = new();
 
+        /// <inheritdoc cref="IStateEventHandler.Notify(IReference, BaseState)"/>
         public void Notify(IReference reference, BaseState state)
+        {
+            Notify(reference, state, StateChangeEvent.Updated);
+        }
+
+        public void Notify(IReference reference, BaseState state, StateChangeEvent changeEvent)
         {
             if (state is null)
             {
@@ -34,24 +40,24 @@ namespace Scaffold.States
 
             if (deferralDepth == 0)
             {
-                inner.Notify(r, state);
+                inner.Notify(r, state, changeEvent);
                 return;
             }
 
-            BufferDeferred(r, state);
+            BufferDeferred(r, state, changeEvent);
         }
 
-        public void Subscribe<TState>(IReference reference, Action<IReference, TState> action) where TState : BaseState
+        public void Subscribe<TState>(IReference reference, Action<IReference, TState, StateChangeEvent> action) where TState : BaseState
         {
             inner.Subscribe(reference, action);
         }
 
-        public void SubscribeAllReferences<TState>(Action<IReference, TState> action) where TState : BaseState
+        public void SubscribeAllReferences<TState>(Action<IReference, TState, StateChangeEvent> action) where TState : BaseState
         {
             inner.SubscribeAllReferences(action);
         }
 
-        public void SubscribeAny(Action<IReference, BaseState> action)
+        public void SubscribeAny(Action<IReference, BaseState, StateChangeEvent> action)
         {
             inner.SubscribeAny(action);
         }
@@ -73,11 +79,11 @@ namespace Scaffold.States
             return new DeferScope(this);
         }
 
-        private void BufferDeferred(IReference r, BaseState state)
+        private void BufferDeferred(IReference r, BaseState state, StateChangeEvent changeEvent)
         {
             if (mergeMode == StateEventMergeMode.PreserveAll)
             {
-                preserveAll.Add((r, state));
+                preserveAll.Add((r, state, changeEvent));
                 return;
             }
 
@@ -87,7 +93,7 @@ namespace Scaffold.States
                 latestKeyOrder.Add(key);
             }
 
-            latestByKey[key] = state;
+            latestByKey[key] = (state, changeEvent);
         }
 
         private void FlushPreserveAll()
@@ -96,9 +102,9 @@ namespace Scaffold.States
             {
                 var snapshot = preserveAll.ToArray();
                 preserveAll.Clear();
-                foreach (var (reference, st) in snapshot)
+                foreach (var (reference, st, ev) in snapshot)
                 {
-                    inner.Notify(reference, st);
+                    inner.Notify(reference, st, ev);
                 }
             }
         }
@@ -111,10 +117,10 @@ namespace Scaffold.States
                 latestKeyOrder.Clear();
                 foreach (var key in snapshot)
                 {
-                    if (latestByKey.TryGetValue(key, out BaseState? st))
+                    if (latestByKey.TryGetValue(key, out var entry))
                     {
                         latestByKey.Remove(key);
-                        inner.Notify(key.Reference, st);
+                        inner.Notify(key.Reference, entry.State, entry.Change);
                     }
                 }
             }

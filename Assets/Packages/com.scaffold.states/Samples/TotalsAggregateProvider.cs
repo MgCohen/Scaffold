@@ -18,12 +18,12 @@ namespace Scaffold.States.Samples
 
         public override void Wire(IStoreScope scope, IAggregateRebuild rebuild)
         {
-            scope.Events.Subscribe<CounterState>(Reference.Null, (_, _) =>
+            scope.Events.Subscribe<CounterState>(Reference.Null, (_, _, _) =>
             {
                 CanonicalSubscriptionNotifications++;
                 rebuild.RequestRebuild();
             });
-            scope.Events.Subscribe<NotesState>(Reference.Null, (_, _) =>
+            scope.Events.Subscribe<NotesState>(Reference.Null, (_, _, _) =>
             {
                 CanonicalSubscriptionNotifications++;
                 rebuild.RequestRebuild();

@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using NUnit.Framework;
 using Scaffold.States;
 using Scaffold.States.Samples;
@@ -71,7 +72,7 @@ namespace Scaffold.States.Tests
             StoreFeaturesDemo demo = SampleStoreFactory.CreateFullDemo();
             Store store = demo.Store;
             var seen = new List<TotalsDashboardState>();
-            store.Subscribe<TotalsDashboardState>((_, s) => seen.Add(s));
+            store.Subscribe<TotalsDashboardState>((_, s, _) => seen.Add(s));
 
             store.Execute(new CombinedTickPayload(2));
 
@@ -128,7 +129,7 @@ namespace Scaffold.States.Tests
             var keyB = new SampleKey("B");
             var keys = new List<IReference>();
 
-            store.SubscribeAllReferences<CounterState>((r, _) => keys.Add(r));
+            store.SubscribeAllReferences<CounterState>((r, _, _) => keys.Add(r));
 
             store.Execute(new RoutedCounterPayload(keyA, 1));
             store.Execute(new RoutedCounterPayload(keyB, 1));
@@ -159,7 +160,7 @@ namespace Scaffold.States.Tests
             builder.AddState(new CounterState(0));
             Store store = builder.Build();
             var keys = new List<IReference>();
-            store.SubscribeAllReferences<CounterState>((r, _) => keys.Add(r));
+            store.SubscribeAllReferences<CounterState>((r, _, _) => keys.Add(r));
             var key = new SampleKey("X");
             store.RegisterSlice(key, new CounterState(99));
 
@@ -206,6 +207,83 @@ namespace Scaffold.States.Tests
             store.RegisterMutator(new ApplyCombinedTickToCounter());
             store.Execute(new CombinedTickPayload(2));
             Assert.That(store.Get<CounterState>().Value, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void LoadSnapshot_RemovesCanonicalSlicesNotInSnapshot()
+        {
+            var keyA = new SampleKey("A");
+            var keyB = new SampleKey("B");
+            var keyC = new SampleKey("C");
+            var builder = new StoreBuilder();
+            builder.AddState(keyA, new CounterState(1));
+            builder.AddState(keyB, new CounterState(2));
+            Store store = builder.Build();
+
+            Snapshot snap1 = store.SaveSnapshot();
+            store.RegisterSlice(keyC, new CounterState(99));
+
+            Assert.That(store.Get<CounterState>(keyC).Value, Is.EqualTo(99));
+
+            store.LoadSnapshot(snap1);
+
+            Assert.Throws<KeyNotFoundException>(() => store.Get<CounterState>(keyC));
+            Assert.That(store.Get<CounterState>(keyA).Value, Is.EqualTo(1));
+            Assert.That(store.Get<CounterState>(keyB).Value, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void LoadSnapshot_NullSnapshot_ThrowsArgumentNullException()
+        {
+            var builder = new StoreBuilder();
+            builder.AddState(new CounterState(0));
+            Store store = builder.Build();
+            Assert.Throws<ArgumentNullException>(() => store.LoadSnapshot(null!));
+        }
+
+        [Test]
+        public void LoadSnapshot_Prune_RemainingCanonicalRowsMatchGetAll()
+        {
+            var keyA = new SampleKey("A");
+            var keyB = new SampleKey("B");
+            var keyC = new SampleKey("C");
+            var builder = new StoreBuilder();
+            builder.AddState(keyA, new CounterState(1));
+            builder.AddState(keyB, new CounterState(2));
+            Store store = builder.Build();
+            Snapshot snap1 = store.SaveSnapshot();
+            store.RegisterSlice(keyC, new CounterState(5));
+            store.LoadSnapshot(snap1);
+
+            Assert.That(store.GetAll<CounterState>().Sum(c => c.Value), Is.EqualTo(3));
+        }
+
+        [Test]
+        public void Execute_StillMergesPartialOverlay_WithoutPruningOtherKeyedSlices()
+        {
+            Store store = SampleStoreFactory.CreateKeyedCounterDemo();
+            var keyA = new SampleKey("A");
+            var keyB = new SampleKey("B");
+
+            store.Execute(new RoutedCounterPayload(keyA, 7));
+
+            Assert.That(store.Get<CounterState>(keyA).Value, Is.EqualTo(7));
+            Assert.That(store.Get<CounterState>(keyB).Value, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void Subscribe_WithStateChangeEvent_ReceivesCreatedAndRemoved()
+        {
+            var builder = new StoreBuilder();
+            Store store = builder.Build();
+            var key = new SampleKey("K");
+            var events = new List<StateChangeEvent>();
+
+            store.SubscribeAllReferences<CounterState>((_, _, e) => events.Add(e));
+            store.RegisterSlice(key, new CounterState(1));
+            store.UnregisterSlice<CounterState>(key);
+
+            Assert.That(events, Is.EqualTo(new[] { StateChangeEvent.Created, StateChangeEvent.Removed }));
         }
     }
 }

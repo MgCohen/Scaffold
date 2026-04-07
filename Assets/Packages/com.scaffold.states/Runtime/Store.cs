@@ -40,22 +40,22 @@ namespace Scaffold.States
         private readonly MutatorRegistry mutatorRegistry;
 
         #region Subscriptions
-        public void Subscribe<TState>(Action<IReference, TState> action) where TState : BaseState
+        public void Subscribe<TState>(Action<IReference, TState, StateChangeEvent> action) where TState : BaseState
         {
-            Subscribe<TState>(Reference.Null, action);
+            Subscribe(Reference.Null, action);
         }
 
-        public void Subscribe<TState>(IReference reference, Action<IReference, TState> action) where TState : BaseState
+        public void Subscribe<TState>(IReference reference, Action<IReference, TState, StateChangeEvent> action) where TState : BaseState
         {
-            eventHandler.Subscribe<TState>(reference, action);
+            eventHandler.Subscribe(reference, action);
         }
 
-        public void SubscribeAllReferences<TState>(Action<IReference, TState> action) where TState : BaseState
+        public void SubscribeAllReferences<TState>(Action<IReference, TState, StateChangeEvent> action) where TState : BaseState
         {
             eventHandler.SubscribeAllReferences(action);
         }
 
-        public void SubscribeAny(Action<IReference, BaseState> action)
+        public void SubscribeAny(Action<IReference, BaseState, StateChangeEvent> action)
         {
             eventHandler.SubscribeAny(action);
         }
@@ -73,11 +73,49 @@ namespace Scaffold.States
             return snapshot;
         }
 
+        /// <summary>
+        /// Restores committed canonical state from a snapshot: applies all values, then removes any canonical slice
+        /// whose <c>(reference, state type)</c> is not present in the snapshot (for example runtime <see cref="RegisterSlice"/> rows).
+        /// Mutator commits use an internal merge-only path and do not prune missing rows.
+        /// </summary>
         public void LoadSnapshot(Snapshot snapshot)
+        {
+            if (snapshot is null)
+            {
+                throw new ArgumentNullException(nameof(snapshot));
+            }
+
+            ApplySnapshot(snapshot);
+            PruneCanonicalSlicesNotInSnapshot(snapshot);
+        }
+
+        /// <summary>
+        /// Applies snapshot values to existing slices without removing canonical rows (mutator overlay commit).
+        /// </summary>
+        private void ApplySnapshot(Snapshot snapshot)
         {
             foreach (var entry in snapshot)
             {
                 Set(entry.Key.Primary, entry.Value);
+            }
+        }
+
+        private void PruneCanonicalSlicesNotInSnapshot(Snapshot snapshot)
+        {
+            var toRemove = new List<(IReference Reference, Type StateType)>();
+            foreach (var entry in map)
+            {
+                IReference r = entry.Key.Primary;
+                Type t = entry.Key.Secondary;
+                if (!snapshot.Contains(r, t))
+                {
+                    toRemove.Add((r, t));
+                }
+            }
+
+            foreach ((IReference r, Type t) in toRemove)
+            {
+                UnregisterSlice(r, t);
             }
         }
 
@@ -205,7 +243,7 @@ namespace Scaffold.States
             Type t = slice.StateType;
             ThrowIfSliceConflict(r, t, map.Contains(r, t), aggregates.Contains(r, t));
             map.Add(r, t, slice);
-            eventHandler.Notify(r, state);
+            eventHandler.Notify(r, state, StateChangeEvent.Created);
         }
 
         private void ThrowIfSliceConflict(IReference r, Type t, bool hasCanonical, bool hasAggregate)
@@ -231,6 +269,7 @@ namespace Scaffold.States
 
         /// <summary>
         /// Removes a canonical slice row. Returns <c>false</c> if no matching slice was present. Does not remove aggregate slices.
+        /// Notifies with <see cref="StateChangeEvent.Removed"/> after the row is removed (last state is included for subscribers).
         /// </summary>
         public bool UnregisterSlice(IReference? reference, Type stateType)
         {
@@ -240,12 +279,28 @@ namespace Scaffold.States
             }
 
             var r = reference ?? Reference.Null;
-            if (!map.TryGetValue(r, stateType, out _))
+            return TryRemoveCanonicalSliceAndNotify(r, stateType);
+        }
+
+        private bool TryRemoveCanonicalSliceAndNotify(IReference r, Type stateType)
+        {
+            if (!map.TryGetValue(r, stateType, out Slice slice))
             {
                 return false;
             }
 
-            return map.Remove(r, stateType);
+            if (slice.State is not State lastState)
+            {
+                throw new InvalidOperationException($"Canonical slice state for {stateType.Name} is not a {nameof(State)} instance.");
+            }
+
+            if (!map.Remove(r, stateType))
+            {
+                return false;
+            }
+
+            eventHandler.Notify(r, lastState, StateChangeEvent.Removed);
+            return true;
         }
 
         #endregion
@@ -255,7 +310,7 @@ namespace Scaffold.States
         {
             BaseSlice slice = GetSlice(reference, state.GetType());
             slice.Set(state);
-            eventHandler.Notify(reference, state);
+            eventHandler.Notify(reference, state, StateChangeEvent.Updated);
         }
         #endregion
 
@@ -321,7 +376,7 @@ namespace Scaffold.States
 
             public void Commit()
             {
-                owner.LoadSnapshot(overlay);
+                owner.ApplySnapshot(overlay);
             }
 
             public void SetPending<TState>(IReference? reference, TState state) where TState : State

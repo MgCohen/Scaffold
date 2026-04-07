@@ -16,6 +16,13 @@
 |--------|----------------|
 | `Runtime/Core/` | `Attribute`, `AttributeSO`, `EntityDefinition`, `EntityInstanceState`, `EntityModifierEntry`, `Entity`, `EntityInstanceFactory`, `InstanceId` — stats, modifiers, instance storage. |
 | `Runtime/Behavior/` | `IEntityBehavior`, `IEntityFrameInputProvider`, `EntityBehaviorRunner` — per-frame behavior arbitration. |
+| `Samples/` | Optional **Scaffold.Entities.Samples** assembly (`autoReferenced: false`): `SampleEntity` prefab, authored attributes + `SampleCharacterDefinition`, and scripts showing definition → instance, numeric modifier combine, and `EntityBehaviorRunner` with WASD movement. |
+
+## Samples
+
+- Assembly: `Samples/Scaffold.Entities.Samples.asmdef` — reference it from your game assembly if you want to open or extend the sample types.
+- Assets: `Samples/Authoring/` — `Attribute_Health`, `Attribute_MoveSpeed`, and `SampleCharacterDefinition` (defaults wired to those slots).
+- Prefab: `Samples/SampleEntity` — drop into a scene and press Play: console logs show base stats plus a `+25` health modifier (float combine); on-screen HUD shows effective payloads; **WASD / arrow keys** move on the XZ plane using the effective Move Speed payload.
 
 ## Public API (selection)
 
@@ -43,6 +50,7 @@
 ## Testing
 
 - Assembly: `Scaffold.Entities.Tests` (EditMode). Run via `.agents/scripts/run-editmode-tests.ps1` or full `validate-changes.ps1`.
+- `EntityInstanceStateTests` covers definition resolution, modifiers (numeric combine), **`RemoveModifierAt` / `ClearModifiers`** restoring base payloads, invalid removal, `CreateOnGameObject`, and non-empty `InstanceId`.
 
 ## Related
 

@@ -20,23 +20,23 @@ namespace Scaffold.States.Tests
 
             public int NotifyCount { get; private set; }
 
-            public void Notify(IReference reference, BaseState state)
+            public void Notify(IReference reference, BaseState state, StateChangeEvent changeEvent)
             {
                 NotifyCount++;
-                inner.Notify(reference, state);
+                inner.Notify(reference, state, changeEvent);
             }
 
-            public void Subscribe<TState>(IReference reference, Action<IReference, TState> action) where TState : BaseState
+            public void Subscribe<TState>(IReference reference, Action<IReference, TState, StateChangeEvent> action) where TState : BaseState
             {
                 inner.Subscribe(reference, action);
             }
 
-            public void SubscribeAllReferences<TState>(Action<IReference, TState> action) where TState : BaseState
+            public void SubscribeAllReferences<TState>(Action<IReference, TState, StateChangeEvent> action) where TState : BaseState
             {
                 inner.SubscribeAllReferences(action);
             }
 
-            public void SubscribeAny(Action<IReference, BaseState> action)
+            public void SubscribeAny(Action<IReference, BaseState, StateChangeEvent> action)
             {
                 inner.SubscribeAny(action);
             }
@@ -83,7 +83,7 @@ namespace Scaffold.States.Tests
             var deferred = new DeferredStateEventHandler(counting, StateEventMergeMode.PreserveAll);
             var values = new List<int>();
 
-            core.Subscribe<CounterState>(Reference.Null, (_, s) => values.Add(s.Value));
+            core.Subscribe<CounterState>(Reference.Null, (_, s, _) => values.Add(s.Value));
 
             using (deferred.BeginDeferScope())
             {
@@ -105,7 +105,7 @@ namespace Scaffold.States.Tests
             var deferred = new DeferredStateEventHandler(counting, StateEventMergeMode.LatestPerKey);
             CounterState? last = null;
 
-            core.Subscribe<CounterState>(Reference.Null, (_, s) => last = s);
+            core.Subscribe<CounterState>(Reference.Null, (_, s, _) => last = s);
 
             using (deferred.BeginDeferScope())
             {
@@ -153,7 +153,7 @@ namespace Scaffold.States.Tests
             var deferred = new DeferredStateEventHandler(counting, StateEventMergeMode.PreserveAll);
             var reEntered = false;
 
-            core.Subscribe<CounterState>(Reference.Null, (_, _) =>
+            core.Subscribe<CounterState>(Reference.Null, (_, _, _) =>
             {
                 if (!reEntered)
                 {
