@@ -29,9 +29,9 @@ namespace Scaffold.Maps
 
         bool TryGetIndexer(string name, out Indexer<TPrimary, TSecondary, TValue> indexer);
 
-        IReadOnlyList<TValue> GetAll(TPrimary primary);
+        IReadOnlyList<KeyValuePair<TSecondary, TValue>> GetAll(TPrimary primary);
 
-        IReadOnlyList<TValue> GetAll(TSecondary secondary);
+        IReadOnlyList<KeyValuePair<TPrimary, TValue>> GetAll(TSecondary secondary);
 
         IReadOnlyCollection<TPrimary> GetPrimaryKeys();
 

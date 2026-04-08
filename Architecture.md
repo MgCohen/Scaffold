@@ -87,7 +87,7 @@ flowchart LR
     Infra[Infra<br/>Scope / Events / Navigation / Model / MVVM / Addressables / SceneFlow / UGS / CloudCode]
     Core[Core<br/>LiveOps / Entities / ViewModel]
     App[App<br/>Bootstrap / View]
-    Tools[Tools<br/>Maps / Records / Types]
+    Tools[Tools<br/>Maps / Records / Types / Pooling]
 
     Infra --> Core
     Infra --> App
@@ -96,7 +96,7 @@ flowchart LR
     Tools --> App
 ```
 
-Module documentation: each first-party package under `Assets/Packages/com.scaffold.*/` owns a **`README.md`** at the package root (full module doc). `Docs/` keeps short pointers for the same modules (for example `Docs/Tools/Types.md` → `Assets/Packages/com.scaffold.types/README.md`).
+Module documentation: each first-party package under `Assets/Packages/com.scaffold.*/` owns a **`README.md`** at the package root (full module doc). `Docs/` keeps short pointers for the same modules (for example `Docs/Tools/Types.md` → `Assets/Packages/com.scaffold.types/README.md`, `Docs/Tools/Pooling.md` → `Assets/Packages/com.scaffold.pooling/README.md`).
 
 Additional repository docs:
 

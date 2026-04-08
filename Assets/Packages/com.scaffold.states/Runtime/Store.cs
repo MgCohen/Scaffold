@@ -122,12 +122,12 @@ namespace Scaffold.States
         #endregion
 
         #region Mutators
-        public void Execute<TState>(Mutator<TState> mutator) where TState : State
+        public void ExecuteMutator<TState>(Mutator<TState> mutator) where TState : State
         {
-            Execute(Reference.Null, mutator);
+            ExecuteMutator(Reference.Null, mutator);
         }
 
-        public void Execute<TState>(IReference? reference, Mutator<TState> mutator) where TState : State
+        public void ExecuteMutator<TState>(IReference? reference, Mutator<TState> mutator) where TState : State
         {
             var r = reference ?? Reference.Null;
             var runner = new MutatorRunner(new Scratchpad(this));
@@ -135,12 +135,12 @@ namespace Scaffold.States
             runner.CommitOverlay();
         }
 
-        public void Execute<TState, TPayload>(Mutator<TState, TPayload> mutator, TPayload payload) where TState : State
+        public void ExecuteMutator<TState, TPayload>(Mutator<TState, TPayload> mutator, TPayload payload) where TState : State
         {
-            Execute(Reference.Null, mutator, payload);
+            ExecuteMutator(Reference.Null, mutator, payload);
         }
 
-        public void Execute<TState, TPayload>(IReference? reference, Mutator<TState, TPayload> mutator, TPayload payload) where TState : State
+        public void ExecuteMutator<TState, TPayload>(IReference? reference, Mutator<TState, TPayload> mutator, TPayload payload) where TState : State
         {
             var runner = new MutatorRunner(new Scratchpad(this));
             runner.RunTypedMutatorWithoutCommit(reference ?? Reference.Null, mutator, payload);
@@ -335,9 +335,15 @@ namespace Scaffold.States
         public IEnumerable<TState> GetAll<TState>() where TState : BaseState
         {
             Type stateType = typeof(TState);
-            var slices = map.GetAll(stateType).OfType<BaseSlice>();
-            var aSlices = aggregates.GetAll(stateType).OfType<BaseSlice>();
-            return slices.Union(aSlices).Select(s => s.State as TState);
+            IEnumerable<BaseSlice> allSlices = GetAllSlices(stateType); 
+            return allSlices.Select(s => s.State as TState);
+        }
+
+        private IEnumerable<BaseSlice> GetAllSlices(Type stateType)
+        {
+            var slices = map.GetAll(stateType).Select(p => p.Value).OfType<BaseSlice>();
+            var aSlices = aggregates.GetAll(stateType).Select(p => p.Value).OfType<BaseSlice>();
+            return slices.Union(aSlices);
         }
 
         private BaseSlice GetSlice(IReference reference, Type type)
@@ -388,14 +394,16 @@ namespace Scaffold.States
             public IEnumerable<TState> GetAll<TState>() where TState : BaseState
             {
                 Type stateType = typeof(TState);
-                if (owner.TryGetSlice(Reference.Null, stateType, out BaseSlice slice) && slice is AggregateSlice)
+                var committedRefs = owner.GetAllSlices(stateType).Select(s => s.Reference);
+                var overlayRefs = overlay.GetAll(stateType).Select(p => p.Key);
+                var unique = new HashSet<IReference>(ReferenceByValueEqualityComparer.Instance);
+                foreach (var r in committedRefs.Concat(overlayRefs))
                 {
-                    yield return Get<TState>();
-                    yield break;
-                }
+                    if (!unique.Add(r))
+                    {
+                        continue;
+                    }
 
-                foreach (var r in CollectReferencesForCanonicalType(stateType))
-                {
                     yield return Get<TState>(r);
                 }
             }
@@ -425,11 +433,33 @@ namespace Scaffold.States
                 return owner.Get<TState>(r);
             }
 
-            private IEnumerable<IReference> CollectReferencesForCanonicalType(Type stateType)
+            private sealed class ReferenceByValueEqualityComparer : IEqualityComparer<IReference>
             {
-                var overlayReferences = overlay.GetPrimaryKeys();
-                var storeReferences = owner.map.GetPrimaryKeys();
-                return overlayReferences.Union(storeReferences).ToHashSet();
+                internal static ReferenceByValueEqualityComparer Instance { get; } = new ReferenceByValueEqualityComparer();
+
+                private ReferenceByValueEqualityComparer()
+                {
+                }
+
+                public bool Equals(IReference? x, IReference? y)
+                {
+                    if (ReferenceEquals(x, y))
+                    {
+                        return true;
+                    }
+
+                    if (x is null || y is null)
+                    {
+                        return false;
+                    }
+
+                    return x.Equals(y);
+                }
+
+                public int GetHashCode(IReference obj)
+                {
+                    return obj?.GetHashCode() ?? 0;
+                }
             }
         }
     }

@@ -47,7 +47,7 @@ namespace Scaffold.States.Tests
             builder.AddState(new CounterState(1));
             Store store = builder.Build();
 
-            store.Execute<CounterState>(new IncrementCounterMutator(4));
+            store.ExecuteMutator<CounterState>(new IncrementCounterMutator(4));
 
             Assert.That(store.Get<CounterState>().Value, Is.EqualTo(5));
         }

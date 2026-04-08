@@ -208,38 +208,43 @@ namespace Scaffold.Maps
             }
         }
 
-        public IReadOnlyList<TValue> GetAll(TPrimary primary)
+        public IReadOnlyList<KeyValuePair<TSecondary, TValue>> GetAll(TPrimary primary)
         {
             if (predicateIndexers == null)
             {
                 throw new InvalidOperationException("Map indexers were not initialized.");
             }
 
-            return GetValueFromKey(primary, i => i.Primary);
-        }
-
-        public IReadOnlyList<TValue> GetAll(TSecondary secondary)
-        {
-            if (predicateIndexers == null)
-            {
-                throw new InvalidOperationException("Map indexers were not initialized.");
-            }
-
-            return GetValueFromKey(secondary, i => i.Secondary);
-        }
-
-        private IReadOnlyList<TValue> GetValueFromKey<T>(T key, Func<Index<TPrimary, TSecondary>, T> getter)
-        {
-            List<TValue> list = new List<TValue>();
-            IEqualityComparer<T> comparer = EqualityComparer<T>.Default;
+            List<KeyValuePair<TSecondary, TValue>> list = new List<KeyValuePair<TSecondary, TValue>>();
+            IEqualityComparer<TPrimary> comparer = EqualityComparer<TPrimary>.Default;
             foreach (KeyValuePair<Index<TPrimary, TSecondary>, Holder<TValue>> entry in GetEntries())
             {
-                T value = getter(entry.Key);
-                if (comparer.Equals(value, key))
+                if (comparer.Equals(entry.Key.Primary, primary))
                 {
-                    list.Add(entry.Value.Value);
+                    list.Add(new KeyValuePair<TSecondary, TValue>(entry.Key.Secondary, entry.Value.Value));
                 }
             }
+
+            return list;
+        }
+
+        public IReadOnlyList<KeyValuePair<TPrimary, TValue>> GetAll(TSecondary secondary)
+        {
+            if (predicateIndexers == null)
+            {
+                throw new InvalidOperationException("Map indexers were not initialized.");
+            }
+
+            List<KeyValuePair<TPrimary, TValue>> list = new List<KeyValuePair<TPrimary, TValue>>();
+            IEqualityComparer<TSecondary> comparer = EqualityComparer<TSecondary>.Default;
+            foreach (KeyValuePair<Index<TPrimary, TSecondary>, Holder<TValue>> entry in GetEntries())
+            {
+                if (comparer.Equals(entry.Key.Secondary, secondary))
+                {
+                    list.Add(new KeyValuePair<TPrimary, TValue>(entry.Key.Primary, entry.Value.Value));
+                }
+            }
+
             return list;
         }
 

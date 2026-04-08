@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using NUnit.Framework;
 using Scaffold.Maps;
 
@@ -17,9 +18,9 @@ namespace Scaffold.Maps.Tests
             map.Add("B", 2, "Y1");
             map.Add("B", 3, "Z3");
 
-            IReadOnlyList<string> forA = map.GetAll("A");
+            IReadOnlyList<KeyValuePair<int, string>> forA = map.GetAll("A");
 
-            Assert.That(forA, Is.EquivalentTo(new[] { "X", "Y", "Z" }));
+            Assert.That(forA.Select(p => p.Value), Is.EquivalentTo(new[] { "X", "Y", "Z" }));
         }
 
         [Test]
@@ -30,9 +31,9 @@ namespace Scaffold.Maps.Tests
             map.Add("A", 2, "Y");
             map.Add("B", 1, "X1");
 
-            IReadOnlyList<string> forOne = map.GetAll(1);
+            IReadOnlyList<KeyValuePair<string, string>> forOne = map.GetAll(1);
 
-            Assert.That(forOne, Is.EquivalentTo(new[] { "X", "X1" }));
+            Assert.That(forOne.Select(p => p.Value), Is.EquivalentTo(new[] { "X", "X1" }));
         }
 
         [Test]
@@ -41,7 +42,7 @@ namespace Scaffold.Maps.Tests
             Map<string, int, string> map = new Map<string, int, string>();
             map.Add("B", 1, "only");
 
-            IReadOnlyList<string> forA = map.GetAll("A");
+            IReadOnlyList<KeyValuePair<int, string>> forA = map.GetAll("A");
 
             Assert.That(forA.Count, Is.Zero);
         }
@@ -56,7 +57,7 @@ namespace Scaffold.Maps.Tests
 
             Assert.That(readOnly.Count, Is.EqualTo(1));
             Assert.That(readOnly.Contains("A", 1), Is.True);
-            Assert.That(readOnly.GetAll("A"), Is.EqualTo(new[] { "X" }));
+            Assert.That(readOnly.GetAll("A").Select(p => p.Value), Is.EqualTo(new[] { "X" }));
         }
 
         [Test]

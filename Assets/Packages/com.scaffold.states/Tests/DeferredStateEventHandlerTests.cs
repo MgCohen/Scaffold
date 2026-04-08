@@ -184,8 +184,8 @@ namespace Scaffold.States.Tests
 
             using (deferred.BeginDeferScope())
             {
-                store.Execute<CounterState>(new IncrementCounterMutator(1));
-                store.Execute<CounterState>(new IncrementCounterMutator(1));
+                store.ExecuteMutator<CounterState>(new IncrementCounterMutator(1));
+                store.ExecuteMutator<CounterState>(new IncrementCounterMutator(1));
                 Assert.That(counting.NotifyCount, Is.EqualTo(0));
             }
 
@@ -208,8 +208,8 @@ namespace Scaffold.States.Tests
 
             using (deferred.BeginDeferScope())
             {
-                store.Execute<CounterState>(new IncrementCounterMutator(1));
-                store.Execute<CounterState>(new IncrementCounterMutator(1));
+                store.ExecuteMutator<CounterState>(new IncrementCounterMutator(1));
+                store.ExecuteMutator<CounterState>(new IncrementCounterMutator(1));
             }
 
             deferred.Flush();
