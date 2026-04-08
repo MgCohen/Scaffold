@@ -1,28 +1,27 @@
 using System;
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace Scaffold.Entities
 {
     /// <summary>
-    /// Creates <see cref="EntityInstanceState"/> and optional <see cref="Entity"/> hosts bound to a definition.
+    /// Creates <see cref="EntityInstance{TDefinition}"/> and optional <see cref="EntityComponent{TDefinition}"/> hosts bound to a definition.
     /// </summary>
     public static class EntityInstanceFactory
     {
-        public static EntityInstanceState CreateState(EntityDefinition definition)
+        private static int counter = 0;
+        public static EntityInstance<TDefinition> CreateInstance<TDefinition>(TDefinition definition) where TDefinition : EntityDefinition
         {
             if (definition == null)
             {
                 throw new ArgumentNullException(nameof(definition));
             }
 
-            definition.RebuildLookup();
-            var state = new EntityInstanceState();
-            state.Initialize(InstanceId.New(), definition, new List<EntityModifierEntry>());
-            return state;
+            var instance = new EntityInstance<TDefinition>();
+            instance.Initialize(new InstanceId(counter++), definition);
+            return instance;
         }
 
-        public static TEntity CreateOnGameObject<TEntity>(GameObject gameObject, EntityDefinition definition) where TEntity : Entity
+        public static TEntity CreateOnGameObject<TEntity, TDefinition>(GameObject gameObject, TDefinition definition) where TEntity : EntityComponent<TDefinition> where TDefinition : EntityDefinition
         {
             if (gameObject == null)
             {
@@ -30,7 +29,13 @@ namespace Scaffold.Entities
             }
 
             TEntity entity = gameObject.AddComponent<TEntity>();
-            entity.InitializeFromDefinition(definition);
+            if (entity == null)
+            {
+                throw new InvalidOperationException(
+                    $"AddComponent failed for {typeof(TEntity).FullName}. The component type must be concrete and loadable.");
+            }
+
+            entity.InitializeFromDefinition(new InstanceId(counter++), definition);
             return entity;
         }
     }

@@ -1,25 +1,18 @@
-using System;
 using System.Collections.Generic;
 using UnityEngine;
 
 namespace Scaffold.Entities
 {
     /// <summary>
-    /// Shared definition (flyweight intrinsic state): default attributes keyed by <see cref="AttributeSO"/>.
-    /// Modifiers do not live on definitions—only on <see cref="EntityInstanceState"/>.
+    /// Shared definition (flyweight intrinsic state): default attribute values keyed by <see cref="Attribute"/>.
+    /// Modifiers do not live on definitions—only on entity instances.
     /// </summary>
     public class EntityDefinition : ScriptableObject
     {
-        public IReadOnlyList<EntityDefinitionDefaultEntry> DefaultAttributes => defaultAttributes;
+        public IReadOnlyList<AttributeEntry> Entries => entries;
+        [SerializeField] private List<AttributeEntry> entries = new List<AttributeEntry>();
 
-        [SerializeField]
-        private List<EntityDefinitionDefaultEntry> defaultAttributes = new List<EntityDefinitionDefaultEntry>();
-
-        private readonly Dictionary<AttributeSO, EntityDefinitionDefaultEntry> attributeToEntry =
-            new Dictionary<AttributeSO, EntityDefinitionDefaultEntry>();
-
-        private readonly Dictionary<string, AttributeSO> nameToAttribute =
-            new Dictionary<string, AttributeSO>(StringComparer.Ordinal);
+        private readonly Dictionary<Attribute, AttributeValue> baseValues = new Dictionary<Attribute, AttributeValue>();
 
         private void OnEnable()
         {
@@ -28,62 +21,42 @@ namespace Scaffold.Entities
 
         private void OnValidate()
         {
+            for (int i = 0; i < entries.Count; i++)
+            {
+                entries[i]?.EnsureValueMatchesType();
+            }
+
             RebuildLookup();
         }
 
-        public void RebuildLookup()
+        internal void RebuildLookup()
         {
-            attributeToEntry.Clear();
-            nameToAttribute.Clear();
-            for (int i = 0; i < defaultAttributes.Count; i++)
+            baseValues.Clear();
+            for (int i = 0; i < entries.Count; i++)
             {
-                EntityDefinitionDefaultEntry entry = defaultAttributes[i];
-                if (entry?.Attribute == null)
+                AttributeEntry entry = entries[i];
+                if (entry == null || entry.Attribute == null || entry.BaseValue == null)
                 {
                     continue;
                 }
 
-                AttributeSO so = entry.Attribute;
-                attributeToEntry[so] = entry;
-                nameToAttribute[so.name] = so;
+                Attribute key = (Attribute)entry.Attribute;
+                baseValues[key] = entry.BaseValue;
             }
         }
 
-        public Attribute GetBaseAttribute(AttributeSO attribute)
+        public bool TryGetBaseValue(Attribute key, out AttributeValue value)
         {
-            if (attribute == null)
-            {
-                return default;
-            }
-
-            if (TryGetDefaultEntry(attribute, out EntityDefinitionDefaultEntry entry))
-            {
-                return entry.GetDefaultAttribute();
-            }
-
-            return (Attribute)attribute;
+            return baseValues.TryGetValue(key, out value);
         }
 
-        public bool TryGetAttributeSOByName(string assetName, out AttributeSO attribute)
+        internal void AddEntry(AttributeEntry entry)
         {
-            if (string.IsNullOrEmpty(assetName))
+            if (entry != null)
             {
-                attribute = null;
-                return false;
+                entries.Add(entry);
             }
-
-            return nameToAttribute.TryGetValue(assetName, out attribute);
-        }
-
-        public bool TryGetDefaultEntry(AttributeSO attribute, out EntityDefinitionDefaultEntry entry)
-        {
-            if (attribute == null)
-            {
-                entry = null;
-                return false;
-            }
-
-            return attributeToEntry.TryGetValue(attribute, out entry);
         }
     }
 }
+

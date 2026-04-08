@@ -1,37 +1,217 @@
+using System.Collections.Generic;
 using Scaffold.Entities;
 using UnityEditor;
 using UnityEngine;
 
 namespace Scaffold.Entities.Editor
 {
-    /// <summary>
-    /// Compact editor for <see cref="Attribute"/> (payload + optional match key).
-    /// </summary>
-    [CustomPropertyDrawer(typeof(Attribute))]
+    [CustomPropertyDrawer(typeof(AttributeEntry))]
     public sealed class AttributePropertyDrawer : PropertyDrawer
     {
-        private const float gap = 4f;
+        private const float foldoutWidth = 15f;
+        private const float soValueSplit = 0.58f;
+        private const float soValueGap = 4f;
 
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
         {
-            return EditorGUIUtility.singleLineHeight;
+            float line = EditorGUIUtility.singleLineHeight;
+            SerializedProperty baseValue = property.FindPropertyRelative("baseValue");
+            var extraPaths = new List<string>();
+            CollectExtraChildPropertyPaths(baseValue, extraPaths);
+            if (extraPaths.Count == 0 || baseValue == null || !baseValue.isExpanded)
+            {
+                return line;
+            }
+
+            float spacing = EditorGUIUtility.standardVerticalSpacing;
+            return line + MeasureExpandedExtrasHeight(property.serializedObject, extraPaths, spacing);
         }
 
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
-            SerializedProperty payloadProp = property.FindPropertyRelative("payload");
-            SerializedProperty matchKeyProp = property.FindPropertyRelative("matchKey");
+            SerializedProperty attributeProp = property.FindPropertyRelative("attribute");
+            SerializedProperty baseValue = property.FindPropertyRelative("baseValue");
+            SerializedProperty inlineValue = baseValue != null ? baseValue.FindPropertyRelative("value") : null;
 
-            float line = EditorGUIUtility.singleLineHeight;
-            Rect row = EditorGUI.PrefixLabel(position, label);
-            float half = (row.width - gap) * 0.5f;
-            var payloadRect = new Rect(row.x, row.y, half, line);
-            var matchRect = new Rect(row.x + half + gap, row.y, half, line);
+            var extraPaths = new List<string>();
+            CollectExtraChildPropertyPaths(baseValue, extraPaths);
+            bool hasExtras = extraPaths.Count > 0;
+
+            float singleLineHeight = EditorGUIUtility.singleLineHeight;
+            float spacing = EditorGUIUtility.standardVerticalSpacing;
 
             EditorGUI.BeginProperty(position, label, property);
-            EditorGUI.PropertyField(payloadRect, payloadProp, GUIContent.none);
-            EditorGUI.PropertyField(matchRect, matchKeyProp, new GUIContent("Key"));
+            DrawHeaderRow(position, attributeProp, baseValue, inlineValue, hasExtras, singleLineHeight);
+            if (hasExtras && baseValue != null && baseValue.isExpanded)
+            {
+                DrawExpandedExtraFields(position, property.serializedObject, extraPaths, singleLineHeight, spacing);
+            }
+
             EditorGUI.EndProperty();
+        }
+
+        private float MeasureExpandedExtrasHeight(SerializedObject so, List<string> extraPaths, float spacing)
+        {
+            float sum = 0f;
+            for (int i = 0; i < extraPaths.Count; i++)
+            {
+                SerializedProperty extra = so.FindProperty(extraPaths[i]);
+                if (extra == null)
+                {
+                    continue;
+                }
+
+                sum += spacing + EditorGUI.GetPropertyHeight(extra, true);
+            }
+
+            return sum;
+        }
+
+        private void DrawHeaderRow(Rect position, SerializedProperty attributeProp, SerializedProperty baseValue, SerializedProperty inlineValue, bool hasExtras, float singleLineHeight)
+        {
+            float rowY = position.y;
+            float rowW = position.width;
+            float x = position.x;
+            ApplyFoldoutStrip(hasExtras, baseValue, ref x, ref rowW, rowY, singleLineHeight);
+            DrawHeaderSoAndValue(x, rowY, rowW, attributeProp, inlineValue, singleLineHeight);
+        }
+
+        private void DrawHeaderSoAndValue(float x, float rowY, float rowW, SerializedProperty attributeProp, SerializedProperty inlineValue, float singleLineHeight)
+        {
+            if (inlineValue == null)
+            {
+                DrawSoOnly(x, rowY, rowW, attributeProp, singleLineHeight);
+                return;
+            }
+
+            bool hasAttributeSo = attributeProp.objectReferenceValue != null;
+            if (hasAttributeSo)
+            {
+                DrawSoAndInlineValue(x, rowY, rowW, attributeProp, inlineValue, singleLineHeight);
+            }
+            else
+            {
+                DrawSoAndReservedValueSlot(x, rowY, rowW, attributeProp, singleLineHeight);
+            }
+        }
+
+        private void ApplyFoldoutStrip(bool hasExtras, SerializedProperty baseValue, ref float x, ref float rowW, float rowY, float singleLineHeight)
+        {
+            Rect stripRect = new Rect(x, rowY, foldoutWidth, singleLineHeight);
+            if (hasExtras && baseValue != null)
+            {
+                baseValue.isExpanded = EditorGUI.Foldout(stripRect, baseValue.isExpanded, GUIContent.none, true);
+            }
+
+            x += foldoutWidth;
+            rowW -= foldoutWidth;
+        }
+
+        private void DrawSoAndInlineValue(float x, float rowY, float rowW, SerializedProperty attributeProp, SerializedProperty inlineValue, float singleLineHeight)
+        {
+            float valueW = ComputeValueColumnWidth(rowW);
+            float soW = rowW - valueW - soValueGap;
+            Rect soRect = new Rect(x, rowY, soW, singleLineHeight);
+            Rect valRect = new Rect(x + soW + soValueGap, rowY, valueW, singleLineHeight);
+
+            EditorGUI.PropertyField(soRect, attributeProp, GUIContent.none);
+            EditorGUI.PropertyField(valRect, inlineValue, GUIContent.none);
+        }
+
+        private void DrawSoAndReservedValueSlot(float x, float rowY, float rowW, SerializedProperty attributeProp, float singleLineHeight)
+        {
+            float valueW = ComputeValueColumnWidth(rowW);
+            float soW = rowW - valueW - soValueGap;
+            Rect soRect = new Rect(x, rowY, soW, singleLineHeight);
+            EditorGUI.PropertyField(soRect, attributeProp, GUIContent.none);
+        }
+
+        private void DrawSoOnly(float x, float rowY, float rowW, SerializedProperty attributeProp, float singleLineHeight)
+        {
+            Rect soRect = new Rect(x, rowY, rowW, singleLineHeight);
+            EditorGUI.PropertyField(soRect, attributeProp, GUIContent.none);
+        }
+
+        private float ComputeValueColumnWidth(float rowW)
+        {
+            float valueW = rowW * (1f - soValueSplit) - soValueGap;
+            if (valueW < 40f)
+            {
+                valueW = Mathf.Min(120f, rowW * 0.4f);
+            }
+
+            return valueW;
+        }
+
+        private void DrawExpandedExtraFields(Rect position, SerializedObject so, List<string> extraPaths, float singleLineHeight, float spacing)
+        {
+            float y = position.y + singleLineHeight + spacing;
+
+            EditorGUI.indentLevel++;
+            try
+            {
+                for (int i = 0; i < extraPaths.Count; i++)
+                {
+                    DrawOneExtraField(position, so, extraPaths[i], ref y, spacing);
+                }
+            }
+            finally
+            {
+                EditorGUI.indentLevel--;
+            }
+        }
+
+        private void DrawOneExtraField(Rect position, SerializedObject so, string path, ref float y, float spacing)
+        {
+            SerializedProperty extra = so.FindProperty(path);
+            if (extra == null)
+            {
+                return;
+            }
+
+            float h = EditorGUI.GetPropertyHeight(extra, true);
+            Rect extraRect = new Rect(position.x, y, position.width, h);
+            EditorGUI.PropertyField(extraRect, extra, true);
+            y += h + spacing;
+        }
+
+        private void CollectExtraChildPropertyPaths(SerializedProperty baseValue, List<string> paths)
+        {
+            paths.Clear();
+            if (baseValue == null)
+            {
+                return;
+            }
+
+            AppendDirectChildPathsSkippingValue(baseValue, paths);
+        }
+
+        private void AppendDirectChildPathsSkippingValue(SerializedProperty baseValue, List<string> paths)
+        {
+            SerializedProperty end = baseValue.GetEndProperty();
+            SerializedProperty it = baseValue.Copy();
+            if (!it.Next(true))
+            {
+                return;
+            }
+
+            int baseDepth = baseValue.depth;
+            while (!SerializedProperty.EqualContents(it, end))
+            {
+                TryAddExtraPath(it, baseDepth, paths);
+                if (!it.Next(false))
+                {
+                    break;
+                }
+            }
+        }
+
+        private void TryAddExtraPath(SerializedProperty it, int baseDepth, List<string> paths)
+        {
+            if (it.depth == baseDepth + 1 && it.name != "value")
+            {
+                paths.Add(it.propertyPath);
+            }
         }
     }
 }

@@ -12,8 +12,26 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d403d4567890abcd1234567890abcdef, type: 3}
   m_Name: SampleCharacterDefinition
   m_EditorClassIdentifier: 
-  defaultAttributes:
+  entries:
   - attribute: {fileID: 11400000, guid: a103d4567890abcd1234567890abcdef, type: 2}
-    payloadOverride: 
+    baseValue:
+      rid: 4306785027458334720
   - attribute: {fileID: 11400000, guid: b203d4567890abcd1234567890abcdef, type: 2}
-    payloadOverride: 
+    baseValue:
+      rid: 4306785027458334720
+  - attribute: {fileID: 11400000, guid: 8b8d56b54ed19d746a2c8d2ce4d28e16, type: 2}
+    baseValue:
+      rid: 4306785027458334993
+  references:
+    version: 2
+    RefIds:
+    - rid: 4306785027458334720
+      type: {class: FloatAttributeValue, ns: Scaffold.Entities, asm: Scaffold.Entities}
+      data:
+        value: 0
+        min: 1
+        max: 2
+    - rid: 4306785027458334993
+      type: {class: BoolAttributeValue, ns: Scaffold.Entities, asm: Scaffold.Entities}
+      data:
+        value: 1

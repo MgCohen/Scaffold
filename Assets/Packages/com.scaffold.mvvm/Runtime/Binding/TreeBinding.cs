@@ -22,18 +22,12 @@ namespace Scaffold.MVVM.Binding
         private bool isUnbinding;
 
         private BindingUpdateTiming defaultBindingUpdateTiming = BindingUpdateTiming.Immediate;
-        private IDeferredBindingScheduler deferredScheduler;
         private readonly HashSet<IBindContext> deferredDirtyContexts = new HashSet<IBindContext>();
         private bool flushScheduled;
 
-        public void RegisterBindingUpdatePolicy(BindingUpdateTiming timing, IDeferredBindingScheduler scheduler)
+        public void RegisterBindingUpdatePolicy(BindingUpdateTiming timing)
         {
-            if (timing != BindingUpdateTiming.Immediate && scheduler == null)
-            {
-                throw new ArgumentNullException(nameof(scheduler), "Deferred binding update timing requires a non-null scheduler.");
-            }
             defaultBindingUpdateTiming = timing;
-            deferredScheduler = scheduler;
         }
 
         public IBindedProperty<TSource, TTarget> RegisterBind<TSource, TTarget>(Expression<Func<TSource>> source, Expression<Func<TTarget>> target, BindingOptions options = null)
@@ -78,11 +72,6 @@ namespace Scaffold.MVVM.Binding
         {
             BindingOptions o = options ?? BindingOptions.Strict;
             BindingUpdateTiming effective = o.UpdateTiming ?? defaultBindingUpdateTiming;
-            if (effective != BindingUpdateTiming.Immediate && deferredScheduler == null)
-            {
-                throw new InvalidOperationException(
-                    "Deferred binding updates require a scheduler. Call RegisterBindingUpdatePolicy with a non-null IDeferredBindingScheduler, or use BindingUpdateTiming.Immediate.");
-            }
             return new BindingOptions(o.LazyEvaluation, effective);
         }
 
@@ -155,13 +144,8 @@ namespace Scaffold.MVVM.Binding
                 return;
             }
 
-            if (deferredScheduler == null)
-            {
-                return;
-            }
-
             flushScheduled = true;
-            deferredScheduler.Schedule(FlushDeferredWork);
+            DeferredBindingCoroutineHost.Schedule(FlushDeferredWork, GetDeferredYieldTimingForScheduledFlush());
         }
 
         private void FlushDeferredWork()
@@ -196,11 +180,22 @@ namespace Scaffold.MVVM.Binding
 
         private void RescheduleDeferredFlushIfNeeded()
         {
-            if (deferredDirtyContexts.Count > 0 && deferredScheduler != null)
+            if (deferredDirtyContexts.Count > 0)
             {
                 flushScheduled = true;
-                deferredScheduler.Schedule(FlushDeferredWork);
+                DeferredBindingCoroutineHost.Schedule(FlushDeferredWork, GetDeferredYieldTimingForScheduledFlush());
             }
+        }
+
+        /// <summary>
+        /// Yield used for the global deferred pump when flushing this bind source (per-bind EndOfFrame vs NextFrame is not split at this coordinator).
+        /// When the bind-source default is <see cref="BindingUpdateTiming.Immediate"/> but a bind uses deferred timing, the pump uses <see cref="BindingUpdateTiming.NextFrame"/>.
+        /// </summary>
+        private BindingUpdateTiming GetDeferredYieldTimingForScheduledFlush()
+        {
+            return defaultBindingUpdateTiming != BindingUpdateTiming.Immediate
+                ? defaultBindingUpdateTiming
+                : BindingUpdateTiming.NextFrame;
         }
     }
 }

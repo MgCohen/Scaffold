@@ -159,9 +159,9 @@ public partial class {classSymbol.Name}{bindSourceClause}
         _bindSourceBindings.RegisterConverter(converter);
     }}
 
-    public void RegisterBindingUpdatePolicy(BindingUpdateTiming timing, IDeferredBindingScheduler scheduler)
+    public void RegisterBindingUpdatePolicy(BindingUpdateTiming timing)
     {{
-        _bindSourceBindings.RegisterBindingUpdatePolicy(timing, scheduler);
+        _bindSourceBindings.RegisterBindingUpdatePolicy(timing);
     }}
 
     public IBindedCollection<TSource, TTarget> BindCollection<TSource, TTarget>(Expression<Func<ICollection<TSource>>> source, ICollectionHandler<TSource, TTarget> handler, BindingOptions options = null)

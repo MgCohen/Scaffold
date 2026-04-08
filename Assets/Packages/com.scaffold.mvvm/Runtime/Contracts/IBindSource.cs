@@ -10,7 +10,7 @@ namespace Scaffold.MVVM.Binding
         public IBindedProperty<TSource, TTarget> Bind<TSource, TTarget>(Expression<Func<TSource>> source, Action<TTarget> target, BindingOptions options = null);
         public void BindConverter<TSource, TTarget>(Func<TSource, TTarget> converter);
         public void BindConverter<TSource, TTarget>(Converter<TSource, TTarget> converter);
-        public void RegisterBindingUpdatePolicy(BindingUpdateTiming timing, IDeferredBindingScheduler scheduler);
+        public void RegisterBindingUpdatePolicy(BindingUpdateTiming timing);
         public IBindedCollection<TSource, TTarget> BindCollection<TSource, TTarget>(Expression<Func<ICollection<TSource>>> source, ICollectionHandler<TSource, TTarget> handler, BindingOptions options = null);
         public void UpdateBinding(string bindKey);
         public void ClearBindings();

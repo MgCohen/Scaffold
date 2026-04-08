@@ -12,7 +12,7 @@ namespace Scaffold.MVVM.Binding
         public IBindedCollection<TSource, TTarget> RegisterBindCollection<TSource, TTarget>(Expression<Func<ICollection<TSource>>> source, ICollectionHandler<TSource, TTarget> handler, BindingOptions options = null);
         public void RegisterConverter<Tsource, TTarget>(Converter<Tsource, TTarget> converter);
         public void RegisterAdapter<TTarget>(Adapter<TTarget> converter);
-        public void RegisterBindingUpdatePolicy(BindingUpdateTiming timing, IDeferredBindingScheduler scheduler);
+        public void RegisterBindingUpdatePolicy(BindingUpdateTiming timing);
         public void Unbind();
     }
 }

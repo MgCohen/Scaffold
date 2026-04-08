@@ -1,7 +1,7 @@
 namespace Scaffold.MVVM.Binding
 {
     /// <summary>
-    /// When binding refresh runs relative to <see cref="IDeferredBindingScheduler"/> (for non-immediate modes).
+    /// When binding refresh runs relative to the deferred pump (for non-immediate modes), e.g. <see cref="DeferredBindingCoroutineHost"/>.
     /// </summary>
     public enum BindingUpdateTiming
     {
@@ -11,12 +11,12 @@ namespace Scaffold.MVVM.Binding
         Immediate = 0,
 
         /// <summary>
-        /// Defer target updates; the registered scheduler decides when (typically next frame).
+        /// Defer target updates; the deferred pump runs them on the next frame (see <see cref="DeferredBindingCoroutineHost"/>).
         /// </summary>
         NextFrame = 1,
 
         /// <summary>
-        /// Defer target updates; the registered scheduler decides when (typically after frame rendering in Unity).
+        /// Defer target updates; the deferred pump runs them after frame rendering in Unity (see <see cref="DeferredBindingCoroutineHost"/>).
         /// </summary>
         EndOfFrame = 2,
     }

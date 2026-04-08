@@ -1,18 +1,22 @@
+#nullable enable
 using System;
 using UnityEngine;
 
 namespace Scaffold.Entities
 {
-    /// <summary>
-    /// Instance-only modifier contribution for a given <see cref="AttributeSO"/> slot.
-    /// </summary>
     [Serializable]
     public sealed class EntityModifierEntry
     {
-        public EntityModifierEntry(AttributeSO attribute, string contribution)
+        public EntityModifierEntry(AttributeSO attribute, AttributeValue modifierValue)
         {
             this.attribute = attribute;
-            this.contribution = contribution ?? string.Empty;
+            this.modifierValue = modifierValue;
+        }
+
+        public EntityModifierEntry(Attribute key, AttributeValue modifierValue)
+        {
+            attributeKey = key;
+            this.modifierValue = modifierValue;
         }
 
         public EntityModifierEntry()
@@ -21,12 +25,17 @@ namespace Scaffold.Entities
 
         public AttributeSO Attribute => attribute;
 
+        public Attribute AttributeKey => attributeKey ?? (Attribute)attribute;
+
+        public AttributeValue ModifierValue => modifierValue;
+
         [SerializeField]
         private AttributeSO attribute = default!;
 
-        public string Contribution => contribution ?? string.Empty;
+        [NonSerialized]
+        private Attribute? attributeKey;
 
-        [SerializeField]
-        private string contribution = string.Empty;
+        [SerializeReference]
+        private AttributeValue modifierValue;
     }
 }

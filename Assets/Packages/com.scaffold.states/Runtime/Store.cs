@@ -205,7 +205,8 @@ namespace Scaffold.States
             Type payloadType = payload.GetType();
             if (!mutatorRegistry.TryGet(payloadType, out IReadOnlyList<IPayloadMutatorBinding>? bindings) || bindings == null || bindings.Count == 0)
             {
-                throw new InvalidOperationException($"No mutators registered for payload type {payloadType.FullName}.");
+                UnityEngine.Debug.LogWarning($"[Store] No mutators registered for payload type {payloadType.FullName}.");
+                return;
             }
 
             runner.RunMutatorBindingsWithoutCommit(payload, bindings, executeReference);

@@ -3,12 +3,12 @@ using UnityEngine;
 namespace Scaffold.Entities.Samples
 {
     /// <summary>
-    /// Wires an <see cref="Entity"/> from a <see cref="SampleCharacterDefinition"/>, logs modifier combination, and shows a small HUD.
+    /// Wires an <see cref="SampleCharacterEntity"/> from a <see cref="SampleCharacterDefinition"/>, logs modifier combination, and shows a small HUD.
     /// Add to a GameObject together with <see cref="SampleCharacterBehaviorRunner"/> and input/behaviors (see sample prefab).
     /// </summary>
     [DefaultExecutionOrder(-100)]
     [DisallowMultipleComponent]
-    [RequireComponent(typeof(Entity))]
+    [RequireComponent(typeof(SampleCharacterEntity))]
     public sealed class EntitiesSampleDriver : MonoBehaviour
     {
         [SerializeField]
@@ -23,14 +23,14 @@ namespace Scaffold.Entities.Samples
         [SerializeField]
         private bool showDebugHud = true;
 
-        private Entity entity = default!;
+        private SampleCharacterEntity entity = default!;
 
         private void Awake()
         {
-            entity = GetComponent<Entity>();
+            entity = GetComponent<SampleCharacterEntity>();
             if (characterDefinition != null)
             {
-                entity.InitializeFromDefinition(characterDefinition);
+                entity.InitializeFromDefinition(new InstanceId(0), characterDefinition);
             }
         }
 
@@ -39,7 +39,9 @@ namespace Scaffold.Entities.Samples
             LogEffectiveStats("Initial");
             if (healthAttribute != null)
             {
-                entity.AddModifier(new EntityModifierEntry(healthAttribute, "25"));
+                var bonusHealth = new FloatAttributeValue { Value = 25f };
+                var healthMod = new EntityModifierEntry(healthAttribute, bonusHealth);
+                entity.AddModifier(healthMod);
             }
 
             LogEffectiveStats("After +25 health modifier (numeric slots are summed)");
@@ -48,15 +50,15 @@ namespace Scaffold.Entities.Samples
         private void LogEffectiveStats(string label)
         {
             if (healthAttribute != null &&
-                entity.TryGetAttribute(healthAttribute, out Attribute health))
+                entity.TryGetAttribute(healthAttribute, out AttributeValue health))
             {
-                Debug.Log($"[Entities Sample] {label} — Health effective payload: {health.Payload}", this);
+                Debug.Log($"[Entities Sample] {label} — Health effective: {FormatAttributeText(health)}", this);
             }
 
             if (moveSpeedAttribute != null &&
-                entity.TryGetAttribute(moveSpeedAttribute, out Attribute speed))
+                entity.TryGetAttribute(moveSpeedAttribute, out AttributeValue speed))
             {
-                Debug.Log($"[Entities Sample] {label} — Move Speed effective payload: {speed.Payload}", this);
+                Debug.Log($"[Entities Sample] {label} — Move Speed effective: {FormatAttributeText(speed)}", this);
             }
         }
 
@@ -80,10 +82,22 @@ namespace Scaffold.Entities.Samples
 
         private void DrawAttributeLine(string label, AttributeSO slot)
         {
-            if (slot != null && entity.TryGetAttribute(slot, out Attribute value))
+            if (slot != null && entity.TryGetAttribute(slot, out AttributeValue value))
             {
-                GUILayout.Label($"{label}: {value.Payload}");
+                GUILayout.Label($"{label}: {FormatAttributeText(value)}");
             }
+        }
+
+        private string FormatAttributeText(AttributeValue value)
+        {
+            return value switch
+            {
+                FloatAttributeValue f => f.Value.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                IntAttributeValue n => n.Value.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                BoolAttributeValue b => b.Value.ToString(),
+                StringAttributeValue s => s.Value,
+                _ => value?.ToString() ?? "(null)"
+            };
         }
     }
 }

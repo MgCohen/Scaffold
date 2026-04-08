@@ -16,18 +16,21 @@ You can see this working when: (1) the Unity inspector shows a type-picker dropd
 
 ## Progress
 
-- [ ] Author initial ExecPlan at `Plans/EntitiesCleanup/EntitiesCleanup-ExecPlan.md` (this file).
-- [ ] Milestone 1 — Foundation types: `AttributeValueType` enum, `AttributeValue` abstract hierarchy, `Attribute` record class (pure key), `AttributeSO` simplified. Compiles clean.
-- [ ] Milestone 2 — Entry and definition update: `EntityDefinitionDefaultEntry` renamed to `AttributeEntry` with `[SerializeReference] AttributeValue baseValue`; `EntityModifierEntry` updated to `[SerializeReference] AttributeValue modifierValue`; `EntityDefinition` reduced to one runtime dictionary keyed by `Attribute`. Compiles clean.
-- [ ] Milestone 3 — `IEntity` interface, `EntityInstance<TDefinition>` made generic, `AttributeResolver` internal class introduced. All attribute/modifier logic moves here. Compiles clean.
-- [ ] Milestone 4 — `EntityBehaviour` abstract base, `EntityBehaviour<TDefinition>` generic MonoBehaviour (pure delegation), `EntityInstanceFactory` updated. Old `Entity.cs` and `EntityInstanceT.cs` deleted. Compiles clean.
-- [ ] Milestone 5 — `AttributePropertyDrawer` updated, `EntityInstanceTests.cs` written, all seven sample files updated, `SampleCharacterEntity` concrete subclass added. Tests pass.
-- [ ] Milestone 6 — Quality gate: `validate-changes.ps1 -SkipTests` clean; `README.md` updated; committed.
+- [x] Author initial ExecPlan at `Plans/EntitiesCleanup/EntitiesCleanup-ExecPlan.md` (this file).
+- [x] Milestone 1 — Foundation types: `AttributeValueType` enum, `AttributeValue` abstract hierarchy, `Attribute` record class (pure key), `AttributeSO` simplified. Compiles clean.
+- [x] Milestone 2 — Entry and definition update: `EntityDefinitionDefaultEntry` renamed to `AttributeEntry` with `[SerializeReference] AttributeValue baseValue`; `EntityModifierEntry` updated to `[SerializeReference] AttributeValue modifierValue`; `EntityDefinition` reduced to one runtime dictionary keyed by `Attribute`. Compiles clean.
+- [x] Milestone 3 — `IEntity` interface, `EntityInstance<TDefinition>` made generic, `AttributeResolver` internal class introduced. All attribute/modifier logic moves here. Compiles clean.
+- [x] Milestone 4 — `EntityBehaviour` abstract base, `EntityBehaviour<TDefinition>` generic MonoBehaviour (pure delegation), `EntityInstanceFactory` updated. Old `Entity.cs` and `EntityInstanceT.cs` deleted. Compiles clean.
+- [x] Milestone 5 — `AttributePropertyDrawer` updated, `EntityInstanceTests.cs` written, all seven sample files updated, `SampleCharacterEntity` concrete subclass added. Tests pass.
+- [x] Milestone 6 — Quality gate: `validate-changes.ps1 -SkipTests` clean; `README.md` updated.
 
 
 ## Surprises & Discoveries
 
-- (none yet)
+- Unity-generated `.csproj` files list explicit `Compile` items; renames (`EntityInstanceState` → `EntityInstance`, etc.) required matching updates in `Scaffold.Entities.csproj`, `Scaffold.Entities.Tests.csproj`, and `Scaffold.Entities.Samples.csproj` or solution build fails with CS2001.
+- `record` types need `IsExternalInit` when targeting Unity’s language version; added a minimal internal polyfill in `Runtime/Core/IsExternalInit.cs`.
+- Analyzer **SCA3002** (one type per file) split the planned single `AttributeValue.cs` hierarchy into `FloatAttributeValue.cs`, `IntAttributeValue.cs`, `BoolAttributeValue.cs`, and `StringAttributeValue.cs`; **SCA3003** required `AttributeResolver` constructor before fields.
+- Bool modifier combine in `AttributeResolver` applies last-write-wins on top of the base bool value (not only modifiers), matching the decision log intent.
 
 
 ## Decision Log
@@ -75,7 +78,8 @@ You can see this working when: (1) the Unity inspector shows a type-picker dropd
 
 ## Outcomes & Retrospective
 
-(Not yet written — fill in after Milestone 6.)
+- **Done:** Typed `AttributeValue` hierarchy with `[SerializeReference]` on definition/modifier entries; `IEntity<TDefinition>` with `GetValue<T>` / `GetTypedAttribute<TAttr>`; `EntityBehaviour` / `EntityBehaviour<TDefinition>` replace `Entity` / `EntityInstanceT`; internal `AttributeResolver` owns combine rules; package README and sample assets/prefab updated; `validate-changes.ps1 -SkipTests` passes with `TOTAL:0`.
+- **Follow-up:** Run EditMode tests when Unity is available (`run-editmode-tests.ps1`); regenerate Unity `.csproj` from the editor if file lists drift after pull.
 
 
 ## Context and Orientation

@@ -8,30 +8,39 @@ namespace Scaffold.MVVM.Tests
 {
     public sealed class TreeBindingDeferredUpdateTests
     {
+        private readonly Queue<Action> scheduleQueue = new Queue<Action>();
+
         private sealed class TestVm
         {
             public string Value { get; set; }
         }
 
-        private sealed class TestDeferredBindingScheduler : IDeferredBindingScheduler
+        [SetUp]
+        public void SetUp()
         {
-            private readonly Queue<Action> queue = new Queue<Action>();
-
-            public void Schedule(Action continuation)
+            scheduleQueue.Clear();
+            DeferredBindingCoroutineHost.ScheduleCore = (action, timing) =>
             {
-                if (continuation is null)
+                if (action is null)
                 {
-                    throw new ArgumentNullException(nameof(continuation));
+                    throw new ArgumentNullException(nameof(action));
                 }
-                queue.Enqueue(continuation);
-            }
 
-            public void Drain()
+                scheduleQueue.Enqueue(action);
+            };
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            DeferredBindingCoroutineHost.ResetScheduleCoreForTests();
+        }
+
+        private void Drain()
+        {
+            while (scheduleQueue.Count > 0)
             {
-                while (queue.Count > 0)
-                {
-                    queue.Dequeue().Invoke();
-                }
+                scheduleQueue.Dequeue().Invoke();
             }
         }
 
@@ -43,7 +52,7 @@ namespace Scaffold.MVVM.Tests
             Expression<Func<string>> valueExpr = () => vm.Value;
             string bindKey = valueExpr.GetPropertyName();
             var tree = new TreeBinding();
-            tree.RegisterBindingUpdatePolicy(BindingUpdateTiming.Immediate, null);
+            tree.RegisterBindingUpdatePolicy(BindingUpdateTiming.Immediate);
             tree.RegisterBind(valueExpr, new Action<string>(_ => hits++), BindingOptions.Lazy);
             tree.UpdateBind(bindKey);
             tree.UpdateBind(bindKey);
@@ -58,15 +67,14 @@ namespace Scaffold.MVVM.Tests
             var vm = new TestVm { Value = "a" };
             Expression<Func<string>> valueExpr = () => vm.Value;
             string bindKey = valueExpr.GetPropertyName();
-            var sched = new TestDeferredBindingScheduler();
             var tree = new TreeBinding();
-            tree.RegisterBindingUpdatePolicy(BindingUpdateTiming.NextFrame, sched);
+            tree.RegisterBindingUpdatePolicy(BindingUpdateTiming.NextFrame);
             tree.RegisterBind(valueExpr, new Action<string>(_ => hits++), BindingOptions.Lazy);
             tree.UpdateBind(bindKey);
             tree.UpdateBind(bindKey);
             tree.UpdateBind(bindKey);
             Assert.AreEqual(0, hits);
-            sched.Drain();
+            Drain();
             Assert.AreEqual(1, hits);
         }
 
@@ -77,32 +85,31 @@ namespace Scaffold.MVVM.Tests
             var vm = new TestVm { Value = "a" };
             Expression<Func<string>> valueExpr = () => vm.Value;
             string bindKey = valueExpr.GetPropertyName();
-            var sched = new TestDeferredBindingScheduler();
             var tree = new TreeBinding();
-            tree.RegisterBindingUpdatePolicy(BindingUpdateTiming.NextFrame, sched);
-            tree.RegisterBind(valueExpr, new Action<string>(_ => hits++), BindingOptions.StrictImmediate);
+            tree.RegisterBindingUpdatePolicy(BindingUpdateTiming.NextFrame);
+            // Lazy skips initial apply; per-bind Immediate still runs each UpdateBind synchronously (not deferred batch).
+            tree.RegisterBind(valueExpr, new Action<string>(_ => hits++), new BindingOptions(true, BindingUpdateTiming.Immediate));
             tree.UpdateBind(bindKey);
             tree.UpdateBind(bindKey);
-            Assert.AreEqual(3, hits);
-            sched.Drain();
-            Assert.AreEqual(3, hits);
+            Assert.AreEqual(2, hits);
+            Drain();
+            Assert.AreEqual(2, hits);
         }
 
         [Test]
-        public void ImmediateDefault_WithDeferredPerBind_RequiresScheduler()
+        public void ImmediateDefault_WithDeferredPerBind_InvokesAfterDrain()
         {
             int hits = 0;
             var vm = new TestVm { Value = "a" };
             Expression<Func<string>> valueExpr = () => vm.Value;
             string bindKey = valueExpr.GetPropertyName();
-            var sched = new TestDeferredBindingScheduler();
             var tree = new TreeBinding();
-            tree.RegisterBindingUpdatePolicy(BindingUpdateTiming.Immediate, sched);
+            tree.RegisterBindingUpdatePolicy(BindingUpdateTiming.Immediate);
             tree.RegisterBind(valueExpr, new Action<string>(_ => hits++), new BindingOptions(true, BindingUpdateTiming.NextFrame));
             tree.UpdateBind(bindKey);
             tree.UpdateBind(bindKey);
             Assert.AreEqual(0, hits);
-            sched.Drain();
+            Drain();
             Assert.AreEqual(1, hits);
         }
     }
