@@ -35,7 +35,8 @@ Do not spend most of coverage on visual assertions or fragile hierarchy checks.
 
 Example in repo (add or adjust paths as your test tree grows):
 
-- `Assets/Packages/com.scaffold.entities/Tests/` (when `.cs` tests are present)
+- `Assets/Packages/com.scaffold.entities/Tests/Runtime/` (runtime assembly tests, when `.cs` tests are present)
+- `Assets/Packages/com.scaffold.entities/Tests/Editor/` (editor assembly tests, when `.cs` tests are present)
 - `Assets/Packages/com.scaffold.scope/Tests/` (when `.cs` tests are present)
 
 ### Infra/App EditMode Tests
@@ -67,7 +68,8 @@ Create test assemblies per module in a local `Tests/` folder next to the module:
 Use existing asmdefs as templates:
 
 - `Assets/Packages/com.scaffold.scope/Tests/Scaffold.Scope.Tests.asmdef`
-- `Assets/Packages/com.scaffold.entities/Tests/Scaffold.Entities.Tests.asmdef`
+- `Assets/Packages/com.scaffold.entities/Tests/Runtime/Scaffold.Entities.Tests.asmdef`
+- `Assets/Packages/com.scaffold.entities/Tests/Editor/Scaffold.Entities.Editor.Tests.asmdef`
 
 ## Test Design Checklist
 

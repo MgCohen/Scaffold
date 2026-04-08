@@ -1,7 +1,0 @@
-root = false
-
-[*.cs]
-dotnet_diagnostic.SCA1002.severity = none
-dotnet_diagnostic.SCA1003.severity = none
-dotnet_diagnostic.SCA3002.severity = none
-dotnet_diagnostic.SCA3003.severity = none

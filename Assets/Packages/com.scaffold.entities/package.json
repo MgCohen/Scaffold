@@ -12,5 +12,12 @@
     "dependencies":  {
 
                      },
+    "samples":  [
+                    {
+                        "displayName":  "Example",
+                        "description":  "Sample character, attributes, prefab, and behavior runner.",
+                        "path":  "Samples/Example"
+                    }
+                ],
     "path":  "https://github.com/MgCohen/Scaffold.git?path=/Assets/Packages/com.scaffold.entities#main"
 }

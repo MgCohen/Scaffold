@@ -5,7 +5,7 @@
 ## TL;DR
 
 - Purpose: **Definition** / **instance** flyweight model with **`AttributeSO`** identity and **`AttributeValueType`**, typed **`AttributeValue`** payloads (`FloatAttributeValue`, `IntAttributeValue`, `BoolAttributeValue`, `StringAttributeValue`), **`Attribute`** record keys, instance-only **modifiers**, **`InstanceId`** (runtime int id), and **factories**. **`IEntity<TDefinition>`** exposes **`GetValue<T>`**, **`GetAttribute<TAttr>`**, and **`TryGetAttribute<TAttr>`**. Optional **behavior runner** (`EntityBehaviorRunner<TData,TInput>`) for per-frame arbitration.
-- Location: `Assets/Packages/com.scaffold.entities/Runtime/` — **`Core/`** (definitions, attributes, instances, factory) and **`Behavior/`** (behavior contracts and runner). Single assembly `Scaffold.Entities`; tests in `Assets/Packages/com.scaffold.entities/Tests/` (`Scaffold.Entities.Tests`).
+- Location: `Assets/Packages/com.scaffold.entities/Runtime/` — **`Core/`** (definitions, attributes, instances, factory) and **`Behavior/`** (behavior contracts and runner). Single assembly `Scaffold.Entities`; runtime tests in `Tests/Runtime/` (`Scaffold.Entities.Tests`), editor tests in `Tests/Editor/` (`Scaffold.Entities.Editor.Tests`).
 - **Unity coupling:** References `UnityEngine` (`MonoBehaviour`, `ScriptableObject`). `Scaffold.Entities.asmdef` has `noEngineReferences: false`. See [Architecture.md](../../../Architecture.md): the Core folder does not mean “no Unity.”
 - Depends on: Unity engine only (no cross-assembly references to other first-party modules in this repository snapshot).
 - **Consumers:** Add a reference from `Scaffold.Entities` in your module’s `.asmdef` when you use these types in gameplay or presentation code.
@@ -16,13 +16,15 @@
 |--------|----------------|
 | `Runtime/Core/` | `Attribute`, `AttributeSO`, `AttributeValue` hierarchy, `AttributeEntry`, `EntityDefinition`, `EntityInstance<TDefinition>`, `EntityModifierEntry`, `EntityBehaviour` / `EntityBehaviour<TDefinition>`, `IEntity<TDefinition>`, `EntityInstanceFactory`, `InstanceId` — stats, modifiers, instance storage. |
 | `Runtime/Behavior/` | `IEntityBehavior`, `IEntityFrameInputProvider`, `EntityBehaviorRunner` — per-frame behavior arbitration. |
-| `Samples/` | Optional **Scaffold.Entities.Samples** assembly (`autoReferenced: false`): `SampleEntity` prefab, authored attributes + `SampleCharacterDefinition`, `SampleCharacterEntity`, and scripts showing definition → instance, numeric modifier combine, and `EntityBehaviorRunner` with WASD movement. |
+| `Samples/Example/` | Optional **Scaffold.Entities.Samples** assembly (`autoReferenced: false`): scripts, `SampleEntity` prefab under `Assets/Prefabs/`, authored attributes + `SampleCharacterDefinition` under `Assets/Data/Authoring/` — definition → instance, numeric modifier combine, and `EntityBehaviorRunner` with WASD movement. |
 
 ## Samples
 
-- Assembly: `Samples/Scaffold.Entities.Samples.asmdef` — reference it from your game assembly if you want to open or extend the sample types.
-- Assets: `Samples/Authoring/` — `Attribute_Health`, `Attribute_MoveSpeed`, and `SampleCharacterDefinition` (defaults wired to those slots as typed `FloatAttributeValue` rows).
-- Prefab: `Samples/SampleEntity` — drop into a scene and press Play: console logs show base stats plus a `+25` health modifier (float sum); on-screen HUD shows effective values; **WASD / arrow keys** move on the XZ plane using the effective Move Speed.
+- Assembly: `Samples/Example/Scaffold.Entities.Samples.asmdef` — reference it from your game assembly if you want to open or extend the sample types.
+- Assets: `Samples/Example/Assets/Data/Authoring/` — health, move speed, stunned attributes and `SampleCharacterDefinition` (defaults wired as typed `FloatAttributeValue` rows).
+- Prefab: `Samples/Example/Assets/Prefabs/SampleEntity` — drop into a scene and press Play: console logs show base stats plus a `+25` health modifier (float sum); on-screen HUD shows effective values; **WASD / arrow keys** move on the XZ plane using the effective Move Speed.
+
+Package layout index: `Documentation/entities.md`. Changelog: `CHANGELOG.md`.
 
 ## Public API (selection)
 
@@ -51,8 +53,8 @@
 
 ## Testing
 
-- Assembly: `Scaffold.Entities.Tests` (EditMode). Run via `.agents/scripts/run-editmode-tests.ps1` or full `validate-changes.ps1`.
-- `EntityInstanceTests` covers definition resolution, float modifier sum, **`RemoveModifierAt` / `ClearModifiers`** restoring base values, invalid removal, `CreateOnGameObject`, and positive **`InstanceId.Id`**.
+- Assemblies: `Scaffold.Entities.Tests` (EditMode, `Tests/Runtime/`), `Scaffold.Entities.Editor.Tests` (`Tests/Editor/`). Run via `.agents/scripts/run-editmode-tests.ps1` or full `validate-changes.ps1`.
+- `EntityInstanceTests` (`Tests/Runtime/`) covers definition resolution, float modifier sum, **`RemoveModifierAt` / `ClearModifiers`** restoring base values, invalid removal, `CreateOnGameObject`, and positive **`InstanceId.Id`**.
 
 ## Related
 
