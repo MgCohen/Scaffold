@@ -2,9 +2,6 @@ using UnityEngine;
 
 namespace Scaffold.MVVM
 {
-    /// <summary>
-    /// Drop-in vertical sine float for any <see cref="RectTransform"/>. Add to the same GameObject as the UI element (or assign <see cref="floatTarget"/>).
-    /// </summary>
     [AddComponentMenu("UI/Cleanup/Ui Float")]
     [DisallowMultipleComponent]
     public sealed class UiFloatBehaviour : MonoBehaviour

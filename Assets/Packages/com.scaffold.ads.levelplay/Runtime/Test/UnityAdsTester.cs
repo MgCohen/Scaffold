@@ -5,9 +5,6 @@ using Scaffold.LiveOps;
 
 namespace Scaffold.Ads.Levelplay.Test
 {
-    /// <summary>
-    /// Handles the Initialization of the GlobalAdManager and injects it into specific testers.
-    /// </summary>
     public class UnityAdsTester : MonoBehaviour
     {
         [Header("Ad System Components")]

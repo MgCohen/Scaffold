@@ -7,9 +7,6 @@ using UnityEngine;
 
 namespace Scaffold.CloudCode
 {
-    /// <summary>
-    /// Retries the inner pipeline on <see cref="CloudCodeRateLimitedException"/> according to <see cref="CloudCodeSettings"/>.
-    /// </summary>
     internal sealed class CloudCodeRetryCallHandler : ICloudCodeCallHandler
     {
         internal CloudCodeRetryCallHandler(CloudCodeSettings settings, ICloudCodeCallHandler inner)

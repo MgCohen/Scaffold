@@ -10,9 +10,6 @@ using VContainer;
 
 namespace Scaffold.Scope.Tests
 {
-    /// <summary>
-    /// Validates dependency-derived async init: <see cref="IAsyncInitializable.InitializeAsync"/> runs in parallel within a wave; waves run sequentially.
-    /// </summary>
     public sealed class AsyncInitializationRunnerTests
     {
         [Test]

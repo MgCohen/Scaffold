@@ -3,10 +3,6 @@ using UnityEngine;
 
 namespace Scaffold.Ads
 {
-    /// <summary>
-    /// Serves as the global entry point for all advertising logic.
-    /// Manages initialization via IAdProvider and delegates types to specific managers.
-    /// </summary>
     public class AdManager : IDisposable
     {
         public AdManager(AdConfigurationSO adConfiguration, RewardedAdManager rewardedAdManager, InterstitialAdManager interstitialAdManager, BannerAdManager bannerAdManager)
@@ -32,7 +28,6 @@ namespace Scaffold.Ads
 
         private readonly AdConfigurationSO adConfiguration;
 
-        // Specialized Managers
         private readonly RewardedAdManager rewardedAdManager;
         private readonly InterstitialAdManager interstitialAdManager;
         private readonly BannerAdManager bannerAdManager;

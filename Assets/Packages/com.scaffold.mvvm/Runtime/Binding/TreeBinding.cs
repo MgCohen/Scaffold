@@ -187,10 +187,6 @@ namespace Scaffold.MVVM.Binding
             }
         }
 
-        /// <summary>
-        /// Yield used for the global deferred pump when flushing this bind source (per-bind EndOfFrame vs NextFrame is not split at this coordinator).
-        /// When the bind-source default is <see cref="BindingUpdateTiming.Immediate"/> but a bind uses deferred timing, the pump uses <see cref="BindingUpdateTiming.NextFrame"/>.
-        /// </summary>
         private BindingUpdateTiming GetDeferredYieldTimingForScheduledFlush()
         {
             return defaultBindingUpdateTiming != BindingUpdateTiming.Immediate

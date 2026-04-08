@@ -5,10 +5,6 @@ using VContainer;
 
 namespace Scaffold.Scope
 {
-    /// <summary>
-    /// Aggregates multiple VContainer scopes (e.g. base + main) so callers can <see cref="Inject"/> or
-    /// <see cref="TryResolve"/> across them—used by navigation when opening views that may need services from an outer scope.
-    /// </summary>
     public sealed class CrossLayerObjectResolver : ICrossLayerObjectResolver
     {
         private readonly List<IObjectResolver> resolvers = new List<IObjectResolver>();

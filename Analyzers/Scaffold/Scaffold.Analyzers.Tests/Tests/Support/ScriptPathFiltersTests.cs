@@ -48,6 +48,27 @@ public sealed class ScriptPathFiltersTests
     }
 
     [Fact]
+    public void IsUnderAssetsPackagesComScaffold_True_ForFirstPartyEmbeddedPackage()
+    {
+        const string path = "Assets/Packages/com.scaffold.maps/Runtime/Map.cs";
+        Assert.True(ScriptPathFilters.IsUnderAssetsPackagesComScaffold(ScriptPathFilters.Normalize(path)));
+    }
+
+    [Fact]
+    public void IsUnderAssetsPackagesComScaffold_True_WhenPathHasDrivePrefix()
+    {
+        const string path = @"C:\Repo\Assets\Packages\com.scaffold.states\Runtime\Store.cs";
+        Assert.True(ScriptPathFilters.IsUnderAssetsPackagesComScaffold(ScriptPathFilters.Normalize(path)));
+    }
+
+    [Fact]
+    public void IsUnderAssetsPackagesComScaffold_False_ForOtherEmbeddedPackages()
+    {
+        const string path = "Assets/Packages/com.unity.somepackage/Runtime/Foo.cs";
+        Assert.False(ScriptPathFilters.IsUnderAssetsPackagesComScaffold(ScriptPathFilters.Normalize(path)));
+    }
+
+    [Fact]
     public void TryGetPathAfterAssetsPackages_ReturnsRemainder_AfterRelativePrefix()
     {
         const string path = "Assets/Packages/com.scaffold.cloudcode/Runtime/CloudCodeService.cs";

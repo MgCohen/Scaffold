@@ -5,22 +5,12 @@ using UnityEngine;
 
 namespace Scaffold.MVVM.Binding
 {
-    /// <summary>
-    /// Global Unity host for deferred binding flushes: a single lazy-created DontDestroyOnLoad
-    /// <see cref="MonoBehaviour"/> that runs a coroutine pump. No dependency injection.
-    /// </summary>
     public static class DeferredBindingCoroutineHost
     {
         private static readonly Action<Action, BindingUpdateTiming> defaultScheduleCore = DefaultSchedule;
 
-        /// <summary>
-        /// Test seam: replace with a queue-based implementation; reset with <see cref="ResetScheduleCoreForTests"/>.
-        /// </summary>
         internal static Action<Action, BindingUpdateTiming> ScheduleCore = defaultScheduleCore;
 
-        /// <summary>
-        /// Queue work to run after the yield implied by <paramref name="timing"/> (ignored for <see cref="BindingUpdateTiming.Immediate"/>, which runs synchronously).
-        /// </summary>
         public static void Schedule(Action continuation, BindingUpdateTiming timing)
         {
             if (continuation is null)

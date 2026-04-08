@@ -4,9 +4,6 @@ using System.Collections.ObjectModel;
 
 namespace Scaffold.Pooling
 {
-    /// <summary>
-    /// Generic pool with separate idle (<see cref="Available"/>) and active (<see cref="Active"/>) tracking.
-    /// </summary>
     public sealed class Pool<T>
     {
         public Pool(Func<T> factory, Action<T> onDestroy = null, int initialSize = 0, int maxSize = -1)

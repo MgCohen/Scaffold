@@ -97,6 +97,24 @@ namespace Scaffold.Analyzers
         }
 
         /// <summary>
+        /// First-party embedded UPM packages under <c>Assets/Packages/com.scaffold.*/</c> (Scaffold package layout).
+        /// </summary>
+        public static bool IsUnderAssetsPackagesComScaffold(string normalized)
+        {
+            if (string.IsNullOrWhiteSpace(normalized))
+            {
+                return false;
+            }
+
+            if (normalized.IndexOf("/Assets/Packages/com.scaffold.", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return true;
+            }
+
+            return normalized.StartsWith("Assets/Packages/com.scaffold.", StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
         /// Project-owned sources under <c>Assets/Scripts/</c> or embedded packages under <c>Assets/Packages/</c>.
         /// </summary>
         public static bool IsUnderAssetsScriptsOrPackages(string normalized)

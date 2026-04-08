@@ -5,9 +5,6 @@ using Scaffold.SceneFlow;
 
 namespace Scaffold.SceneFlow.Contracts
 {
-    /// <summary>
-    /// Loads and unloads Addressable scenes in <see cref="UnityEngine.SceneManagement.LoadSceneMode.Additive"/> while the Bootstrap scene remains loaded.
-    /// </summary>
     public interface ISceneFlowService
     {
         Task<SceneFlowLoadResult> LoadAdditiveAsync(AssetReference sceneReference, SceneFlowLoadOptions options, CancellationToken cancellationToken = default);

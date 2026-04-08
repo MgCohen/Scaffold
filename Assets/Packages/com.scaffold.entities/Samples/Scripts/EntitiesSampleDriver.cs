@@ -2,10 +2,6 @@ using UnityEngine;
 
 namespace Scaffold.Entities.Samples
 {
-    /// <summary>
-    /// Wires an <see cref="SampleCharacterEntity"/> from a <see cref="SampleCharacterDefinition"/>, logs modifier combination, and shows a small HUD.
-    /// Add to a GameObject together with <see cref="SampleCharacterBehaviorRunner"/> and input/behaviors (see sample prefab).
-    /// </summary>
     [DefaultExecutionOrder(-100)]
     [DisallowMultipleComponent]
     [RequireComponent(typeof(SampleCharacterEntity))]

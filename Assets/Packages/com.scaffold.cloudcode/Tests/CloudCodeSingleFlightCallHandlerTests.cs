@@ -6,9 +6,6 @@ using Scaffold.CloudCode;
 
 namespace Scaffold.CloudCode.Tests
 {
-    /// <summary>
-    /// Ensures <see cref="CloudCodeSingleFlightCallHandler"/> serializes real invocations per module name.
-    /// </summary>
     public sealed class CloudCodeSingleFlightCallHandlerTests
     {
         [Test]

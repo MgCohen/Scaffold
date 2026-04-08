@@ -3,10 +3,6 @@ using UnityEngine;
 
 namespace Scaffold.Entities
 {
-    /// <summary>
-    /// Shared definition (flyweight intrinsic state): default attribute values keyed by <see cref="Attribute"/>.
-    /// Modifiers do not live on definitions—only on entity instances.
-    /// </summary>
     public class EntityDefinition : ScriptableObject
     {
         public IReadOnlyList<AttributeEntry> Entries => entries;

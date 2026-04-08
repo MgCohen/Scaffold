@@ -4,9 +4,6 @@ using UnityEngine.EventSystems;
 
 namespace Scaffold.SceneFlow
 {
-    /// <summary>
-    /// Disables shell world presentation (camera, listener, UI input) while additive content scenes are active.
-    /// </summary>
     public sealed class SceneFlowBootstrapShell : MonoBehaviour, ISceneFlowBootstrapShell
     {
         [SerializeField] private Camera bootstrapCamera;

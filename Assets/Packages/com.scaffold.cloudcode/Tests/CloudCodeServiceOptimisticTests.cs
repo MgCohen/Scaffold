@@ -8,9 +8,6 @@ using UnityEngine;
 
 namespace Scaffold.CloudCode.Tests
 {
-    /// <summary>
-    /// Covers <see cref="CloudCodeService"/> optimistic return and background reconciliation.
-    /// </summary>
     public sealed class CloudCodeServiceOptimisticTests
     {
         private const string Module = "testModule";
@@ -189,10 +186,6 @@ namespace Scaffold.CloudCode.Tests
             }
         }
 
-        /// <summary>
-        /// Minimal fake for <see cref="CloudCodeSdkCallHandler"/> using <see cref="Unity.Services.CloudCode.ICloudCodeService"/>
-        /// (not <see cref="ICloudCodeService"/>, which is Scaffold’s high-level API with the same short name).
-        /// </summary>
         private sealed class FakeUnityCloudCodeService : Unity.Services.CloudCode.ICloudCodeService
         {
             private readonly Func<string, string, Dictionary<string, object>, Task<string>> onCallModule;

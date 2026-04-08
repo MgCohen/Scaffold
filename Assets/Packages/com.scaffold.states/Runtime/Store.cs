@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Scaffold.Maps;
+using Scaffold.Pooling;
 
 namespace Scaffold.States
 {
@@ -30,6 +30,8 @@ namespace Scaffold.States
                     }
                 }
             }
+
+            mutatorRunnerPool = new Pool<MutatorRunner>(() => new MutatorRunner(new Scratchpad(this)), null, initialSize: 2);
         }
 
         public IStateEventHandler Events => eventHandler;
@@ -38,6 +40,11 @@ namespace Scaffold.States
         private readonly Map<IReference, Type, AggregateSlice> aggregates;
         private readonly IStateEventHandler eventHandler;
         private readonly MutatorRegistry mutatorRegistry;
+        private readonly Pool<MutatorRunner> mutatorRunnerPool;
+        private readonly List<Slice> mapSliceBuffer = new List<Slice>();
+        private readonly List<AggregateSlice> aggregateSliceBuffer = new List<AggregateSlice>();
+        private readonly List<BaseSlice> sliceBuffer = new List<BaseSlice>();
+        private readonly List<(IReference Reference, Type StateType)> pruneBuffer = new List<(IReference Reference, Type StateType)>();
 
         #region Subscriptions
         public void Subscribe<TState>(Action<IReference, TState, StateChangeEvent> action) where TState : BaseState
@@ -73,11 +80,6 @@ namespace Scaffold.States
             return snapshot;
         }
 
-        /// <summary>
-        /// Restores committed canonical state from a snapshot: applies all values, then removes any canonical slice
-        /// whose <c>(reference, state type)</c> is not present in the snapshot (for example runtime <see cref="RegisterSlice"/> rows).
-        /// Mutator commits use an internal merge-only path and do not prune missing rows.
-        /// </summary>
         public void LoadSnapshot(Snapshot snapshot)
         {
             if (snapshot is null)
@@ -89,9 +91,6 @@ namespace Scaffold.States
             PruneCanonicalSlicesNotInSnapshot(snapshot);
         }
 
-        /// <summary>
-        /// Applies snapshot values to existing slices without removing canonical rows (mutator overlay commit).
-        /// </summary>
         private void ApplySnapshot(Snapshot snapshot)
         {
             foreach (var entry in snapshot)
@@ -102,18 +101,18 @@ namespace Scaffold.States
 
         private void PruneCanonicalSlicesNotInSnapshot(Snapshot snapshot)
         {
-            var toRemove = new List<(IReference Reference, Type StateType)>();
+            pruneBuffer.Clear();
             foreach (var entry in map)
             {
                 IReference r = entry.Key.Primary;
                 Type t = entry.Key.Secondary;
                 if (!snapshot.Contains(r, t))
                 {
-                    toRemove.Add((r, t));
+                    pruneBuffer.Add((r, t));
                 }
             }
 
-            foreach ((IReference r, Type t) in toRemove)
+            foreach ((IReference r, Type t) in pruneBuffer)
             {
                 UnregisterSlice(r, t);
             }
@@ -130,9 +129,16 @@ namespace Scaffold.States
         public void ExecuteMutator<TState>(IReference? reference, Mutator<TState> mutator) where TState : State
         {
             var r = reference ?? Reference.Null;
-            var runner = new MutatorRunner(new Scratchpad(this));
-            runner.RunMutatorWithoutCommit(r, mutator);
-            runner.CommitOverlay();
+            MutatorRunner runner = mutatorRunnerPool.Take();
+            try
+            {
+                runner.RunMutatorWithoutCommit(r, mutator);
+                runner.CommitOverlay();
+            }
+            finally
+            {
+                mutatorRunnerPool.Return(runner);
+            }
         }
 
         public void ExecuteMutator<TState, TPayload>(Mutator<TState, TPayload> mutator, TPayload payload) where TState : State
@@ -142,9 +148,16 @@ namespace Scaffold.States
 
         public void ExecuteMutator<TState, TPayload>(IReference? reference, Mutator<TState, TPayload> mutator, TPayload payload) where TState : State
         {
-            var runner = new MutatorRunner(new Scratchpad(this));
-            runner.RunTypedMutatorWithoutCommit(reference ?? Reference.Null, mutator, payload);
-            runner.CommitOverlay();
+            MutatorRunner runner = mutatorRunnerPool.Take();
+            try
+            {
+                runner.RunTypedMutatorWithoutCommit(reference ?? Reference.Null, mutator, payload);
+                runner.CommitOverlay();
+            }
+            finally
+            {
+                mutatorRunnerPool.Return(runner);
+            }
         }
 
         public void Execute<TPayload>(TPayload payload)
@@ -160,9 +173,16 @@ namespace Scaffold.States
             }
 
             var r = reference ?? Reference.Null;
-            var runner = new MutatorRunner(new Scratchpad(this));
-            RunRegisteredMutatorsWithoutCommit(runner, payload, r);
-            runner.CommitOverlay();
+            MutatorRunner runner = mutatorRunnerPool.Take();
+            try
+            {
+                RunRegisteredMutatorsWithoutCommit(runner, payload, r);
+                runner.CommitOverlay();
+            }
+            finally
+            {
+                mutatorRunnerPool.Return(runner);
+            }
         }
 
         public void ExecuteBatch(IReadOnlyList<object> payloads)
@@ -177,9 +197,21 @@ namespace Scaffold.States
                 return;
             }
 
-            var runner = new MutatorRunner(new Scratchpad(this));
-            ApplyBatchWithoutCommit(runner, payloads);
-            runner.CommitOverlay();
+            RunExecuteBatchWithPool(payloads);
+        }
+
+        private void RunExecuteBatchWithPool(IReadOnlyList<object> payloads)
+        {
+            MutatorRunner runner = mutatorRunnerPool.Take();
+            try
+            {
+                ApplyBatchWithoutCommit(runner, payloads);
+                runner.CommitOverlay();
+            }
+            finally
+            {
+                mutatorRunnerPool.Return(runner);
+            }
         }
 
         private void ApplyBatchWithoutCommit(MutatorRunner runner, IReadOnlyList<object> payloads)
@@ -212,9 +244,6 @@ namespace Scaffold.States
             runner.RunMutatorBindingsWithoutCommit(payload, bindings, executeReference);
         }
 
-        /// <summary>
-        /// Registers a payload-driven mutator on this store (same behavior as <see cref="StoreBuilder.RegisterMutator{TState, TPayload}"/> at build time).
-        /// </summary>
         public void RegisterMutator<TState, TPayload>(Mutator<TState, TPayload> mutator) where TState : State
         {
             if (mutator is null)
@@ -228,10 +257,6 @@ namespace Scaffold.States
 
         #region Slice registration
 
-        /// <summary>
-        /// Adds a canonical slice row at runtime. Throws if a slice or aggregate for the same reference and state type already exists.
-        /// Notifies subscribers with the initial state.
-        /// </summary>
         public void RegisterSlice(IReference? reference, State state)
         {
             if (state is null)
@@ -262,16 +287,11 @@ namespace Scaffold.States
             }
         }
 
-        /// <inheritdoc cref="UnregisterSlice(IReference?, Type)"/>
         public bool UnregisterSlice<TState>(IReference? reference) where TState : State
         {
             return UnregisterSlice(reference, typeof(TState));
         }
 
-        /// <summary>
-        /// Removes a canonical slice row. Returns <c>false</c> if no matching slice was present. Does not remove aggregate slices.
-        /// Notifies with <see cref="StateChangeEvent.Removed"/> after the row is removed (last state is included for subscribers).
-        /// </summary>
         public bool UnregisterSlice(IReference? reference, Type stateType)
         {
             if (stateType is null)
@@ -335,20 +355,42 @@ namespace Scaffold.States
         public IEnumerable<TState> GetAll<TState>() where TState : BaseState
         {
             Type stateType = typeof(TState);
-            IEnumerable<BaseSlice> allSlices = GetAllSlices(stateType); 
-            return allSlices.Select(s => s.State as TState);
+            FillSlices(stateType, sliceBuffer);
+            return EnumerateSliceStates<TState>();
         }
 
-        private IEnumerable<BaseSlice> GetAllSlices(Type stateType)
+        private IEnumerable<TState> EnumerateSliceStates<TState>() where TState : BaseState
         {
-            var slices = map.GetAll(stateType).Select(p => p.Value).OfType<BaseSlice>();
-            var aSlices = aggregates.GetAll(stateType).Select(p => p.Value).OfType<BaseSlice>();
-            return slices.Union(aSlices);
+            for (int i = 0; i < sliceBuffer.Count; i++)
+            {
+                if (sliceBuffer[i].State is TState ts)
+                {
+                    yield return ts;
+                }
+            }
+        }
+
+        private void FillSlices(Type stateType, List<BaseSlice> buffer)
+        {
+            buffer.Clear();
+            mapSliceBuffer.Clear();
+            map.GetAll(stateType, mapSliceBuffer);
+            for (int i = 0; i < mapSliceBuffer.Count; i++)
+            {
+                buffer.Add(mapSliceBuffer[i]);
+            }
+
+            aggregateSliceBuffer.Clear();
+            aggregates.GetAll(stateType, aggregateSliceBuffer);
+            for (int i = 0; i < aggregateSliceBuffer.Count; i++)
+            {
+                buffer.Add(aggregateSliceBuffer[i]);
+            }
         }
 
         private BaseSlice GetSlice(IReference reference, Type type)
         {
-            var found = TryGetSlice(reference, type, out BaseSlice slice);
+            TryGetSlice(reference, type, out BaseSlice slice);
             return slice;
         }
 
@@ -380,6 +422,14 @@ namespace Scaffold.States
 
             private readonly Store owner;
             private readonly Snapshot overlay = new Snapshot();
+            private readonly List<BaseSlice> sliceBuffer = new List<BaseSlice>();
+            private readonly HashSet<IReference> refSet =
+                new HashSet<IReference>(ReferenceByValueEqualityComparer.Instance);
+
+            public void Reset()
+            {
+                overlay.Clear();
+            }
 
             public void Commit()
             {
@@ -394,17 +444,29 @@ namespace Scaffold.States
             public IEnumerable<TState> GetAll<TState>() where TState : BaseState
             {
                 Type stateType = typeof(TState);
-                var committedRefs = owner.GetAllSlices(stateType).Select(s => s.Reference);
-                var overlayRefs = overlay.GetAll(stateType).Select(p => p.Key);
-                var unique = new HashSet<IReference>(ReferenceByValueEqualityComparer.Instance);
-                foreach (var r in committedRefs.Concat(overlayRefs))
+                refSet.Clear();
+                owner.FillSlices(stateType, sliceBuffer);
+                for (int i = 0; i < sliceBuffer.Count; i++)
                 {
-                    if (!unique.Add(r))
-                    {
-                        continue;
-                    }
+                    refSet.Add(sliceBuffer[i].Reference);
+                }
 
+                CollectOverlayRefs(stateType, refSet);
+                foreach (IReference r in refSet)
+                {
                     yield return Get<TState>(r);
+                }
+            }
+
+            private void CollectOverlayRefs(Type stateType, HashSet<IReference> refs)
+            {
+                IEqualityComparer<Type> comparer = EqualityComparer<Type>.Default;
+                foreach (var entry in overlay)
+                {
+                    if (comparer.Equals(entry.Key.Secondary, stateType))
+                    {
+                        refs.Add(entry.Key.Primary);
+                    }
                 }
             }
 

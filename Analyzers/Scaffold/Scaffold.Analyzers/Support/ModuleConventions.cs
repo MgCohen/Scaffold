@@ -71,6 +71,10 @@ namespace Scaffold.Analyzers
             return normalized.IndexOf("/Assets/Plugins/Demigiant/DOTween/", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
+        /// <summary>
+        /// SCA1001 applies to project-owned Unity sources: <c>Assets/Scripts/</c> and first-party embedded packages
+        /// <c>Assets/Packages/com.scaffold.*/</c>. Third-party UPM under <c>Assets/Packages/</c> is excluded; analyzer and generator trees are excluded.
+        /// </summary>
         internal static bool IsExcludedFromDeclarationCommentAnalysis(string filePath)
         {
             if (string.IsNullOrWhiteSpace(filePath))
@@ -91,7 +95,8 @@ namespace Scaffold.Analyzers
 
             if (normalized.IndexOf("/Assets/Packages/", StringComparison.OrdinalIgnoreCase) >= 0)
             {
-                return true;
+                // Third-party embedded packages are excluded from SCA1001; first-party com.scaffold.* under Assets/Packages is analyzed (same as Assets/Scripts).
+                return !ScriptPathFilters.IsUnderAssetsPackagesComScaffold(normalized);
             }
 
             return false;

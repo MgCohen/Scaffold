@@ -7,12 +7,6 @@ using Scaffold.States.Samples;
 
 namespace Scaffold.States.Tests
 {
-    /// <summary>
-    /// Regression: mutator <see cref="IStateScope.GetAll{TState}"/> (backed by the store scratchpad) must only
-    /// enumerate references that have a row for that state type. Enumerating every distinct primary key in the
-    /// map incorrectly included <see cref="Reference.Null"/> from unrelated state types and led to
-    /// <see cref="KeyNotFoundException"/> when resolving a type that is never registered at null.
-    /// </summary>
     public sealed class ScratchpadGetAllRegressionTests
     {
         private sealed class CollectKeyedCanonicalMutator : Mutator<CounterState>

@@ -9,11 +9,6 @@ using VContainer;
 
 namespace Scaffold.Scope
 {
-    /// <summary>
-    /// Eager-resolves all <see cref="IAsyncInitializable"/> registrations, builds a dependency graph from
-    /// VContainer inject sites via <see cref="InitializationGraphBuilder"/>, then runs
-    /// <see cref="IAsyncInitializable.InitializeAsync"/> in topological waves.
-    /// </summary>
     public sealed class AsyncInitializationRunner : IAsyncInitializationRunner
     {
         public AsyncInitializationRunner()

@@ -3,9 +3,6 @@ using UnityEngine;
 
 namespace Scaffold.Entities
 {
-    /// <summary>
-    /// Creates <see cref="EntityInstance{TDefinition}"/> and optional <see cref="EntityComponent{TDefinition}"/> hosts bound to a definition.
-    /// </summary>
     public static class EntityInstanceFactory
     {
         private static int counter = 0;

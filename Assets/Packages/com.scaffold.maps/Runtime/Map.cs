@@ -248,6 +248,75 @@ namespace Scaffold.Maps
             return list;
         }
 
+        public void GetAll(TSecondary secondary, ICollection<TValue> results)
+        {
+            if (predicateIndexers == null)
+            {
+                throw new InvalidOperationException("Map indexers were not initialized.");
+            }
+
+            if (results is null)
+            {
+                throw new ArgumentNullException(nameof(results));
+            }
+
+            ForEachMatchingSecondary(secondary, (_, holder) => results.Add(holder.Value));
+        }
+
+        internal void AddPrimaryKeysForSecondary(TSecondary secondary, ICollection<TPrimary> primaryKeys)
+        {
+            if (predicateIndexers == null)
+            {
+                throw new InvalidOperationException("Map indexers were not initialized.");
+            }
+
+            if (primaryKeys is null)
+            {
+                throw new ArgumentNullException(nameof(primaryKeys));
+            }
+
+            ForEachMatchingSecondary(secondary, (index, _) => primaryKeys.Add(index.Primary));
+        }
+
+        public void GetAll(TPrimary primary, ICollection<TValue> results)
+        {
+            if (predicateIndexers == null)
+            {
+                throw new InvalidOperationException("Map indexers were not initialized.");
+            }
+
+            if (results is null)
+            {
+                throw new ArgumentNullException(nameof(results));
+            }
+
+            ForEachMatchingPrimary(primary, (_, holder) => results.Add(holder.Value));
+        }
+
+        private void ForEachMatchingPrimary(TPrimary primary, Action<Index<TPrimary, TSecondary>, Holder<TValue>> onMatch)
+        {
+            IEqualityComparer<TPrimary> comparer = EqualityComparer<TPrimary>.Default;
+            foreach (KeyValuePair<Index<TPrimary, TSecondary>, Holder<TValue>> entry in GetEntries())
+            {
+                if (comparer.Equals(entry.Key.Primary, primary))
+                {
+                    onMatch(entry.Key, entry.Value);
+                }
+            }
+        }
+
+        private void ForEachMatchingSecondary(TSecondary secondary, Action<Index<TPrimary, TSecondary>, Holder<TValue>> onMatch)
+        {
+            IEqualityComparer<TSecondary> comparer = EqualityComparer<TSecondary>.Default;
+            foreach (KeyValuePair<Index<TPrimary, TSecondary>, Holder<TValue>> entry in GetEntries())
+            {
+                if (comparer.Equals(entry.Key.Secondary, secondary))
+                {
+                    onMatch(entry.Key, entry.Value);
+                }
+            }
+        }
+
         public IReadOnlyCollection<TPrimary> GetPrimaryKeys()
         {
             if (predicateIndexers == null)

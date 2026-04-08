@@ -9,8 +9,7 @@ namespace Scaffold.Autopacker.Samples
         [Packed] public int Health;
         [Packed] public float Speed;
         [Packed] public Vector3 Position;
-        
-        // This won't be packed
+
         public string TemporaryBuffs;
     }
 

@@ -4,10 +4,6 @@ using Scaffold.States;
 
 namespace Scaffold.States.Samples
 {
-    /// <summary>
-    /// Builds stores for the sample: canonical slices, payload registry with multiple mutators per payload,
-    /// aggregate slice, and optional keyed counters for <see cref="IPayloadReference"/>.
-    /// </summary>
     public static class SampleStoreFactory
     {
         public static StoreFeaturesDemo CreateFullDemo()
@@ -23,9 +19,6 @@ namespace Scaffold.States.Samples
             return new StoreFeaturesDemo(store, totalsProvider);
         }
 
-        /// <summary>
-        /// Two <see cref="CounterState"/> rows keyed by <see cref="SampleKey"/>, one mutator type, payload supplies the key.
-        /// </summary>
         public static Store CreateKeyedCounterDemo()
         {
             var keyA = new SampleKey("A");

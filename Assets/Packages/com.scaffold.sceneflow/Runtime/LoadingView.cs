@@ -3,9 +3,6 @@ using UnityEngine.UI;
 
 namespace Scaffold.SceneFlow
 {
-    /// <summary>
-    /// Standalone transition loading UI. Callers (e.g. a flow that loads Addressable scenes) own when to show or hide it; it is not registered in DI or coupled to <see cref="SceneFlowService"/>.
-    /// </summary>
     public sealed class LoadingView : MonoBehaviour
     {
         public bool IsVisible => isVisible;

@@ -12,10 +12,6 @@ namespace Scaffold.Autopacker.Samples
         [Packed(typeof(int))] public Vector2 Secret2;
     }
 
-    /// <summary>
-    /// A custom packing handler allows you to intercept packing and unpacking logic.
-    /// You could use this to encrypt specific properties or run compression algorithms!
-    /// </summary>
     public class EncryptionPacker : IPackingHandler
     {
         public TTarget Resolve<TSource, TTarget>(TSource source)

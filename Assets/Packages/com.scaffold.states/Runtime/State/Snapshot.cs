@@ -3,9 +3,6 @@ using Scaffold.Maps;
 
 namespace Scaffold.States
 {
-    /// <summary>
-    /// Committed store snapshot (save/load) and pending overlay storage for mutator runs (same key shape: reference + state type).
-    /// </summary>
     public class Snapshot : Map<IReference, Type, State>
     {
         public void Set(IReference reference, State state)

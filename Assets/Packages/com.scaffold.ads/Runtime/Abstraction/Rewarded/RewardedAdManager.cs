@@ -3,10 +3,6 @@ using UnityEngine;
 
 namespace Scaffold.Ads
 {
-    /// <summary>
-    /// Governs rewarded video ad pacing, events, and endpoint reward validation.
-    /// Operates entirely via the IRewardedAdService abstraction.
-    /// </summary>
     public class RewardedAdManager : IDisposable
     {
         private const float rewardCooldownSeconds = 10;

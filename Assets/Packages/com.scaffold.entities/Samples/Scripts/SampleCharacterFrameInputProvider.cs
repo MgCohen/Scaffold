@@ -2,9 +2,6 @@ using UnityEngine;
 
 namespace Scaffold.Entities.Samples
 {
-    /// <summary>
-    /// Maps keyboard axes to <see cref="SampleCharacterInput"/> for <see cref="SampleCharacterBehaviorRunner"/>.
-    /// </summary>
     public sealed class SampleCharacterFrameInputProvider : MonoBehaviour,
         IEntityFrameInputProvider<SampleCharacterInput>
     {

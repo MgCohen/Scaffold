@@ -6,10 +6,6 @@ using Scaffold.States.Samples;
 
 namespace Scaffold.States.Tests
 {
-    /// <summary>
-    /// Aggregate over all <see cref="CounterState"/> rows via <see cref="IStateScope.GetAll{TState}"/>,
-    /// wired with <see cref="IStateEventHandler.SubscribeAllReferences{TState}"/> so keyed runtime rows participate.
-    /// </summary>
     public sealed class KeyedCountersSumAggregateProvider : AggregateProvider<KeyedCountersSumState>
     {
         public override void Wire(IStoreScope scope, IAggregateRebuild rebuild)

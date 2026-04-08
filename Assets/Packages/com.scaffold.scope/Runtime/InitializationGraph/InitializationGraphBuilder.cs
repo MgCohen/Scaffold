@@ -4,9 +4,6 @@ using VContainer;
 
 namespace Scaffold.Scope.InitializationGraph
 {
-    /// <summary>
-    /// Builds edges from VContainer inject sites among <see cref="IAsyncInitializable"/> participants and computes topological waves.
-    /// </summary>
     internal sealed class InitializationGraphBuilder
     {
         public InitializationGraphBuilder()

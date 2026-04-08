@@ -3,7 +3,8 @@
     "rootNamespace": "",
     "references": [
         "Scaffold.Records",
-        "Scaffold.Maps"
+        "Scaffold.Maps",
+        "Scaffold.Pooling"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

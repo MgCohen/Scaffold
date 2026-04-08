@@ -4,10 +4,6 @@ using UnityEngine.Serialization;
 
 namespace Scaffold.Entities
 {
-    /// <summary>
-    /// Runs ordered <see cref="IEntityBehavior{TData,TInput}"/> components; first accepting behavior wins each frame.
-    /// Tracks the active flow and calls <see cref="IEntityBehavior{TData,TInput}.OnQuit"/> when it ends or when switching to another flow.
-    /// </summary>
     public class EntityBehaviorRunner<TData, TInput> : MonoBehaviour where TData : EntityComponent
     {
         public TData Entity => entityData;

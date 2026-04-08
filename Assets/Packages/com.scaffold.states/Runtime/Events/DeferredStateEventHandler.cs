@@ -4,10 +4,6 @@ using System.Collections.Generic;
 
 namespace Scaffold.States
 {
-    /// <summary>
-    /// Decorates an <see cref="IStateEventHandler"/>: forwards subscriptions to the inner handler and optionally buffers <see cref="IStateEventHandler.Notify"/> while deferral depth is greater than zero.
-    /// Single-threaded (main thread); not safe for concurrent use.
-    /// </summary>
     public sealed class DeferredStateEventHandler : IStateEventHandler, IStateEventDeferralController
     {
         public DeferredStateEventHandler(IStateEventHandler inner, StateEventMergeMode mergeMode)
@@ -23,7 +19,6 @@ namespace Scaffold.States
         private readonly List<(IReference Reference, Type StateType)> latestKeyOrder = new();
         private readonly Dictionary<(IReference Reference, Type StateType), (BaseState State, StateChangeEvent Change)> latestByKey = new();
 
-        /// <inheritdoc cref="IStateEventHandler.Notify(IReference, BaseState)"/>
         public void Notify(IReference reference, BaseState state)
         {
             Notify(reference, state, StateChangeEvent.Updated);

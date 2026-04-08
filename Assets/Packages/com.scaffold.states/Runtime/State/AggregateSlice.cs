@@ -4,10 +4,6 @@ using System;
 
 namespace Scaffold.States
 {
-    /// <summary>
-    /// A slice row whose <see cref="BaseSlice.State"/> is a derived <see cref="AggregateState"/> built from canonical slices.
-    /// Wiring and <see cref="IAggregateProvider.Build"/> live in the injected <see cref="IAggregateProvider"/>.
-    /// </summary>
     public sealed class AggregateSlice : BaseSlice<AggregateState>
     {
         public AggregateSlice(IReference reference, IAggregateProvider provider) : base(reference)

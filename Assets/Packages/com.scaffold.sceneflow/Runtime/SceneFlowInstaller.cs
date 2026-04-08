@@ -4,9 +4,6 @@ using VContainer.Unity;
 
 namespace Scaffold.SceneFlow
 {
-    /// <summary>
-    /// Registers additive scene flow services. Optional <see cref="ISceneFlowBootstrapShell"/> (e.g. <see cref="SceneFlowBootstrapShell"/> in the scene) suppresses shell camera/listener while additive content is active.
-    /// </summary>
     public sealed class SceneFlowInstaller : IInstaller
     {
         public SceneFlowInstaller(ISceneFlowBootstrapShell bootstrapShell = null)

@@ -2,9 +2,6 @@ using System;
 
 namespace Scaffold.SceneFlow
 {
-    /// <summary>
-    /// Identifies a successful additive scene load for a later <see cref="ISceneFlowService.UnloadAsync"/> call.
-    /// </summary>
     public readonly struct SceneFlowLoadResult
     {
         public SceneFlowLoadResult(Guid loadId, string sceneName, bool manageBootstrapShell)

@@ -4,9 +4,6 @@ using System.Linq;
 
 namespace Scaffold.Scope.InitializationGraph
 {
-    /// <summary>
-    /// Kahn-style topological levels for a directed graph (participant types only).
-    /// </summary>
     internal sealed class TopologicalLevels
     {
         public IReadOnlyList<IReadOnlyList<Type>> Compute(HashSet<Type> nodes, IReadOnlyList<(Type From, Type To)> edges)

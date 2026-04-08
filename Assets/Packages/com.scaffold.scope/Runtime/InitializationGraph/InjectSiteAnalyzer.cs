@@ -7,10 +7,6 @@ using VContainer;
 
 namespace Scaffold.Scope.InitializationGraph
 {
-    /// <summary>
-    /// Resolves inject dependency sites by calling VContainer&apos;s internal <c>TypeAnalyzer.AnalyzeWithCache</c> via reflection.
-    /// Stays aligned with VContainer&apos;s circular-dependency analysis; may require review when upgrading VContainer.
-    /// </summary>
     internal sealed class InjectSiteAnalyzer
     {
         public InjectSiteAnalyzer()

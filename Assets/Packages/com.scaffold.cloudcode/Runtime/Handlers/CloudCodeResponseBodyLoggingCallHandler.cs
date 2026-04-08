@@ -6,9 +6,6 @@ using UnityEngine;
 
 namespace Scaffold.CloudCode
 {
-    /// <summary>
-    /// Decorator that optionally logs the raw response string after the inner handler completes.
-    /// </summary>
     internal sealed class CloudCodeResponseBodyLoggingCallHandler : ICloudCodeCallHandler
     {
         internal CloudCodeResponseBodyLoggingCallHandler(CloudCodeSettings settings, ICloudCodeCallHandler inner)

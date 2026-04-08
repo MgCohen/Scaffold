@@ -11,20 +11,11 @@ using VContainer;
 
 namespace Scaffold.DirectPush
 {
-    /// <summary>
-    /// Manages Cloud Code push notification subscriptions for player and project messages.
-    /// Dispatches incoming messages to registered handlers by message type.
-    /// </summary>
     public sealed class PushSubscriptionService : IAsyncLayerInitializable, IDisposable
     {
         private readonly Dictionary<string, List<Action>> playerHandlers = new Dictionary<string, List<Action>>();
         private readonly Dictionary<string, List<Action>> projectHandlers = new Dictionary<string, List<Action>>();
 
-        /// <summary>
-        /// Registers a handler to be invoked when a player push message of the specified type is received.
-        /// </summary>
-        /// <param name="messageType">The message type key to listen for.</param>
-        /// <param name="handler">The callback to invoke when a matching message arrives.</param>
         public void SubscribeToPlayerMessage(string messageType, Action handler)
         {
             if (!playerHandlers.TryGetValue(messageType, out List<Action> handlers))
@@ -36,11 +27,6 @@ namespace Scaffold.DirectPush
             handlers.Add(handler);
         }
 
-        /// <summary>
-        /// Registers a handler to be invoked when a project push message of the specified type is received.
-        /// </summary>
-        /// <param name="messageType">The message type key to listen for.</param>
-        /// <param name="handler">The callback to invoke when a matching message arrives.</param>
         public void SubscribeToProjectMessage(string messageType, Action handler)
         {
             if (!projectHandlers.TryGetValue(messageType, out List<Action> handlers))
@@ -52,12 +38,6 @@ namespace Scaffold.DirectPush
             handlers.Add(handler);
         }
 
-        /// <summary>
-        /// Subscribes to both player and project Cloud Code message streams.
-        /// Called automatically during the layer initialization phase.
-        /// </summary>
-        /// <param name="resolver">The VContainer resolver (unused but required by the contract).</param>
-        /// <param name="cancellationToken">Token to cancel the initialization.</param>
         public async Task InitializeAsync(IObjectResolver resolver, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -65,9 +45,6 @@ namespace Scaffold.DirectPush
             await SubscribeToProjectMessages();
         }
 
-        /// <summary>
-        /// Removes all registered handlers.
-        /// </summary>
         public void Dispose()
         {
             playerHandlers.Clear();

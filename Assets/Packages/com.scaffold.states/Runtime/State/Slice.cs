@@ -4,9 +4,6 @@ using System;
 
 namespace Scaffold.States
 {
-    /// <summary>
-    /// Canonical slice row: committed <see cref="State"/> values are replaced by mutators or snapshot load.
-    /// </summary>
     public sealed class Slice : BaseSlice<State>
     {
         public Slice(IReference reference, State state) : base(reference, state)

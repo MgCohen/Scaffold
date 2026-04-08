@@ -5,9 +5,6 @@ using System.Threading.Tasks;
 
 namespace Scaffold.CloudCode
 {
-    /// <summary>
-    /// Wraps the inner handler with a per-invocation timeout (0 = disabled). Uses <see cref="Task.WhenAny"/>; the underlying SDK call may continue after timeout.
-    /// </summary>
     internal sealed class CloudCodeTimeoutCallHandler : ICloudCodeCallHandler
     {
         internal CloudCodeTimeoutCallHandler(CloudCodeSettings settings, ICloudCodeCallHandler inner)

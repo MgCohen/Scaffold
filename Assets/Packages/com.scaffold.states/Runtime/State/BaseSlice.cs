@@ -4,9 +4,6 @@ using System;
 
 namespace Scaffold.States
 {
-    /// <summary>
-    /// Non-generic slice row for the store map keyed by <see cref="Reference"/> and <see cref="StateType"/>.
-    /// </summary>
     public abstract class BaseSlice
     {
         protected BaseSlice(IReference reference, BaseState state)
@@ -33,9 +30,6 @@ namespace Scaffold.States
         }
     }
 
-    /// <summary>
-    /// Slice row whose committed value is constrained to <typeparamref name="T"/>.
-    /// </summary>
     public abstract class BaseSlice<T> : BaseSlice where T : BaseState
     {
         protected BaseSlice(IReference reference, T state) : base(reference, state)

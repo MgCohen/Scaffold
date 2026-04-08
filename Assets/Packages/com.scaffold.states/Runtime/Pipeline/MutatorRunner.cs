@@ -1,13 +1,11 @@
 #nullable enable
+using System;
 using System.Collections.Generic;
+using Scaffold.Pooling;
 
 namespace Scaffold.States
 {
-    /// <summary>
-    /// Runs registered mutators against a <see cref="IStoreScratchpad"/> (overlay-first reads), then commits into the backing <see cref="Store"/>.
-    /// Implements <see cref="IStateScope"/> by delegating to the scratchpad so payload bindings keep a stable <see cref="MutatorRunner"/> entry point.
-    /// </summary>
-    internal sealed class MutatorRunner : IStateScope
+    internal sealed class MutatorRunner : IStateScope, IPoolable
     {
         public MutatorRunner(IStoreScratchpad scratchpad)
         {
@@ -15,6 +13,21 @@ namespace Scaffold.States
         }
 
         private readonly IStoreScratchpad scratchpad;
+
+        event Action IPoolable.ReturnRequested
+        {
+            add { }
+            remove { }
+        }
+
+        void IPoolable.OnTakenFromPool()
+        {
+        }
+
+        void IPoolable.OnReturnedToPool()
+        {
+            scratchpad.Reset();
+        }
 
         internal void RunMutatorBindingsWithoutCommit(object payload, IReadOnlyList<IPayloadMutatorBinding> mutators, IReference executeReference)
         {

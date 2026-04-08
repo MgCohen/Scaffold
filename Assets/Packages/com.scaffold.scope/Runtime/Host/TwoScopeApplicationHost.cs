@@ -10,11 +10,6 @@ using VContainer.Unity;
 
 namespace Scaffold.Scope
 {
-    /// <summary>
-    /// Orchestrates two-scope startup (base scope → async init → preload → main child scope → async init).
-    /// Per-project composition (Addressables, preloads, app installers) belongs in subclasses, typically in a
-    /// game assembly—not in Scaffold.Scope.
-    /// </summary>
     public abstract class TwoScopeApplicationHost : LifetimeScope
     {
         public bool IsStartupCompleted => startupCompleted;
@@ -22,7 +17,6 @@ namespace Scaffold.Scope
         [SerializeField]
         private bool startupCompleted;
 
-        /// <summary>Phase progress for optional loading UI; subscribe to <see cref="ApplicationStartupProgress.Changed"/> or override <see cref="GetStartupProgressListener"/>.</summary>
         protected ApplicationStartupProgress StartupProgress { get; } = new ApplicationStartupProgress();
 
         private CancellationTokenSource startupCancellationSource;

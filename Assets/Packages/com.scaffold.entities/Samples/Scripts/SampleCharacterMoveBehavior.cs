@@ -2,9 +2,6 @@ using UnityEngine;
 
 namespace Scaffold.Entities.Samples
 {
-    /// <summary>
-    /// Moves the entity on the XZ plane using the effective Move Speed attribute.
-    /// </summary>
     public sealed class SampleCharacterMoveBehavior : MonoBehaviour, IEntityBehavior<SampleCharacterEntity, SampleCharacterInput>
     {
         [SerializeField]
