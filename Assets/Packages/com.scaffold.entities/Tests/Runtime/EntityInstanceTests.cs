@@ -1,3 +1,4 @@
+using System;
 using NUnit.Framework;
 using Scaffold.Entities;
 using UnityEngine;
@@ -165,6 +166,84 @@ namespace Scaffold.Entities.Tests
             state.AddModifier(new EntityModifierEntry(hp, new FloatAttributeValue { Value = 5f }));
 
             Assert.That(callCount, Is.EqualTo(1)); // no additional fires
+        }
+
+        [Test]
+        public void Subscribe_Float_FiresImmediatelyWithTypedValue()
+        {
+            AttributeSO hp = CreateAttributeSo("HP", AttributeValueType.Float);
+            EntityDefinition def = CreateDefinition((hp, new FloatAttributeValue { Value = 42f }));
+            EntityInstance<EntityDefinition> state = EntityInstanceFactory.CreateInstance(def);
+
+            float received = 0f;
+            using (state.Subscribe<float>(hp, v => received = v))
+            {
+                Assert.That(received, Is.EqualTo(42f));
+            }
+        }
+
+        [Test]
+        public void Subscribe_Float_FiresOnModifierAdd()
+        {
+            AttributeSO hp = CreateAttributeSo("HP", AttributeValueType.Float);
+            EntityDefinition def = CreateDefinition((hp, new FloatAttributeValue { Value = 10f }));
+            EntityInstance<EntityDefinition> state = EntityInstanceFactory.CreateInstance(def);
+
+            float received = 0f;
+            using (state.Subscribe<float>(hp, v => received = v))
+            {
+                state.AddModifier(new EntityModifierEntry(hp, new FloatAttributeValue { Value = 5f }));
+                Assert.That(received, Is.EqualTo(15f));
+            }
+        }
+
+        [Test]
+        public void SubscribeToAttribute_FloatAttributeValue_FiresImmediately()
+        {
+            AttributeSO hp = CreateAttributeSo("HP", AttributeValueType.Float);
+            EntityDefinition def = CreateDefinition((hp, new FloatAttributeValue { Value = 33f }));
+            EntityInstance<EntityDefinition> state = EntityInstanceFactory.CreateInstance(def);
+
+            FloatAttributeValue received = null!;
+            using (state.SubscribeToAttribute<FloatAttributeValue>(hp, v => received = v))
+            {
+                Assert.That(received, Is.Not.Null);
+                Assert.That(received.Value, Is.EqualTo(33f));
+            }
+        }
+
+        [Test]
+        public void Subscribe_Typed_DisposeStopsFurtherNotifications()
+        {
+            AttributeSO hp = CreateAttributeSo("HP", AttributeValueType.Float);
+            EntityDefinition def = CreateDefinition((hp, new FloatAttributeValue { Value = 10f }));
+            EntityInstance<EntityDefinition> state = EntityInstanceFactory.CreateInstance(def);
+
+            int callCount = 0;
+            IDisposable sub = state.Subscribe<float>(hp, _ => callCount++);
+            Assert.That(callCount, Is.EqualTo(1));
+
+            sub.Dispose();
+            state.AddModifier(new EntityModifierEntry(hp, new FloatAttributeValue { Value = 5f }));
+
+            Assert.That(callCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void Subscribe_Untyped_ReturnsTokenThatDisposes()
+        {
+            AttributeSO hp = CreateAttributeSo("HP", AttributeValueType.Float);
+            EntityDefinition def = CreateDefinition((hp, new FloatAttributeValue { Value = 10f }));
+            EntityInstance<EntityDefinition> state = EntityInstanceFactory.CreateInstance(def);
+
+            int callCount = 0;
+            IDisposable sub = state.Subscribe(hp, _ => callCount++);
+            Assert.That(callCount, Is.EqualTo(1));
+
+            sub.Dispose();
+            state.AddModifier(new EntityModifierEntry(hp, new FloatAttributeValue { Value = 5f }));
+
+            Assert.That(callCount, Is.EqualTo(1));
         }
 
         private AttributeSO CreateAttributeSo(string assetName, AttributeValueType valueType)

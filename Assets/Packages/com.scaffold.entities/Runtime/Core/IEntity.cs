@@ -20,7 +20,11 @@ namespace Scaffold.Entities
 
         void ClearModifiers();
 
-        void Subscribe(Attribute attribute, Action<AttributeValue> onChange);
+        IDisposable Subscribe(Attribute attribute, Action<AttributeValue> onChange);
+
+        IDisposable Subscribe<T>(Attribute attribute, Action<T> onChange);
+
+        IDisposable SubscribeToAttribute<TAttr>(Attribute attribute, Action<TAttr> onChange) where TAttr : AttributeValue;
 
         void Unsubscribe(Attribute attribute, Action<AttributeValue> onChange);
     }

@@ -4,7 +4,7 @@
 
 ## TL;DR
 
-- Purpose: **Definition** / **instance** flyweight model with **`AttributeSO`** identity and **`AttributeValueType`**, typed **`AttributeValue`** payloads (`FloatAttributeValue`, `IntAttributeValue`, `BoolAttributeValue`, `StringAttributeValue`), **`Attribute`** record keys, instance-only **modifiers**, **`InstanceId`** (runtime int id), and **factories**. **`IEntity<TDefinition>`** exposes **`GetValue<T>`**, **`GetAttribute<TAttr>`**, and **`TryGetAttribute<TAttr>`**. Optional **behavior runner** (`EntityBehaviorRunner<TData,TInput>`) for per-frame arbitration.
+- Purpose: **Definition** / **instance** flyweight model with **`AttributeSO`** identity and **`AttributeValueType`**, typed **`AttributeValue`** payloads (`FloatAttributeValue`, `IntAttributeValue`, `BoolAttributeValue`, `StringAttributeValue`), **`Attribute`** record keys, instance-only **modifiers**, **`InstanceId`** (runtime int id), and **factories**. **`IEntity<TDefinition>`** exposes **`GetValue<T>`**, **`GetAttribute<TAttr>`**, and **`TryGetAttribute<TAttr>`**, plus **`Subscribe` / `Subscribe<T>` / `SubscribeToAttribute<TAttr>`** (each returns **`IDisposable`** for unsubscription; **`Unsubscribe`** remains for named **`Action<AttributeValue>`** delegates). Optional **behavior runner** (`EntityBehaviorRunner<TData,TInput>`) for per-frame arbitration.
 - Location: `Assets/Packages/com.scaffold.entities/Runtime/` — **`Core/`** (definitions, attributes, instances, factory) and **`Behavior/`** (behavior contracts and runner). Single assembly `Scaffold.Entities`; runtime tests in `Tests/Runtime/` (`Scaffold.Entities.Tests`), editor tests in `Tests/Editor/` (`Scaffold.Entities.Editor.Tests`).
 - **Unity coupling:** References `UnityEngine` (`MonoBehaviour`, `ScriptableObject`). `Scaffold.Entities.asmdef` has `noEngineReferences: false`. See [Architecture.md](../../../Architecture.md): the Core folder does not mean “no Unity.”
 - Depends on: Unity engine only (no cross-assembly references to other first-party modules in this repository snapshot).
@@ -35,11 +35,11 @@ Package layout index: `Documentation/entities.md`. Changelog: `CHANGELOG.md`.
 | `AttributeValue` | Abstract base; concrete **`FloatAttributeValue`** / **`IntAttributeValue`** / **`BoolAttributeValue`** / **`StringAttributeValue`** (SerializeReference on definitions and modifiers). |
 | `AttributeEntry` | One definition row: **`AttributeSO`** + **`BaseValue`** (`[SerializeReference]`). |
 | `EntityDefinition` | Shared defaults: **`Entries`** list; runtime **`TryGetBaseValue`**. Modifiers are **not** on definitions. |
-| `EntityInstance<TDefinition>` | Serializable state: `InstanceId`, `TDefinition`, modifiers; **`GetValue<T>`**, **`GetAttribute<TAttr>`**, **`TryGetAttribute<TAttr>`**, modifier list mutation. |
+| `EntityInstance<TDefinition>` | Serializable state: `InstanceId`, `TDefinition`, modifiers; **`GetValue<T>`**, **`GetAttribute<TAttr>`**, **`TryGetAttribute<TAttr>`**; **`Subscribe`**, **`Subscribe<T>`** (raw value), **`SubscribeToAttribute<TAttr>`** (typed **`AttributeValue`**); modifier list mutation. |
 | `EntityInstanceFactory` | **`CreateInstance<TDefinition>`** and **`CreateOnGameObject<TEntity,TDefinition>`**. |
 | `EntityBehaviour` | Abstract `MonoBehaviour` base for runners and heterogeneous lists. |
 | `EntityBehaviour<TDefinition>` | Host with **`EntityInstance<TDefinition>`**; implements **`IEntity<TDefinition>`** by delegation. |
-| `IEntity<out TDefinition>` | **`Id`**, **`Definition`**, typed getters for attributes. |
+| `IEntity<out TDefinition>` | **`Id`**, **`Definition`**, typed getters for attributes; attribute change subscriptions (**`IDisposable`** token or **`Unsubscribe`**). |
 | `InstanceId` | **`record InstanceId(int Id)`** — monotone runtime id per process (`New()`). |
 | `EntityModifierEntry` | Instance-only modifier: **`AttributeSO`** + **`ModifierValue`**, or **`Attribute`** + **`ModifierValue`** (runtime). |
 | `IEntityBehavior<TData,TInput>` | Behavior contract: `TryAcceptControl`, `Execute`, `OnQuit`. |

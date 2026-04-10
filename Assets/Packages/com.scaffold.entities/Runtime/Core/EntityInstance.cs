@@ -16,6 +16,7 @@ namespace Scaffold.Entities
         private AttributeModifierHandler modifierHandler;
         private AttributeNotifier notifier;
         private Dictionary<Attribute, AttributeValue> cache;
+        private EmptySubscriptionToken emptySubscription;
 
         public void Initialize(InstanceId instanceId, TDefinition entityDefinition)
         {
@@ -24,6 +25,7 @@ namespace Scaffold.Entities
             entityDefinition.RebuildLookup();
             modifierHandler = new AttributeModifierHandler();
             notifier = new AttributeNotifier();
+            emptySubscription = new EmptySubscriptionToken();
             SeedCache();
         }
 
@@ -115,19 +117,36 @@ namespace Scaffold.Entities
             }
         }
 
-        public void Subscribe(Attribute attribute, Action<AttributeValue> onChange)
+        public IDisposable Subscribe(Attribute attribute, Action<AttributeValue> onChange)
         {
             if (attribute == null || onChange == null)
             {
-                return;
+                return emptySubscription;
             }
 
-            notifier.Add(attribute, onChange);
+            return RegisterSubscription(attribute, onChange);
+        }
 
-            if (cache.TryGetValue(attribute, out AttributeValue current))
+        public IDisposable Subscribe<T>(Attribute attribute, Action<T> onChange)
+        {
+            if (attribute == null || onChange == null)
             {
-                onChange(current);
+                return emptySubscription;
             }
+
+            Action<AttributeValue> adapter = CreateRawValueAdapter(onChange);
+            return RegisterSubscription(attribute, adapter);
+        }
+
+        public IDisposable SubscribeToAttribute<TAttr>(Attribute attribute, Action<TAttr> onChange) where TAttr : AttributeValue
+        {
+            if (attribute == null || onChange == null)
+            {
+                return emptySubscription;
+            }
+
+            Action<AttributeValue> adapter = CreateAttributeValueAdapter(onChange);
+            return RegisterSubscription(attribute, adapter);
         }
 
         public void Unsubscribe(Attribute attribute, Action<AttributeValue> onChange)
@@ -138,6 +157,40 @@ namespace Scaffold.Entities
             }
 
             notifier.Remove(attribute, onChange);
+        }
+
+        private IDisposable RegisterSubscription(Attribute attribute, Action<AttributeValue> adapter)
+        {
+            notifier.Add(attribute, adapter);
+
+            if (cache.TryGetValue(attribute, out AttributeValue current))
+            {
+                adapter(current);
+            }
+
+            return new AttributeSubscriptionToken(notifier, attribute, adapter);
+        }
+
+        private Action<AttributeValue> CreateRawValueAdapter<T>(Action<T> onChange)
+        {
+            return av =>
+            {
+                if (av is IAttributeValue<T> typed)
+                {
+                    onChange(typed.Get());
+                }
+            };
+        }
+
+        private Action<AttributeValue> CreateAttributeValueAdapter<TAttr>(Action<TAttr> onChange) where TAttr : AttributeValue
+        {
+            return av =>
+            {
+                if (av is TAttr typed)
+                {
+                    onChange(typed);
+                }
+            };
         }
 
         private void SeedCache()
@@ -166,6 +219,13 @@ namespace Scaffold.Entities
             AttributeValue newValue = modifierHandler.GetEffective(key, baseValue);
             cache[key] = newValue;
             notifier.Notify(key, newValue);
+        }
+
+        private sealed class EmptySubscriptionToken : IDisposable
+        {
+            public void Dispose()
+            {
+            }
         }
     }
 }

@@ -48,9 +48,19 @@ namespace Scaffold.Entities
             Instance.ClearModifiers();
         }
 
-        public void Subscribe(Attribute attribute, Action<AttributeValue> onChange)
+        public IDisposable Subscribe(Attribute attribute, Action<AttributeValue> onChange)
         {
-            Instance.Subscribe(attribute, onChange);
+            return Instance.Subscribe(attribute, onChange);
+        }
+
+        public IDisposable Subscribe<T>(Attribute attribute, Action<T> onChange)
+        {
+            return Instance.Subscribe(attribute, onChange);
+        }
+
+        public IDisposable SubscribeToAttribute<TAttr>(Attribute attribute, Action<TAttr> onChange) where TAttr : AttributeValue
+        {
+            return Instance.SubscribeToAttribute(attribute, onChange);
         }
 
         public void Unsubscribe(Attribute attribute, Action<AttributeValue> onChange)
