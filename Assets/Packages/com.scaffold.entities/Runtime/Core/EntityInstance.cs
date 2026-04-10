@@ -13,20 +13,20 @@ namespace Scaffold.Entities
         public TDefinition Definition => definition;
         [SerializeField] private TDefinition definition = default!;
 
-        [SerializeField] private AttributeBag instanceBag = new AttributeBag();
+        [SerializeField] private AttributeBag instanceBaseBag = new AttributeBag();
+        [SerializeField] private AttributeBag instanceEffectiveBag = new AttributeBag();
 
         private AttributeModifierHandler modifierHandler = null!;
         private AttributeNotifier notifier = null!;
-        private Dictionary<Attribute, AttributeValue> modifiedValueCache = null!;
 
         internal bool ContainsModifiedValueCache(Attribute key)
         {
-            return modifiedValueCache != null && modifiedValueCache.ContainsKey(key);
+            return instanceEffectiveBag != null && instanceEffectiveBag.HasLocalKey(key);
         }
 
         internal bool InstanceBagHasLocalKey(Attribute key)
         {
-            return instanceBag != null && instanceBag.HasLocalKey(key);
+            return instanceBaseBag != null && instanceBaseBag.HasLocalKey(key);
         }
 
         public void Initialize(InstanceId instanceId, TDefinition entityDefinition)
@@ -36,14 +36,8 @@ namespace Scaffold.Entities
             entityDefinition.RebuildLookup();
             modifierHandler = new AttributeModifierHandler();
             notifier = new AttributeNotifier();
-            modifiedValueCache = new Dictionary<Attribute, AttributeValue>();
-            if (instanceBag == null)
-            {
-                instanceBag = new AttributeBag();
-            }
-
-            instanceBag.SetParent(entityDefinition.Bag);
-            instanceBag.RebuildCache();
+            EnsureInstanceBags();
+            WireBagParentsToDefinition(entityDefinition);
         }
 
         public T GetValue<T>(Attribute attribute)
@@ -178,7 +172,7 @@ namespace Scaffold.Entities
 
         public bool AddRuntimeAttribute(Attribute key, AttributeValue initialBase)
         {
-            if (!instanceBag.Add(key, initialBase))
+            if (!instanceBaseBag.Add(key, initialBase))
             {
                 return false;
             }
@@ -189,13 +183,13 @@ namespace Scaffold.Entities
 
         public bool RemoveRuntimeAttribute(Attribute key)
         {
-            if (!instanceBag.Remove(key))
+            if (!instanceBaseBag.Remove(key))
             {
                 return false;
             }
 
+            instanceEffectiveBag.RemoveLocalSilent(key);
             modifierHandler.ClearModifiersForKey(key);
-            modifiedValueCache.Remove(key);
             notifier.ClearKey(key);
             return true;
         }
@@ -208,8 +202,8 @@ namespace Scaffold.Entities
             }
 
             void Handler(Attribute key, AttributeValue value) => onAdded(key, value);
-            instanceBag.OnAttributeAdded += Handler;
-            return new CallbackDisposable(() => instanceBag.OnAttributeAdded -= Handler);
+            instanceBaseBag.OnAttributeAdded += Handler;
+            return new CallbackDisposable(() => instanceBaseBag.OnAttributeAdded -= Handler);
         }
 
         public IDisposable SubscribeToAttributeRemoved(Action<Attribute> onRemoved)
@@ -220,8 +214,8 @@ namespace Scaffold.Entities
             }
 
             void Handler(Attribute key) => onRemoved(key);
-            instanceBag.OnAttributeRemoved += Handler;
-            return new CallbackDisposable(() => instanceBag.OnAttributeRemoved -= Handler);
+            instanceBaseBag.OnAttributeRemoved += Handler;
+            return new CallbackDisposable(() => instanceBaseBag.OnAttributeRemoved -= Handler);
         }
 
         private IDisposable RegisterSubscription(Attribute attribute, Action<AttributeValue> adapter)
@@ -258,19 +252,35 @@ namespace Scaffold.Entities
             };
         }
 
-        private bool TryResolve(Attribute key, out AttributeValue value)
+        private void EnsureInstanceBags()
         {
-            if (modifiedValueCache.TryGetValue(key, out value))
+            if (instanceBaseBag == null)
             {
-                return true;
+                instanceBaseBag = new AttributeBag();
             }
 
-            return instanceBag.TryGetBase(key, out value);
+            if (instanceEffectiveBag == null)
+            {
+                instanceEffectiveBag = new AttributeBag();
+            }
+        }
+
+        private void WireBagParentsToDefinition(TDefinition entityDefinition)
+        {
+            instanceBaseBag.SetParent(entityDefinition.Bag);
+            instanceBaseBag.RebuildCache();
+            instanceEffectiveBag.SetParent(instanceBaseBag);
+            instanceEffectiveBag.RebuildCache();
+        }
+
+        private bool TryResolve(Attribute key, out AttributeValue value)
+        {
+            return instanceEffectiveBag.TryGetBase(key, out value);
         }
 
         private void RecalculateAndNotify(Attribute key)
         {
-            if (!instanceBag.TryGetBase(key, out AttributeValue baseValue))
+            if (!instanceBaseBag.TryGetBase(key, out AttributeValue baseValue))
             {
                 return;
             }
@@ -279,15 +289,14 @@ namespace Scaffold.Entities
 
             if (modifierHandler.HasModifiersFor(key))
             {
-                modifiedValueCache[key] = effective;
+                instanceEffectiveBag.SetLocalSilent(key, effective);
             }
             else
             {
-                modifiedValueCache.Remove(key);
+                instanceEffectiveBag.RemoveLocalSilent(key);
             }
 
             notifier.Notify(key, effective);
         }
-
     }
 }

@@ -100,6 +100,23 @@ namespace Scaffold.Entities
             return true;
         }
 
+        internal void SetLocalSilent(Attribute key, AttributeValue value)
+        {
+            if (value == null)
+            {
+                return;
+            }
+
+            EnsureCache();
+            localCache[key] = value;
+        }
+
+        internal bool RemoveLocalSilent(Attribute key)
+        {
+            EnsureCache();
+            return localCache.Remove(key);
+        }
+
         internal bool HasLocalKey(Attribute key)
         {
             EnsureCache();

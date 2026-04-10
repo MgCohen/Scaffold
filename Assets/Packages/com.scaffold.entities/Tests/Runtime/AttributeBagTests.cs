@@ -83,6 +83,37 @@ namespace Scaffold.Entities.Tests
             Assert.That(bag.Add(key, new IntAttributeValue { Value = 2 }), Is.False);
         }
 
+        [Test]
+        public void SetLocalSilent_RemoveLocalSilent_DoNotFireStructuralEvents()
+        {
+            var bag = new AttributeBag();
+            bag.RebuildCache();
+            var key = new Attribute("Silent", AttributeValueType.Float);
+            int addedEvents = 0;
+            int removedEvents = 0;
+            bag.OnAttributeAdded += (_, _) => addedEvents++;
+            bag.OnAttributeRemoved += _ => removedEvents++;
+
+            bag.SetLocalSilent(key, new FloatAttributeValue { Value = 9f });
+            Assert.That(bag.TryGetBase(key, out AttributeValue v), Is.True);
+            Assert.That(((FloatAttributeValue)v).Value, Is.EqualTo(9f));
+            Assert.That(addedEvents, Is.EqualTo(0));
+
+            Assert.That(bag.RemoveLocalSilent(key), Is.True);
+            Assert.That(bag.HasLocalKey(key), Is.False);
+            Assert.That(removedEvents, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void SetLocalSilent_NullValue_DoesNotStore()
+        {
+            var bag = new AttributeBag();
+            bag.RebuildCache();
+            var key = new Attribute("N", AttributeValueType.Float);
+            bag.SetLocalSilent(key, null!);
+            Assert.That(bag.HasLocalKey(key), Is.False);
+        }
+
         private static AttributeSO CreateAttributeSo(string assetName, AttributeValueType valueType)
         {
             var so = ScriptableObject.CreateInstance<AttributeSO>();

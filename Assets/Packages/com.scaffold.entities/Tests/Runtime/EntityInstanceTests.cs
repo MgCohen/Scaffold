@@ -277,6 +277,23 @@ namespace Scaffold.Entities.Tests
         }
 
         [Test]
+        public void RuntimeAttribute_AfterModifierRemoved_ReadsOriginalBase()
+        {
+            AttributeSO poison = CreateAttributeSo("Poison", AttributeValueType.Float);
+            EntityDefinition def = CreateDefinition();
+            EntityInstance<EntityDefinition> state = EntityInstanceFactory.CreateInstance(def);
+            state.AddRuntimeAttribute(poison, new FloatAttributeValue { Value = 5f });
+            var mod = new EntityModifierEntry(poison, new FloatAttributeValue { Value = 2f });
+            state.AddModifier(mod);
+            Assert.That(state.GetValue<float>(poison), Is.EqualTo(7f));
+
+            Assert.That(state.RemoveModifier(mod), Is.True);
+            Assert.That(state.GetValue<float>(poison), Is.EqualTo(5f));
+            Assert.That(state.ContainsModifiedValueCache(poison), Is.False);
+            Assert.That(state.InstanceBagHasLocalKey(poison), Is.True);
+        }
+
+        [Test]
         public void RemoveRuntimeAttribute_ClearsModifiersAndStructuralSubscriptionFires()
         {
             AttributeSO poison = CreateAttributeSo("Poison", AttributeValueType.Float);
