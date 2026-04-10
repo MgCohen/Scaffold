@@ -29,30 +29,25 @@ namespace Scaffold.Entities
                 return;
             }
 
-            AttributeValueType required = attribute.ValueType;
-            if (baseValue != null && baseValue.Type == required)
+            if (!attribute.TryResolveConcreteValueType(out Type requiredConcrete))
             {
                 return;
             }
 
-            baseValue = CreateDefaultForType(required);
+            if (baseValue != null && baseValue.GetType() == requiredConcrete)
+            {
+                return;
+            }
+
+            if (AttributeValueRegistry.TryCreate(requiredConcrete, out AttributeValue created))
+            {
+                baseValue = created;
+            }
         }
 
         internal static AttributeEntry Create(AttributeSO attr, AttributeValue baseVal)
         {
             return new AttributeEntry(attr, baseVal);
-        }
-
-        private static AttributeValue CreateDefaultForType(AttributeValueType required)
-        {
-            return required switch
-            {
-                AttributeValueType.Float => new FloatAttributeValue(),
-                AttributeValueType.Int => new IntAttributeValue(),
-                AttributeValueType.Bool => new BoolAttributeValue(),
-                AttributeValueType.String => new StringAttributeValue(),
-                _ => null
-            };
         }
     }
 }

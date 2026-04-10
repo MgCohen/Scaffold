@@ -5,6 +5,7 @@ namespace Scaffold.Entities
         String,
         Float,
         Int,
-        Bool
+        Bool,
+        Custom
     }
 }
