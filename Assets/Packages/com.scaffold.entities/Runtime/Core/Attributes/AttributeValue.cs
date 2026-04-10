@@ -10,5 +10,7 @@ namespace Scaffold.Entities
         public abstract AttributeValueType Type { get; }
 
         public abstract AttributeValue Combine(IReadOnlyList<AttributeValue> contributions);
+
+        internal AttributeValue CloneShallow() => (AttributeValue)MemberwiseClone();
     }
 }

@@ -16,8 +16,9 @@ namespace Scaffold.Entities.Tests
         [Test]
         public void EnsureValueMatchesType_UsesRegistryByStableId_NoReflection()
         {
-            var def = new FloatScalarAttributeDefinition();
+            var def = new PrototypeAttributeDefinition();
             def.SetStableTypeId("MyFloat");
+            def.SetPrototype(new FloatAttributeValue());
 
             var registry = ScriptableObject.CreateInstance<AttributeValueKindRegistrySO>();
             registry.SetKindsForTests(new List<AttributeDefinitionBase> { def });
@@ -35,8 +36,11 @@ namespace Scaffold.Entities.Tests
         [Test]
         public void EnsureValueMatchesType_RegistryFallsBackToLegacyEnumMapping()
         {
+            var def = new PrototypeAttributeDefinition();
+            def.SetPrototype(new FloatAttributeValue());
+
             var registry = ScriptableObject.CreateInstance<AttributeValueKindRegistrySO>();
-            registry.SetKindsForTests(new List<AttributeDefinitionBase> { new FloatScalarAttributeDefinition() });
+            registry.SetKindsForTests(new List<AttributeDefinitionBase> { def });
 
             AttributeSO so = CreateAttributeSo("HP", AttributeValueType.Float);
             so.SetKindRegistryOverride(registry);

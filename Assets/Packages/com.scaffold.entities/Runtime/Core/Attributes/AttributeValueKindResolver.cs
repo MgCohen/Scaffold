@@ -9,13 +9,27 @@ namespace Scaffold.Entities
         private static readonly object Gate = new object();
         private static AttributeValueKindRegistrySO cachedRegistry;
         private static readonly Dictionary<AttributeValueType, AttributeDefinitionBase> LegacyFallback =
-            new Dictionary<AttributeValueType, AttributeDefinitionBase>
-            {
-                { AttributeValueType.Float, new FloatScalarAttributeDefinition() },
-                { AttributeValueType.Int, new IntScalarAttributeDefinition() },
-                { AttributeValueType.Bool, new BoolScalarAttributeDefinition() },
-                { AttributeValueType.String, new StringScalarAttributeDefinition() }
-            };
+            BuildLegacyFallback();
+
+        private static Dictionary<AttributeValueType, AttributeDefinitionBase> BuildLegacyFallback()
+        {
+            var map = new Dictionary<AttributeValueType, AttributeDefinitionBase>();
+            Add(map, AttributeValueType.Float, new FloatAttributeValue());
+            Add(map, AttributeValueType.Int, new IntAttributeValue());
+            Add(map, AttributeValueType.Bool, new BoolAttributeValue());
+            Add(map, AttributeValueType.String, new StringAttributeValue());
+            return map;
+        }
+
+        private static void Add(
+            Dictionary<AttributeValueType, AttributeDefinitionBase> map,
+            AttributeValueType kind,
+            AttributeValue prototype)
+        {
+            var def = new PrototypeAttributeDefinition();
+            def.SetPrototype(prototype);
+            map[kind] = def;
+        }
 
         public static void SetGlobalRegistry(AttributeValueKindRegistrySO registry)
         {
