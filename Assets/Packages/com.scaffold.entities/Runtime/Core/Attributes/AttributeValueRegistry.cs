@@ -13,10 +13,10 @@ namespace Scaffold.Entities
 
         static AttributeValueRegistry()
         {
-            RegisterBuiltinFromLegacy(AttributeValueType.Float, BuiltinAttributeDefinitions.Float);
-            RegisterBuiltinFromLegacy(AttributeValueType.Int, BuiltinAttributeDefinitions.Int);
-            RegisterBuiltinFromLegacy(AttributeValueType.Bool, BuiltinAttributeDefinitions.Bool);
-            RegisterBuiltinFromLegacy(AttributeValueType.String, BuiltinAttributeDefinitions.String);
+            RegisterLegacy(AttributeValueType.Float, typeof(FloatAttributeValue), () => new FloatAttributeValue());
+            RegisterLegacy(AttributeValueType.Int, typeof(IntAttributeValue), () => new IntAttributeValue());
+            RegisterLegacy(AttributeValueType.Bool, typeof(BoolAttributeValue), () => new BoolAttributeValue());
+            RegisterLegacy(AttributeValueType.String, typeof(StringAttributeValue), () => new StringAttributeValue());
         }
 
         public static void Register(Type concreteAttributeValueType, Func<AttributeValue> createDefault)
@@ -44,37 +44,17 @@ namespace Scaffold.Entities
             }
         }
 
-        public static void Register(IAttributeDefinition definition)
+        public static void RegisterRange(
+            IEnumerable<(Type concreteType, Func<AttributeValue> createDefault)> registrations)
         {
-            if (definition == null)
+            if (registrations == null)
             {
-                throw new ArgumentNullException(nameof(definition));
+                throw new ArgumentNullException(nameof(registrations));
             }
 
-            Register(definition.ValueType, definition.CreateDefault);
-        }
-
-        public static void Register<T>(IAttributeDefinition<T> definition)
-            where T : AttributeValue
-        {
-            if (definition == null)
+            foreach ((Type concreteType, Func<AttributeValue> createDefault) in registrations)
             {
-                throw new ArgumentNullException(nameof(definition));
-            }
-
-            Register(definition.ValueType, definition.CreateDefault);
-        }
-
-        public static void RegisterRange(IEnumerable<IAttributeDefinition> definitions)
-        {
-            if (definitions == null)
-            {
-                throw new ArgumentNullException(nameof(definitions));
-            }
-
-            foreach (IAttributeDefinition definition in definitions)
-            {
-                Register(definition);
+                Register(concreteType, createDefault);
             }
         }
 
@@ -139,10 +119,16 @@ namespace Scaffold.Entities
             }
         }
 
-        private static void RegisterBuiltinFromLegacy(AttributeValueType legacyKind, IAttributeDefinition definition)
+        private static void RegisterLegacy(
+            AttributeValueType legacyKind,
+            Type concreteType,
+            Func<AttributeValue> createDefault)
         {
-            Register(definition);
-            LegacyKindToConcreteType[legacyKind] = definition.ValueType;
+            Register(concreteType, createDefault);
+            lock (Gate)
+            {
+                LegacyKindToConcreteType[legacyKind] = concreteType;
+            }
         }
     }
 }

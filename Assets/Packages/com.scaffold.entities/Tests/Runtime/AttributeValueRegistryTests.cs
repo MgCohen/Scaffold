@@ -15,21 +15,20 @@ namespace Scaffold.Entities.Tests
         }
 
         [Test]
-        public void BuiltinDefinitions_Float_IsRegisteredAndCreatesDefaults()
+        public void Builtin_Float_IsRegisteredAndCreatesDefaults()
         {
             Assert.That(
                 AttributeValueRegistry.TryCreate(typeof(FloatAttributeValue), out AttributeValue v),
                 Is.True);
             Assert.That(v, Is.TypeOf<FloatAttributeValue>());
-
-            FloatAttributeValue fromDef = BuiltinAttributeDefinitions.Float.CreateDefault();
-            Assert.That(fromDef, Is.TypeOf<FloatAttributeValue>());
         }
 
         [Test]
-        public void Register_Definition_FactoryUsedByTryCreate()
+        public void Register_FactoryUsedByTryCreate()
         {
-            AttributeValueRegistry.Register(new TestCustomDefinition());
+            AttributeValueRegistry.Register(
+                typeof(TestCustomAttributeValue),
+                () => new TestCustomAttributeValue { Payload = 0L });
 
             Assert.That(AttributeValueRegistry.TryCreate(typeof(TestCustomAttributeValue), out AttributeValue v), Is.True);
             Assert.That(v, Is.TypeOf<TestCustomAttributeValue>());
@@ -37,10 +36,13 @@ namespace Scaffold.Entities.Tests
         }
 
         [Test]
-        public void RegisterRange_FromIocList_RegistersAll()
+        public void RegisterRange_FromIocEnumerable_RegistersAll()
         {
-            var list = new List<IAttributeDefinition> { new TestCustomDefinition() };
-            AttributeValueRegistry.RegisterRange(list);
+            AttributeValueRegistry.RegisterRange(
+                new (Type, Func<AttributeValue>)[]
+                {
+                    (typeof(TestCustomAttributeValue), () => new TestCustomAttributeValue { Payload = 0L })
+                });
 
             Assert.That(AttributeValueRegistry.TryCreate(typeof(TestCustomAttributeValue), out _), Is.True);
         }
@@ -48,7 +50,9 @@ namespace Scaffold.Entities.Tests
         [Test]
         public void AttributeEntry_CustomType_ResolvesFromRegistry()
         {
-            AttributeValueRegistry.Register(new TestCustomDefinition());
+            AttributeValueRegistry.Register(
+                typeof(TestCustomAttributeValue),
+                () => new TestCustomAttributeValue { Payload = 0L });
             AttributeSO so = CreateCustomAttributeSo("CustomStat", typeof(TestCustomAttributeValue));
             AttributeEntry entry = AttributeEntry.Create(so, null);
             entry.EnsureValueMatchesType();
@@ -74,11 +78,6 @@ namespace Scaffold.Entities.Tests
             so.SetValueType(AttributeValueType.Custom);
             so.SetCustomValueTypeName(concrete.AssemblyQualifiedName!);
             return so;
-        }
-
-        private sealed class TestCustomDefinition : AttributeDefinition<TestCustomAttributeValue>
-        {
-            public override TestCustomAttributeValue CreateDefault() => new TestCustomAttributeValue { Payload = 0L };
         }
 
         [Serializable]
