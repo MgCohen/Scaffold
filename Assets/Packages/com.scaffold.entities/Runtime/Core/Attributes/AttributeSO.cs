@@ -10,11 +10,23 @@ namespace Scaffold.Entities
 
         public string CustomValueTypeName => customValueTypeName;
 
+        public string ValueKindId => valueKindId;
+
+        public AttributeValueKindRegistrySO KindRegistryOverride => kindRegistryOverride;
+
         [SerializeField]
         private AttributeValueType valueType = AttributeValueType.String;
 
         [SerializeField]
         private string customValueTypeName = string.Empty;
+
+        [Tooltip("Stable id of an entry in AttributeValueKindRegistrySO (SerializeReference list). When set, defaults use the registry (no reflection).")]
+        [SerializeField]
+        private string valueKindId = string.Empty;
+
+        [Tooltip("Optional per-attribute registry. When null, uses global registry (SetGlobalRegistry) or Resources/AttributeValueKindRegistry.")]
+        [SerializeField]
+        private AttributeValueKindRegistrySO kindRegistryOverride;
 
         internal void SetValueType(AttributeValueType valueType)
         {
@@ -24,6 +36,16 @@ namespace Scaffold.Entities
         internal void SetCustomValueTypeName(string assemblyQualifiedOrFullName)
         {
             customValueTypeName = assemblyQualifiedOrFullName ?? string.Empty;
+        }
+
+        internal void SetValueKindId(string id)
+        {
+            valueKindId = id ?? string.Empty;
+        }
+
+        internal void SetKindRegistryOverride(AttributeValueKindRegistrySO registry)
+        {
+            kindRegistryOverride = registry;
         }
 
         internal bool TryResolveConcreteValueType(out Type concreteType)
@@ -56,7 +78,7 @@ namespace Scaffold.Entities
                 return new Attribute(string.Empty);
             }
 
-            return new Attribute(so.name, so.ValueType, so.customValueTypeName);
+            return new Attribute(so.name, so.ValueType, so.customValueTypeName, so.valueKindId);
         }
     }
 }

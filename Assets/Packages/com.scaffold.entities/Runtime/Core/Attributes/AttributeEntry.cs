@@ -29,6 +29,17 @@ namespace Scaffold.Entities
                 return;
             }
 
+            if (AttributeValueKindResolver.TryResolveDefinition(attribute, out AttributeDefinitionBase definition))
+            {
+                if (baseValue != null && baseValue.GetType() == definition.ConcreteValueType)
+                {
+                    return;
+                }
+
+                baseValue = definition.CreateDefault();
+                return;
+            }
+
             if (!attribute.TryResolveConcreteValueType(out Type requiredConcrete))
             {
                 return;
