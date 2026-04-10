@@ -13,10 +13,10 @@ namespace Scaffold.Entities
 
         static AttributeValueRegistry()
         {
-            RegisterLegacy(AttributeValueType.Float, () => new FloatAttributeValue());
-            RegisterLegacy(AttributeValueType.Int, () => new IntAttributeValue());
-            RegisterLegacy(AttributeValueType.Bool, () => new BoolAttributeValue());
-            RegisterLegacy(AttributeValueType.String, () => new StringAttributeValue());
+            RegisterBuiltinFromLegacy(AttributeValueType.Float, BuiltinAttributeDefinitions.Float);
+            RegisterBuiltinFromLegacy(AttributeValueType.Int, BuiltinAttributeDefinitions.Int);
+            RegisterBuiltinFromLegacy(AttributeValueType.Bool, BuiltinAttributeDefinitions.Bool);
+            RegisterBuiltinFromLegacy(AttributeValueType.String, BuiltinAttributeDefinitions.String);
         }
 
         public static void Register(Type concreteAttributeValueType, Func<AttributeValue> createDefault)
@@ -139,12 +139,10 @@ namespace Scaffold.Entities
             }
         }
 
-        private static void RegisterLegacy(AttributeValueType kind, Func<AttributeValue> createDefault)
+        private static void RegisterBuiltinFromLegacy(AttributeValueType legacyKind, IAttributeDefinition definition)
         {
-            AttributeValue sample = createDefault();
-            Type concrete = sample.GetType();
-            LegacyKindToConcreteType[kind] = concrete;
-            FactoriesByConcreteType[concrete] = createDefault;
+            Register(definition);
+            LegacyKindToConcreteType[legacyKind] = definition.ValueType;
         }
     }
 }

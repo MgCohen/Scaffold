@@ -15,6 +15,18 @@ namespace Scaffold.Entities.Tests
         }
 
         [Test]
+        public void BuiltinDefinitions_Float_IsRegisteredAndCreatesDefaults()
+        {
+            Assert.That(
+                AttributeValueRegistry.TryCreate(typeof(FloatAttributeValue), out AttributeValue v),
+                Is.True);
+            Assert.That(v, Is.TypeOf<FloatAttributeValue>());
+
+            FloatAttributeValue fromDef = BuiltinAttributeDefinitions.Float.CreateDefault();
+            Assert.That(fromDef, Is.TypeOf<FloatAttributeValue>());
+        }
+
+        [Test]
         public void Register_Definition_FactoryUsedByTryCreate()
         {
             AttributeValueRegistry.Register(new TestCustomDefinition());
