@@ -27,5 +27,13 @@ namespace Scaffold.Entities
         IDisposable SubscribeToAttribute<TAttr>(Attribute attribute, Action<TAttr> onChange) where TAttr : AttributeValue;
 
         void Unsubscribe(Attribute attribute, Action<AttributeValue> onChange);
+
+        bool AddRuntimeAttribute(Attribute key, AttributeValue initialBase);
+
+        bool RemoveRuntimeAttribute(Attribute key);
+
+        IDisposable SubscribeToAttributeAdded(Action<Attribute, AttributeValue> onAdded);
+
+        IDisposable SubscribeToAttributeRemoved(Action<Attribute> onRemoved);
     }
 }

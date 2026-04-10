@@ -59,6 +59,16 @@ namespace Scaffold.Entities
             modifiersByAttribute.Clear();
         }
 
+        internal bool HasModifiersFor(Attribute key)
+        {
+            return modifiersByAttribute.ContainsKey(key);
+        }
+
+        internal void ClearModifiersForKey(Attribute key)
+        {
+            modifiersByAttribute.Remove(key);
+        }
+
         internal AttributeValue GetEffective(Attribute key, AttributeValue baseValue)
         {
             if (baseValue == null)

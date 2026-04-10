@@ -49,5 +49,10 @@ namespace Scaffold.Entities
                 cb?.Invoke(value);
             }
         }
+
+        internal void ClearKey(Attribute attribute)
+        {
+            subscribers.Remove(attribute);
+        }
     }
 }

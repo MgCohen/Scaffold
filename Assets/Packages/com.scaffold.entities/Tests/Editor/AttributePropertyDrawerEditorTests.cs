@@ -10,5 +10,11 @@ namespace Scaffold.Entities.Editor.Tests
         {
             Assert.IsNotNull(typeof(AttributePropertyDrawer));
         }
+
+        [Test]
+        public void AttributeBagPropertyDrawer_Type_IsRegistered()
+        {
+            Assert.IsNotNull(typeof(AttributeBagPropertyDrawer));
+        }
     }
 }

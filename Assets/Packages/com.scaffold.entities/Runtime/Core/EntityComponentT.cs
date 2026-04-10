@@ -67,5 +67,25 @@ namespace Scaffold.Entities
         {
             Instance.Unsubscribe(attribute, onChange);
         }
+
+        public bool AddRuntimeAttribute(Attribute key, AttributeValue initialBase)
+        {
+            return Instance.AddRuntimeAttribute(key, initialBase);
+        }
+
+        public bool RemoveRuntimeAttribute(Attribute key)
+        {
+            return Instance.RemoveRuntimeAttribute(key);
+        }
+
+        public IDisposable SubscribeToAttributeAdded(Action<Attribute, AttributeValue> onAdded)
+        {
+            return Instance.SubscribeToAttributeAdded(onAdded);
+        }
+
+        public IDisposable SubscribeToAttributeRemoved(Action<Attribute> onRemoved)
+        {
+            return Instance.SubscribeToAttributeRemoved(onRemoved);
+        }
     }
 }

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using NUnit.Framework;
 using Scaffold.Entities;
 using UnityEngine;
@@ -244,6 +245,71 @@ namespace Scaffold.Entities.Tests
             state.AddModifier(new EntityModifierEntry(hp, new FloatAttributeValue { Value = 5f }));
 
             Assert.That(callCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void Flyweight_NoModifierLayer_ForDefinitionAttributeWithoutModifiers()
+        {
+            AttributeSO hp = CreateAttributeSo("HP", AttributeValueType.Float);
+            EntityDefinition def = CreateDefinition((hp, new FloatAttributeValue { Value = 10f }));
+            EntityInstance<EntityDefinition> state = EntityInstanceFactory.CreateInstance(def);
+
+            Assert.That(state.ContainsModifiedValueCache(hp), Is.False);
+            Assert.That(state.InstanceBagHasLocalKey(hp), Is.False);
+            Assert.That(state.GetValue<float>(hp), Is.EqualTo(10f));
+        }
+
+        [Test]
+        public void AddRuntimeAttribute_ThenRead_WorksAndCachesWhenModifiersApplied()
+        {
+            AttributeSO poison = CreateAttributeSo("Poison", AttributeValueType.Float);
+            AttributeSO hp = CreateAttributeSo("HP", AttributeValueType.Float);
+            EntityDefinition def = CreateDefinition((hp, new FloatAttributeValue { Value = 10f }));
+            EntityInstance<EntityDefinition> state = EntityInstanceFactory.CreateInstance(def);
+
+            Assert.That(state.AddRuntimeAttribute(poison, new FloatAttributeValue { Value = 5f }), Is.True);
+            Assert.That(state.GetValue<float>(poison), Is.EqualTo(5f));
+            Assert.That(state.InstanceBagHasLocalKey(poison), Is.True);
+
+            state.AddModifier(new EntityModifierEntry(poison, new FloatAttributeValue { Value = 2f }));
+            Assert.That(state.GetValue<float>(poison), Is.EqualTo(7f));
+            Assert.That(state.ContainsModifiedValueCache(poison), Is.True);
+        }
+
+        [Test]
+        public void RemoveRuntimeAttribute_ClearsModifiersAndStructuralSubscriptionFires()
+        {
+            AttributeSO poison = CreateAttributeSo("Poison", AttributeValueType.Float);
+            EntityDefinition def = CreateDefinition();
+            EntityInstance<EntityDefinition> state = EntityInstanceFactory.CreateInstance(def);
+            state.AddRuntimeAttribute(poison, new FloatAttributeValue { Value = 5f });
+            state.AddModifier(new EntityModifierEntry(poison, new FloatAttributeValue { Value = 1f }));
+
+            var removed = new List<Scaffold.Entities.Attribute>();
+            using (state.SubscribeToAttributeRemoved(removed.Add))
+            {
+                Assert.That(state.RemoveRuntimeAttribute(poison), Is.True);
+            }
+
+            Assert.That(removed.Count, Is.EqualTo(1));
+            Assert.That(removed[0], Is.EqualTo((Scaffold.Entities.Attribute)poison));
+            Assert.That(state.ContainsModifiedValueCache(poison), Is.False);
+        }
+
+        [Test]
+        public void SubscribeToAttributeAdded_FiresWhenRuntimeSlotAdded()
+        {
+            AttributeSO poison = CreateAttributeSo("Poison", AttributeValueType.Float);
+            EntityDefinition def = CreateDefinition();
+            EntityInstance<EntityDefinition> state = EntityInstanceFactory.CreateInstance(def);
+
+            Scaffold.Entities.Attribute seen = null!;
+            using (state.SubscribeToAttributeAdded((k, _) => seen = k))
+            {
+                state.AddRuntimeAttribute(poison, new FloatAttributeValue { Value = 1f });
+            }
+
+            Assert.That(seen, Is.EqualTo((Scaffold.Entities.Attribute)poison));
         }
 
         private AttributeSO CreateAttributeSo(string assetName, AttributeValueType valueType)

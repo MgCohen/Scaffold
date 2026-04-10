@@ -5,10 +5,11 @@ namespace Scaffold.Entities
 {
     public class EntityDefinition : ScriptableObject
     {
-        public IReadOnlyList<AttributeEntry> Entries => entries;
-        [SerializeField] private List<AttributeEntry> entries = new List<AttributeEntry>();
+        public IReadOnlyList<AttributeEntry> Entries => bag.Entries;
 
-        private readonly Dictionary<Attribute, AttributeValue> baseValues = new Dictionary<Attribute, AttributeValue>();
+        [SerializeField] private AttributeBag bag = new AttributeBag();
+
+        internal AttributeBag Bag => bag;
 
         private void OnEnable()
         {
@@ -17,9 +18,9 @@ namespace Scaffold.Entities
 
         private void OnValidate()
         {
-            for (int i = 0; i < entries.Count; i++)
+            for (int i = 0; i < bag.Entries.Count; i++)
             {
-                entries[i]?.EnsureValueMatchesType();
+                bag.Entries[i]?.EnsureValueMatchesType();
             }
 
             RebuildLookup();
@@ -27,32 +28,20 @@ namespace Scaffold.Entities
 
         internal void RebuildLookup()
         {
-            baseValues.Clear();
-            for (int i = 0; i < entries.Count; i++)
-            {
-                AttributeEntry entry = entries[i];
-                if (entry == null || entry.Attribute == null || entry.BaseValue == null)
-                {
-                    continue;
-                }
-
-                Attribute key = (Attribute)entry.Attribute;
-                baseValues[key] = entry.BaseValue;
-            }
+            bag.RebuildCache();
         }
 
         public bool TryGetBaseValue(Attribute key, out AttributeValue value)
         {
-            return baseValues.TryGetValue(key, out value);
+            return bag.TryGetBase(key, out value);
         }
 
         internal void AddEntry(AttributeEntry entry)
         {
             if (entry != null)
             {
-                entries.Add(entry);
+                bag.AddSerializedEntry(entry);
             }
         }
     }
 }
-
