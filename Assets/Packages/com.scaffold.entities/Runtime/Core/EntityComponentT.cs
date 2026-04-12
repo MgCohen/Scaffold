@@ -18,6 +18,11 @@ namespace Scaffold.Entities
             instance.Initialize(instanceId, entityDefinition);
         }
 
+        public void InitializeFromInstance(EntityInstance<TDefinition> instance)
+        {
+            this.instance = instance;
+        }
+
         public T GetValue<T>(Attribute attribute)
         {
             return Instance.GetValue<T>(attribute);
