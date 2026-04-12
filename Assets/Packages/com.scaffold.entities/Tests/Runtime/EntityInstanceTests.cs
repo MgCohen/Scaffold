@@ -8,12 +8,20 @@ namespace Scaffold.Entities.Tests
 {
     public sealed class EntityInstanceTests
     {
+        private EntityInstanceCreator<EntityDefinition> creator = default!;
+
+        [SetUp]
+        public void SetUp()
+        {
+            creator = new EntityInstanceCreator<EntityDefinition>(new IncrementingInstanceIdGenerator());
+        }
+
         [Test]
         public void TryGetAttribute_ByAttributeSO_ReturnsDefinitionDefault()
         {
             AttributeSO hp = CreateAttributeSo("HP", AttributeValueType.Float);
             EntityDefinition def = CreateDefinition((hp, new FloatAttributeValue { Value = 100f }));
-            EntityInstance<EntityDefinition> state = EntityInstanceFactory.CreateInstance(def);
+            EntityInstance<EntityDefinition> state = creator.Create(def);
 
             Assert.That(state.TryGetAttribute(hp, out AttributeValue v), Is.True);
             Assert.That(v, Is.TypeOf<FloatAttributeValue>());
@@ -26,7 +34,7 @@ namespace Scaffold.Entities.Tests
         {
             AttributeSO hp = CreateAttributeSo("HP", AttributeValueType.Float);
             EntityDefinition def = CreateDefinition((hp, new FloatAttributeValue { Value = 10f }));
-            EntityInstance<EntityDefinition> state = EntityInstanceFactory.CreateInstance(def);
+            EntityInstance<EntityDefinition> state = creator.Create(def);
             var delta = new FloatAttributeValue { Value = 5f };
             var mod = new EntityModifierEntry(hp, delta);
             state.AddModifier(mod);
@@ -39,7 +47,7 @@ namespace Scaffold.Entities.Tests
         {
             AttributeSO hp = CreateAttributeSo("HP", AttributeValueType.Float);
             EntityDefinition def = CreateDefinition((hp, new FloatAttributeValue { Value = 10f }));
-            EntityInstance<EntityDefinition> state = EntityInstanceFactory.CreateInstance(def);
+            EntityInstance<EntityDefinition> state = creator.Create(def);
             var delta = new FloatAttributeValue { Value = 5f };
             state.AddModifier(new EntityModifierEntry(hp, delta));
 
@@ -48,11 +56,11 @@ namespace Scaffold.Entities.Tests
         }
 
         [Test]
-        public void Factory_AssignsNonEmptyInstanceId()
+        public void Creator_AssignsNonEmptyInstanceId()
         {
             AttributeSO hp = CreateAttributeSo("HP", AttributeValueType.Float);
             EntityDefinition def = CreateDefinition((hp, new FloatAttributeValue { Value = 1f }));
-            EntityInstance<EntityDefinition> state = EntityInstanceFactory.CreateInstance(def);
+            EntityInstance<EntityDefinition> state = creator.Create(def);
 
             Assert.That(state.Id.Id, Is.GreaterThan(0));
         }
@@ -62,7 +70,7 @@ namespace Scaffold.Entities.Tests
         {
             AttributeSO hp = CreateAttributeSo("HP", AttributeValueType.Float);
             EntityDefinition def = CreateDefinition((hp, new FloatAttributeValue { Value = 10f }));
-            EntityInstance<EntityDefinition> state = EntityInstanceFactory.CreateInstance(def);
+            EntityInstance<EntityDefinition> state = creator.Create(def);
             var delta = new FloatAttributeValue { Value = 5f };
             var mod = new EntityModifierEntry(hp, delta);
             state.AddModifier(mod);
@@ -78,7 +86,7 @@ namespace Scaffold.Entities.Tests
         {
             AttributeSO hp = CreateAttributeSo("HP", AttributeValueType.Float);
             EntityDefinition def = CreateDefinition((hp, new FloatAttributeValue { Value = 10f }));
-            EntityInstance<EntityDefinition> state = EntityInstanceFactory.CreateInstance(def);
+            EntityInstance<EntityDefinition> state = creator.Create(def);
             var d1 = new FloatAttributeValue { Value = 4f };
             var d2 = new FloatAttributeValue { Value = 1f };
             state.AddModifier(new EntityModifierEntry(hp, d1));
@@ -95,7 +103,7 @@ namespace Scaffold.Entities.Tests
         {
             AttributeSO hp = CreateAttributeSo("HP", AttributeValueType.Float);
             EntityDefinition def = CreateDefinition((hp, new FloatAttributeValue { Value = 10f }));
-            EntityInstance<EntityDefinition> state = EntityInstanceFactory.CreateInstance(def);
+            EntityInstance<EntityDefinition> state = creator.Create(def);
             var neverAdded = new EntityModifierEntry(hp, new FloatAttributeValue { Value = 5f });
 
             Assert.That(state.RemoveModifier(neverAdded), Is.False);
@@ -107,7 +115,7 @@ namespace Scaffold.Entities.Tests
         {
             AttributeSO hp = CreateAttributeSo("HP", AttributeValueType.Float);
             EntityDefinition def = CreateDefinition((hp, new FloatAttributeValue { Value = 50f }));
-            EntityInstance<EntityDefinition> state = EntityInstanceFactory.CreateInstance(def);
+            EntityInstance<EntityDefinition> state = creator.Create(def);
 
             AttributeValue received = null;
             state.Subscribe(hp, v => received = v);
@@ -121,7 +129,7 @@ namespace Scaffold.Entities.Tests
         {
             AttributeSO hp = CreateAttributeSo("HP", AttributeValueType.Float);
             EntityDefinition def = CreateDefinition((hp, new FloatAttributeValue { Value = 10f }));
-            EntityInstance<EntityDefinition> state = EntityInstanceFactory.CreateInstance(def);
+            EntityInstance<EntityDefinition> state = creator.Create(def);
 
             AttributeValue received = null;
             state.Subscribe(hp, v => received = v);
@@ -137,7 +145,7 @@ namespace Scaffold.Entities.Tests
         {
             AttributeSO hp = CreateAttributeSo("HP", AttributeValueType.Float);
             EntityDefinition def = CreateDefinition((hp, new FloatAttributeValue { Value = 10f }));
-            EntityInstance<EntityDefinition> state = EntityInstanceFactory.CreateInstance(def);
+            EntityInstance<EntityDefinition> state = creator.Create(def);
             var mod = new EntityModifierEntry(hp, new FloatAttributeValue { Value = 5f });
             state.AddModifier(mod);
 
@@ -155,7 +163,7 @@ namespace Scaffold.Entities.Tests
         {
             AttributeSO hp = CreateAttributeSo("HP", AttributeValueType.Float);
             EntityDefinition def = CreateDefinition((hp, new FloatAttributeValue { Value = 10f }));
-            EntityInstance<EntityDefinition> state = EntityInstanceFactory.CreateInstance(def);
+            EntityInstance<EntityDefinition> state = creator.Create(def);
 
             int callCount = 0;
             void OnChange(AttributeValue v) => callCount++;
@@ -174,7 +182,7 @@ namespace Scaffold.Entities.Tests
         {
             AttributeSO hp = CreateAttributeSo("HP", AttributeValueType.Float);
             EntityDefinition def = CreateDefinition((hp, new FloatAttributeValue { Value = 42f }));
-            EntityInstance<EntityDefinition> state = EntityInstanceFactory.CreateInstance(def);
+            EntityInstance<EntityDefinition> state = creator.Create(def);
 
             float received = 0f;
             using (state.Subscribe<float>(hp, v => received = v))
@@ -188,7 +196,7 @@ namespace Scaffold.Entities.Tests
         {
             AttributeSO hp = CreateAttributeSo("HP", AttributeValueType.Float);
             EntityDefinition def = CreateDefinition((hp, new FloatAttributeValue { Value = 10f }));
-            EntityInstance<EntityDefinition> state = EntityInstanceFactory.CreateInstance(def);
+            EntityInstance<EntityDefinition> state = creator.Create(def);
 
             float received = 0f;
             using (state.Subscribe<float>(hp, v => received = v))
@@ -203,7 +211,7 @@ namespace Scaffold.Entities.Tests
         {
             AttributeSO hp = CreateAttributeSo("HP", AttributeValueType.Float);
             EntityDefinition def = CreateDefinition((hp, new FloatAttributeValue { Value = 33f }));
-            EntityInstance<EntityDefinition> state = EntityInstanceFactory.CreateInstance(def);
+            EntityInstance<EntityDefinition> state = creator.Create(def);
 
             FloatAttributeValue received = null!;
             using (state.SubscribeToAttribute<FloatAttributeValue>(hp, v => received = v))
@@ -218,7 +226,7 @@ namespace Scaffold.Entities.Tests
         {
             AttributeSO hp = CreateAttributeSo("HP", AttributeValueType.Float);
             EntityDefinition def = CreateDefinition((hp, new FloatAttributeValue { Value = 10f }));
-            EntityInstance<EntityDefinition> state = EntityInstanceFactory.CreateInstance(def);
+            EntityInstance<EntityDefinition> state = creator.Create(def);
 
             int callCount = 0;
             IDisposable sub = state.Subscribe<float>(hp, _ => callCount++);
@@ -235,7 +243,7 @@ namespace Scaffold.Entities.Tests
         {
             AttributeSO hp = CreateAttributeSo("HP", AttributeValueType.Float);
             EntityDefinition def = CreateDefinition((hp, new FloatAttributeValue { Value = 10f }));
-            EntityInstance<EntityDefinition> state = EntityInstanceFactory.CreateInstance(def);
+            EntityInstance<EntityDefinition> state = creator.Create(def);
 
             int callCount = 0;
             IDisposable sub = state.Subscribe(hp, _ => callCount++);
@@ -248,11 +256,11 @@ namespace Scaffold.Entities.Tests
         }
 
         [Test]
-        public void Flyweight_NoModifierLayer_ForDefinitionAttributeWithoutModifiers()
+        public void EffectiveBag_NoModifierLayer_ForDefinitionAttributeWithoutModifiers()
         {
             AttributeSO hp = CreateAttributeSo("HP", AttributeValueType.Float);
             EntityDefinition def = CreateDefinition((hp, new FloatAttributeValue { Value = 10f }));
-            EntityInstance<EntityDefinition> state = EntityInstanceFactory.CreateInstance(def);
+            EntityInstance<EntityDefinition> state = creator.Create(def);
 
             Assert.That(state.ContainsModifiedValueCache(hp), Is.False);
             Assert.That(state.InstanceBagHasLocalKey(hp), Is.False);
@@ -265,7 +273,7 @@ namespace Scaffold.Entities.Tests
             AttributeSO poison = CreateAttributeSo("Poison", AttributeValueType.Float);
             AttributeSO hp = CreateAttributeSo("HP", AttributeValueType.Float);
             EntityDefinition def = CreateDefinition((hp, new FloatAttributeValue { Value = 10f }));
-            EntityInstance<EntityDefinition> state = EntityInstanceFactory.CreateInstance(def);
+            EntityInstance<EntityDefinition> state = creator.Create(def);
 
             Assert.That(state.AddRuntimeAttribute(poison, new FloatAttributeValue { Value = 5f }), Is.True);
             Assert.That(state.GetValue<float>(poison), Is.EqualTo(5f));
@@ -281,7 +289,7 @@ namespace Scaffold.Entities.Tests
         {
             AttributeSO poison = CreateAttributeSo("Poison", AttributeValueType.Float);
             EntityDefinition def = CreateDefinition();
-            EntityInstance<EntityDefinition> state = EntityInstanceFactory.CreateInstance(def);
+            EntityInstance<EntityDefinition> state = creator.Create(def);
             state.AddRuntimeAttribute(poison, new FloatAttributeValue { Value = 5f });
             var mod = new EntityModifierEntry(poison, new FloatAttributeValue { Value = 2f });
             state.AddModifier(mod);
@@ -298,7 +306,7 @@ namespace Scaffold.Entities.Tests
         {
             AttributeSO poison = CreateAttributeSo("Poison", AttributeValueType.Float);
             EntityDefinition def = CreateDefinition();
-            EntityInstance<EntityDefinition> state = EntityInstanceFactory.CreateInstance(def);
+            EntityInstance<EntityDefinition> state = creator.Create(def);
             state.AddRuntimeAttribute(poison, new FloatAttributeValue { Value = 5f });
             state.AddModifier(new EntityModifierEntry(poison, new FloatAttributeValue { Value = 1f }));
 
@@ -318,7 +326,7 @@ namespace Scaffold.Entities.Tests
         {
             AttributeSO poison = CreateAttributeSo("Poison", AttributeValueType.Float);
             EntityDefinition def = CreateDefinition();
-            EntityInstance<EntityDefinition> state = EntityInstanceFactory.CreateInstance(def);
+            EntityInstance<EntityDefinition> state = creator.Create(def);
 
             Scaffold.Entities.Attribute seen = null!;
             using (state.SubscribeToAttributeAdded((k, _) => seen = k))

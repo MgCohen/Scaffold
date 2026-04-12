@@ -21,12 +21,15 @@ namespace Scaffold.Entities.Samples
 
         private SampleCharacterEntity entity = default!;
 
+        private readonly EntityInstanceCreator<SampleCharacterDefinition> instanceCreator =
+            new EntityInstanceCreator<SampleCharacterDefinition>(new IncrementingInstanceIdGenerator());
+
         private void Awake()
         {
             entity = GetComponent<SampleCharacterEntity>();
             if (characterDefinition != null)
             {
-                entity.InitializeFromDefinition(new InstanceId(0), characterDefinition);
+                instanceCreator.InitializeComponent(entity, characterDefinition);
             }
         }
 

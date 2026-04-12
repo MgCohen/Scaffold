@@ -103,12 +103,7 @@ This is not a bug in the current flow, but it is a structural sharp edge.
 
 ### Documentation drift
 
-There is some drift between the README and the code:
-
-- the README still mentions `EntityBehaviour` naming, while the code uses `EntityComponent`
-- the README mentions `InstanceId.New()`, while the implementation constructs `InstanceId` directly
-
-This does not break runtime behavior, but it weakens the package's clarity and can mislead future work.
+Previously the README lagged the code (`EntityBehaviour` vs `EntityComponent`, `InstanceId.New()` vs direct construction). The package README and creation API were aligned: use `EntityComponent` / `EntityComponent<TDefinition>`, and obtain `InstanceId` values from `IInstanceIdGenerator` (for example via `EntityInstanceCreator<TDefinition>`), not from a static factory.
 
 ## Optimization And Allocation Audit
 
