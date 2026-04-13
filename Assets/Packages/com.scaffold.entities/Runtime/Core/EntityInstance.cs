@@ -5,7 +5,7 @@ using UnityEngine;
 namespace Scaffold.Entities
 {
     [Serializable]
-    public sealed class EntityInstance<TDefinition> : IEntity<TDefinition> where TDefinition : EntityDefinition
+    public class EntityInstance<TDefinition> : IInstance<TDefinition> where TDefinition : EntityDefinition
     {
         public InstanceId Id => id;
         [SerializeField] private InstanceId id;
@@ -13,76 +13,66 @@ namespace Scaffold.Entities
         public TDefinition Definition => definition;
         [SerializeField] private TDefinition definition = default!;
 
-        [SerializeField] private AttributeBag instanceBaseBag = new AttributeBag();
-        [SerializeField] private AttributeBag instanceEffectiveBag = new AttributeBag();
+        [SerializeField] private VariableBag instanceBaseBag = new VariableBag();
+        [SerializeField] private VariableBag instanceEffectiveBag = new VariableBag();
 
-        private AttributeModifierHandler modifierHandler = null!;
-        private AttributeNotifier notifier = null!;
-
-        internal bool ContainsModifiedValueCache(Attribute key)
-        {
-            return instanceEffectiveBag != null && instanceEffectiveBag.HasLocalKey(key);
-        }
-
-        internal bool InstanceBagHasLocalKey(Attribute key)
-        {
-            return instanceBaseBag != null && instanceBaseBag.HasLocalKey(key);
-        }
+        private VariableModifierHandler modifierHandler = null!;
+        private VariableNotifier notifier = null!;
 
         public void Initialize(InstanceId instanceId, TDefinition entityDefinition)
         {
             id = instanceId;
             definition = entityDefinition ?? throw new ArgumentNullException(nameof(entityDefinition));
             entityDefinition.RebuildLookup();
-            modifierHandler = new AttributeModifierHandler();
-            notifier = new AttributeNotifier();
+            modifierHandler = new VariableModifierHandler();
+            notifier = new VariableNotifier();
             EnsureInstanceBags();
             WireBagParentsToDefinition(entityDefinition);
         }
 
-        public T GetValue<T>(Attribute attribute)
+        public T GetValue<T>(Variable key)
         {
-            if (!TryResolve(attribute, out AttributeValue av) || av == null)
+            if (!TryResolve(key, out VariableValue av) || av == null)
             {
                 throw new InvalidOperationException(
-                    $"Attribute '{attribute?.Key ?? "?"}' is not defined on this entity.");
+                    $"Variable '{key?.Key ?? "?"}' is not defined on this entity.");
             }
 
-            if (av is IAttributeValue<T> typed)
+            if (av is IVariableValue<T> typed)
             {
                 return typed.Get();
             }
 
             throw new InvalidCastException(
-                $"Attribute '{attribute?.Key ?? "?"}' has type {av.Type} but {typeof(T).Name} was requested.");
+                $"Variable '{key?.Key ?? "?"}' has type {av.Type} but {typeof(T).Name} was requested.");
         }
 
-        public TAttr GetAttribute<TAttr>(Attribute attribute) where TAttr : AttributeValue
+        public TVar GetVariable<TVar>(Variable key) where TVar : VariableValue
         {
-            if (!TryResolve(attribute, out AttributeValue av) || av == null)
+            if (!TryResolve(key, out VariableValue av) || av == null)
             {
                 throw new InvalidOperationException(
-                    $"Attribute '{attribute?.Key ?? "?"}' is not defined on this entity.");
+                    $"Variable '{key?.Key ?? "?"}' is not defined on this entity.");
             }
 
-            if (av is TAttr typed)
+            if (av is TVar typed)
             {
                 return typed;
             }
 
             throw new InvalidCastException(
-                $"Attribute '{attribute?.Key ?? "?"}' is {av.GetType().Name} but {typeof(TAttr).Name} was requested.");
+                $"Variable '{key?.Key ?? "?"}' is {av.GetType().Name} but {typeof(TVar).Name} was requested.");
         }
 
-        public bool TryGetAttribute<T>(Attribute attribute, out T value) where T : AttributeValue
+        public bool TryGetVariable<TVar>(Variable key, out TVar value) where TVar : VariableValue
         {
             value = default!;
-            if (!TryResolve(attribute, out AttributeValue av) || av == null)
+            if (!TryResolve(key, out VariableValue av) || av == null)
             {
                 return false;
             }
 
-            if (av is T typed)
+            if (av is TVar typed)
             {
                 value = typed;
                 return true;
@@ -99,7 +89,7 @@ namespace Scaffold.Entities
             }
 
             modifierHandler.AddModifier(entry);
-            RecalculateAndNotify(entry.AttributeKey);
+            RecalculateAndNotify(entry.Key);
         }
 
         public bool RemoveModifier(EntityModifierEntry entry)
@@ -112,7 +102,7 @@ namespace Scaffold.Entities
             bool removed = modifierHandler.RemoveModifier(entry);
             if (removed)
             {
-                RecalculateAndNotify(entry.AttributeKey);
+                RecalculateAndNotify(entry.Key);
             }
 
             return removed;
@@ -120,7 +110,7 @@ namespace Scaffold.Entities
 
         public void ClearModifiers()
         {
-            var affectedKeys = new List<Attribute>(modifierHandler.ModifiedAttributes);
+            var affectedKeys = new List<Variable>(modifierHandler.ModifiedVariables);
             modifierHandler.ClearModifiers();
             for (int i = 0; i < affectedKeys.Count; i++)
             {
@@ -128,49 +118,27 @@ namespace Scaffold.Entities
             }
         }
 
-        public IDisposable Subscribe(Attribute attribute, Action<AttributeValue> onChange)
+        public IDisposable Subscribe(Variable key, Action<VariableValue> onChange)
         {
-            if (attribute == null || onChange == null)
+            if (key == null || onChange == null)
             {
                 return EmptyDisposable.Instance;
             }
 
-            return RegisterSubscription(attribute, onChange);
+            return RegisterSubscription(key, onChange);
         }
 
-        public IDisposable Subscribe<T>(Attribute attribute, Action<T> onChange)
+        public void Unsubscribe(Variable key, Action<VariableValue> onChange)
         {
-            if (attribute == null || onChange == null)
-            {
-                return EmptyDisposable.Instance;
-            }
-
-            Action<AttributeValue> adapter = CreateRawValueAdapter(onChange);
-            return RegisterSubscription(attribute, adapter);
-        }
-
-        public IDisposable SubscribeToAttribute<TAttr>(Attribute attribute, Action<TAttr> onChange) where TAttr : AttributeValue
-        {
-            if (attribute == null || onChange == null)
-            {
-                return EmptyDisposable.Instance;
-            }
-
-            Action<AttributeValue> adapter = CreateAttributeValueAdapter(onChange);
-            return RegisterSubscription(attribute, adapter);
-        }
-
-        public void Unsubscribe(Attribute attribute, Action<AttributeValue> onChange)
-        {
-            if (attribute == null || onChange == null)
+            if (key == null || onChange == null)
             {
                 return;
             }
 
-            notifier.Remove(attribute, onChange);
+            notifier.Remove(key, onChange);
         }
 
-        public bool AddRuntimeAttribute(Attribute key, AttributeValue initialBase)
+        public bool AddVariable(Variable key, VariableValue initialBase)
         {
             if (!instanceBaseBag.Add(key, initialBase))
             {
@@ -181,7 +149,7 @@ namespace Scaffold.Entities
             return true;
         }
 
-        public bool RemoveRuntimeAttribute(Attribute key)
+        public bool RemoveVariable(Variable key)
         {
             if (!instanceBaseBag.Remove(key))
             {
@@ -194,74 +162,131 @@ namespace Scaffold.Entities
             return true;
         }
 
-        public IDisposable SubscribeToAttributeAdded(Action<Attribute, AttributeValue> onAdded)
+        public IDisposable SubscribeToVariableAdded(Action<Variable, VariableValue> onAdded)
         {
             if (onAdded == null)
             {
                 return EmptyDisposable.Instance;
             }
 
-            void Handler(Attribute key, AttributeValue value) => onAdded(key, value);
-            instanceBaseBag.OnAttributeAdded += Handler;
-            return new CallbackDisposable(() => instanceBaseBag.OnAttributeAdded -= Handler);
+            void Handler(Variable k, VariableValue value) => onAdded(k, value);
+            instanceBaseBag.OnVariableAdded += Handler;
+            return new CallbackDisposable(() => instanceBaseBag.OnVariableAdded -= Handler);
         }
 
-        public IDisposable SubscribeToAttributeRemoved(Action<Attribute> onRemoved)
+        public IDisposable SubscribeToVariableRemoved(Action<Variable> onRemoved)
         {
             if (onRemoved == null)
             {
                 return EmptyDisposable.Instance;
             }
 
-            void Handler(Attribute key) => onRemoved(key);
-            instanceBaseBag.OnAttributeRemoved += Handler;
-            return new CallbackDisposable(() => instanceBaseBag.OnAttributeRemoved -= Handler);
+            void Handler(Variable k) => onRemoved(k);
+            instanceBaseBag.OnVariableRemoved += Handler;
+            return new CallbackDisposable(() => instanceBaseBag.OnVariableRemoved -= Handler);
         }
 
-        private IDisposable RegisterSubscription(Attribute attribute, Action<AttributeValue> adapter)
+        internal bool ContainsModifiedValueCache(Variable key)
         {
-            notifier.Add(attribute, adapter);
+            return instanceEffectiveBag != null && instanceEffectiveBag.HasLocalKey(key);
+        }
 
-            if (TryResolve(attribute, out AttributeValue current))
+        internal bool InstanceBagHasLocalKey(Variable key)
+        {
+            return instanceBaseBag != null && instanceBaseBag.HasLocalKey(key);
+        }
+
+        internal bool TryResolveKeyByName(string name, out Variable key)
+        {
+            if (TryFindKeyInDefinition(name, out key))
+            {
+                return true;
+            }
+
+            if (TryFindKeyInBagLocalKeys(instanceBaseBag, name, out key))
+            {
+                return true;
+            }
+
+            return TryFindKeyInBagLocalKeys(instanceEffectiveBag, name, out key);
+        }
+
+#if UNITY_EDITOR
+        internal void NotifyAllEffectiveValues()
+        {
+            if (notifier == null || instanceEffectiveBag == null)
+            {
+                return;
+            }
+
+            foreach (Variable key in instanceEffectiveBag.LocalKeys)
+            {
+                if (instanceEffectiveBag.TryGetBase(key, out VariableValue value))
+                {
+                    notifier.Notify(key, value);
+                }
+            }
+        }
+#endif
+
+        private bool TryFindKeyInDefinition(string name, out Variable key)
+        {
+            key = default!;
+            if (definition == null)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < definition.Entries.Count; i++)
+            {
+                VariableEntry entry = definition.Entries[i];
+                if (entry?.Variable != null && entry.Variable.name == name)
+                {
+                    key = (Variable)entry.Variable;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool TryFindKeyInBagLocalKeys(VariableBag bag, string name, out Variable key)
+        {
+            foreach (Variable k in bag.LocalKeys)
+            {
+                if (k.Key == name)
+                {
+                    key = k;
+                    return true;
+                }
+            }
+
+            key = default!;
+            return false;
+        }
+
+        private IDisposable RegisterSubscription(Variable key, Action<VariableValue> adapter)
+        {
+            notifier.Add(key, adapter);
+
+            if (TryResolve(key, out VariableValue current))
             {
                 adapter(current);
             }
 
-            return new AttributeSubscriptionToken(notifier, attribute, adapter);
-        }
-
-        private Action<AttributeValue> CreateRawValueAdapter<T>(Action<T> onChange)
-        {
-            return av =>
-            {
-                if (av is IAttributeValue<T> typed)
-                {
-                    onChange(typed.Get());
-                }
-            };
-        }
-
-        private Action<AttributeValue> CreateAttributeValueAdapter<TAttr>(Action<TAttr> onChange) where TAttr : AttributeValue
-        {
-            return av =>
-            {
-                if (av is TAttr typed)
-                {
-                    onChange(typed);
-                }
-            };
+            return new VariableSubscriptionToken(notifier, key, adapter);
         }
 
         private void EnsureInstanceBags()
         {
             if (instanceBaseBag == null)
             {
-                instanceBaseBag = new AttributeBag();
+                instanceBaseBag = new VariableBag();
             }
 
             if (instanceEffectiveBag == null)
             {
-                instanceEffectiveBag = new AttributeBag();
+                instanceEffectiveBag = new VariableBag();
             }
         }
 
@@ -273,19 +298,19 @@ namespace Scaffold.Entities
             instanceEffectiveBag.RebuildCache();
         }
 
-        private bool TryResolve(Attribute key, out AttributeValue value)
+        private bool TryResolve(Variable key, out VariableValue value)
         {
             return instanceEffectiveBag.TryGetBase(key, out value);
         }
 
-        private void RecalculateAndNotify(Attribute key)
+        private void RecalculateAndNotify(Variable key)
         {
-            if (!instanceBaseBag.TryGetBase(key, out AttributeValue baseValue))
+            if (!instanceBaseBag.TryGetBase(key, out VariableValue baseValue))
             {
                 return;
             }
 
-            AttributeValue effective = modifierHandler.GetEffective(key, baseValue);
+            VariableValue effective = modifierHandler.GetEffective(key, baseValue);
 
             if (modifierHandler.HasModifiersFor(key))
             {

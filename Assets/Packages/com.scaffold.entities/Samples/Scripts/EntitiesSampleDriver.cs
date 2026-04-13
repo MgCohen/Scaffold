@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Scaffold.Entities.Samples
 {
@@ -10,11 +11,13 @@ namespace Scaffold.Entities.Samples
         [SerializeField]
         private SampleCharacterDefinition characterDefinition = default!;
 
+        [FormerlySerializedAs("healthAttribute")]
         [SerializeField]
-        private AttributeSO healthAttribute = default!;
+        private VariableSO healthVariable = default!;
 
+        [FormerlySerializedAs("moveSpeedAttribute")]
         [SerializeField]
-        private AttributeSO moveSpeedAttribute = default!;
+        private VariableSO moveSpeedVariable = default!;
 
         [SerializeField]
         private bool showDebugHud = true;
@@ -36,10 +39,10 @@ namespace Scaffold.Entities.Samples
         private void Start()
         {
             LogEffectiveStats("Initial");
-            if (healthAttribute != null)
+            if (healthVariable != null)
             {
-                var bonusHealth = new FloatAttributeValue { Value = 25f };
-                var healthMod = new EntityModifierEntry(healthAttribute, bonusHealth);
+                var bonusHealth = new FloatVariableValue { Value = 25f };
+                var healthMod = new EntityModifierEntry(healthVariable, bonusHealth);
                 entity.AddModifier(healthMod);
             }
 
@@ -48,16 +51,16 @@ namespace Scaffold.Entities.Samples
 
         private void LogEffectiveStats(string label)
         {
-            if (healthAttribute != null &&
-                entity.TryGetAttribute(healthAttribute, out AttributeValue health))
+            if (healthVariable != null &&
+                entity.TryGetVariable(healthVariable, out VariableValue health))
             {
-                Debug.Log($"[Entities Sample] {label} — Health effective: {FormatAttributeText(health)}", this);
+                Debug.Log($"[Entities Sample] {label} — Health effective: {FormatVariableText(health)}", this);
             }
 
-            if (moveSpeedAttribute != null &&
-                entity.TryGetAttribute(moveSpeedAttribute, out AttributeValue speed))
+            if (moveSpeedVariable != null &&
+                entity.TryGetVariable(moveSpeedVariable, out VariableValue speed))
             {
-                Debug.Log($"[Entities Sample] {label} — Move Speed effective: {FormatAttributeText(speed)}", this);
+                Debug.Log($"[Entities Sample] {label} — Move Speed effective: {FormatVariableText(speed)}", this);
             }
         }
 
@@ -74,27 +77,27 @@ namespace Scaffold.Entities.Samples
             GUILayout.BeginArea(new Rect(8, 8, 420, 140), GUI.skin.box);
             GUILayout.Label("Scaffold.Entities sample — WASD / arrows to move (XZ)");
             GUILayout.Label($"Instance: {entity.Id}");
-            DrawAttributeLine("Health (effective)", healthAttribute);
-            DrawAttributeLine("Move speed (effective)", moveSpeedAttribute);
+            DrawVariableLine("Health (effective)", healthVariable);
+            DrawVariableLine("Move speed (effective)", moveSpeedVariable);
             GUILayout.EndArea();
         }
 
-        private void DrawAttributeLine(string label, AttributeSO slot)
+        private void DrawVariableLine(string label, VariableSO slot)
         {
-            if (slot != null && entity.TryGetAttribute(slot, out AttributeValue value))
+            if (slot != null && entity.TryGetVariable(slot, out VariableValue value))
             {
-                GUILayout.Label($"{label}: {FormatAttributeText(value)}");
+                GUILayout.Label($"{label}: {FormatVariableText(value)}");
             }
         }
 
-        private string FormatAttributeText(AttributeValue value)
+        private string FormatVariableText(VariableValue value)
         {
             return value switch
             {
-                FloatAttributeValue f => f.Value.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                IntAttributeValue n => n.Value.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                BoolAttributeValue b => b.Value.ToString(),
-                StringAttributeValue s => s.Value,
+                FloatVariableValue f => f.Value.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                IntVariableValue n => n.Value.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                BoolVariableValue b => b.Value.ToString(),
+                StringVariableValue s => s.Value,
                 _ => value?.ToString() ?? "(null)"
             };
         }

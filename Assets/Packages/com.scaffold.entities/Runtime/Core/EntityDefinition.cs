@@ -5,11 +5,11 @@ namespace Scaffold.Entities
 {
     public class EntityDefinition : ScriptableObject
     {
-        public IReadOnlyList<AttributeEntry> Entries => bag.Entries;
+        public IReadOnlyList<VariableEntry> Entries => bag.Entries;
 
-        [SerializeField] private AttributeBag bag = new AttributeBag();
+        [SerializeField] private VariableBag bag = new VariableBag();
 
-        internal AttributeBag Bag => bag;
+        internal VariableBag Bag => bag;
 
         private void OnEnable()
         {
@@ -26,22 +26,28 @@ namespace Scaffold.Entities
             RebuildLookup();
         }
 
-        internal void RebuildLookup()
-        {
-            bag.RebuildCache();
-        }
-
-        public bool TryGetBaseValue(Attribute key, out AttributeValue value)
+        public bool TryGetBaseValue(Variable key, out VariableValue value)
         {
             return bag.TryGetBase(key, out value);
         }
 
-        internal void AddEntry(AttributeEntry entry)
+        public void AddVariable(VariableSO variable, VariableValue defaultValue)
+        {
+            AddEntry(VariableEntry.Create(variable, defaultValue));
+            RebuildLookup();
+        }
+
+        internal void AddEntry(VariableEntry entry)
         {
             if (entry != null)
             {
                 bag.AddSerializedEntry(entry);
             }
+        }
+
+        internal void RebuildLookup()
+        {
+            bag.RebuildCache();
         }
     }
 }

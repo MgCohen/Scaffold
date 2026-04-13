@@ -50,8 +50,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   characterDefinition: {fileID: 11400000, guid: c303d4567890abcd1234567890abcdef, type: 2}
-  healthAttribute: {fileID: 11400000, guid: a103d4567890abcd1234567890abcdef, type: 2}
-  moveSpeedAttribute: {fileID: 11400000, guid: b203d4567890abcd1234567890abcdef, type: 2}
+  healthVariable: {fileID: 11400000, guid: a103d4567890abcd1234567890abcdef, type: 2}
+  moveSpeedVariable: {fileID: 11400000, guid: b203d4567890abcd1234567890abcdef, type: 2}
   showDebugHud: 1
 --- !u!114 &920001103
 MonoBehaviour:
@@ -112,7 +112,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   deadzone: 0.01
-  moveSpeedAttribute: {fileID: 11400000, guid: b203d4567890abcd1234567890abcdef, type: 2}
+  moveSpeedVariable: {fileID: 11400000, guid: b203d4567890abcd1234567890abcdef, type: 2}
 --- !u!114 &920001107
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -15,7 +15,7 @@
     "samples":  [
                     {
                         "displayName":  "Example",
-                        "description":  "Sample character, attributes, prefab, and behavior runner.",
+                        "description":  "Sample character, variables, prefab, and behavior runner.",
                         "path":  "Samples/Example"
                     }
                 ],

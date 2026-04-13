@@ -11,6 +11,11 @@ namespace Scaffold.Entities.Editor
         {
             DrawDefaultInspector();
             DrawReadOnlyDefinitionBagIfPresent();
+
+            if (Application.isPlaying)
+            {
+                DrawEffectiveBagEditable();
+            }
         }
 
         private void DrawReadOnlyDefinitionBagIfPresent()
@@ -28,7 +33,7 @@ namespace Scaffold.Entities.Editor
             }
 
             EditorGUILayout.Space();
-            EditorGUILayout.LabelField("Definition attribute bag (read-only)", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("Definition variable bag (read-only)", EditorStyles.boldLabel);
             DrawBagFieldDisabled(def);
         }
 
@@ -45,10 +50,31 @@ namespace Scaffold.Entities.Editor
 
                 bool wasEnabled = GUI.enabled;
                 GUI.enabled = false;
-                EditorGUILayout.PropertyField(bagProp, new GUIContent("Shared attributes"), true);
+                EditorGUILayout.PropertyField(bagProp, new GUIContent("Shared variables"), true);
                 GUI.enabled = wasEnabled;
                 defSo.ApplyModifiedProperties();
             }
+        }
+
+        private void DrawEffectiveBagEditable()
+        {
+            serializedObject.Update();
+            SerializedProperty inst = serializedObject.FindProperty("instance");
+            if (inst == null)
+            {
+                return;
+            }
+
+            SerializedProperty effectiveBag = inst.FindPropertyRelative("instanceEffectiveBag");
+            if (effectiveBag == null)
+            {
+                return;
+            }
+
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField("Effective Variables (debug — edits notify subscribers)", EditorStyles.boldLabel);
+            EditorGUILayout.PropertyField(effectiveBag, new GUIContent("Effective Bag"), true);
+            serializedObject.ApplyModifiedProperties();
         }
     }
 }

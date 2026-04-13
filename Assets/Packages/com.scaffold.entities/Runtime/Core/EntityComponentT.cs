@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace Scaffold.Entities
 {
-    public class EntityComponent<TDefinition> : EntityComponent, IEntity<TDefinition> where TDefinition : EntityDefinition
+    public class EntityComponent<TDefinition> : EntityComponent, IInstance<TDefinition> where TDefinition : EntityDefinition
     {
         public EntityInstance<TDefinition> Instance => instance;
         [SerializeField] private EntityInstance<TDefinition> instance;
@@ -23,19 +23,19 @@ namespace Scaffold.Entities
             this.instance = instance;
         }
 
-        public T GetValue<T>(Attribute attribute)
+        public T GetValue<T>(Variable key)
         {
-            return Instance.GetValue<T>(attribute);
+            return Instance.GetValue<T>(key);
         }
 
-        public TAttr GetAttribute<TAttr>(Attribute attribute) where TAttr : AttributeValue
+        public TVar GetVariable<TVar>(Variable key) where TVar : VariableValue
         {
-            return Instance.GetAttribute<TAttr>(attribute);
+            return Instance.GetVariable<TVar>(key);
         }
 
-        public bool TryGetAttribute<TAttr>(Attribute attribute, out TAttr value) where TAttr : AttributeValue
+        public bool TryGetVariable<TVar>(Variable key, out TVar value) where TVar : VariableValue
         {
-            return Instance.TryGetAttribute(attribute, out value);
+            return Instance.TryGetVariable(key, out value);
         }
 
         public void AddModifier(EntityModifierEntry entry)
@@ -53,44 +53,46 @@ namespace Scaffold.Entities
             Instance.ClearModifiers();
         }
 
-        public IDisposable Subscribe(Attribute attribute, Action<AttributeValue> onChange)
+        public IDisposable Subscribe(Variable key, Action<VariableValue> onChange)
         {
-            return Instance.Subscribe(attribute, onChange);
+            return Instance.Subscribe(key, onChange);
         }
 
-        public IDisposable Subscribe<T>(Attribute attribute, Action<T> onChange)
+        public void Unsubscribe(Variable key, Action<VariableValue> onChange)
         {
-            return Instance.Subscribe(attribute, onChange);
+            Instance.Unsubscribe(key, onChange);
         }
 
-        public IDisposable SubscribeToAttribute<TAttr>(Attribute attribute, Action<TAttr> onChange) where TAttr : AttributeValue
+        public bool AddVariable(Variable key, VariableValue initialBase)
         {
-            return Instance.SubscribeToAttribute(attribute, onChange);
+            return Instance.AddVariable(key, initialBase);
         }
 
-        public void Unsubscribe(Attribute attribute, Action<AttributeValue> onChange)
+        public bool RemoveVariable(Variable key)
         {
-            Instance.Unsubscribe(attribute, onChange);
+            return Instance.RemoveVariable(key);
         }
 
-        public bool AddRuntimeAttribute(Attribute key, AttributeValue initialBase)
+        public IDisposable SubscribeToVariableAdded(Action<Variable, VariableValue> onAdded)
         {
-            return Instance.AddRuntimeAttribute(key, initialBase);
+            return Instance.SubscribeToVariableAdded(onAdded);
         }
 
-        public bool RemoveRuntimeAttribute(Attribute key)
+        public IDisposable SubscribeToVariableRemoved(Action<Variable> onRemoved)
         {
-            return Instance.RemoveRuntimeAttribute(key);
+            return Instance.SubscribeToVariableRemoved(onRemoved);
         }
 
-        public IDisposable SubscribeToAttributeAdded(Action<Attribute, AttributeValue> onAdded)
+#if UNITY_EDITOR
+        private void OnValidate()
         {
-            return Instance.SubscribeToAttributeAdded(onAdded);
-        }
+            if (!Application.isPlaying)
+            {
+                return;
+            }
 
-        public IDisposable SubscribeToAttributeRemoved(Action<Attribute> onRemoved)
-        {
-            return Instance.SubscribeToAttributeRemoved(onRemoved);
+            instance?.NotifyAllEffectiveValues();
         }
+#endif
     }
 }

@@ -7,15 +7,15 @@ namespace Scaffold.Entities
     [Serializable]
     public sealed class EntityModifierEntry
     {
-        public EntityModifierEntry(AttributeSO attribute, AttributeValue modifierValue)
+        public EntityModifierEntry(VariableSO variable, VariableValue modifierValue)
         {
-            this.attribute = attribute;
+            this.variable = variable;
             this.modifierValue = modifierValue;
         }
 
-        public EntityModifierEntry(Attribute key, AttributeValue modifierValue)
+        public EntityModifierEntry(Variable key, VariableValue modifierValue)
         {
-            attributeKey = key;
+            variableKey = key;
             this.modifierValue = modifierValue;
         }
 
@@ -23,19 +23,19 @@ namespace Scaffold.Entities
         {
         }
 
-        public AttributeSO Attribute => attribute;
+        public VariableSO Variable => variable;
 
-        public Attribute AttributeKey => attributeKey ?? (Attribute)attribute;
+        public Variable Key => variableKey ?? (Variable)variable;
 
-        public AttributeValue ModifierValue => modifierValue;
+        public VariableValue ModifierValue => modifierValue;
 
         [SerializeField]
-        private AttributeSO attribute = default!;
+        private VariableSO variable = default!;
 
         [NonSerialized]
-        private Attribute? attributeKey;
+        private Variable? variableKey;
 
         [SerializeReference]
-        private AttributeValue modifierValue;
+        private VariableValue modifierValue;
     }
 }

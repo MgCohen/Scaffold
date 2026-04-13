@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Scaffold.Entities.Samples
 {
@@ -7,8 +8,9 @@ namespace Scaffold.Entities.Samples
         [SerializeField]
         private float deadzone = 0.01f;
 
+        [FormerlySerializedAs("moveSpeedAttribute")]
         [SerializeField]
-        private AttributeSO moveSpeedAttribute = default!;
+        private VariableSO moveSpeedVariable = default!;
 
         public bool TryAcceptControl(SampleCharacterEntity data, in SampleCharacterInput input)
         {
@@ -17,8 +19,8 @@ namespace Scaffold.Entities.Samples
 
         public void Execute(SampleCharacterEntity data, in SampleCharacterInput input, float deltaTime)
         {
-            if (moveSpeedAttribute == null ||
-                !data.TryGetAttribute(moveSpeedAttribute, out FloatAttributeValue floatSpeed))
+            if (moveSpeedVariable == null ||
+                !data.TryGetVariable(moveSpeedVariable, out FloatVariableValue floatSpeed))
             {
                 return;
             }
