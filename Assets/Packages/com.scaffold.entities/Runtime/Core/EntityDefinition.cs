@@ -5,7 +5,7 @@ namespace Scaffold.Entities
 {
     public class EntityDefinition : ScriptableObject
     {
-        public IReadOnlyList<VariableEntry> Entries => bag.Entries;
+        internal IReadOnlyList<VariableEntry> Entries => bag.Entries;
 
         [SerializeField] private VariableBag bag = new VariableBag();
 

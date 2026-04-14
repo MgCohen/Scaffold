@@ -6,9 +6,9 @@ namespace Scaffold.Entities
     {
         InstanceId Id { get; }
 
-        TDefinition Definition { get; }
-
         T GetValue<T>(Variable key);
+
+        bool TryGetValue<T>(Variable key, out T value);
 
         TVar GetVariable<TVar>(Variable key) where TVar : VariableValue;
 

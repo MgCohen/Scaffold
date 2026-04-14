@@ -33,16 +33,18 @@ Authoritative module pointer: [`Docs/Core/Entities.md`](../../../Docs/Core/Entit
 | `Variable` | Record key: **`Key`** + **`VariableValueType`**. |
 | `VariableSO` | `ScriptableObject` slot; implicit conversion to **`Variable`**. |
 | `VariableValue` | Abstract base; concrete float/int/bool/string value types. |
-| `VariableEntry` | Definition row: **`VariableSO`** + **`BaseValue`**. |
+| `VariableEntry` | Serializable definition row (used by **`VariableBag`** and Unity drawers); authoring fields are not part of the public read surface. |
 | `IVariableBag` | Read: **`Parent`**, **`TryGetBase`**, **`LocalKeys`**. |
-| `VariableBag` | **`Entries`**, chained reads, **`Add` / `Remove`**, silent local writes for effective layer. |
-| `EntityDefinition` | **`Entries`**, **`TryGetBaseValue`**, **`AddVariable(VariableSO, VariableValue)`**. |
-| `EntityInstance<TDefinition>` | Instance state; **`IInstance`**; **`NotifyAllEffectiveValues`** (editor / play-mode debug). |
-| `IReadOnlyEntity<out TDefinition>` | **`GetValue`**, **`GetVariable`**, **`TryGetVariable`**, **`Subscribe(Variable, Action<VariableValue>)`**, **`Unsubscribe`**, structural subscriptions. |
+| `VariableBag` | Chained reads, **`Add` / `Remove`**, silent local writes for effective layer. |
+| `EntityDefinition` | **`TryGetBaseValue`**, **`AddVariable(VariableSO, VariableValue)`**; serialized variable rows are internal to the package. |
+| `EntityInstance<TDefinition>` | Instance state; **`IInstance`**; **`NotifyAllEffectiveValues`** (editor / play-mode debug; internal to the runtime assembly). |
+| `IReadOnlyEntity<out TDefinition>` | **`GetValue`**, **`TryGetValue`**, **`GetVariable`**, **`TryGetVariable`**, **`Subscribe(Variable, Action<VariableValue>)`**, **`Unsubscribe`**, structural subscriptions. |
 | `IEntity<out TDefinition>` | **`AddVariable` / `RemoveVariable`**. |
 | `IInstance<TDefinition>` | **`AddModifier` / `RemoveModifier` / `ClearModifiers`**. |
 | `EntityModifierEntry` | **`VariableSO`** or runtime **`Variable`** + **`ModifierValue`**; **`Key`** property. |
 | `EntityComponent<TDefinition>` | Host; **`OnValidate`** (play mode) rebroadcasts effective bag edits to subscribers. |
+
+**Runtime read boundary:** use **`GetValue` / `TryGetValue`**, **`GetVariable` / `TryGetVariable`**, and **`Subscribe`** on **`IReadOnlyEntity`** (or **`EntityInstance` / `EntityComponent`**). Do not rely on walking into serialized definition rows; **`Definition`**, **`Instance`**, and bag **`Entries`** are internal to **`Scaffold.Entities`**.
 
 ## Lookup semantics
 

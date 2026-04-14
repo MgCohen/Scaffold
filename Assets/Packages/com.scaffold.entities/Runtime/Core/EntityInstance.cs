@@ -10,7 +10,7 @@ namespace Scaffold.Entities
         public InstanceId Id => id;
         [SerializeField] private InstanceId id;
 
-        public TDefinition Definition => definition;
+        internal TDefinition Definition => definition;
         [SerializeField] private TDefinition definition = default!;
 
         [SerializeField] private VariableBag instanceBaseBag = new VariableBag();
@@ -45,6 +45,23 @@ namespace Scaffold.Entities
 
             throw new InvalidCastException(
                 $"Variable '{key?.Key ?? "?"}' has type {av.Type} but {typeof(T).Name} was requested.");
+        }
+
+        public bool TryGetValue<T>(Variable key, out T value)
+        {
+            value = default!;
+            if (!TryResolve(key, out VariableValue av) || av == null)
+            {
+                return false;
+            }
+
+            if (av is IVariableValue<T> typed)
+            {
+                value = typed.Get();
+                return true;
+            }
+
+            return false;
         }
 
         public TVar GetVariable<TVar>(Variable key) where TVar : VariableValue

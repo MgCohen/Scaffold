@@ -30,6 +30,37 @@ namespace Scaffold.Entities.Tests
         }
 
         [Test]
+        public void TryGetValue_WhenPresent_ReturnsTypedValue()
+        {
+            VariableSO hp = CreateVariableSo("HP", VariableValueType.Float);
+            EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 42f }));
+            EntityInstance<EntityDefinition> state = creator.Create(def);
+
+            Assert.That(state.TryGetValue(hp, out float value), Is.True);
+            Assert.That(value, Is.EqualTo(42f));
+        }
+
+        [Test]
+        public void TryGetValue_WhenMissing_ReturnsFalse()
+        {
+            VariableSO hp = CreateVariableSo("HP", VariableValueType.Float);
+            EntityDefinition def = CreateDefinition();
+            EntityInstance<EntityDefinition> state = creator.Create(def);
+
+            Assert.That(state.TryGetValue(hp, out float _), Is.False);
+        }
+
+        [Test]
+        public void TryGetValue_WhenTypeMismatch_ReturnsFalse()
+        {
+            VariableSO hp = CreateVariableSo("HP", VariableValueType.Float);
+            EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 10f }));
+            EntityInstance<EntityDefinition> state = creator.Create(def);
+
+            Assert.That(state.TryGetValue(hp, out int _), Is.False);
+        }
+
+        [Test]
         public void Modifiers_OnInstance_SumFloatValues()
         {
             VariableSO hp = CreateVariableSo("HP", VariableValueType.Float);

@@ -5,12 +5,12 @@ namespace Scaffold.Entities
 {
     public class EntityComponent<TDefinition> : EntityComponent, IInstance<TDefinition> where TDefinition : EntityDefinition
     {
-        public EntityInstance<TDefinition> Instance => instance;
+        internal EntityInstance<TDefinition> Instance => instance;
         [SerializeField] private EntityInstance<TDefinition> instance;
 
         public InstanceId Id => Instance.Id;
 
-        public TDefinition Definition => Instance.Definition;
+        internal TDefinition Definition => Instance.Definition;
 
         public void InitializeFromDefinition(InstanceId instanceId, TDefinition entityDefinition)
         {
@@ -26,6 +26,11 @@ namespace Scaffold.Entities
         public T GetValue<T>(Variable key)
         {
             return Instance.GetValue<T>(key);
+        }
+
+        public bool TryGetValue<T>(Variable key, out T value)
+        {
+            return Instance.TryGetValue(key, out value);
         }
 
         public TVar GetVariable<TVar>(Variable key) where TVar : VariableValue

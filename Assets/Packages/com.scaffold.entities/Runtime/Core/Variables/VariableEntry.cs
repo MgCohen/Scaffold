@@ -17,11 +17,11 @@ namespace Scaffold.Entities
             baseValue = baseVal;
         }
 
-        public VariableSO Variable => variable;
+        internal VariableSO Variable => variable;
         [FormerlySerializedAs("attribute")]
         [SerializeField] private VariableSO variable;
 
-        public VariableValue BaseValue => baseValue;
+        internal VariableValue BaseValue => baseValue;
         [SerializeReference][SerializeField] private VariableValue baseValue;
 
         internal void EnsureValueMatchesType()

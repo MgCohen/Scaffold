@@ -11,7 +11,7 @@ namespace Scaffold.Entities
 
         [NonSerialized] private IVariableBag parent;
 
-        public IReadOnlyList<VariableEntry> Entries => entries;
+        internal IReadOnlyList<VariableEntry> Entries => entries;
 
         [SerializeField] private List<VariableEntry> entries = new List<VariableEntry>();
 
