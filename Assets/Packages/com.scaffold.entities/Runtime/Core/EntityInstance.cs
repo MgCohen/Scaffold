@@ -11,7 +11,7 @@ namespace Scaffold.Entities
         [SerializeField] private InstanceId id;
 
         internal TDefinition Definition => definition;
-        [SerializeField] private TDefinition definition = default!;
+        [SerializeField] protected TDefinition definition = default!;
 
         [SerializeField] private VariableBag instanceBaseBag = new VariableBag();
         [SerializeField] private VariableBag instanceEffectiveBag = new VariableBag();
