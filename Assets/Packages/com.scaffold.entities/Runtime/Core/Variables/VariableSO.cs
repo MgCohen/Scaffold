@@ -6,9 +6,10 @@ namespace Scaffold.Entities
     public class VariableSO : ScriptableObject
     {
         public VariableValueType ValueType => valueType;
+        [SerializeField] private VariableValueType valueType = VariableValueType.String;
 
-        [SerializeField]
-        private VariableValueType valueType = VariableValueType.String;
+        public string Description => description;
+        [SerializeField][TextArea(3, 10)] private string description = string.Empty;
 
         internal void SetValueType(VariableValueType valueType)
         {
