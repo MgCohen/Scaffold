@@ -16,22 +16,22 @@ MonoBehaviour:
     entries:
     - variable: {fileID: 11400000, guid: a103d4567890abcd1234567890abcdef, type: 2}
       baseValue:
-        rid: 4306785090117566464
+        rid: 4768368307694657536
     - variable: {fileID: 11400000, guid: b203d4567890abcd1234567890abcdef, type: 2}
       baseValue:
-        rid: 4306785090117566465
+        rid: 4768368307694657537
   references:
     version: 2
     RefIds:
-    - rid: 4306785090117566464
+    - rid: 4768368307694657536
       type: {class: FloatVariableValue, ns: Scaffold.Entities, asm: Scaffold.Entities}
       data:
-        value: 0
-        min: -3.4028235e+38
-        max: 3.4028235e+38
-    - rid: 4306785090117566465
+        value: 100
+        min: -3.40282347e+38
+        max: 3.40282347e+38
+    - rid: 4768368307694657537
       type: {class: FloatVariableValue, ns: Scaffold.Entities, asm: Scaffold.Entities}
       data:
-        value: 0
-        min: -3.4028235e+38
-        max: 3.4028235e+38
+        value: 5
+        min: -3.40282347e+38
+        max: 3.40282347e+38

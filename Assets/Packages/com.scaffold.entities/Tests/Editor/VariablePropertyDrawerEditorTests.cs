@@ -16,5 +16,11 @@ namespace Scaffold.Entities.Editor.Tests
         {
             Assert.IsNotNull(typeof(VariableBagPropertyDrawer));
         }
+
+        [Test]
+        public void EntityModifierEntryDrawer_Type_IsRegistered()
+        {
+            Assert.IsNotNull(typeof(EntityModifierEntryDrawer));
+        }
     }
 }

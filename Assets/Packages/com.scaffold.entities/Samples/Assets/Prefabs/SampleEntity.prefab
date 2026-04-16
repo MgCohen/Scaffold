@@ -52,6 +52,7 @@ MonoBehaviour:
   characterDefinition: {fileID: 11400000, guid: c303d4567890abcd1234567890abcdef, type: 2}
   healthVariable: {fileID: 11400000, guid: a103d4567890abcd1234567890abcdef, type: 2}
   moveSpeedVariable: {fileID: 11400000, guid: b203d4567890abcd1234567890abcdef, type: 2}
+  healthModifier: {fileID: 11400000, guid: 9a8b9c0d1e2f34ab5c6d7e8f9a0b1c2d, type: 2}
   showDebugHud: 1
 --- !u!114 &920001103
 MonoBehaviour:
@@ -69,7 +70,6 @@ MonoBehaviour:
     id:
       value: 
     definition: {fileID: 0}
-    modifiers: []
 --- !u!114 &920001104
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -25,7 +25,7 @@ namespace Scaffold.Entities
         }
 
         [SerializeField]
-        private float min = float.MinValue;
+        private float min = 0;
 
         public float Max
         {
@@ -34,7 +34,16 @@ namespace Scaffold.Entities
         }
 
         [SerializeField]
-        private float max = float.MaxValue;
+        private float max = 100;
+
+        public bool Clamped
+        {
+            get => clamped;
+            set => clamped = value;
+        }
+
+        [SerializeField]
+        private bool clamped;
 
         public float Get()
         {
@@ -52,8 +61,11 @@ namespace Scaffold.Entities
                 }
             }
 
-            float clamped = Math.Clamp(sum, Min, Max);
-            return new FloatVariableValue { Value = clamped, Min = Min, Max = Max };
+            if (clamped)
+            {
+                sum = Math.Clamp(sum, Min, Max);
+            }
+            return new FloatVariableValue { Value = sum, Min = Min, Max = Max };
         }
     }
 }

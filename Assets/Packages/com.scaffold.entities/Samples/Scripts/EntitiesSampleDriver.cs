@@ -20,6 +20,9 @@ namespace Scaffold.Entities.Samples
         private VariableSO moveSpeedVariable = default!;
 
         [SerializeField]
+        private EntityModifierEntryAsset healthModifier = default!;
+
+        [SerializeField]
         private bool showDebugHud = true;
 
         private SampleCharacterEntity entity = default!;
@@ -39,11 +42,9 @@ namespace Scaffold.Entities.Samples
         private void Start()
         {
             LogEffectiveStats("Initial");
-            if (healthVariable != null)
+            if (healthModifier != null)
             {
-                var bonusHealth = new FloatVariableValue { Value = 25f };
-                var healthMod = new EntityModifierEntry(healthVariable, bonusHealth);
-                entity.AddModifier(healthMod);
+                entity.AddModifier((EntityModifierEntry)healthModifier);
             }
 
             LogEffectiveStats("After +25 health modifier (numeric slots are summed)");

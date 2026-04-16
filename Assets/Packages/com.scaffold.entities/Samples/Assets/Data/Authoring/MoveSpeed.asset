@@ -9,7 +9,8 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3dd9ad7145297f646baf4677a10e7bda, type: 3}
+  m_Script: {fileID: 11500000, guid: dfd26dd94e89447889f600b6c748a69c, type: 3}
   m_Name: MoveSpeed
   m_EditorClassIdentifier: 
   valueType: 1
+  description: Sample move speed variable (float).

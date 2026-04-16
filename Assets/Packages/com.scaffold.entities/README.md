@@ -14,14 +14,14 @@
 
 | Folder | Responsibility |
 |--------|----------------|
-| `Runtime/Core/` | `Variable`, `VariableSO`, `VariableValue` hierarchy, `VariableEntry`, `IVariableBag`, `VariableBag`, `EntityDefinition`, `EntityInstance<TDefinition>`, `EntityModifierEntry`, `EntityComponent` / `EntityComponent<TDefinition>`, `IReadOnlyEntity`, `IEntity`, `IInstance`, `EntityExtensions`, `VariableValueFactory`, creators, ids. |
+| `Runtime/Core/` | `Variable`, `VariableSO`, `VariableValue` hierarchy, `VariableEntry`, `IVariableBag`, `VariableBag`, `EntityDefinition`, `EntityInstance<TDefinition>`, `EntityModifierEntry`, `EntityModifierEntryAsset`, `EntityComponent` / `EntityComponent<TDefinition>`, `IReadOnlyEntity`, `IEntity`, `IInstance`, `EntityExtensions`, `VariableValueFactory`, creators, ids. |
 | `Runtime/Behavior/` | `IEntityBehavior`, `IEntityFrameInputProvider`, `EntityBehaviorRunner`. |
 | `Samples/Scripts/` | Optional samples assembly. |
 
 ## Samples
 
 - Assembly: `Samples/Scripts/Scaffold.Entities.Samples.asmdef`.
-- Assets: `Samples/Assets/Data/Authoring/` — variable assets and `SampleCharacterDefinition`.
+- Assets: `Samples/Assets/Data/Authoring/` — variable assets, `SampleCharacterDefinition`, and `SampleHealthBonusModifier` (`EntityModifierEntryAsset`).
 - Prefab: `Samples/Assets/Prefabs/SampleEntity`.
 
 Authoritative module pointer: [`Docs/Core/Entities.md`](../../../Docs/Core/Entities.md).
@@ -42,6 +42,7 @@ Authoritative module pointer: [`Docs/Core/Entities.md`](../../../Docs/Core/Entit
 | `IEntity<out TDefinition>` | **`AddVariable` / `RemoveVariable`**. |
 | `IInstance<TDefinition>` | **`AddModifier` / `RemoveModifier` / `ClearModifiers`**. |
 | `EntityModifierEntry` | **`VariableSO`** or runtime **`Variable`** + **`ModifierValue`**; **`Key`** property. |
+| `EntityModifierEntryAsset` | `ScriptableObject` wrapping one **`EntityModifierEntry`** for editor authoring; explicit cast to **`EntityModifierEntry`** (C# allows only one user-defined conversion between these types). |
 | `EntityComponent<TDefinition>` | Host; **`OnValidate`** (play mode) rebroadcasts effective bag edits to subscribers. |
 
 **Runtime read boundary:** use **`GetValue` / `TryGetValue`**, **`GetVariable` / `TryGetVariable`**, and **`Subscribe`** on **`IReadOnlyEntity`** (or **`EntityInstance` / `EntityComponent`**). Do not rely on walking into serialized definition rows; **`Definition`**, **`Instance`**, and bag **`Entries`** are internal to **`Scaffold.Entities`**.
@@ -56,7 +57,7 @@ Authoritative module pointer: [`Docs/Core/Entities.md`](../../../Docs/Core/Entit
 ## Testing
 
 - `EntityInstanceTests`, **`VariableBagTests`** under `Tests/Runtime/`.
-- Editor drawer registration: **`VariablePropertyDrawerEditorTests`**.
+- Editor drawer registration: **`VariablePropertyDrawerEditorTests`**, **`EntityModifierEntryAssetEditorTests`** (modifier drawer + wrapper cast).
 
 ## Related
 
