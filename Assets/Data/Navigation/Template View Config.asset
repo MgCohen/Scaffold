@@ -14,7 +14,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   schemas:
     rid: 4487453911254827280
-  viewAsset: {fileID: 0}
+  viewAssetSource: 0
+  directPrefab: {fileID: 0}
+  asset:
+    m_AssetGUID: 
+    m_SubObjectName: 
+    m_SubObjectType: 
+    m_SubObjectGUID: 
+    m_EditorAssetChanged: 0
   viewType:
     serializedType: 
   controllerType:

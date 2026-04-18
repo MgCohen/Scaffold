@@ -14,16 +14,21 @@ After this change, a designer can choose per `ViewConfig` whether the view comes
 
 ## Progress
 
-- [ ] Add serialized mode plus direct prefab field on `ViewConfig`; preserve default so existing assets remain Addressable-backed.
-- [ ] Add `Scaffold.Navigation.Editor` with a `ViewConfig` inspector that subclasses `SchemaObjectEditor` and draws the mode toggle plus either `AssetReference` or the direct prefab field (other fields unchanged).
-- [ ] Extend navigation point resolution (strategy and/or provider) so direct prefabs instantiate and dispose correctly (no addressable handle).
-- [ ] Run validation from repository root: `powershell -NoProfile -ExecutionPolicy Bypass -File ".\.agents\scripts\validate-changes.ps1" -SkipTests` (omit `-SkipTests` if adding automated tests).
-- [ ] Manual Play Mode check: one Addressable-backed screen and one direct-prefab screen both open and close cleanly.
+- [x] Add serialized mode plus direct prefab field on `ViewConfig`; preserve default so existing assets remain Addressable-backed. (`viewAssetSource` + `DirectPrefab`, public `AssetSource` property, `ViewAssetSource` enum in `Runtime/Contracts/ViewAssetSource.cs`.)
+- [x] Add `Scaffold.Navigation.Editor` with a `ViewConfig` inspector that subclasses `SchemaObjectEditor` and draws the mode toggle plus either `AssetReference` or the direct prefab field (other fields unchanged). (`Editor/ViewConfigEditor.cs`, `Editor/Scaffold.Navigation.Editor.asmdef`.)
+- [x] Extend navigation point resolution: direct-prefab path implemented as `NavigationProvider.DirectPrefabNavigationPointStrategy` (nested); `AddressablesNavigationPointStrategy` skips non-Addressables mode. Provider order: context → direct → addressables.
+- [x] Run validation from repository root: `powershell -NoProfile -ExecutionPolicy Bypass -File ".\.agents\scripts\validate-changes.ps1" -SkipTests` (omit `-SkipTests` if adding automated tests).
+- [ ] Manual Play Mode check: one Addressable-backed screen and one direct-prefab screen both open and close cleanly. (Not run in this session; do locally.)
 
 ## Surprises & Discoveries
 
-- Observation: (fill in during implementation)
-  Evidence: (fill in during implementation)
+- Observation: The public property on `ViewConfig` is named `AssetSource` to avoid the enum and property both being named `ViewAssetSource` (same name as the type) for clarity.
+  Evidence: `ViewConfig.cs` property and `ViewAssetSource` enum.
+
+- Observation: Unity-generated `Scaffold.Navigation.csproj` lists explicit `Compile` entries; new `.cs` files must be added to that project file when Unity has not regenerated it, or Unity Bee batch compile may miss types (e.g. `DirectPrefabNavigationPointStrategy` was resolved by nesting the strategy in `NavigationProvider.cs`).
+
+- Observation: `ViewFilter` and `ViewAssetSource` are in one file `ViewAssetSource.cs` with a scoped `#pragma warning disable SCA3002` / `restore` because Unity’s Bee batch compile step did not resolve `ViewFilter` when it lived in a separate `ViewFilter.cs` while `validate-changes.ps1` passed; merging enums fixes Unity batch compile. Splitting `ViewFilter` back out is fine after opening the Unity Editor once to refresh the script graph (or when Unity regenerates csproj/Bee inputs).
+  Evidence: `validate-changes.ps1` Unity step vs dotnet build.
 
 ## Decision Log
 
@@ -41,7 +46,9 @@ After this change, a designer can choose per `ViewConfig` whether the view comes
 
 ## Outcomes & Retrospective
 
-(Summarize at completion: what shipped, what was deferred, lessons learned.)
+- Shipped: per-`ViewConfig` `ViewAssetSource` (Addressables vs Direct prefab), `DirectPrefabNavigationPointStrategy`, conditional inspector, `AddressablesNavigationPointStrategy` early-exit, docs in `Docs/Infra/Navigation.md` and package `README.md`.
+- Deferred: automated EditMode test (the test assembly had no pre-existing C# tests); no Play Mode run here.
+- Lessons: keep strategy order and buffer-only-on-addressables path; direct mode never touches `NavigationAssetHandleBuffer`.
 
 ## Context and Orientation
 
@@ -83,7 +90,7 @@ After this change, a designer can choose per `ViewConfig` whether the view comes
 
 6. **Tests**
 
-   If EditMode tests exist under `com.scaffold.navigation` Tests, add or extend a test that constructs or loads a `ViewConfig`, sets direct mode, assigns a minimal prefab mock if feasible, and asserts the correct strategy path or public API. If automated tests are not practical without Unity scene setup, document manual verification steps in this plan’s Validation section and rely on `validate-changes.ps1` for compile/analyzer gates.
+   The `com.scaffold.navigation` Tests project had no existing test `.cs` files; this implementation relies on the compile gate and leaves optional EditMode tests for a follow-up. Manual: create one `ViewConfig` in Direct mode with an `IView` prefab, one in Addressables mode, open/close in Play Mode.
 
 ## Concrete Steps
 
@@ -135,3 +142,5 @@ External dependencies: existing `Scaffold.Addressables`, Unity Addressables, Uni
 Revision history:
 
 - Initial version: Defines dual-source `ViewConfig`, `SchemaObjectEditor` subclass for conditional Inspector fields, and a third navigation point strategy for direct prefab instantiation.
+- Implementation pass: C# and editor shipped; public API uses `ViewConfig.AssetSource` and enum `ViewAssetSource`; Progress section updated. Manual Play Mode not executed in the implementing environment.
+- Unity/Bee + SCA3002: `ViewFilter` co-located with `ViewAssetSource` in `ViewAssetSource.cs` with pragma; nested direct-prefab strategy in `NavigationProvider`, `Scaffold.Navigation.csproj` updated for strategy until Unity regenerates.

@@ -21,23 +21,33 @@ namespace Scaffold.Navigation
 
         public bool TryCreate(ViewConfig config, IViewController controller, NavigationOptions options, out NavigationPoint point)
         {
-            IAssetHandle<GameObject> handle = LoadOrTake(config);
-            IAssetHandle<GameObject>[] handleSlot = { handle };
-
-            void DisposeNavigationPoint(NavigationPoint disposed)
+            if (config == null || config.AssetSource != ViewAssetSource.Addressables)
             {
-                ReleaseOrBuffer(config, handleSlot);
-                if (disposed == null || disposed.IsSceneView || disposed.View == null)
-                {
-                    return;
-                }
-
-                DestroyViewObject(disposed.View.gameObject);
+                point = null;
+                return false;
             }
 
-            point = new NavigationPoint(controller, config, false, options, DisposeNavigationPoint);
+            return CreateAddressablePoint(config, controller, options, out point);
+        }
+
+        private bool CreateAddressablePoint(ViewConfig config, IViewController controller, NavigationOptions options, out NavigationPoint point)
+        {
+            IAssetHandle<GameObject> handle = LoadOrTake(config);
+            IAssetHandle<GameObject>[] handleSlot = { handle };
+            point = new NavigationPoint(controller, config, false, options, d => DisposeAfterAddressable(config, handleSlot, d));
             _ = MaterializePointAsync(point, () => handleSlot[0], () => handleSlot[0] = null);
             return true;
+        }
+
+        private IAssetHandle<GameObject> LoadOrTake(ViewConfig config)
+        {
+            IAssetHandle<GameObject> handle = assetHandleBuffer.TryTake(config, out IAssetHandle<GameObject> cached) ? cached : null;
+            if (handle == null)
+            {
+                handle = addressables.Load<GameObject>(config.Asset);
+            }
+
+            return handle;
         }
 
         private async Task MaterializePointAsync(NavigationPoint point, Func<IAssetHandle<GameObject>> getHandle, Action clearHandle)
@@ -91,15 +101,15 @@ namespace Scaffold.Navigation
             point.CompleteReady(view);
         }
 
-        private IAssetHandle<GameObject> LoadOrTake(ViewConfig config)
+        private void DisposeAfterAddressable(ViewConfig config, IAssetHandle<GameObject>[] handleSlot, NavigationPoint disposed)
         {
-            IAssetHandle<GameObject> handle = assetHandleBuffer.TryTake(config, out IAssetHandle<GameObject> cached) ? cached : null;
-            if (handle == null)
+            ReleaseOrBuffer(config, handleSlot);
+            if (disposed == null || disposed.IsSceneView || disposed.View == null)
             {
-                handle = addressables.Load<GameObject>(config.Asset);
+                return;
             }
 
-            return handle;
+            DestroyViewObject(disposed.View.gameObject);
         }
 
         private void ReleaseOrBuffer(ViewConfig config, IAssetHandle<GameObject>[] handleSlot)

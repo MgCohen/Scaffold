@@ -8,7 +8,7 @@
 - Location: `Assets/Packages/com.scaffold.navigation/Runtime/` (boundary types under `Runtime/Contracts/`).
 - Depends on: `Scaffold.Events`, `Scaffold.Types`, `Scaffold.Records`, `Scaffold.Addressables`, container abstractions.
 - Used by: app screens and MVVM presentation flow.
-- Runtime/Editor: runtime + container integration.
+- Runtime/Editor: runtime, optional `ViewConfig` inspector (`Scaffold.Navigation.Editor`), and container integration.
 - Keywords: navigation stack, transitions, view config, middleware.
 
 ## Responsibilities
@@ -18,7 +18,7 @@
 - Owns transition orchestration (`NavigationTransitions` and schemas).
 - Owns DI integration (`NavigationInstaller`, `NavigationInjection`).
 - Provides `Providers.NavigationAssetProvider` for Addressables preload of `NavigationSettings` during startup (see [Docs/App/AppStartup.md](../../../Docs/App/AppStartup.md)).
-- Owns non-context view runtime loading via Addressables gateway, resident prefab-handle usage, and instance buffer/cache lifecycle.
+- Owns non-context view materialization: Addressables (via `IAddressablesGateway`, resident handle buffering) or a **direct prefab** on `ViewConfig` (no Addressables load for that path), plus addressable handle lifecycle.
 - Does not own app-specific business decisions or domain mutation logic.
 
 ## Public API
@@ -31,12 +31,12 @@
 | `IViewController` | Controller lifecycle contract | `Bind(INavigation)` etc. | bound controller behavior | n/a |
 | `IView` | View lifecycle contract | bind/open/hide/focus/close/order | runtime view behavior | state-specific operations may no-op |
 | `NavigationInstaller` | Registers navigation services | container registry | navigation runtime wiring | fails when required contracts are unavailable |
-| `ViewConfig.Asset` | Addressable prefab reference for non-context views | `AssetReference` | prefab load source | throws when missing at runtime |
+| `ViewConfig` | `ViewAssetSource` (`Addressables` or `DirectPrefab`); in Addressables mode, `ViewConfig.Asset` loads the prefab; in Direct mode, a project `GameObject` prefab reference is used | mode + `Asset` or `DirectPrefab` | view prefab for non-context | invalid/missing ref fails at open time |
 
 ## Setup / Integration
 
 1. Reference `Scaffold.Navigation` for contracts and implementation/container wiring.
-2. Configure `NavigationSettings` with controller/view mappings and `ViewConfig.Asset` references.
+2. Configure `NavigationSettings` with controller/view mappings and one `ViewConfig` asset per screen (or equivalent list); for each, set `View asset source` to Addressables and assign an addressable, or to Direct and assign a prefab that implements `IView`.
 3. Register `NavigationInstaller` in composition root (it does not own preload policy).
 4. Open controllers through `INavigation`.
 
@@ -44,7 +44,7 @@
 
 1. Implement controller type (`IViewController` or MVVM `ViewModel` descendant).
 2. Implement view type (`IView` or MVVM view base).
-3. Add `ViewConfig` mapping for controller/view and assign addressable prefab reference.
+3. Add `ViewConfig` mapping for controller/view and set Addressables or Direct prefab as in step 2.
 4. Open/close/return with `INavigation`.
 
 ## Behavior Contracts
@@ -61,7 +61,7 @@
 - `NavigationTransitions.DoTransition(from, to, closeCurrent)` enqueues transitions and executes them serially.
 - Default ordering is: close or hide `from` first, then open/focus `to`.
 - `ViewConfig` resolution uses `NavigationSettings` mapping and may reuse context views under `viewHolder` before non-context view instantiation.
-- Non-context flow treats loaded addressable as prefab source, not persistent instance.
+- Non-context Addressables flow treats loaded addressable as prefab source, not persistent instance. Direct-prefab flow instantiates the assigned `GameObject` under the view holder (no `IAddressablesGateway` call for that config).
 - Prefab handles are loaded once per config and kept resident for navigation lifetime flow.
 - Closed non-context view instances are returned to an internal instance buffer/cache and reused on next open when available.
 - Transition processing waits for target point readiness before open/focus sequences run.

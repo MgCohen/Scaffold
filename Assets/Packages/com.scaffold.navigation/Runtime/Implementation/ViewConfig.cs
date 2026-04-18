@@ -11,6 +11,12 @@ namespace Scaffold.Navigation
     [SchemaFilter(typeof(ViewSchema))]
     public class ViewConfig : SchemaObject
     {
+        public ViewAssetSource AssetSource => viewAssetSource;
+        [SerializeField] private ViewAssetSource viewAssetSource = ViewAssetSource.Addressables;
+
+        public GameObject DirectPrefab => directPrefab;
+        [SerializeField] private GameObject directPrefab;
+
         public AssetReference Asset => asset;
         [SerializeField] private AssetReference asset;
 
@@ -23,6 +29,17 @@ namespace Scaffold.Navigation
 #if UNITY_EDITOR
         public void OnValidate()
         {
+            if (viewAssetSource == ViewAssetSource.Addressables)
+            {
+                OnValidateAddressablesMode();
+                return;
+            }
+
+            OnValidateDirectPrefabMode();
+        }
+
+        private void OnValidateAddressablesMode()
+        {
             if (asset == null || asset.editorAsset == null)
             {
                 viewType = null;
@@ -32,10 +49,27 @@ namespace Scaffold.Navigation
             SetTypeFromAsset();
         }
 
+        private void OnValidateDirectPrefabMode()
+        {
+            if (directPrefab == null)
+            {
+                viewType = null;
+                controllerType = null;
+                return;
+            }
+            SetTypeFromDirectPrefab();
+        }
+
         private void SetTypeFromAsset()
         {
             GameObject viewObject = asset.editorAsset as GameObject;
             Type resolvedViewType = viewObject?.GetComponent<IView>()?.GetType();
+            ApplyViewType(resolvedViewType);
+        }
+
+        private void SetTypeFromDirectPrefab()
+        {
+            Type resolvedViewType = directPrefab?.GetComponent<IView>()?.GetType();
             ApplyViewType(resolvedViewType);
         }
 #endif
