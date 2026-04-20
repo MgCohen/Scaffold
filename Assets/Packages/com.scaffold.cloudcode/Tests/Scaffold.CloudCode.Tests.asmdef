@@ -3,10 +3,12 @@
     "rootNamespace": "Scaffold.CloudCode.Tests",
     "references": [
         "Scaffold.CloudCode",
+        "Scaffold.CloudCode.Container",
         "Unity.Services.CloudCode",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
-        "Scaffold.Records"
+        "Scaffold.Records",
+        "VContainer"
     ],
     "includePlatforms": [
         "Editor"

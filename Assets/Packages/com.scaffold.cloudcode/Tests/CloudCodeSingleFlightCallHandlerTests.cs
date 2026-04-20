@@ -8,6 +8,30 @@ namespace Scaffold.CloudCode.Tests
 {
     public sealed class CloudCodeSingleFlightCallHandlerTests
     {
+        /// <summary>
+        /// Unity Services (Cloud Code) require the caller synchronization context (main thread in the editor).
+        /// <see cref="CloudCodeSingleFlightCallHandler"/> must not use <c>ConfigureAwait(false)</c> after the
+        /// per-module gate, or continuations drop the context and Unity APIs throw.
+        /// </summary>
+        [Test]
+        public async Task AfterGateWait_InnerHandlerRunsWithOriginalSynchronizationContext()
+        {
+            SynchronizationContext original = new ImmediatePostSynchronizationContext();
+            SynchronizationContext previous = SynchronizationContext.Current;
+            SynchronizationContext.SetSynchronizationContext(original);
+            try
+            {
+                ContextCapturingInner inner = new ContextCapturingInner();
+                CloudCodeSingleFlightCallHandler singleFlight = new CloudCodeSingleFlightCallHandler(inner);
+                await singleFlight.InvokeAsync("moduleA", "endpoint1", new Dictionary<string, object>(), CancellationToken.None);
+                Assert.That(inner.ContextObservedAfterAwait, Is.SameAs(original));
+            }
+            finally
+            {
+                SynchronizationContext.SetSynchronizationContext(previous);
+            }
+        }
+
         [Test]
         public async Task SameModule_SecondCallDoesNotEnterInnerUntilFirstCompletes()
         {
@@ -50,6 +74,25 @@ namespace Scaffold.CloudCode.Tests
                     await releaseFirst.Task.ConfigureAwait(false);
                 }
 
+                return "{}";
+            }
+        }
+
+        private sealed class ImmediatePostSynchronizationContext : SynchronizationContext
+        {
+            public override void Post(SendOrPostCallback d, object state) => d(state);
+
+            public override void Send(SendOrPostCallback d, object state) => d(state);
+        }
+
+        private sealed class ContextCapturingInner : ICloudCodeCallHandler
+        {
+            public SynchronizationContext ContextObservedAfterAwait { get; private set; }
+
+            public async Task<string> InvokeAsync(string module, string endpoint, Dictionary<string, object> payload, CancellationToken cancellationToken)
+            {
+                await Task.Yield();
+                ContextObservedAfterAwait = SynchronizationContext.Current;
                 return "{}";
             }
         }

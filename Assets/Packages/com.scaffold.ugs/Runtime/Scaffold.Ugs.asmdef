@@ -2,7 +2,7 @@
     "name": "Scaffold.Ugs",
     "rootNamespace": "Scaffold.Ugs",
     "references": [
-        "Scaffold.Scope",
+        "Scaffold.LayeredScope",
         "Unity.Services.Core",
         "Unity.Services.Authentication",
         "VContainer"

@@ -4,17 +4,17 @@
 
 ## TL;DR
 
-- Purpose: typed client for the deployed Cloud Code **LiveOps** module using shared DTO requests and responses; **bootstrap** runs an initial **`GameDataRequest`** via `IAsyncLayerInitializable` on `LiveOpsService`.
+- Purpose: typed client for the deployed Cloud Code **LiveOps** module using shared DTO requests and responses; **bootstrap** runs an initial **`GameDataRequest`** via `Scaffold.LayeredScope.IAsyncInitializable` on `LiveOpsService`.
 - Location: `Assets/Packages/com.scaffold.liveops/Runtime/` (`Scaffold.LiveOps`), installer `Scaffold.LiveOps.Container`.
-- Depends on: `Scaffold.CloudCode`, `Scaffold.Scope` (for `IAsyncLayerInitializable`), `Scaffold.Ugs` (optional `IUgs` gate before Cloud Code), precompiled plugin `Scaffold.LiveOps.DTO.dll` (see the **LiveOps** section below), `Newtonsoft.Json`, `VContainer`.
+- Depends on: `Scaffold.CloudCode`, `com.scaffold.layeredscope` (`Scaffold.LayeredScope.IAsyncInitializable`), precompiled plugin `Scaffold.LiveOps.DTO.dll` (see the **LiveOps** section below), `Newtonsoft.Json`, `VContainer`.
 - Used by: bootstrap, feature modules (`IGameClientModule` implementations, `GameClientModuleBase<T>`), and any code that calls LiveOps endpoints.
 
 ## Responsibilities
 
-- `ILiveOpsService` / `LiveOpsService`: `CallAsync`, `GetModuleData<T>()` (reads from the last successful initial `GameDataRequest` stored on the service).
+- `ILiveOpsService` / `LiveOpsService`: `CallAsync`, `GetModuleData<T>()` (reads from the last successful initial `GameDataRequest` stored on the service). **`LiveOpsService`** depends on **`CloudCodeOptimisticHandlerRegistry`** and **`CloudCodeErrorHandler`** (from **`CloudCodeInstaller`**) for optional **GameApi** optimistic responses; register **`CloudCodeInstaller`** before or with **`LiveOpsInstaller`** so those singletons exist.
 - After each `CallAsync`, an internal `ModuleResponseDispatchService` considers only the **direct** entries in `ModuleResponse.Responses` on the returned root (no deeper traversal), resolves `IEnumerable<IResponseHandler>` from `IObjectResolver` at dispatch time, and invokes handlers whose `HandledResponseType` matches each item’s runtime type (see `IResponseHandler` / `IResponseHandler<T>`).
-- `LiveOpsService` implements `IAsyncLayerInitializable`: performs the initial `GameDataRequest` and stores aggregated `GameData` internally. It does not coordinate other services; callers use `GetModuleData<T>()` when their layer runs after LiveOps has initialized.
-- `GameClientModuleBase<T>` implements `IAsyncLayerInitializable`: resolves `ILiveOpsService` and assigns `protected data` from `GetModuleData<T>()`. Bootstrap layer ordering should run `LiveOpsService` before these modules when they need `GameData` populated. `IGameClientModule` exposes `Key` only; typed payload lives on the concrete type as `protected T data`.
+- `LiveOpsService` implements `Scaffold.LayeredScope.IAsyncInitializable`: performs the initial `GameDataRequest` and stores aggregated `GameData` internally. It does not coordinate other services; callers use `GetModuleData<T>()` when their layer runs after LiveOps has initialized.
+- `GameClientModuleBase<T>` implements `Scaffold.LayeredScope.IAsyncInitializable`: resolves `ILiveOpsService` and assigns `protected data` from `GetModuleData<T>()`. Bootstrap layer ordering should run `LiveOpsService` before these modules when they need `GameData` populated. `IGameClientModule` exposes `Key` only; typed payload lives on the concrete type as `protected T data`.
 - Payload shape `{ "request": <serialized ModuleRequest> }` for Cloud Code bindings.
 
 ## Public API
@@ -26,15 +26,15 @@
 | `ILiveOpsService.CallAsync<TResponse>` | Generic module call. |
 | `ILiveOpsService.GetModuleData<T>` | Typed slice of aggregated `GameData` after initial fetch. |
 | `IResponseHandler` / `IResponseHandler<T>` | Optional handler for nested `ModuleResponse` items; `HandledResponseType` selects the concrete nested type. |
-| `LiveOpsService` | Implements `ILiveOpsService` and `IAsyncLayerInitializable`. |
+| `LiveOpsService` | Implements `ILiveOpsService` and `Scaffold.LayeredScope.IAsyncInitializable`. |
 
 ## Registration
 
-`LiveOpsInstaller` registers `LiveOpsService` as `ILiveOpsService` and `IAsyncLayerInitializable` (scoped). Register it from your application composition root alongside other installers (for example `AdsInstaller`). UGS and Cloud Code should be registered on the same main scope per your startup plan.
+`LiveOpsInstaller` registers `LiveOpsService` as `ILiveOpsService` and `Scaffold.LayeredScope.IAsyncInitializable` (scoped). Register it from your application composition root alongside other installers (for example [`CurrencyClientInstaller`](../../GearEngine/Scripts/Game/Campaign/Bootstrap/Currency/CurrencyClientInstaller.cs) when you use currency client modules). UGS and Cloud Code should be registered on the same main scope per your startup plan.
 
 Register each concrete handler with `AsImplementedInterfaces()` so `IResponseHandler` and `IResponseHandler<T>` are both registered (for example `builder.Register<MyHandler>(Lifetime.Scoped).AsImplementedInterfaces()` or `builder.RegisterInstance(handler).AsImplementedInterfaces()`). Multiple handlers for the same nested response type are all invoked. Dispatch resolves the handler collection from the current scope’s `IObjectResolver` when a response is handled, which avoids constructor ordering issues between `LiveOpsService` and handler registration.
 
-Register concrete feature modules as `IGameClientModule` and `IAsyncLayerInitializable` when they should hydrate during bootstrap (see `AdsInstaller`). `LiveOpsService` does not enumerate client modules; it only stores `GameData` from the initial `GameDataRequest`.
+Register concrete feature modules as `IGameClientModule` and `IAsyncInitializable` when they should hydrate during bootstrap (see [`LiveOpsLayer`](../../GearEngine/Scripts/App/Bootstrap/Layers/LiveOpsLayer.cs) and the `Campaign*Installer` types under `Game.Campaign`). `LiveOpsService` does not enumerate client modules; it only stores `GameData` from the initial `GameDataRequest`.
 
 ## Tests
 

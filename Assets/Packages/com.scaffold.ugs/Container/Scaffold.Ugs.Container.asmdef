@@ -2,7 +2,7 @@
     "name": "Scaffold.Ugs.Container",
     "rootNamespace": "Scaffold.Ugs.Container",
     "references": [
-        "Scaffold.Scope",
+        "Scaffold.LayeredScope",
         "Scaffold.Ugs",
         "VContainer"
     ],

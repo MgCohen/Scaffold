@@ -1,4 +1,3 @@
-using Scaffold.Scope.Contracts;
 using Scaffold.Ugs;
 using VContainer;
 using VContainer.Unity;
@@ -9,7 +8,7 @@ namespace Scaffold.Ugs.Container
     {
         public void Install(IContainerBuilder builder)
         {
-            builder.Register<Ugs>(Lifetime.Singleton).AsSelf().As<IAsyncLayerInitializable>();
+            builder.Register<Ugs>(Lifetime.Singleton).AsSelf().As<Scaffold.LayeredScope.IAsyncInitializable>();
         }
     }
 }

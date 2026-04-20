@@ -1,23 +1,16 @@
-using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Scaffold.Scope.Contracts;
+using Scaffold.LayeredScope;
 using Unity.Services.Authentication;
 using Unity.Services.Core;
-using VContainer;
 
 namespace Scaffold.Ugs
 {
-    public sealed class Ugs : IAsyncLayerInitializable
+    public sealed class Ugs : IAsyncInitializable
     {
-        public async Task InitializeAsync(IObjectResolver resolver, CancellationToken cancellationToken)
+        public Task InitializeAsync(CancellationToken cancellationToken)
         {
-            if (resolver == null)
-            {
-                throw new ArgumentNullException(nameof(resolver));
-            }
-
-            await EnsureInitializedAsync(cancellationToken);
+            return EnsureInitializedAsync(cancellationToken);
         }
 
         internal async Task EnsureInitializedAsync(CancellationToken cancellationToken = default)

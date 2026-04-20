@@ -81,67 +81,7 @@ namespace Scaffold.CloudCode
 
         private bool TryGetOptimisticResponse<TResponse>(string module, string endpoint, object payload, out IRequestHandler<TResponse> handler, out TResponse optimisticResponse)
         {
-            optimisticResponse = default;
-            handler = null;
-            if (!TryResolveOptimisticHandler(module, endpoint, payload, out IRequestHandler<TResponse> found, out TResponse optimistic))
-            {
-                return false;
-            }
-
-            optimisticResponse = optimistic;
-            handler = found;
-            return true;
-        }
-
-        private bool TryResolveOptimisticHandler<TResponse>(string module, string endpoint, object body, out IRequestHandler<TResponse> handler, out TResponse optimisticResponse)
-        {
-            handler = null;
-            optimisticResponse = default;
-            if (body == null)
-            {
-                return false;
-            }
-
-            if (!TryGetRegistryHandler<TResponse>(body, out IRequestHandler found, out IRequestHandler<TResponse> typedHandler))
-            {
-                return false;
-            }
-
-            return TryMatchAndAssignOptimistic(module, endpoint, body, found, typedHandler, out handler, out optimisticResponse);
-        }
-
-        private bool TryMatchAndAssignOptimistic<TResponse>(string module, string endpoint, object body, IRequestHandler found, IRequestHandler<TResponse> typedHandler, out IRequestHandler<TResponse> handler, out TResponse optimisticResponse)
-        {
-            handler = typedHandler;
-            if (!found.TryMatch(module, endpoint, body))
-            {
-                handler = null;
-                optimisticResponse = default;
-                return false;
-            }
-
-            optimisticResponse = handler.GetOptimisticResponse(body);
-            return true;
-        }
-
-        private bool TryGetRegistryHandler<TResponse>(object body, out IRequestHandler found, out IRequestHandler<TResponse> typedHandler)
-        {
-            found = null;
-            typedHandler = null;
-            Type requestType = body.GetType();
-            Type responseType = typeof(TResponse);
-            if (!optimisticRegistry.TryGetHandler(requestType, responseType, out found) || found == null)
-            {
-                return false;
-            }
-
-            if (found is not IRequestHandler<TResponse> typed)
-            {
-                return false;
-            }
-
-            typedHandler = typed;
-            return true;
+            return optimisticRegistry.TryResolve(module, endpoint, payload, out handler, out optimisticResponse);
         }
 
         private async void RunReconciliationInTheBackground<T>(Task<string> serverTask, IRequestHandler<T> handler, T optimisticResponse, string module, string endpoint, object requestPayload)

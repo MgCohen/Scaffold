@@ -5,6 +5,7 @@ using NUnit.Framework;
 using Scaffold.CloudCode;
 using Unity.Services.CloudCode.Subscriptions;
 using UnityEngine;
+using VContainer;
 
 namespace Scaffold.CloudCode.Tests
 {
@@ -112,6 +113,28 @@ namespace Scaffold.CloudCode.Tests
         }
 
         [Test]
+        public void TryResolve_FindsHandlerFromDiContainer_WhenNotInDictionary()
+        {
+            var handler = new TestOptimisticHandler
+            {
+                ExpectedModule = Module,
+                ExpectedEndpoint = Endpoint,
+                OptimisticValue = new TestResponse { Id = 42 },
+            };
+
+            var builder = new ContainerBuilder();
+            builder.Register<CloudCodeOptimisticHandlerRegistry>(Lifetime.Singleton);
+            builder.RegisterInstance(handler).As<IOptimisticCloudCodeHandler>().AsImplementedInterfaces();
+            IObjectResolver container = builder.Build();
+            CloudCodeOptimisticHandlerRegistry registry = container.Resolve<CloudCodeOptimisticHandlerRegistry>();
+
+            bool ok = registry.TryResolve(Module, Endpoint, new TestRequest(), out IRequestHandler<TestResponse> resolved, out TestResponse optimistic);
+            Assert.That(ok, Is.True);
+            Assert.That(optimistic.Id, Is.EqualTo(42));
+            Assert.That(resolved, Is.SameAs(handler));
+        }
+
+        [Test]
         public async Task WithoutOptimisticPath_TryMatchFails_AwaitsServerResponse()
         {
             CloudCodeSettings settings = ScriptableObject.CreateInstance<CloudCodeSettings>();
@@ -148,8 +171,12 @@ namespace Scaffold.CloudCode.Tests
             public int Id { get; set; }
         }
 
-        private sealed class TestOptimisticHandler : IRequestHandler<TestRequest, TestResponse>
+        private sealed class TestOptimisticHandler : IRequestHandler<TestRequest, TestResponse>, IOptimisticCloudCodeHandler
         {
+            public Type RequestClrType => typeof(TestRequest);
+
+            public Type ResponseClrType => typeof(TestResponse);
+
             public string ExpectedModule { get; init; }
             public string ExpectedEndpoint { get; init; }
             public TestResponse OptimisticValue { get; init; }

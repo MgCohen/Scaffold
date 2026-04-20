@@ -10,7 +10,6 @@
                    "url":  "https://github.com/MgCohen/Scaffold"
                },
     "dependencies":  {
-                         "com.scaffold.scope":  "0.1.0"
-                     },
-    "path":  "https://github.com/MgCohen/Scaffold.git?path=/Assets/Packages/com.scaffold.ugs#main"
+                         "com.scaffold.layeredscope":  "0.1.0"
+                     }
 }
