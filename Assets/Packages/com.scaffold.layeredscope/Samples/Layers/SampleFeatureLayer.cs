@@ -1,3 +1,5 @@
+// sample: Feature layer only — ctor-injects SampleAsset and SharedSampleAsset published from SampleAssetsLayer. See Samples/README.md.
+
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -7,15 +9,8 @@ using VContainer;
 
 namespace Scaffold.LayeredScope.Samples.Layers
 {
-    internal sealed class SampleAsset { public string Payload; }
-
     internal sealed class SampleFeatureService : IAsyncInitializable, IAsyncDisposable
     {
-        private readonly SampleAsset asset;
-        private readonly SharedSampleAsset sharedAsset;
-        private readonly ISampleConfigService config;
-        private readonly ILayerResolver layered;
-
         public SampleFeatureService(SampleAsset asset, SharedSampleAsset sharedAsset, ISampleConfigService config, ILayerResolver layered)
         {
             if (asset == null) throw new ArgumentNullException(nameof(asset));
@@ -27,6 +22,11 @@ namespace Scaffold.LayeredScope.Samples.Layers
             this.config = config;
             this.layered = layered;
         }
+
+        private readonly SampleAsset asset;
+        private readonly SharedSampleAsset sharedAsset;
+        private readonly ISampleConfigService config;
+        private readonly ILayerResolver layered;
 
         public Task InitializeAsync(CancellationToken ct)
         {
@@ -43,20 +43,10 @@ namespace Scaffold.LayeredScope.Samples.Layers
         }
     }
 
-    internal sealed class SampleFeatureLayer : IAsyncScopeLayer
+    internal sealed class SampleFeatureLayer : IScopeLayer
     {
-        private SampleAsset prepared;
-
-        public async Task PrepareAsync(IObjectResolver parent, CancellationToken ct)
-        {
-            var gateway = parent.Resolve<ISampleAssetGateway>();
-            string raw = await gateway.LoadAsync("feature.payload", ct);
-            prepared = new SampleAsset { Payload = raw };
-        }
-
         public void Install(IContainerBuilder builder)
         {
-            builder.RegisterInstance(prepared);
             builder.Register<SampleFeatureService>(Lifetime.Singleton)
                 .As<IAsyncInitializable>()
                 .As<IAsyncDisposable>();

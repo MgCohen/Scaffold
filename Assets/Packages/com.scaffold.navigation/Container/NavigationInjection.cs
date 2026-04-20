@@ -1,22 +1,21 @@
+using Scaffold.LayeredScope;
 using Scaffold.Navigation.Contracts;
 
 namespace Scaffold.Navigation.Container
 {
     internal class NavigationInjection : INavigationOpenHandler
     {
-        public NavigationInjection(INavigationViewModelInjector viewModelInjector)
+        public NavigationInjection(ILayerResolver layers)
         {
-            this.viewModelInjector = viewModelInjector;
+            this.layers = layers;
         }
 
-        private readonly INavigationViewModelInjector viewModelInjector;
+        private readonly ILayerResolver layers;
 
         public void OnOpen(IViewController viewModel)
         {
-            viewModelInjector.Inject(viewModel);
+            layers.Top.Inject(viewModel);
         }
     }
 }
-
-
 

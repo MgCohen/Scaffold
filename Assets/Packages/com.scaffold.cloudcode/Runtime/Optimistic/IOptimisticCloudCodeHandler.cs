@@ -2,10 +2,7 @@ using System;
 
 namespace Scaffold.CloudCode
 {
-    /// <summary>
-    /// Marks a handler discoverable by <see cref="CloudCodeOptimisticHandlerRegistry"/> via the DI container.
-    /// Pair <see cref="RequestClrType"/> / <see cref="ResponseClrType"/> must match the closed <see cref="IRequestHandler{TRequest,TResponse}"/> implementation.
-    /// </summary>
+    // sample: discoverable optimistic handler; RequestClrType/ResponseClrType must match IRequestHandler<TRequest,TResponse>.
     public interface IOptimisticCloudCodeHandler : IRequestHandler
     {
         Type RequestClrType { get; }

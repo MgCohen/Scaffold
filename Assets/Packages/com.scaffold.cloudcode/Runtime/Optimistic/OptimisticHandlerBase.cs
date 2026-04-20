@@ -2,11 +2,8 @@ using System;
 
 namespace Scaffold.CloudCode
 {
-    /// <summary>
-    /// Base class that provides <see cref="IOptimisticCloudCodeHandler"/> type identity for <typeparamref name="TRequest"/> / <typeparamref name="TResponse"/>.
-    /// </summary>
-    public abstract class OptimisticHandlerBase<TRequest, TResponse> : IOptimisticCloudCodeHandler, IRequestHandler<TRequest, TResponse>
-        where TRequest : class
+    // sample: base providing IOptimisticCloudCodeHandler type identity for TRequest/TResponse.
+    public abstract class OptimisticHandlerBase<TRequest, TResponse> : IOptimisticCloudCodeHandler, IRequestHandler<TRequest, TResponse> where TRequest : class
     {
         public Type RequestClrType => typeof(TRequest);
 

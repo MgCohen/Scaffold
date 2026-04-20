@@ -1,3 +1,6 @@
+// sample: Single asset layer — gateway warmup plus AssetPublisherBase<T> publishers. See Samples/README.md.
+
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Scaffold.LayeredScope;
@@ -11,6 +14,8 @@ namespace Scaffold.LayeredScope.Samples.Layers
         Task<string> LoadAsync(string key, CancellationToken ct);
     }
 
+    internal sealed class SampleAsset { public string Payload; }
+
     internal sealed class SampleAssetGateway : ISampleAssetGateway, IAsyncInitializable
     {
         public async Task InitializeAsync(CancellationToken ct)
@@ -20,7 +25,10 @@ namespace Scaffold.LayeredScope.Samples.Layers
             Debug.Log("[SampleAssetGateway] ready.");
         }
 
-        public Task<string> LoadAsync(string key, CancellationToken ct) => Task.FromResult($"asset:{key}");
+        public Task<string> LoadAsync(string key, CancellationToken ct)
+        {
+            return Task.FromResult($"asset:{key}");
+        }
     }
 
     internal sealed class SharedSampleAsset
@@ -33,24 +41,37 @@ namespace Scaffold.LayeredScope.Samples.Layers
         public string Payload { get; }
     }
 
-    internal sealed class SharedSampleAssetWarmer : IAsyncInitializable
+    internal sealed class SampleSharedPublishedAssetProvider : AssetPublisherBase<SharedSampleAsset>
     {
-        private readonly ISampleAssetGateway gateway;
-
-        public SharedSampleAssetWarmer(ISampleAssetGateway gateway)
+        public SampleSharedPublishedAssetProvider(ILayerPublisher layerPublisher, ISampleAssetGateway gateway) : base(layerPublisher)
         {
-            if (gateway == null) throw new System.ArgumentNullException(nameof(gateway));
-            this.gateway = gateway;
+            this.gateway = gateway ?? throw new ArgumentNullException(nameof(gateway));
         }
 
-        public SharedSampleAsset Asset { get; private set; }
+        private readonly ISampleAssetGateway gateway;
 
-        public async Task InitializeAsync(CancellationToken ct)
+        protected override async Task<SharedSampleAsset> LoadAssetAsync(CancellationToken ct)
         {
-            Debug.Log("[SharedSampleAssetWarmer] preloading shared asset…");
-            string raw = await gateway.LoadAsync("shared.payload", ct);
-            Asset = new SharedSampleAsset(raw);
-            Debug.Log($"[SharedSampleAssetWarmer] ready (payload='{Asset.Payload}').");
+            string raw = await gateway.LoadAsync("shared.payload", ct).ConfigureAwait(false);
+            Debug.Log($"[SampleSharedPublishedAsset] published payload='{raw}'.");
+            return new SharedSampleAsset(raw);
+        }
+    }
+
+    internal sealed class SampleFeaturePayloadPublishedAssetProvider : AssetPublisherBase<SampleAsset>
+    {
+        public SampleFeaturePayloadPublishedAssetProvider(ILayerPublisher layerPublisher, ISampleAssetGateway gateway) : base(layerPublisher)
+        {
+            this.gateway = gateway ?? throw new ArgumentNullException(nameof(gateway));
+        }
+
+        private readonly ISampleAssetGateway gateway;
+
+        protected override async Task<SampleAsset> LoadAssetAsync(CancellationToken ct)
+        {
+            string raw = await gateway.LoadAsync("feature.payload", ct).ConfigureAwait(false);
+            Debug.Log($"[SampleFeaturePayloadPublishedAsset] published payload='{raw}'.");
+            return new SampleAsset { Payload = raw };
         }
     }
 
@@ -62,13 +83,11 @@ namespace Scaffold.LayeredScope.Samples.Layers
                 .As<ISampleAssetGateway>()
                 .As<IAsyncInitializable>();
 
-            builder.Register<SharedSampleAssetWarmer>(Lifetime.Singleton)
-                .AsSelf()
+            builder.Register<SampleSharedPublishedAssetProvider>(Lifetime.Singleton)
                 .As<IAsyncInitializable>();
 
-            // Resolve-on-demand factory: child layers inject `SharedSampleAsset` directly,
-            // and the warmer's IAsyncInitializable wave guarantees it is populated first.
-            builder.Register(resolver => resolver.Resolve<SharedSampleAssetWarmer>().Asset, Lifetime.Singleton);
+            builder.Register<SampleFeaturePayloadPublishedAssetProvider>(Lifetime.Singleton)
+                .As<IAsyncInitializable>();
         }
     }
 }

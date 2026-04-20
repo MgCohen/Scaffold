@@ -12,14 +12,15 @@ namespace Scaffold.LayeredScope.Samples.Layers
 
     internal sealed class SampleConfigService : ISampleConfigService, IAsyncInitializable
     {
-        private readonly ISampleAssetGateway gateway;
-        public SampleConfig Current { get; private set; }
-
         public SampleConfigService(ISampleAssetGateway gateway)
         {
             if (gateway == null) throw new System.ArgumentNullException(nameof(gateway));
             this.gateway = gateway;
         }
+
+        public SampleConfig Current { get; private set; }
+
+        private readonly ISampleAssetGateway gateway;
 
         public async Task InitializeAsync(CancellationToken ct)
         {

@@ -5,7 +5,6 @@
         "Scaffold.Ads.Levelplay.Runtime",
         "Scaffold.Ads.Runtime",
         "Scaffold.Ads.Container",
-        "Scaffold.Scope",
         "VContainer"
     ],
     "includePlatforms": [],

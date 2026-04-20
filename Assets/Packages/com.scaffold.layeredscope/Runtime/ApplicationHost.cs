@@ -101,8 +101,9 @@ namespace Scaffold.LayeredScope
             }
 
             await PrepareLayerAsync(layer, ct);
-            LifetimeScope child = BuildChildScope(layer);
-            await AttemptPushAsync(layer, child, ct);
+            var publisher = new LayerPublisher();
+            LifetimeScope child = BuildChildScope(layer, publisher);
+            await AttemptPushAsync(layer, child, publisher, ct);
         }
 
         public async Task PopAsync(CancellationToken ct)
@@ -141,14 +142,34 @@ namespace Scaffold.LayeredScope
             }
         }
 
-        private LifetimeScope BuildChildScope(IScopeLayer layer)
+        private LifetimeScope BuildChildScope(IScopeLayer layer, LayerPublisher publisher)
         {
-            LifetimeScope child = stack.Peek().Scope.CreateChild(layer.Install);
+            LifetimeScope child = stack.Peek().Scope.CreateChild(b => ConfigureChildBuilder(layer, publisher, b));
             child.name = layer.Name;
             return child;
         }
 
-        private async Task AttemptPushAsync(IScopeLayer layer, LifetimeScope child, CancellationToken ct)
+        private void ConfigureChildBuilder(IScopeLayer layer, LayerPublisher publisher, IContainerBuilder builder)
+        {
+            foreach (LayerEntry entry in EnumerateStackRootToParent())
+            {
+                entry.Publisher.Apply(builder);
+            }
+
+            builder.RegisterInstance<ILayerPublisher>(publisher);
+            layer.Install(builder);
+        }
+
+        private IEnumerable<LayerEntry> EnumerateStackRootToParent()
+        {
+            LayerEntry[] arr = stack.ToArray();
+            for (int i = arr.Length - 1; i >= 0; i--)
+            {
+                yield return arr[i];
+            }
+        }
+
+        private async Task AttemptPushAsync(IScopeLayer layer, LifetimeScope child, LayerPublisher publisher, CancellationToken ct)
         {
             IAsyncInitializable[] inits = Array.Empty<IAsyncInitializable>();
             IAsyncDisposable[] disposables = Array.Empty<IAsyncDisposable>();
@@ -157,7 +178,7 @@ namespace Scaffold.LayeredScope
                 inits = CollectFresh<IAsyncInitializable>(child, seenInitializables);
                 await RunInitWaveAsync(inits, ct);
                 disposables = CollectFresh<IAsyncDisposable>(child, seenDisposables);
-                FinishSuccessfulPush(layer, child, inits, disposables);
+                FinishSuccessfulPush(layer, child, publisher, inits, disposables);
             }
             catch (Exception ex)
             {
@@ -221,9 +242,9 @@ namespace Scaffold.LayeredScope
             return inits.Length == 0 ? Task.CompletedTask : scheduler.RunAsync(inits, ct);
         }
 
-        private void FinishSuccessfulPush(IScopeLayer layer, LifetimeScope child, IAsyncInitializable[] inits, IAsyncDisposable[] disposables)
+        private void FinishSuccessfulPush(IScopeLayer layer, LifetimeScope child, LayerPublisher publisher, IAsyncInitializable[] inits, IAsyncDisposable[] disposables)
         {
-            RecordEntry(new LayerEntry(layer, child, inits, disposables));
+            RecordEntry(new LayerEntry(layer, child, inits, disposables, publisher));
             Debug.Log($"[LayeredScope] Pushed '{layer.Name}' (init: {inits.Length}, dispose: {disposables.Length}).");
         }
 

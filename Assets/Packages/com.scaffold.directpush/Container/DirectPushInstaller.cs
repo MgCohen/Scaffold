@@ -1,4 +1,4 @@
-using Scaffold.Scope.Contracts;
+using Scaffold.LayeredScope;
 using VContainer;
 using VContainer.Unity;
 
@@ -10,13 +10,13 @@ namespace Scaffold.DirectPush
         {
             builder.Register<PushSubscriptionService>(Lifetime.Singleton)
                 .AsSelf()
-                .As<IAsyncLayerInitializable>();
+                .As<IAsyncInitializable>();
 
             builder.Register<DirectPushClient>(Lifetime.Singleton);
 
             builder.Register<PushDisconnectHandler>(Lifetime.Singleton)
                 .AsSelf()
-                .As<IAsyncLayerInitializable>();
+                .As<IAsyncInitializable>();
         }
     }
 }

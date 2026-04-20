@@ -16,11 +16,7 @@ namespace Scaffold.LiveOps
 {
     internal sealed class LiveOpsService : ILiveOpsService, IAsyncInitializable
     {
-        public LiveOpsService(
-            ICloudCodeService cloudCodeService,
-            IObjectResolver objectResolver,
-            CloudCodeOptimisticHandlerRegistry optimisticRegistry,
-            CloudCodeErrorHandler cloudCodeErrorHandler)
+        public LiveOpsService(ICloudCodeService cloudCodeService, IObjectResolver objectResolver, CloudCodeOptimisticHandlerRegistry optimisticRegistry, CloudCodeErrorHandler cloudCodeErrorHandler)
         {
             if (cloudCodeService == null)
             {
@@ -48,17 +44,17 @@ namespace Scaffold.LiveOps
             this.cloudCodeErrorHandler = cloudCodeErrorHandler;
         }
 
+        private static readonly JsonSerializerSettings liveOpsJsonSettings = new JsonSerializerSettings
+        {
+            ContractResolver = new CamelCasePropertyNamesContractResolver(),
+            NullValueHandling = NullValueHandling.Ignore,
+        };
+
         private readonly ICloudCodeService cloudCodeService;
         private readonly ModuleResponseDispatchService moduleResponseDispatchService;
         private readonly CloudCodeOptimisticHandlerRegistry optimisticRegistry;
         private readonly CloudCodeErrorHandler cloudCodeErrorHandler;
         private GameData gameData;
-
-        private static readonly JsonSerializerSettings LiveOpsJsonSettings = new JsonSerializerSettings
-        {
-            ContractResolver = new CamelCasePropertyNamesContractResolver(),
-            NullValueHandling = NullValueHandling.Ignore,
-        };
 
         public T GetModuleData<T>() where T : class, IGameModuleData
         {
@@ -86,7 +82,7 @@ namespace Scaffold.LiveOps
             }
 
             cancellationToken.ThrowIfCancellationRequested();
-            if (RequestUsesGameApi(request))
+            if (UsesGameApiRequest(request))
             {
                 return await CallGameApiAsync(request, cancellationToken);
             }
@@ -97,21 +93,10 @@ namespace Scaffold.LiveOps
             return response;
         }
 
-        private static bool RequestUsesGameApi<TResponse>(ModuleRequest<TResponse> request) where TResponse : ModuleResponse
+        private async Task<TResponse> CallGameApiAsync<TResponse>(ModuleRequest<TResponse> request, CancellationToken cancellationToken) where TResponse : ModuleResponse
         {
-            return request.GetType().GetCustomAttribute<UsesGameApiAttribute>(inherit: false) != null;
-        }
-
-        private async Task<TResponse> CallGameApiAsync<TResponse>(ModuleRequest<TResponse> request, CancellationToken cancellationToken)
-            where TResponse : ModuleResponse
-        {
-            GameApiEnvelopeRequest envelope = new GameApiEnvelopeRequest
-            {
-                RequestKey = request.GetType().Name,
-                Payload = JObject.FromObject(request, JsonSerializer.Create(LiveOpsJsonSettings)),
-            };
-            Task<GameApiEnvelopeResponse> serverTask = cloudCodeService.CallEndpointAsync<GameApiEnvelopeResponse>(
-                request.ModuleName, "GameApi", envelope, cancellationToken);
+            GameApiEnvelopeRequest envelope = new GameApiEnvelopeRequest { RequestKey = request.GetType().Name, Payload = JObject.FromObject(request, JsonSerializer.Create(liveOpsJsonSettings)), };
+            Task<GameApiEnvelopeResponse> serverTask = cloudCodeService.CallEndpointAsync<GameApiEnvelopeResponse>(request.ModuleName, "GameApi", envelope, cancellationToken);
 
             if (optimisticRegistry.TryResolve(request.ModuleName, "GameApi", request, out IRequestHandler<TResponse> handler, out TResponse optimistic))
             {
@@ -120,11 +105,34 @@ namespace Scaffold.LiveOps
             }
 
             GameApiEnvelopeResponse resp = await serverTask;
-            return UnwrapAndDispatch<TResponse>(resp);
+            return UnwrapAndDispatchGameApi<TResponse>(resp);
         }
 
-        private TResponse UnwrapAndDispatch<TResponse>(GameApiEnvelopeResponse resp)
-            where TResponse : ModuleResponse
+        private async void RunGameApiReconciliationInTheBackground<TResponse>(Task<GameApiEnvelopeResponse> serverTask, IRequestHandler<TResponse> handler, TResponse optimistic, ModuleRequest<TResponse> request) where TResponse : ModuleResponse
+        {
+            try
+            {
+                GameApiEnvelopeResponse resp = await serverTask;
+                TResponse server = UnwrapAndDispatchGameApi<TResponse>(resp);
+                handler.Validate(server, optimistic);
+            }
+            catch (Exception ex)
+            {
+                cloudCodeErrorHandler.Handle(ex, request.ModuleName, "GameApi", request, optimistic);
+            }
+        }
+
+        private TResponse UnwrapAndDispatchGameApi<TResponse>(GameApiEnvelopeResponse resp) where TResponse : ModuleResponse
+        {
+            EnsureGameApiEnvelope(resp);
+            TResponse typed = (TResponse)resp.Result;
+            EnsureTypedResult(typed);
+            MergeNestedResponsesInto(resp, typed);
+            moduleResponseDispatchService.DispatchNestedResponses(typed);
+            return typed;
+        }
+
+        private void EnsureGameApiEnvelope(GameApiEnvelopeResponse resp)
         {
             if (resp == null)
             {
@@ -135,39 +143,27 @@ namespace Scaffold.LiveOps
             {
                 throw new InvalidOperationException(string.IsNullOrEmpty(resp.Message) ? "GameApi failed." : resp.Message);
             }
+        }
 
-            TResponse typed = (TResponse)resp.Result;
+        private void EnsureTypedResult<TResponse>(TResponse typed) where TResponse : ModuleResponse
+        {
             if (typed == null)
             {
                 throw new InvalidOperationException("GameApi returned null result payload.");
             }
+        }
 
+        private void MergeNestedResponsesInto<TResponse>(GameApiEnvelopeResponse resp, TResponse typed) where TResponse : ModuleResponse
+        {
             if (resp.NestedResponses != null && resp.NestedResponses.Count > 0)
             {
                 typed.Responses.AddRange(resp.NestedResponses);
             }
-
-            moduleResponseDispatchService.DispatchNestedResponses(typed);
-            return typed;
         }
 
-        private async void RunGameApiReconciliationInTheBackground<TResponse>(
-            Task<GameApiEnvelopeResponse> serverTask,
-            IRequestHandler<TResponse> handler,
-            TResponse optimistic,
-            ModuleRequest<TResponse> request)
-            where TResponse : ModuleResponse
+        private bool UsesGameApiRequest<TResponse>(ModuleRequest<TResponse> request) where TResponse : ModuleResponse
         {
-            try
-            {
-                GameApiEnvelopeResponse resp = await serverTask;
-                TResponse server = UnwrapAndDispatch<TResponse>(resp);
-                handler.Validate(server, optimistic);
-            }
-            catch (Exception ex)
-            {
-                cloudCodeErrorHandler.Handle(ex, request.ModuleName, "GameApi", request, optimistic);
-            }
+            return request.GetType().GetCustomAttribute<UsesGameApiAttribute>(inherit: false) != null;
         }
     }
 }

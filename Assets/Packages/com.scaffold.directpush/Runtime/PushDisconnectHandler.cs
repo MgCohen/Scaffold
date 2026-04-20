@@ -2,13 +2,12 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using GameModuleDTO.Modules.DirectPush;
-using Scaffold.Scope.Contracts;
+using Scaffold.LayeredScope;
 using UnityEngine;
-using VContainer;
 
 namespace Scaffold.DirectPush
 {
-    public sealed class PushDisconnectHandler : IAsyncLayerInitializable, IDisposable
+    public sealed class PushDisconnectHandler : IAsyncInitializable, IDisposable
     {
         public PushDisconnectHandler(PushSubscriptionService subscriptionService, DirectPushClient pushClient)
         {
@@ -19,7 +18,7 @@ namespace Scaffold.DirectPush
         private readonly PushSubscriptionService subscriptionService;
         private readonly DirectPushClient pushClient;
 
-        public Task InitializeAsync(IObjectResolver resolver, CancellationToken cancellationToken)
+        public Task InitializeAsync(CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
 

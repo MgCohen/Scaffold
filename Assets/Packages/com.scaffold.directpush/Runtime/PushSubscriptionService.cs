@@ -3,15 +3,14 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
-using Scaffold.Scope.Contracts;
+using Scaffold.LayeredScope;
 using Unity.Services.CloudCode;
 using Unity.Services.CloudCode.Subscriptions;
 using UnityEngine;
-using VContainer;
 
 namespace Scaffold.DirectPush
 {
-    public sealed class PushSubscriptionService : IAsyncLayerInitializable, IDisposable
+    public sealed class PushSubscriptionService : IAsyncInitializable, IDisposable
     {
         private readonly Dictionary<string, List<Action>> playerHandlers = new Dictionary<string, List<Action>>();
         private readonly Dictionary<string, List<Action>> projectHandlers = new Dictionary<string, List<Action>>();
@@ -38,7 +37,7 @@ namespace Scaffold.DirectPush
             handlers.Add(handler);
         }
 
-        public async Task InitializeAsync(IObjectResolver resolver, CancellationToken cancellationToken)
+        public async Task InitializeAsync(CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
             await SubscribeToPlayerMessages();

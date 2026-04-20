@@ -7,6 +7,7 @@ using UnityEngine;
 
 namespace Scaffold.LayeredScope.Samples
 {
+    // sample: Three layers — SampleAssetsLayer (publish), SampleConfigsLayer, SampleFeatureLayer (consume). See Samples/README.md.
     public sealed class SampleApplicationBootstrap : ApplicationBootstrap
     {
         protected override IEnumerable<IScopeLayer> GetInitialLayers()

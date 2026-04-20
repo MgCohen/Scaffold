@@ -9,12 +9,10 @@ Cross-cutting audit of the Scaffold runtime architecture: execution flow, owners
 This repository is a **framework-only** project. There is no concrete game scene or `GameManager` here — only the infrastructure that a game assembly subclasses and wires up. The de facto orchestration chain is:
 
 ```
-TwoScopeApplicationHost (your subclass, Unity Start())
-  └─ Base child scope  ──► AsyncInitializationRunner ──► IAsyncInitializable[]
-       └─ PrepareMainScopeAsync  (preload — e.g. NavigationSettings via Addressables)
-            └─ Main child scope ──► AsyncInitializationRunner ──► IAsyncInitializable[]
-                 └─ RunLegacyIAsyncLayerInitializersAsync  (IAsyncLayerInitializable[] in parallel)
-                      └─ OnTwoScopeStartupCompleted(mainScope)  ← hook to open the first view
+ApplicationBootstrap (your subclass on root LifetimeScope, Unity Start())
+  └─ ApplicationHost.InstallAllAsync(initialLayers)
+       └─ For each IScopeLayer: PrepareAsync (optional) → child LifetimeScope → IAsyncInitializable wave
+            └─ OnReadyAsync  ← hook to open the first view
 ```
 
 Everything else (navigation, cloud, ads, scene loading) is a service called by game code after startup completes.
@@ -25,14 +23,14 @@ Everything else (navigation, cloud, ads, scene loading) is a service called by g
 
 | Concern | Controller |
 |---|---|
-| Startup sequencing | `TwoScopeApplicationHost` |
-| DI scope lifecycle | VContainer `LifetimeScope` (managed by host) |
-| Async init ordering | `AsyncInitializationRunner` + `InitializationGraphBuilder` (topological sort) |
-| Cross-scope injection | `CrossLayerObjectResolver` |
+| Startup sequencing | `ApplicationBootstrap` / `ApplicationHost` |
+| DI scope lifecycle | VContainer `LifetimeScope` stack (root + pushed child layers) |
+| Async init ordering | Per-layer `IAsyncInitializable` wave (`IInLayerScheduler`, default parallel) |
+| Top-layer resolve / inject | `ILayerResolver` (`LayerResolverProxy` bound to current top scope) |
 | View stack | `NavigationController` |
 | View transitions | `NavigationTransitions` |
 | View loading | `NavigationProvider` (context views or Addressables) |
-| ViewModel injection | `NavigationInjection` (via `ICrossLayerObjectResolver`) |
+| ViewModel injection | `NavigationInjection` (via `ILayerResolver.Top.Inject`) |
 | App-global events | `EventController` / `IEventBus` |
 | View-local events | `ViewEvents` / `EventLedger<T>` (separate system in `com.scaffold.view`) |
 | Additive scene loading | `SceneFlowService` |
@@ -48,7 +46,7 @@ Everything else (navigation, cloud, ads, scene loading) is a service called by g
 ## Core Dependencies (Module Graph)
 
 ```
-com.scaffold.scope
+com.scaffold.layeredscope
   └─ VContainer
 
 com.scaffold.events
@@ -94,42 +92,24 @@ com.scaffold.mvvm / model / viewmodel / view
 
 ---
 
-### `com.scaffold.scope` — Startup orchestration
+### `com.scaffold.layeredscope` — Startup orchestration
 
 **What it does**
 
-Owns the entire startup sequence. Models the app as two nested VContainer `LifetimeScope` child scopes: a lightweight **base scope** (typically Addressables only) and a full **main scope** (all infra). Each scope runs its own topological async initialization graph before the next scope is built.
+Owns stacked VContainer `LifetimeScope` **layers**: subclass `ApplicationBootstrap` on the root scope, return `IScopeLayer` instances from `GetInitialLayers()`, and use `ApplicationHost` to push/pop child scopes in order. Each layer runs an `IAsyncInitializable` wave after build; optional `ILayerPublisher` replays cross-layer registrations into descendant layers (see package README).
 
-**Entry point:** `TwoScopeApplicationHost.Start()` — Unity `async void` lifecycle method, runs on the main thread.
+**Entry point:** `ApplicationBootstrap.Start()` — Unity `async void` lifecycle; constructs `ApplicationHost` and `InstallAllAsync`.
 
 **Key classes**
 
 | Class | Role |
 |---|---|
-| `TwoScopeApplicationHost` | Abstract MonoBehaviour/LifetimeScope; startup orchestrator |
-| `AsyncInitializationRunner` | Resolves `IAsyncInitializable[]`, topo-sorts by DI deps, runs levels in parallel waves |
-| `InitializationGraphBuilder` | Internal; computes topological levels |
-| `CrossLayerObjectResolver` | Flat list of all child `IObjectResolver`s; allows late injection across scope boundaries |
-| `ApplicationStartupProgress` | 2-step progress tracker; virtual hook to customize |
+| `ApplicationBootstrap` | Abstract `LifetimeScope`; registers `LayerResolverProxy` as `ILayerResolver`; subclasses supply initial layers |
+| `ApplicationHost` | Push/pop API, init and dispose waves, `ILayerResolver` implementation |
+| `LayerResolverProxy` | Binds to the current top `IObjectResolver` after each push/pop |
+| `ILayerPublisher` | Optional cross-layer asset publishing into child builders |
 
-**What is not clear**
-
-- `startupCompleted` is `[SerializeField]` — it appears in the Inspector and can be accidentally toggled in a prefab. No obvious reason for serialization.
-- `EnsureScopeBuilt` calls `scope.Build()` as a fallback, but `LifetimeScope.CreateChild` builds immediately — this branch appears to be dead code.
-- The distinction between `IAsyncInitializable` (topo-graph path) and `IAsyncLayerInitializable` (legacy parallel path) is not explained at the call site. Requires reading both interface contracts to understand why `Ugs` and `LiveOps` use the legacy path.
-- `RegisterScopeInCrossLayer` silently catches `VContainerException` and does nothing — failure is invisible.
-
-**What I would improve**
-
-- Remove `[SerializeField]` from `startupCompleted`; expose as property only.
-- Add XML doc comments on both `IAsyncInitializable` and `IAsyncLayerInitializable` explaining which to prefer and when.
-- Introduce a proper `IStartupErrorHandler` hook. Currently any failure during startup logs an exception and leaves the game in a silent, half-initialized state with no recovery path.
-- The progress reporter only signals `(1, 2)` and `(2, 2)` — hardcoded, no per-initializer granularity. Loading bars based on this will always be binary.
-
-**What could be optimized**
-
-- `CrossLayerObjectResolver.SnapshotResolvers()` allocates a new `IObjectResolver[]` on every `Inject` and `Resolve` call (lock + `ToArray()`). Since scopes are only added during startup, the lock and snapshot are unnecessary in the common hot path. A `volatile` array swap on write would eliminate this per-call allocation.
-- `AsyncInitializationRunner.RunAsync` calls `.ToList()` on the resolved enumerable — two allocations. Could resolve directly into a pre-sized list or use `IReadOnlyList` registration.
+**Note:** The legacy `com.scaffold.scope` package (`TwoScopeApplicationHost`, `CrossLayerObjectResolver`, graph-based `AsyncInitializationRunner`) has been removed from this repository.
 
 ---
 
@@ -150,7 +130,7 @@ Manages a push-down stack of views (`NavigationStack`). Each entry is a `Navigat
 | `NavigationStack` | Ordered list of `NavigationPoint`s |
 | `NavigationTransitions` | Queues and sequentially drains transitions; raises `IEventBus` events around each open/close |
 | `NavigationMiddleware` | Runs `INavigationOpenHandler` implementations on open |
-| `NavigationInjection` | `INavigationOpenHandler`; calls `ICrossLayerObjectResolver.Inject(viewModel)` to wire DI into runtime-loaded ViewModels |
+| `NavigationInjection` | `INavigationOpenHandler`; calls `ILayerResolver.Top.Inject(viewModel)` to wire DI into runtime-loaded ViewModels |
 
 **What is not clear**
 
@@ -482,4 +462,4 @@ If any initializer throws (UGS network failure, Cloud Code timeout), the game la
 
 ### 5. `async void` in hot paths
 
-`TwoScopeApplicationHost.Start`, `AdManager.InitializeAds`, and `NavigationTransitions.RunTransitions` are all `async void`. Unobserved exceptions in these methods are swallowed or only surface via `Debug.LogException`. A global `IAsyncExceptionHandler` or structured exception surfacing strategy would make failures visible and actionable.
+`ApplicationBootstrap.Start`, `AdManager.InitializeAds`, and `NavigationTransitions.RunTransitions` are all `async void`. Unobserved exceptions in these methods are swallowed or only surface via `Debug.LogException`. A global `IAsyncExceptionHandler` or structured exception surfacing strategy would make failures visible and actionable.

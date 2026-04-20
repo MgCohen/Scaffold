@@ -6,7 +6,7 @@
 
 - Purpose: keep Addressables runtime small and focused on loading APIs.
 - Location: `Assets/Packages/com.scaffold.addressables/Runtime/`.
-- Depends on: `Scaffold.Scope`, `Unity.Addressables`, `VContainer`, `Scaffold.Maps`. Editor also references `com.unity.services.ccd.management` for CCD **Build & Release** (see `Packages/manifest.json`).
+- Depends on: `Scaffold.LayeredScope`, `Unity.Addressables`, `VContainer`, `Scaffold.Maps`. Editor also references `com.unity.services.ccd.management` for CCD **Build & Release** (see `Packages/manifest.json`).
 - Used by: bootstrap startup and runtime services that load assets.
 
 ## Responsibilities
@@ -35,8 +35,8 @@ This module no longer owns preload config parsing/build/apply inside the gateway
 
 ## Runtime Flow
 
-1. `AddressablesInstaller` registers one scoped `AddressablesGateway` plus required client/handler.
-2. Scope startup executes `IAsyncLayerInitializable` on the gateway.
+1. `AddressablesInstaller` registers one singleton `AddressablesGateway` plus required client/handler.
+2. Layered scope startup executes `IAsyncInitializable` on the gateway.
 3. Gateway runs best-effort `SyncCatalogAndContentAsync`.
 4. Runtime loading uses `Load/LoadAsync` APIs.
 5. Bootstrap-level preload/registration is handled outside the gateway by provider/registrar flow.
@@ -87,7 +87,7 @@ Run from repository root:
 ## Related
 
 - `../../../Architecture.md`
-- `../com.scaffold.scope/README.md`
+- `../com.scaffold.layeredscope/README.md`
 - `Assets/Packages/com.scaffold.addressables/Runtime/Contracts/IAddressablesGateway.cs`
 - `Assets/Packages/com.scaffold.addressables/Runtime/Contracts/IAssetProvider.cs`
 - `Assets/Packages/com.scaffold.addressables/Runtime/Implementation/AddressablesGateway.cs`

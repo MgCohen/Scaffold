@@ -37,7 +37,7 @@ Example in repo (add or adjust paths as your test tree grows):
 
 - `Assets/Packages/com.scaffold.entities/Tests/Runtime/` (runtime assembly tests, when `.cs` tests are present)
 - `Assets/Packages/com.scaffold.entities/Tests/Editor/` (editor assembly tests, when `.cs` tests are present)
-- `Assets/Packages/com.scaffold.scope/Tests/` (when `.cs` tests are present)
+- `Assets/Packages/com.scaffold.layeredscope/Tests/Editor/` (when `.cs` tests are present)
 
 ### Infra/App EditMode Tests
 
@@ -67,7 +67,7 @@ Create test assemblies per module in a local `Tests/` folder next to the module:
 
 Use existing asmdefs as templates:
 
-- `Assets/Packages/com.scaffold.scope/Tests/Scaffold.Scope.Tests.asmdef`
+- `Assets/Packages/com.scaffold.layeredscope/Tests/Editor/Scaffold.LayeredScope.Tests.asmdef`
 - `Assets/Packages/com.scaffold.entities/Tests/Runtime/Scaffold.Entities.Tests.asmdef`
 - `Assets/Packages/com.scaffold.entities/Tests/Editor/Scaffold.Entities.Editor.Tests.asmdef`
 
@@ -208,7 +208,7 @@ This scaffold does not ship a frozen per-module test count table. After you add 
 Suggested focus areas for new coverage (tune to your tree):
 
 - `Infra/Navigation`, `Infra/MVVM`, `Infra/SceneFlow` (wiring-heavy).
-- `Core/Entities`, application composition / startup (`TwoScopeApplicationHost` in your game assembly).
+- `Core/Entities`, application composition / startup (`ApplicationBootstrap` in your game assembly).
 - `Tools/*` (pure logic where applicable).
 
 ## Allowed Low-Test Module Exceptions

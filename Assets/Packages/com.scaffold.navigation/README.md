@@ -6,7 +6,7 @@
 
 - Purpose: manage view-controller navigation stack and transitions.
 - Location: `Assets/Packages/com.scaffold.navigation/Runtime/` (boundary types under `Runtime/Contracts/`).
-- Depends on: `Scaffold.Events`, `Scaffold.Types`, `Scaffold.Records`, `Scaffold.Addressables`, container abstractions.
+- Depends on: `Scaffold.LayeredScope` (container: `ILayerResolver` for view-model injection), `Scaffold.Events`, `Scaffold.Types`, `Scaffold.Records`, `Scaffold.Addressables`, container abstractions.
 - Used by: app screens and MVVM presentation flow.
 - Runtime/Editor: runtime + container integration.
 - Keywords: navigation stack, transitions, view config, middleware.
