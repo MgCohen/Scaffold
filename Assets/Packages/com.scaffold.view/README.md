@@ -22,7 +22,8 @@
 | Symbol | Purpose | Inputs | Outputs | Failure behavior |
 |---|---|---|---|---|
 | `IView` | View lifecycle contract | bind/open/hide/focus/close/order calls | consistent view behavior | repeated lifecycle calls may no-op |
-| `View<T>` / `ViewElement<T>` | Typed MVVM view bases | viewmodel/controller bind events | binding registration and lifecycle handling | mismatched controller type can throw |
+| `View<T>` | Typed root view | override `OnOpen(bool wasHidden)` / `OnClose(bool hiding)`; optional `AutoBindChildViewComponents`; exposes `IViewContext` via `IViewContextHost` | binding + activation hooks | mismatched controller type can throw |
+| `ViewElement<T>` | Typed MVVM view bases | viewmodel/controller bind events | binding registration and lifecycle handling | mismatched controller type can throw |
 | `UIView<T>` / `ViewComponent<T>` | Unity component-oriented helper bases | Unity lifecycle + typed controller | structured view composition | misuse can bypass expected bind flow |
 | `ViewEvents` | Static typed event bus by transform hierarchy | `Raise<TEvent>()`, register/unregister | bubbled callbacks by event type/tree | no listeners is safe no-op |
 | `EventLedger<T>` + options | Per-type routing/dispatch behavior | listeners + `Raise` | callback invocation pipeline | callback exceptions follow active exception mode |
@@ -44,9 +45,10 @@ Fast checks:
 ## How to Use
 
 1. Implement typed views and bind UI targets in `OnBind()`.
-2. Let view lifecycle methods handle bind/reset flow.
-3. Use `ViewEvents.Raise<TEvent>(...)` for local tree-scoped UI events.
-4. Configure event ledger exception mode only when behavior differs from default reporting mode.
+2. Let view lifecycle handle bind/reset flow; use `OnOpen`/`OnClose` overrides for shared setup/teardown (hide vs full close is conveyed by the `bool` parameters).
+3. Use `Context` (`IViewContext`) for scene-local or view-only services instead of app-wide DI.
+4. Use `ViewEvents.Raise<TEvent>(...)` for local tree-scoped UI events.
+5. Configure event ledger exception mode only when behavior differs from default reporting mode.
 
 ## Examples
 
@@ -143,3 +145,4 @@ view.Bind(new DifferentViewModel());
 
 - Added targeted event-ledger negative-path coverage for null transform registration input.
 - Consolidated `Scaffold.MVVM.View.Contracts` into `Scaffold.MVVM.View` and moved boundary types to `Runtime/Contracts/`.
+- `View<T>` lifecycle hooks consolidated to `OnOpen(bool wasHidden)` / `OnClose(bool hiding)`; added optional child `ViewElement` auto-bind and `IViewContext` / `ViewContextRegistry` for view-local services.

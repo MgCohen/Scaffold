@@ -16,7 +16,3 @@ namespace Scaffold.Navigation.Contracts
         void Order(int depth);
     }
 }
-
-
-
-

@@ -156,14 +156,14 @@ Manages a push-down stack of views (`NavigationStack`). Each entry is a `Navigat
 
 - `Open` calls `middleware.OnOpen` (injection) before `point.ViewModel.Bind(this)` (navigation reference). This ordering matters and is not documented.
 - `ClosePoint` delegates to `Return()` if the closed point is the current one — closing the active view silently returns to the previous screen. Non-obvious.
-- `closeCurrent` (parameter) and `NavigationOptions.CloseAllViews` are two overlapping mechanisms for screen disposal.
+- `closeCurrent` (parameter) and `NavigationOptions.CloseAllViews` were overlapping; prefer `NavigationOptions.StackPolicy` (`NavigationStackPolicy`) with legacy flags still supported when `StackPolicy` is `Push`.
 - `TransitionHandler.Template` throws a plain `Exception` with a string comment. This is a landmine for anyone adding template-based transitions.
 - `ExecuteDefaultTransitionCore` ends with `await Task.CompletedTask` — a no-op await that implies async work is happening when it is not.
 
 **What I would improve**
 
 - Replace `async void RunTransitions()` with a `Channel<ViewTransitionData>` or structured async queue for explicit cancellation and back-pressure.
-- Consolidate `closeCurrent` and `CloseAllViews` into a single `NavigationOptions` disposal policy.
+- ~~Consolidate `closeCurrent` and `CloseAllViews` into a single `NavigationOptions` disposal policy.~~ Implemented as `NavigationStackPolicy` + `NavigationStackResolver`; keep call-site overloads for compatibility.
 - Replace `throw new Exception("No handler for template transitions...")` with `throw new NotImplementedException(...)` and mark it as an intentional stub.
 - Remove the `await Task.CompletedTask` lines.
 - Document the middleware → bind ordering contract.

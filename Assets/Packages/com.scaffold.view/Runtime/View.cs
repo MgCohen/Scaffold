@@ -1,12 +1,11 @@
 using UnityEngine;
 using Scaffold.Navigation.Contracts;
 using Scaffold.MVVM.Binding;
-using System.Collections.Generic;
 using System;
 using Scaffold.MVVM.Contracts;
 namespace Scaffold.MVVM
 {
-    public class View<T> : ViewElement<T>, Scaffold.MVVM.Contracts.IView where T : IViewModel
+    public class View<T> : ViewElement<T>, Scaffold.MVVM.Contracts.IView, IViewContextHost where T : IViewModel
     {
         public ViewState State
         {
@@ -20,30 +19,43 @@ namespace Scaffold.MVVM
         }
         [SerializeField] private ViewType type = ViewType.Screen;
 
+        public IViewContext Context => viewContext ??= new ViewContextRegistry();
+
+        private ViewContextRegistry viewContext;
+
+        protected virtual bool AutoBindChildViewComponents => false;
+
+        private bool isHidden;
+
         void Scaffold.Navigation.Contracts.IView.Close()
         {
             ToggleView(false);
-            OnClose();
+            OnClose(hiding: false);
             state = ViewState.Closed;
+            isHidden = false;
         }
 
         void Scaffold.Navigation.Contracts.IView.Focus()
         {
+            bool wasHidden = isHidden;
             ToggleView(true);
-            OnFocus();
+            OnOpen(wasHidden: wasHidden);
+            isHidden = false;
         }
 
         void Scaffold.Navigation.Contracts.IView.Open()
         {
             ToggleView(true);
             state = ViewState.Open;
-            OnOpen();
+            OnOpen(wasHidden: false);
+            isHidden = false;
         }
 
         void Scaffold.Navigation.Contracts.IView.Hide()
         {
             ToggleView(false);
-            OnHide();
+            OnClose(hiding: true);
+            isHidden = true;
         }
 
         void Scaffold.Navigation.Contracts.IView.Order(int viewOrder)
@@ -61,30 +73,66 @@ namespace Scaffold.MVVM
 
         }
 
-        protected virtual void OnOpen()
+        protected virtual void OnOpen(bool wasHidden)
         {
 
         }
 
-        protected virtual void OnClose()
+        protected virtual void OnClose(bool hiding)
         {
 
         }
 
-        protected virtual void OnFocus()
+        protected override void OnBind()
         {
-
+            base.OnBind();
+            if (AutoBindChildViewComponents)
+            {
+                BindMatchingChildViewElements(viewModel);
+            }
         }
 
-        protected virtual void OnHide()
+        private void BindMatchingChildViewElements(T vm)
         {
+            if (vm == null)
+            {
+                return;
+            }
 
+            foreach (ViewElement child in GetComponentsInChildren<ViewElement>(true))
+            {
+                TryAutoBindChild(vm, child);
+            }
+        }
+
+        private void TryAutoBindChild(T vm, ViewElement child)
+        {
+            if (ReferenceEquals(child, this) || child is Scaffold.Navigation.Contracts.IView)
+            {
+                return;
+            }
+
+            if (!TryParseViewElementModelType(child, out Type modelType) || modelType != typeof(T))
+            {
+                return;
+            }
+
+            child.Bind(vm);
+        }
+
+        private static bool TryParseViewElementModelType(ViewElement element, out Type modelType)
+        {
+            modelType = null;
+            for (Type t = element.GetType(); t != null && t != typeof(object); t = t.BaseType)
+            {
+                if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(ViewElement<>))
+                {
+                    modelType = t.GetGenericArguments()[0];
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }
-
-
-
-
-
-

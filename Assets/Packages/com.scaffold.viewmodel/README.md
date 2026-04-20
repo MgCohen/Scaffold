@@ -23,6 +23,7 @@
 |---|---|---|---|---|
 | `IViewModel` | MVVM controller contract | navigation/context bind calls | standardized controller lifecycle | invalid consumer assumptions can break runtime behavior |
 | `ViewModel` | Base implementation with binding orchestration | `Bind(INavigation)` + binding registrations | initialized state + binding graph | stale registrations are cleared on rebind |
+| `BindChildViewModel<T>` | Child controller wiring | nested `IViewModel` | calls `INavigation.PrepareDependencies` then `Bind` | throws if child is null |
 
 For `TreeBinding`, `BindingOptions`, `IBindedProperty<>`, and related bind APIs, see `../com.scaffold.mvvm/README.md`.
 
@@ -149,3 +150,4 @@ public void OnNavigationContextChanged(INavigation navigation)
 
 - Added coverage for close-without-navigation behavior and repeated bind initialization flow.
 - Consolidated `Scaffold.MVVM.ViewModel.Contracts` into `Scaffold.MVVM.ViewModel` and moved boundary types to `Runtime/Contracts/`.
+- `BindChildViewModel` calls `INavigation.PrepareDependencies` before child `Bind` so nested view-models align with root injection when a container registers `IViewControllerDependencyInjector`.

@@ -25,7 +25,9 @@
 
 | Symbol | Purpose | Inputs | Outputs | Failure behavior |
 |---|---|---|---|---|
-| `INavigation.Open(...)` | Open target controller/view | controller + options | active navigation point | invalid config/path is ignored or guarded by provider checks |
+| `INavigation.Open(...)` | Open target controller/view | controller + `NavigationOptions` (see `NavigationStackPolicy`) | active navigation point | invalid config/path is ignored or guarded by provider checks |
+| `INavigation.PrepareDependencies(...)` | Run the same dependency injection pass as root opens | child `IViewController` | n/a | no-op when no injector registered |
+| `NavigationStackPolicy` | Declarative stack mutation (`Push`, `ReplaceCurrent`, `ClearBelowCurrentAndPush`, `ClearAllAndPush`) | `NavigationOptions.StackPolicy` | stack updates before transition | legacy `CloseAllViews` still honored when policy is `Push` |
 | `INavigation.Close(...)` | Close a controller/view | controller | removed point or return transition | no-op when point not found |
 | `INavigation.Return()` | Return to previous point | none | previous controller | guarded behavior when no previous point |
 | `IViewController` | Controller lifecycle contract | `Bind(INavigation)` etc. | bound controller behavior | n/a |
@@ -51,9 +53,11 @@
 
 | Operation | Stack behavior | Transition behavior |
 |---|---|---|
-| `Open(controller, closeCurrent:false)` | current remains; new point appended and becomes current | previous point is typically hidden, then target opens/focuses |
-| `Open(controller, closeCurrent:true)` | current removed before/while activating target | close sequence runs before target open |
-| `Open(..., options.CloseAllViews=true)` | non-origin stacked points are removed/closed | target activation occurs after close sweep |
+| `Open(controller, closeCurrent:false)` or `options.StackPolicy = Push` | current remains; new point appended and becomes current | previous point is typically hidden, then target opens/focuses |
+| `Open(controller, closeCurrent:true)` or `options.StackPolicy = ReplaceCurrent` | current removed before/while activating target | close sequence runs before target open |
+| `options.StackPolicy = ClearBelowCurrentAndPush` | clears stacked points below the current top, then pushes | close sweep for back stack, then target open |
+| `options.StackPolicy = ClearAllAndPush` | clears below current and removes current, then pushes | full close sweep, then target open |
+| `Open(..., options.CloseAllViews=true)` (legacy, when `StackPolicy` is `Push`) | same as clear-below | target activation occurs after close sweep |
 | `Close(current)` | equivalent to return to previous point | transition goes from current to previous |
 | `Close(non-current)` | target point removed in place; current unchanged | close applies to removed point only |
 | `Return()` | target is previous point; current removed | `GoTo(previous, closeCurrent:true, ...)` semantics |
@@ -103,7 +107,8 @@ navigation.Return();
 ## Best Practices
 
 - Keep navigation decisions in controllers/app orchestration.
-- Use `NavigationOptions` explicitly for close-all/close-current behavior.
+- Prefer `NavigationOptions.StackPolicy` for stack intent; use `Scaffold.Navigation.Utility.NavigationExtensions` (`OpenReplace`, `OpenClearBelowAndPush`, `OpenClearAllAndPush`) for common cases. Legacy `CloseAllViews` on `NavigationOptions` still works when `StackPolicy` is `Push`.
+- Use `INavigation.PrepareDependencies` (or `BindChildViewModel` on `ViewModel`) so child view-models receive the same injection pass as root controllers.
 - Keep `ViewConfig` mappings complete and validated.
 - Keep middleware focused on cross-cutting open behavior.
 
@@ -143,7 +148,7 @@ navigation.Return();
   - verify options behavior tests.
   - verify transition event behavior.
 - Known Tricky Areas:
-  - closeCurrent vs closeAllViews interactions.
+  - legacy `closeCurrent` + `CloseAllViews` vs explicit `NavigationStackPolicy` (non-`Push` policy overrides the `closeCurrent` parameter for stack mutation).
 
 ## Related
 
@@ -162,3 +167,4 @@ navigation.Return();
 - Consolidated `Scaffold.Navigation.Contracts` + `Scaffold.Navigation.Runtime` into `Scaffold.Navigation` and moved boundary types to `Runtime/Contracts/`.
 - Migrated non-context view loading to `IAddressablesGateway`, added preload registration in installer, and documented handle-release lifecycle.
 - Refactored to remove navigation-owned preload registration, added resident prefab store + instance buffer/cache, and documented readiness-aware transition flow with unchanged `INavigation` API.
+- Added `NavigationStackPolicy`, `INavigation.PrepareDependencies`, `IViewControllerDependencyInjector`, and stack-resolution tests (`NavigationStackResolverTests`).

@@ -2,15 +2,21 @@
     "name": "Scaffold.MVVM.View.Tests",
     "rootNamespace": "Scaffold.MVVM.View.Tests",
     "references": [
-        "Scaffold.MVVM.View"
+        "Scaffold.MVVM",
+        "Scaffold.MVVM.View",
+        "Scaffold.MVVM.ViewModel",
+        "Scaffold.Navigation"
     ],
     "includePlatforms": [
         "Editor"
     ],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
-    "overrideReferences": false,
-    "precompiledReferences": [],
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "CommunityToolkit.Mvvm.dll",
+        "System.Runtime.CompilerServices.Unsafe.dll"
+    ],
     "autoReferenced": false,
     "defineConstraints": [],
     "versionDefines": [],

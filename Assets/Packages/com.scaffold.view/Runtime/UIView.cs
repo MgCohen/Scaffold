@@ -21,9 +21,9 @@ namespace Scaffold.MVVM
             canvas.sortingOrder = order;
         }
 
-        protected override void OnOpen()
+        protected override void OnOpen(bool wasHidden)
         {
-            base.OnOpen();
+            base.OnOpen(wasHidden);
             SetCanvas();
         }
 

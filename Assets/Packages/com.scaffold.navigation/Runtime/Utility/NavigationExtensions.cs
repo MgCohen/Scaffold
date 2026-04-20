@@ -17,6 +17,21 @@ namespace Scaffold.Navigation.Utility
             navigation.Open(controller, closeOpenedWindow);
             return controller;
         }
+
+        public static void OpenReplace<TViewController>(this INavigation navigation, TViewController controller) where TViewController : IViewController
+        {
+            navigation.Open(controller, new NavigationOptions { StackPolicy = NavigationStackPolicy.ReplaceCurrent });
+        }
+
+        public static void OpenClearBelowAndPush<TViewController>(this INavigation navigation, TViewController controller) where TViewController : IViewController
+        {
+            navigation.Open(controller, new NavigationOptions { StackPolicy = NavigationStackPolicy.ClearBelowCurrentAndPush });
+        }
+
+        public static void OpenClearAllAndPush<TViewController>(this INavigation navigation, TViewController controller) where TViewController : IViewController
+        {
+            navigation.Open(controller, new NavigationOptions { StackPolicy = NavigationStackPolicy.ClearAllAndPush });
+        }
     }
 }
 

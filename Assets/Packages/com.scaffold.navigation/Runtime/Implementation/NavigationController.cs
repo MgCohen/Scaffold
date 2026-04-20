@@ -12,7 +12,7 @@ namespace Scaffold.Navigation
 {
     public class NavigationController : INavigation
     {
-        public NavigationController(IEventBus events, NavigationSettings settings, Transform viewHolder, IEnumerable<INavigationMiddleware> middlewares, IAddressablesGateway addressablesGateway)
+        public NavigationController(IEventBus events, NavigationSettings settings, Transform viewHolder, IEnumerable<INavigationMiddleware> middlewares, IAddressablesGateway addressablesGateway, IViewControllerDependencyInjector dependencyInjector = null)
         {
             if (events is null)
             {
@@ -36,6 +36,7 @@ namespace Scaffold.Navigation
             }
             this.settings = settings;
             this.viewHolder = viewHolder;
+            this.dependencyInjector = dependencyInjector;
 
             stack = new NavigationStack();
             provider = new NavigationProvider(settings, viewHolder, addressablesGateway);
@@ -52,6 +53,12 @@ namespace Scaffold.Navigation
         private NavigationProvider provider;
         private NavigationTransitions transitions;
         private NavigationMiddleware middleware;
+        private readonly IViewControllerDependencyInjector dependencyInjector;
+
+        public void Open<TController>(TController controller, NavigationOptions options) where TController : IViewController
+        {
+            Open(controller, false, options);
+        }
 
         public void Open<TController>(TController controller, bool closeCurrent = false, NavigationOptions options = null) where TController : IViewController
         {
@@ -59,6 +66,16 @@ namespace Scaffold.Navigation
             options ??= new NavigationOptions();
             NavigationPoint point = provider.GetNavigationPoint<TController>(controller, options);
             Open(point, closeCurrent, options);
+        }
+
+        public void PrepareDependencies(IViewController controller)
+        {
+            if (controller is null)
+            {
+                throw new ArgumentNullException(nameof(controller));
+            }
+
+            dependencyInjector?.Inject(controller);
         }
 
         private void Open(NavigationPoint point, bool closeCurrent, NavigationOptions options)
@@ -107,13 +124,36 @@ namespace Scaffold.Navigation
 
         private void GoTo(NavigationPoint point, bool closeCurrent, NavigationOptions options)
         {
-            var from = this.CurrentPoint;
-            if (options.CloseAllViews.HasValue && options.CloseAllViews.Value) CloseAll(from);
-            if (closeCurrent && this.CurrentPoint != null) this.stack.RemoveFromStack(this.CurrentPoint);
-            if (this.CurrentPoint != point) this.stack.AddToStack(point);
+            options ??= new NavigationOptions();
+            NavigationStackResolver.Resolve(options, closeCurrent, out bool closeAllBelowCurrent, out bool removeCurrentFromStack);
+            NavigationPoint from = this.CurrentPoint;
+            ApplyStackMutation(point, from, closeAllBelowCurrent, removeCurrentFromStack);
+            CompleteTransitionToPoint(point, from, removeCurrentFromStack);
+        }
+
+        private void ApplyStackMutation(NavigationPoint point, NavigationPoint from, bool closeAllBelowCurrent, bool removeCurrentFromStack)
+        {
+            if (closeAllBelowCurrent)
+            {
+                CloseAll(from);
+            }
+
+            if (removeCurrentFromStack && this.CurrentPoint != null)
+            {
+                this.stack.RemoveFromStack(this.CurrentPoint);
+            }
+
+            if (this.CurrentPoint != point)
+            {
+                this.stack.AddToStack(point);
+            }
+        }
+
+        private void CompleteTransitionToPoint(NavigationPoint point, NavigationPoint from, bool removeCurrentFromStack)
+        {
             var depth = this.stack.GetPointDepth(point);
             point.SetDepth(depth, point.Options);
-            this.transitions.DoTransition(from, point, closeCurrent);
+            this.transitions.DoTransition(from, point, removeCurrentFromStack);
         }
 
         private void CloseAll(NavigationPoint point)

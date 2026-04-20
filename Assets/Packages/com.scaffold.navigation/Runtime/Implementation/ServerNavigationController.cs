@@ -38,7 +38,17 @@ namespace Scaffold.Navigation
             return default;
         }
 
+        public void Open<TViewController>(TViewController controller, NavigationOptions options) where TViewController : IViewController
+        {
+            GuardServerState();
+        }
+
         public void Open<TViewController>(TViewController controller, bool closeCurrent = false, NavigationOptions options = null) where TViewController : IViewController
+        {
+            GuardServerState();
+        }
+
+        public void PrepareDependencies(IViewController controller)
         {
             GuardServerState();
         }

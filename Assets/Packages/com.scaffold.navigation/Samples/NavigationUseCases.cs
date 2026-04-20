@@ -7,9 +7,9 @@ namespace Scaffold.Navigation.Samples
         public void UseCaseNavigationOptions()
         {
             NavigationOptions options = new NavigationOptions();
-            options.CloseAllViews = true;
+            options.StackPolicy = NavigationStackPolicy.ClearBelowCurrentAndPush;
             options.RenderOverride = RenderMode.ScreenSpaceCamera;
-            Debug.Log($"CloseAll: {options.CloseAllViews}, RenderOverride: {options.RenderOverride}");
+            Debug.Log($"StackPolicy: {options.StackPolicy}, RenderOverride: {options.RenderOverride}");
         }
 
         public void UseCaseOpenViewWithOptions()
@@ -35,7 +35,9 @@ namespace Scaffold.Navigation.Samples
         private class NullNavigation : INavigation
         {
             public IViewController CurrentController => null;
+            public void Open<TController>(TController controller, NavigationOptions options) where TController : IViewController { }
             public void Open<TController>(TController controller, bool closeCurrent = false, NavigationOptions options = null) where TController : IViewController { }
+            public void PrepareDependencies(IViewController controller) { }
             public void Close<TViewController>(TViewController controller) where TViewController : IViewController { }
             public IViewController Return() { return null; }
         }

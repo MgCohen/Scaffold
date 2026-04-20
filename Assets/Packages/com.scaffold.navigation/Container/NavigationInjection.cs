@@ -6,7 +6,7 @@ using Scaffold.Scope.Contracts;
 
 namespace Scaffold.Navigation.Container
 {
-    internal class NavigationInjection : INavigationOpenHandler
+    internal class NavigationInjection : INavigationOpenHandler, IViewControllerDependencyInjector
     {
         public NavigationInjection(ICrossLayerObjectResolver resolver)
         {
@@ -16,6 +16,11 @@ namespace Scaffold.Navigation.Container
         private readonly ICrossLayerObjectResolver resolver;
 
         public void OnOpen(IViewController viewModel)
+        {
+            Inject(viewModel);
+        }
+
+        public void Inject(IViewController viewModel)
         {
             resolver.Inject(viewModel);
         }

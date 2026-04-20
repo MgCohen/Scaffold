@@ -41,6 +41,12 @@ namespace Scaffold.MVVM
 
         protected T BindChildViewModel<T>(T viewModel) where T : IViewModel
         {
+            if (viewModel is null)
+            {
+                throw new ArgumentNullException(nameof(viewModel));
+            }
+
+            navigation?.PrepareDependencies(viewModel);
             viewModel.Bind(navigation);
             return viewModel;
         }
