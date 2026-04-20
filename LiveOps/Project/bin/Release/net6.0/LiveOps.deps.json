@@ -12,6 +12,7 @@
           "Com.Unity.Services.CloudCode.Core": "0.0.1",
           "Microsoft.AspNetCore.Http": "2.3.0",
           "Microsoft.AspNetCore.Http.Abstractions": "2.3.0",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "8.0.0",
           "Microsoft.Extensions.Logging.Abstractions": "7.0.1",
           "Scaffold.LiveOps.DTO": "1.0.0"
         },

@@ -1,7 +1,11 @@
+using System;
+using System.Reflection;
+using GameModule.GameApi;
 using GameModule.GameModule;
 using GameModule.Response;
 using GameModule.ModuleFetchData;
 using GameModule.ModuleFetchData.Unity;
+using GameModuleDTO.ModuleRequests;
 using Microsoft.Extensions.DependencyInjection;
 using Unity.Services.CloudCode.Apis;
 using Unity.Services.CloudCode.Core;
@@ -16,7 +20,7 @@ using GameModule.Modules.DirectPush;
 /// <summary>
 /// Configures the dependency injection container for cloud code execution.
 /// </summary>
-public partial class ModuleConfig : ICloudCodeSetup
+public class ModuleConfig : ICloudCodeSetup
 {
     /// <summary>
     /// Registers all scoped routines and dependencies dynamically.
@@ -34,6 +38,27 @@ public partial class ModuleConfig : ICloudCodeSetup
         RegisterScoped<IRemoteConfig, HttpRemoteConfig>(config);
 
         RegisterScoped<SignalModule>(config);
+
+        Assembly gameApiAssembly = typeof(GameApiDispatcher).Assembly;
+        GameApiRegistry gameApiRegistry = new GameApiRegistry(gameApiAssembly);
+        config.Dependencies.AddSingleton(gameApiRegistry);
+        RegisterScoped<GameApiDispatcher>(config);
+
+        foreach (Type type in gameApiAssembly.GetTypes())
+        {
+            if (type.IsAbstract || type.IsInterface)
+            {
+                continue;
+            }
+
+            if (!typeof(IGameApiHandler).IsAssignableFrom(type))
+            {
+                continue;
+            }
+
+            config.Dependencies.AddScoped(type);
+        }
+
         RegisterScoped<ModuleRequestHandler>(config);
 
         RegisterModuleScoped<AdsService>(config);
@@ -59,5 +84,17 @@ public partial class ModuleConfig : ICloudCodeSetup
     {
         config.Dependencies.AddScoped<IGameModule, T>();
         RegisterScoped<T>(config);
+    }
+
+    /// <summary>
+    /// Optional explicit GameApi handler registration (e.g. handlers outside the scanned assembly or tests).
+    /// </summary>
+    public static void RegisterGameApiHandler<TReq, TRes, THandler>(ICloudCodeConfig config, GameApiRegistry registry)
+        where TReq : ModuleRequest<TRes>
+        where TRes : ModuleResponse
+        where THandler : class, IGameApiHandler<TReq, TRes>
+    {
+        config.Dependencies.AddScoped<THandler>();
+        registry.Register(typeof(THandler));
     }
 }

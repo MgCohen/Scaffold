@@ -173,6 +173,36 @@ namespace GameModule.ModuleFetchData
             await DeleteData(context, key);
         }
 
+        public virtual async Task FlushDirtyAsync(IExecutionContext context)
+        {
+            await InitializeData(context).ConfigureAwait(false);
+            List<SetItemBody> dirty = null;
+            foreach (KeyValuePair<string, object> kv in _objectCache)
+            {
+                if (kv.Value == null)
+                {
+                    continue;
+                }
+
+                string nowJson = kv.Value.ToJson() ?? string.Empty;
+                if (!_cache.TryGetValue(kv.Key, out string thenJson) || thenJson != nowJson)
+                {
+                    _cache[kv.Key] = nowJson;
+                    if (dirty == null)
+                    {
+                        dirty = new List<SetItemBody>();
+                    }
+
+                    dirty.Add(new SetItemBody(kv.Key, kv.Value));
+                }
+            }
+
+            if (dirty != null && dirty.Count > 0)
+            {
+                await SaveBatchData(context, dirty, useWriteLock: true).ConfigureAwait(false);
+            }
+        }
+
         public virtual void AddToCache(IEnumerable<string> moduleKeys)
         {
             foreach (string moduleKey in moduleKeys)
