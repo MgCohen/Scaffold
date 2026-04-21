@@ -3,6 +3,7 @@
     "rootNamespace": "Scaffold.AppFlow.Samples",
     "references": [
         "Scaffold.AppFlow",
+        "Scaffold.SceneFlow",
         "VContainer"
     ],
     "includePlatforms": [],

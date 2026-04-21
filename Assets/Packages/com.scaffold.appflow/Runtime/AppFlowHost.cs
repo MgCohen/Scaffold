@@ -290,32 +290,42 @@ namespace Scaffold.AppFlow
             IAsyncDisposable[] disposables = Array.Empty<IAsyncDisposable>();
             try
             {
-                BindLayerProgressIfNeeded(layer, layerIndex);
-                inits = CollectFresh<IAsyncInitializable>(child, seenInitializables);
-                var runner = new LayerInitRunner(child.Container, inits, scheduler);
-
-                if (layer is IInitializableLayer custom)
-                {
-                    await custom.InitializeAsync(runner, ct);
-                    if (!runner.DefaultInitInvoked && inits.Length > 0)
-                    {
-                        Debug.LogWarning(
-                            $"[AppFlow] '{layer.Name}' overrode InitializeAsync but did not call RunDefaultInitAsync; "
-                            + $"{inits.Length} IAsyncInitializable instance(s) were skipped.");
-                    }
-                }
-                else
-                {
-                    await runner.RunDefaultInitAsync(ct);
-                }
-
-                disposables = CollectFresh<IAsyncDisposable>(child, seenDisposables);
+                (inits, disposables) = await RunLayerInitAndCollectDisposablesAsync(layer, child, ct, layerIndex);
                 FinishSuccessfulPush(layer, child, publisher, inits, disposables, layerIndex);
             }
             catch (Exception ex)
             {
                 FailPush(layer, child, inits, disposables, ex);
                 throw;
+            }
+        }
+
+        private async Task<(IAsyncInitializable[] inits, IAsyncDisposable[] disposables)> RunLayerInitAndCollectDisposablesAsync(IScopeLayer layer, LifetimeScope child, CancellationToken ct, int layerIndex)
+        {
+            BindLayerProgressIfNeeded(layer, layerIndex);
+            IAsyncInitializable[] inits = CollectFresh<IAsyncInitializable>(child, seenInitializables);
+            var runner = new LayerInitRunner(child.Container, inits, scheduler);
+
+            if (layer is IInitializableLayer custom)
+            {
+                await InitializeCustomLayerAsync(custom, runner, inits, layer, ct);
+            }
+            else
+            {
+                await runner.RunDefaultInitAsync(ct);
+            }
+
+            return (inits, CollectFresh<IAsyncDisposable>(child, seenDisposables));
+        }
+
+        private async Task InitializeCustomLayerAsync(IInitializableLayer custom, LayerInitRunner runner, IAsyncInitializable[] inits, IScopeLayer layer, CancellationToken ct)
+        {
+            await custom.InitializeAsync(runner, ct);
+            if (!runner.DefaultInitInvoked && inits.Length > 0)
+            {
+                Debug.LogWarning(
+                    $"[AppFlow] '{layer.Name}' overrode InitializeAsync but did not call RunDefaultInitAsync; "
+                    + $"{inits.Length} IAsyncInitializable instance(s) were skipped.");
             }
         }
 
@@ -329,17 +339,6 @@ namespace Scaffold.AppFlow
                 src.ProgressChanged += activeProgressHandler;
                 progress.HostSetSubProgress(layerIndex, src.Progress);
             }
-        }
-
-        private void UnbindLayerProgress()
-        {
-            if (activeProgressSource != null && activeProgressHandler != null)
-            {
-                activeProgressSource.ProgressChanged -= activeProgressHandler;
-            }
-
-            activeProgressSource = null;
-            activeProgressHandler = null;
         }
 
         private void FinishSuccessfulPush(IScopeLayer layer, LifetimeScope child, LayerPublisher publisher, IAsyncInitializable[] inits, IAsyncDisposable[] disposables, int layerIndex)
@@ -418,6 +417,17 @@ namespace Scaffold.AppFlow
             ReportLayerError(LayerOperation.Init, layer, ex);
             ClearSeenMembers(inits, disposables);
             child.Dispose();
+        }
+
+        private void UnbindLayerProgress()
+        {
+            if (activeProgressSource != null && activeProgressHandler != null)
+            {
+                activeProgressSource.ProgressChanged -= activeProgressHandler;
+            }
+
+            activeProgressSource = null;
+            activeProgressHandler = null;
         }
 
         private void ReportLayerError(LayerOperation op, IScopeLayer layer, Exception ex)
