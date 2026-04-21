@@ -4,7 +4,7 @@
     "references": [
         "Scaffold.LiveOps",
         "Scaffold.CloudCode",
-        "Scaffold.LayeredScope",
+        "Scaffold.AppFlow",
         "Unity.Services.CloudCode",
         "VContainer"
     ],

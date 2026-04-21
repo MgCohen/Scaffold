@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Scaffold.Addressables.Contracts;
-using Scaffold.LayeredScope;
+using Scaffold.AppFlow;
 using UnityEngine.AddressableAssets;
 using UnityAddressables = UnityEngine.AddressableAssets.Addressables;
 

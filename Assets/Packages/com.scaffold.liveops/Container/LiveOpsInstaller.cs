@@ -12,7 +12,7 @@ namespace Scaffold.LiveOps.Container
         {
             builder.Register<LiveOpsService>(Lifetime.Singleton)
                 .As<ILiveOpsService>()
-                .As<Scaffold.LayeredScope.IAsyncInitializable>();
+                .As<Scaffold.AppFlow.IAsyncInitializable>();
         }
     }
 }

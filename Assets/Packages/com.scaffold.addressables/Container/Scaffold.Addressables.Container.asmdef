@@ -3,7 +3,7 @@
     "rootNamespace": "Scaffold.Addressables.Container",
     "references": [
         "Scaffold.Addressables",
-        "Scaffold.LayeredScope",
+        "Scaffold.AppFlow",
         "VContainer"
     ],
     "includePlatforms": [],

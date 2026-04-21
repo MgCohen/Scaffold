@@ -6,7 +6,7 @@
 
 - Purpose: keep Addressables runtime small and focused on loading APIs.
 - Location: `Assets/Packages/com.scaffold.addressables/Runtime/`.
-- Depends on: `Scaffold.LayeredScope`, `Unity.Addressables`, `VContainer`, `Scaffold.Maps`. Editor also references `com.unity.services.ccd.management` for CCD **Build & Release** (see `Packages/manifest.json`).
+- Depends on: `Scaffold.AppFlow`, `Unity.Addressables`, `VContainer`, `Scaffold.Maps`. Editor also references `com.unity.services.ccd.management` for CCD **Build & Release** (see `Packages/manifest.json`).
 - Used by: bootstrap startup and runtime services that load assets.
 
 ## Responsibilities
@@ -87,7 +87,7 @@ Run from repository root:
 ## Related
 
 - `../../../Architecture.md`
-- `../com.scaffold.layeredscope/README.md`
+- `../com.scaffold.appflow/README.md`
 - `Assets/Packages/com.scaffold.addressables/Runtime/Contracts/IAddressablesGateway.cs`
 - `Assets/Packages/com.scaffold.addressables/Runtime/Contracts/IAssetProvider.cs`
 - `Assets/Packages/com.scaffold.addressables/Runtime/Implementation/AddressablesGateway.cs`

@@ -8,7 +8,7 @@ namespace Scaffold.Ugs.Container
     {
         public void Install(IContainerBuilder builder)
         {
-            builder.Register<Ugs>(Lifetime.Singleton).AsSelf().As<Scaffold.LayeredScope.IAsyncInitializable>();
+            builder.Register<Ugs>(Lifetime.Singleton).AsSelf().As<Scaffold.AppFlow.IAsyncInitializable>();
         }
     }
 }

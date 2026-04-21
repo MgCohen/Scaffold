@@ -49,7 +49,7 @@ This repository is a modular Unity project with architecture controls enforced t
 
 Intent: show how external actors/systems interact with this Unity client at runtime.
 
-Source of truth: your startup scene and composition wiring (typically a subclass of `Scaffold.LayeredScope.ApplicationBootstrap` in your game assembly; no fixed path is documented here).
+Source of truth: your startup scene and composition wiring (typically a subclass of `Scaffold.AppFlow.AppFlowRoot` in your game assembly; no fixed path is documented here).
 
 Update trigger: changes to startup sequence, external service integrations, or root scene flow.
 

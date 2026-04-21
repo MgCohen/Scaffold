@@ -3,7 +3,7 @@
     "rootNamespace": "Scaffold.Navigation.Container",
     "references": [
         "Scaffold.Navigation",
-        "Scaffold.LayeredScope",
+        "Scaffold.AppFlow",
         "VContainer",
         "VContainer.Unity"
     ],

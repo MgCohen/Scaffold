@@ -2,7 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using GameModuleDTO.GameModule;
-using Scaffold.LayeredScope;
+using Scaffold.AppFlow;
 using VContainer;
 
 namespace Scaffold.LiveOps

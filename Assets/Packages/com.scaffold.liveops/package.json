@@ -11,6 +11,6 @@
                },
     "dependencies":  {
                          "com.scaffold.cloudcode":  "0.1.0",
-                         "com.scaffold.layeredscope":  "0.1.0"
+                         "com.scaffold.appflow":  "0.1.0"
                      }
 }

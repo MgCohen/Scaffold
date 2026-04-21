@@ -9,8 +9,8 @@ Cross-cutting audit of the Scaffold runtime architecture: execution flow, owners
 This repository is a **framework-only** project. There is no concrete game scene or `GameManager` here — only the infrastructure that a game assembly subclasses and wires up. The de facto orchestration chain is:
 
 ```
-ApplicationBootstrap (your subclass on root LifetimeScope, Unity Start())
-  └─ ApplicationHost.InstallAllAsync(initialLayers)
+AppFlowRoot (your subclass on root LifetimeScope, Unity Start())
+  └─ AppFlowHost.InstallAllAsync(initialLayers)
        └─ For each IScopeLayer: PrepareAsync (optional) → child LifetimeScope → IAsyncInitializable wave
             └─ OnReadyAsync  ← hook to open the first view
 ```
@@ -23,7 +23,7 @@ Everything else (navigation, cloud, ads, scene loading) is a service called by g
 
 | Concern | Controller |
 |---|---|
-| Startup sequencing | `ApplicationBootstrap` / `ApplicationHost` |
+| Startup sequencing | `AppFlowRoot` / `AppFlowHost` |
 | DI scope lifecycle | VContainer `LifetimeScope` stack (root + pushed child layers) |
 | Async init ordering | Per-layer `IAsyncInitializable` wave (`IInLayerScheduler`, default parallel) |
 | Top-layer resolve / inject | `ILayerResolver` (`LayerResolverProxy` bound to current top scope) |
@@ -46,7 +46,7 @@ Everything else (navigation, cloud, ads, scene loading) is a service called by g
 ## Core Dependencies (Module Graph)
 
 ```
-com.scaffold.layeredscope
+com.scaffold.appflow
   └─ VContainer
 
 com.scaffold.events
@@ -92,20 +92,20 @@ com.scaffold.mvvm / model / viewmodel / view
 
 ---
 
-### `com.scaffold.layeredscope` — Startup orchestration
+### `com.scaffold.appflow` — Startup orchestration
 
 **What it does**
 
-Owns stacked VContainer `LifetimeScope` **layers**: subclass `ApplicationBootstrap` on the root scope, return `IScopeLayer` instances from `GetInitialLayers()`, and use `ApplicationHost` to push/pop child scopes in order. Each layer runs an `IAsyncInitializable` wave after build; optional `ILayerPublisher` replays cross-layer registrations into descendant layers (see package README).
+Owns stacked VContainer `LifetimeScope` **layers**: subclass `AppFlowRoot` on the root scope, return `IScopeLayer` instances from `GetInitialLayers()`, and use `AppFlowHost` to push/pop child scopes in order. Each layer runs an `IAsyncInitializable` wave after build; optional `ILayerPublisher` replays cross-layer registrations into descendant layers (see package README).
 
-**Entry point:** `ApplicationBootstrap.Start()` — Unity `async void` lifecycle; constructs `ApplicationHost` and `InstallAllAsync`.
+**Entry point:** `AppFlowRoot.Start()` — Unity `async void` lifecycle; constructs `AppFlowHost` and `InstallAllAsync`.
 
 **Key classes**
 
 | Class | Role |
 |---|---|
-| `ApplicationBootstrap` | Abstract `LifetimeScope`; registers `LayerResolverProxy` as `ILayerResolver`; subclasses supply initial layers |
-| `ApplicationHost` | Push/pop API, init and dispose waves, `ILayerResolver` implementation |
+| `AppFlowRoot` | Abstract `LifetimeScope`; registers `LayerResolverProxy` as `ILayerResolver`, `IAppFlowErrorHandler`, `IAppFlowProgress`; exposes `Progress` and `Errors` for bootstrap UI; subclasses supply initial layers |
+| `AppFlowHost` | Push/pop API, init and dispose waves, `ILayerResolver` implementation |
 | `LayerResolverProxy` | Binds to the current top `IObjectResolver` after each push/pop |
 | `ILayerPublisher` | Optional cross-layer asset publishing into child builders |
 
@@ -462,4 +462,4 @@ If any initializer throws (UGS network failure, Cloud Code timeout), the game la
 
 ### 5. `async void` in hot paths
 
-`ApplicationBootstrap.Start`, `AdManager.InitializeAds`, and `NavigationTransitions.RunTransitions` are all `async void`. Unobserved exceptions in these methods are swallowed or only surface via `Debug.LogException`. A global `IAsyncExceptionHandler` or structured exception surfacing strategy would make failures visible and actionable.
+`AppFlowRoot.Start`, `AdManager.InitializeAds`, and `NavigationTransitions.RunTransitions` are all `async void`. Unobserved exceptions in these methods are swallowed or only surface via `Debug.LogException`. A global `IAsyncExceptionHandler` or structured exception surfacing strategy would make failures visible and actionable.

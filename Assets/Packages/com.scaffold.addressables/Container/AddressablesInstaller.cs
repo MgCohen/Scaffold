@@ -1,6 +1,6 @@
 using Scaffold.Addressables;
 using Scaffold.Addressables.Contracts;
-using Scaffold.LayeredScope;
+using Scaffold.AppFlow;
 using VContainer;
 using VContainer.Unity;
 

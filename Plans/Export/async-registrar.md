@@ -1,7 +1,7 @@
 ---
 
 name: async-registrar-layer-flow
-overview: "Replace the `IAsyncRegistrar`/extended-`PrepareAsync` design with a push-based `ILayerPublisher` flow: each layer gets a per-layer publisher auto-injected by the host, asset providers are normal `IAsyncInitializable` services that ctor-inject the publisher and call `Publish(...)` after loading, and the host replays parent layers' published deltas into every child scope's `IContainerBuilder`. `IAsyncScopeLayer.PrepareAsync` reverts to its original `(parent, ct)` shape and is reserved for parent-resolver introspection that does not register anything. Addressables-specific helpers (`RegisterAddressable<T>`, etc.) are intentionally OUT of `com.scaffold.layeredscope` and ship as extension methods in whatever module owns the loader."
+overview: "Replace the `IAsyncRegistrar`/extended-`PrepareAsync` design with a push-based `ILayerPublisher` flow: each layer gets a per-layer publisher auto-injected by the host, asset providers are normal `IAsyncInitializable` services that ctor-inject the publisher and call `Publish(...)` after loading, and the host replays parent layers' published deltas into every child scope's `IContainerBuilder`. `IAsyncScopeLayer.PrepareAsync` reverts to its original `(parent, ct)` shape and is reserved for parent-resolver introspection that does not register anything. Addressables-specific helpers (`RegisterAddressable<T>`, etc.) are intentionally OUT of `com.scaffold.appflow` and ship as extension methods in whatever module owns the loader."
 todos:
 
 - id: publisher-contract
@@ -23,7 +23,7 @@ status: pending
 content: Update ApplicationHostTests - keep ThrowingPrepareLayer (signature unchanged), replace the warmer-based parent/child test with a publisher-based one, add coverage for "asset NOT visible in publishing layer's own scope" and "asset visible in descendant scope after init wave".
 status: pending
 - id: docs-update
-content: Expand Assets/Packages/com.scaffold.layeredscope/README.md with cross-layer registration patterns built around ILayerPublisher as the primary path; keep the warmer + on-demand factory pattern documented as the simpler synchronous alternative; clarify PrepareAsync is now read-only against the parent.
+content: Expand Assets/Packages/com.scaffold.appflow/README.md with cross-layer registration patterns built around ILayerPublisher as the primary path; keep the warmer + on-demand factory pattern documented as the simpler synchronous alternative; clarify PrepareAsync is now read-only against the parent.
 status: pending
 - id: validate
 content: Run pwsh -NoProfile -File ".agents/scripts/validate-changes.ps1" -SkipTests and fix any analyzer/test failures (per AGENTS.md; -SkipTests applies while automated tests are not maintained).
@@ -34,7 +34,7 @@ isProject: false
 
 ## Goal
 
-A descendant layer should be able to constructor-inject an asynchronously-loaded asset published by an ancestor layer with **zero per-asset boilerplate** in the consumer and a **single registration line** in the publisher. Asset providers should look like any other DI service. No `PrepareAsync` plumbing, no `IAsyncRegistrar` parameter, no warmer + factory pair, no per-layer "remember to wire it up". Loader-specific concerns (Addressables, Resources, REST, ...) live entirely outside `com.scaffold.layeredscope` as extension methods.
+A descendant layer should be able to constructor-inject an asynchronously-loaded asset published by an ancestor layer with **zero per-asset boilerplate** in the consumer and a **single registration line** in the publisher. Asset providers should look like any other DI service. No `PrepareAsync` plumbing, no `IAsyncRegistrar` parameter, no warmer + factory pair, no per-layer "remember to wire it up". Loader-specific concerns (Addressables, Resources, REST, ...) live entirely outside `com.scaffold.appflow` as extension methods.
 
 ## Architecture
 
@@ -72,7 +72,7 @@ Key properties:
 - **Providers are normal services.** `builder.Register<MyAddressableProvider<T>>(Lifetime.Singleton).As<IAsyncInitializable>()` is the entire registration. They get full ctor injection (e.g. `IAddressableLoader`, configs) from parent scopes via VContainer's normal inheritance.
 - **Publish-after-build.** Providers run in the existing init wave AFTER the layer's container is sealed, so the published asset is **not** visible in the publishing layer's own scope. It IS visible to all descendants because the host replays the deltas when their builder is open.
 - **Per-layer publisher.** Each layer registers its own `ILayerPublisher` instance into its child scope (shadowing any inherited one), so providers always publish into their own layer's buffer, not an ancestor's.
-- **Loader concerns are external.** `com.scaffold.layeredscope` only ships `ILayerPublisher` and the host wiring. `RegisterAddressable<T>(key)`, `AddressableAsset<T>`, `AddressableLabel<T>`, `IAddressableLoader`, etc. are extension methods / classes in the Addressables module (or any other loader module).
+- **Loader concerns are external.** `com.scaffold.appflow` only ships `ILayerPublisher` and the host wiring. `RegisterAddressable<T>(key)`, `AddressableAsset<T>`, `AddressableLabel<T>`, `IAddressableLoader`, etc. are extension methods / classes in the Addressables module (or any other loader module).
 
 ## Reverted decisions vs. earlier plan revisions
 
@@ -84,23 +84,23 @@ Key properties:
 
 ## Files to change
 
-- New: [Assets/Packages/com.scaffold.layeredscope/Runtime/Contracts/ILayerPublisher.cs](../../Assets/Packages/com.scaffold.layeredscope/Runtime/Contracts/ILayerPublisher.cs) (+ `.meta`)
-- New: [Assets/Packages/com.scaffold.layeredscope/Runtime/Internal/LayerPublisher.cs](../../Assets/Packages/com.scaffold.layeredscope/Runtime/Internal/LayerPublisher.cs) (+ `.meta`)
-- Modify: [Assets/Packages/com.scaffold.layeredscope/Runtime/Internal/LayerEntry.cs](../../Assets/Packages/com.scaffold.layeredscope/Runtime/Internal/LayerEntry.cs) — carry the publisher
-- Modify: [Assets/Packages/com.scaffold.layeredscope/Runtime/ApplicationHost.cs](../../Assets/Packages/com.scaffold.layeredscope/Runtime/ApplicationHost.cs) — wire the publisher in `CreateChild` and replay parent stack deltas
-- Modify: [Assets/Packages/com.scaffold.layeredscope/Samples/Layers/SampleFeatureLayer.cs](../../Assets/Packages/com.scaffold.layeredscope/Samples/Layers/SampleFeatureLayer.cs) — split into a provider layer + a consumer layer
-- Modify: [Assets/Packages/com.scaffold.layeredscope/Samples/SampleApplicationBootstrap.cs](../../Assets/Packages/com.scaffold.layeredscope/Samples/SampleApplicationBootstrap.cs) — push and pop both new layers
-- Modify: [Assets/Packages/com.scaffold.layeredscope/Tests/Editor/ApplicationHostTests.cs](../../Assets/Packages/com.scaffold.layeredscope/Tests/Editor/ApplicationHostTests.cs) — replace warmer-based test, add publisher coverage
-- Modify: [Assets/Packages/com.scaffold.layeredscope/README.md](../../Assets/Packages/com.scaffold.layeredscope/README.md) — document the new primary pattern (this is the package's authoritative doc per AGENTS.md; no separate `Docs/` page exists today)
+- New: [Assets/Packages/com.scaffold.appflow/Runtime/Contracts/ILayerPublisher.cs](../../Assets/Packages/com.scaffold.appflow/Runtime/Contracts/ILayerPublisher.cs) (+ `.meta`)
+- New: [Assets/Packages/com.scaffold.appflow/Runtime/Internal/LayerPublisher.cs](../../Assets/Packages/com.scaffold.appflow/Runtime/Internal/LayerPublisher.cs) (+ `.meta`)
+- Modify: [Assets/Packages/com.scaffold.appflow/Runtime/Internal/LayerEntry.cs](../../Assets/Packages/com.scaffold.appflow/Runtime/Internal/LayerEntry.cs) — carry the publisher
+- Modify: [Assets/Packages/com.scaffold.appflow/Runtime/ApplicationHost.cs](../../Assets/Packages/com.scaffold.appflow/Runtime/ApplicationHost.cs) — wire the publisher in `CreateChild` and replay parent stack deltas
+- Modify: [Assets/Packages/com.scaffold.appflow/Samples/Layers/SampleFeatureLayer.cs](../../Assets/Packages/com.scaffold.appflow/Samples/Layers/SampleFeatureLayer.cs) — split into a provider layer + a consumer layer
+- Modify: [Assets/Packages/com.scaffold.appflow/Samples/SampleApplicationBootstrap.cs](../../Assets/Packages/com.scaffold.appflow/Samples/SampleApplicationBootstrap.cs) — push and pop both new layers
+- Modify: [Assets/Packages/com.scaffold.appflow/Tests/Editor/ApplicationHostTests.cs](../../Assets/Packages/com.scaffold.appflow/Tests/Editor/ApplicationHostTests.cs) — replace warmer-based test, add publisher coverage
+- Modify: [Assets/Packages/com.scaffold.appflow/README.md](../../Assets/Packages/com.scaffold.appflow/README.md) — document the new primary pattern (this is the package's authoritative doc per AGENTS.md; no separate `Docs/` page exists today)
 
 ## Step 1 — Add `ILayerPublisher` contract
 
-New [Assets/Packages/com.scaffold.layeredscope/Runtime/Contracts/ILayerPublisher.cs](../../Assets/Packages/com.scaffold.layeredscope/Runtime/Contracts/ILayerPublisher.cs):
+New [Assets/Packages/com.scaffold.appflow/Runtime/Contracts/ILayerPublisher.cs](../../Assets/Packages/com.scaffold.appflow/Runtime/Contracts/ILayerPublisher.cs):
 
 ```csharp
 using System.Collections.Generic;
 
-namespace Scaffold.LayeredScope
+namespace Scaffold.AppFlow
 {
     // Per-layer service auto-registered by ApplicationHost. Asset providers
     // (normal IAsyncInitializable services) ctor-inject this and call
@@ -124,14 +124,14 @@ namespace Scaffold.LayeredScope
 
 ## Step 2 — Add internal `LayerPublisher` implementation
 
-New [Assets/Packages/com.scaffold.layeredscope/Runtime/Internal/LayerPublisher.cs](../../Assets/Packages/com.scaffold.layeredscope/Runtime/Internal/LayerPublisher.cs):
+New [Assets/Packages/com.scaffold.appflow/Runtime/Internal/LayerPublisher.cs](../../Assets/Packages/com.scaffold.appflow/Runtime/Internal/LayerPublisher.cs):
 
 ```csharp
 using System;
 using System.Collections.Generic;
 using VContainer;
 
-namespace Scaffold.LayeredScope.Internal
+namespace Scaffold.AppFlow.Internal
 {
     internal sealed class LayerPublisher : ILayerPublisher
     {
@@ -171,7 +171,7 @@ namespace Scaffold.LayeredScope.Internal
 
 ## Step 3 — Extend `LayerEntry` with the publisher
 
-Modify [Assets/Packages/com.scaffold.layeredscope/Runtime/Internal/LayerEntry.cs](../../Assets/Packages/com.scaffold.layeredscope/Runtime/Internal/LayerEntry.cs) to carry a `LayerPublisher` and expose it. `CreateRoot` gets an empty publisher (root layer cannot host providers, but a uniform stack walk is simpler than null-checking):
+Modify [Assets/Packages/com.scaffold.appflow/Runtime/Internal/LayerEntry.cs](../../Assets/Packages/com.scaffold.appflow/Runtime/Internal/LayerEntry.cs) to carry a `LayerPublisher` and expose it. `CreateRoot` gets an empty publisher (root layer cannot host providers, but a uniform stack walk is simpler than null-checking):
 
 ```csharp
 public LayerEntry(IScopeLayer layer, LifetimeScope scope,
@@ -198,7 +198,7 @@ public static LayerEntry CreateRoot(LifetimeScope root)
 
 ## Step 4 — Wire the publisher through `ApplicationHost.PushAsync`
 
-Modify [Assets/Packages/com.scaffold.layeredscope/Runtime/ApplicationHost.cs](../../Assets/Packages/com.scaffold.layeredscope/Runtime/ApplicationHost.cs):
+Modify [Assets/Packages/com.scaffold.appflow/Runtime/ApplicationHost.cs](../../Assets/Packages/com.scaffold.appflow/Runtime/ApplicationHost.cs):
 
 - `BuildChildScope` becomes the central wiring point. It creates the new layer's `LayerPublisher`, replays every existing stack entry's deltas into the new child builder (root-first), registers the new publisher into the builder so providers in this layer can ctor-inject it, then invokes `layer.Install(builder)`.
 - `PushAsync` threads the publisher into `FinishSuccessfulPush` so it can be stored on the new `LayerEntry`.
@@ -244,7 +244,7 @@ private IEnumerable<LayerEntry> EnumerateRootFirst()
 
 ## Step 5 — Split `SampleFeatureLayer` into provider + consumer
 
-The current [Assets/Packages/com.scaffold.layeredscope/Samples/Layers/SampleFeatureLayer.cs](../../Assets/Packages/com.scaffold.layeredscope/Samples/Layers/SampleFeatureLayer.cs) loads `SampleAsset` in `PrepareAsync` and registers it via a private field in `Install`. Replace it with two layers in the same file:
+The current [Assets/Packages/com.scaffold.appflow/Samples/Layers/SampleFeatureLayer.cs](../../Assets/Packages/com.scaffold.appflow/Samples/Layers/SampleFeatureLayer.cs) loads `SampleAsset` in `PrepareAsync` and registers it via a private field in `Install`. Replace it with two layers in the same file:
 
 ```csharp
 internal sealed class SampleFeatureAssetProvider : IAsyncInitializable
@@ -294,7 +294,7 @@ internal sealed class SampleFeatureLayer : IScopeLayer
 
 `SampleFeatureService` is unchanged — it continues to ctor-inject `SampleAsset, SharedSampleAsset, ISampleConfigService, ILayerResolver`. The asset arrives via the parent's published delta instead of an in-layer `RegisterInstance`.
 
-Update [Assets/Packages/com.scaffold.layeredscope/Samples/SampleApplicationBootstrap.cs](../../Assets/Packages/com.scaffold.layeredscope/Samples/SampleApplicationBootstrap.cs):
+Update [Assets/Packages/com.scaffold.appflow/Samples/SampleApplicationBootstrap.cs](../../Assets/Packages/com.scaffold.appflow/Samples/SampleApplicationBootstrap.cs):
 
 ```csharp
 protected override async Task OnReadyAsync(CancellationToken ct)
@@ -308,7 +308,7 @@ protected override async Task OnReadyAsync(CancellationToken ct)
 }
 ```
 
-## Step 6 — Update tests in [Assets/Packages/com.scaffold.layeredscope/Tests/Editor/ApplicationHostTests.cs](../../Assets/Packages/com.scaffold.layeredscope/Tests/Editor/ApplicationHostTests.cs)
+## Step 6 — Update tests in [Assets/Packages/com.scaffold.appflow/Tests/Editor/ApplicationHostTests.cs](../../Assets/Packages/com.scaffold.appflow/Tests/Editor/ApplicationHostTests.cs)
 
 - `ThrowingPrepareLayer` is unchanged (`PrepareAsync(parent, ct)` keeps its current signature).
 - Replace `ParentLayer_RegistersInstance_InjectableInChildLayer` (and its `SharedAssetWarmer`/`ParentSharedAssetLayer` helpers) with `ParentLayer_PublisherProvider_InjectableInChildLayer`: parent layer registers an `IAsyncInitializable` provider that calls `publisher.Publish(new SharedAsset("from-parent"))`; child layer ctor-injects `SharedAsset` and asserts `Tag == "from-parent"`.
@@ -316,13 +316,13 @@ protected override async Task OnReadyAsync(CancellationToken ct)
 - Add `ProviderPublishMany_ExposesIReadOnlyListAndIndividualItems`: publisher with `PublishMany(new[]{ new Item("a"), new Item("b") })`; child resolves `IReadOnlyList<Item>` (count 2) and individual `Item` (last wins).
 - Add `ChildLayerPublisher_DoesNotLeakIntoParent`: a child layer's provider publishing does not affect the parent's resolvable types.
 
-## Step 7 — Update [Assets/Packages/com.scaffold.layeredscope/README.md](../../Assets/Packages/com.scaffold.layeredscope/README.md)
+## Step 7 — Update [Assets/Packages/com.scaffold.appflow/README.md](../../Assets/Packages/com.scaffold.appflow/README.md)
 
 > Note: today this README is a ~21-line stub and does **not** yet contain a "Cross-layer registration patterns" section. There is no `Docs/LayeredScope.md` (and no `Docs/Infra/LayeredScope.md`) — the package README is the single authoritative doc per AGENTS.md. Treat the bullets below as **additions** to the README rather than restructuring of an existing section. If you want a `Docs/Infra/LayeredScope.md` pointer file (matching the `Docs/Infra/Scope.md` convention), add it as a thin link to this README in the same change.
 
 - Add a "Cross-layer registration patterns" section organized into three patterns, with the publisher as primary:
   1. **Static parent service, ctor-injected in child** (unchanged).
-  2. **Async-loaded asset published by a provider in the parent layer** — NEW primary pattern. Walk through `ILayerPublisher`, the provider class shape, and the loader-above-consumer-below split. Show a one-line `builder.Register<MyProvider>().As<IAsyncInitializable>()` example and stress that loader-specific helpers (`RegisterAddressable<T>`, etc.) are extension methods that live OUTSIDE `com.scaffold.layeredscope`.
+  2. **Async-loaded asset published by a provider in the parent layer** — NEW primary pattern. Walk through `ILayerPublisher`, the provider class shape, and the loader-above-consumer-below split. Show a one-line `builder.Register<MyProvider>().As<IAsyncInitializable>()` example and stress that loader-specific helpers (`RegisterAddressable<T>`, etc.) are extension methods that live OUTSIDE `com.scaffold.appflow`.
   3. **Warmer + on-demand factory** (existing Pattern 2, kept for the synchronous-load case where you don't want to split layers; reference `SampleAssetsLayer`).
 - Drop the old Pattern 3 ("per-push asset prepared from parent, instance-registered in own scope") — superseded by the publisher pattern.
 - Clarify that `IAsyncScopeLayer.PrepareAsync` is now reserved for **read-only** parent introspection (e.g. deciding which sub-layers to push); it must not be used to register anything in the layer.
@@ -344,7 +344,7 @@ Fix any analyzer/test failures the gate reports.
 
 ## Out of scope (deliberately)
 
-- **No Addressables code in `com.scaffold.layeredscope`.** `RegisterAddressable<T>(key)`, `AddressableAsset<T>`, `AddressableLabel<T>`, `IAddressableLoader` and friends are extension methods / classes that live in whatever module owns the Addressables wrapper. The core only ships `ILayerPublisher`. The same `ILayerPublisher` is reused by Resources-, REST-, ScriptableObject-, or any other custom provider — that is the explicit point of keeping it loader-agnostic.
+- **No Addressables code in `com.scaffold.appflow`.** `RegisterAddressable<T>(key)`, `AddressableAsset<T>`, `AddressableLabel<T>`, `IAddressableLoader` and friends are extension methods / classes that live in whatever module owns the Addressables wrapper. The core only ships `ILayerPublisher`. The same `ILayerPublisher` is reused by Resources-, REST-, ScriptableObject-, or any other custom provider — that is the explicit point of keeping it loader-agnostic.
 - **No keyed registration** (`PublishKeyed<T>(string key, T)`). Easy to add later as a non-breaking addition.
 - **No same-layer asset injection.** Documented limitation. Loader and consumer live in different layers; the architecture pushes you toward the right shape.
 - **No removal of `IAsyncScopeLayer.PrepareAsync`.** Kept for read-only parent introspection.

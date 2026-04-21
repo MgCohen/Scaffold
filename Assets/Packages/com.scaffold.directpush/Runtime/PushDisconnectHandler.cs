@@ -2,7 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using GameModuleDTO.Modules.DirectPush;
-using Scaffold.LayeredScope;
+using Scaffold.AppFlow;
 using UnityEngine;
 
 namespace Scaffold.DirectPush

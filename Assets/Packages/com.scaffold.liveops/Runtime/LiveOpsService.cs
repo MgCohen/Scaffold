@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using GameModuleDTO.GameApi;
 using GameModuleDTO.GameModule;
 using GameModuleDTO.ModuleRequests;
-using Scaffold.LayeredScope;
+using Scaffold.AppFlow;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json.Serialization;

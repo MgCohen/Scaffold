@@ -10,7 +10,7 @@
     "url": "https://github.com/MgCohen/Scaffold"
   },
   "dependencies": {
-    "com.scaffold.layeredscope": "0.1.0",
+    "com.scaffold.appflow": "0.1.0",
     "com.scaffold.types": "0.1.0",
     "com.scaffold.schemas": "0.1.0",
     "com.scaffold.events": "0.1.0",

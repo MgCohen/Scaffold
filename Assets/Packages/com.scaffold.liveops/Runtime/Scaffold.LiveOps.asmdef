@@ -2,7 +2,7 @@
     "name": "Scaffold.LiveOps",
     "rootNamespace": "Scaffold.LiveOps",
     "references": [
-        "Scaffold.LayeredScope",
+        "Scaffold.AppFlow",
         "Scaffold.CloudCode",
         "VContainer"
     ],

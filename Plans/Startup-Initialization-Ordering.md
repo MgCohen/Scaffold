@@ -1,6 +1,6 @@
 # Startup: initialization ordering (implementation outline)
 
-**Runtime note:** Application startup and per-layer async init are implemented in **`Scaffold.LayeredScope`** (`ApplicationBootstrap`, `ApplicationHost`, `IAsyncInitializable`). This document remains an optional design outline for dependency-graph–ordered init waves.
+**Runtime note:** Application startup and per-layer async init are implemented in **`Scaffold.AppFlow`** (`AppFlowRoot`, `AppFlowHost`, `IAsyncInitializable`). This document remains an optional design outline for dependency-graph–ordered init waves.
 
 This document is an **implementation outline** only—no code in the repo is required to match it until an ExecPlan adopts it.
 
@@ -163,7 +163,7 @@ This outline is ready to be turned into an ExecPlan with file paths, asmdef impa
 
 ## Design: required types, API, and code snippets
 
-This section turns the outline into **concrete shapes** you can paste into an ExecPlan or prototype. Names are suggestions; align with `Scaffold.LayeredScope` when implementing.
+This section turns the outline into **concrete shapes** you can paste into an ExecPlan or prototype. Names are suggestions; align with `Scaffold.AppFlow` when implementing.
 
 ### Canonical required types and APIs
 
@@ -186,7 +186,7 @@ This section turns the outline into **concrete shapes** you can paste into an Ex
 ### Public API (C#-shaped)
 
 ```csharp
-// Contracts (e.g. Scaffold.LayeredScope)
+// Contracts (e.g. Scaffold.AppFlow)
 public interface IAsyncInitializable
 {
     Task InitializeAsync(CancellationToken cancellationToken);

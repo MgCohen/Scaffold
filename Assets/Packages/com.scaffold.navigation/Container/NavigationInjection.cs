@@ -1,4 +1,4 @@
-using Scaffold.LayeredScope;
+using Scaffold.AppFlow;
 using Scaffold.Navigation.Contracts;
 
 namespace Scaffold.Navigation.Container
