@@ -2,26 +2,26 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using GameModuleDTO.GameModule;
-using Scaffold.Scope.Contracts;
-using VContainer;
+using Scaffold.AppFlow;
 
 namespace Scaffold.LiveOps
 {
-    public abstract class GameClientModuleBase<T> : IGameClientModule, IAsyncLayerInitializable where T : class, IGameModuleData
+    public abstract class GameClientModuleBase<T> : IGameClientModule, IAsyncInitializable where T : class, IGameModuleData
     {
+        protected GameClientModuleBase(ILiveOpsService liveOps)
+        {
+            this.liveOps = liveOps ?? throw new ArgumentNullException(nameof(liveOps));
+        }
+
         public virtual string Key => typeof(T).Name;
 
         protected T data;
 
-        public Task InitializeAsync(IObjectResolver resolver, CancellationToken cancellationToken)
-        {
-            if (resolver == null)
-            {
-                throw new ArgumentNullException(nameof(resolver));
-            }
+        protected readonly ILiveOpsService liveOps;
 
+        public Task InitializeAsync(CancellationToken cancellationToken)
+        {
             cancellationToken.ThrowIfCancellationRequested();
-            ILiveOpsService liveOps = resolver.Resolve<ILiveOpsService>();
             T moduleData = liveOps.GetModuleData<T>();
             data = moduleData;
             return OnInitializedAsync(moduleData);

@@ -11,6 +11,7 @@ namespace GameModule.ModuleFetchData
         Task Set(IExecutionContext context, IGameModuleData value, bool useWriteLock = false);
         Task SetBatch(IExecutionContext context, IEnumerable<IGameModuleData> values, bool useWriteLock = false);
         Task Delete(IExecutionContext context, string key);
+        Task FlushDirtyAsync(IExecutionContext context);
         Task SaveCache(IExecutionContext context);
         void AddToCache(params string[] moduleKeys);
         void AddToCache(IGameModuleData moduleData);

@@ -1,31 +1,21 @@
-using VContainer.Unity;
-using VContainer;
-using UnityEngine;
+using Scaffold.AppFlow;
 using Scaffold.Navigation.Contracts;
-using Scaffold.Scope.Contracts;
 
 namespace Scaffold.Navigation.Container
 {
-    internal class NavigationInjection : INavigationOpenHandler, IViewControllerDependencyInjector
+    internal class NavigationInjection : INavigationOpenHandler
     {
-        public NavigationInjection(ICrossLayerObjectResolver resolver)
+        public NavigationInjection(ILayerResolver layers)
         {
-            this.resolver = resolver;
+            this.layers = layers;
         }
 
-        private readonly ICrossLayerObjectResolver resolver;
+        private readonly ILayerResolver layers;
 
         public void OnOpen(IViewController viewModel)
         {
-            Inject(viewModel);
-        }
-
-        public void Inject(IViewController viewModel)
-        {
-            resolver.Inject(viewModel);
+            layers.Top.Inject(viewModel);
         }
     }
 }
-
-
 

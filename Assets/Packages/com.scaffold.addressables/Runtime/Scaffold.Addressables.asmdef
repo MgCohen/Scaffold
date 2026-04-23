@@ -2,7 +2,7 @@
     "name": "Scaffold.Addressables",
     "rootNamespace": "Scaffold.Addressables",
     "references": [
-        "Scaffold.Scope",
+        "Scaffold.AppFlow",
         "Scaffold.Types",
         "Scaffold.Maps",
         "VContainer",

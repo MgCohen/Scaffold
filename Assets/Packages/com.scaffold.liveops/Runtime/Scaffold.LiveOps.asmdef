@@ -2,8 +2,8 @@
     "name": "Scaffold.LiveOps",
     "rootNamespace": "Scaffold.LiveOps",
     "references": [
+        "Scaffold.AppFlow",
         "Scaffold.CloudCode",
-        "Scaffold.Scope",
         "VContainer"
     ],
     "includePlatforms": [],

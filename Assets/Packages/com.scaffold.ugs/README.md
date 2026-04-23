@@ -6,15 +6,15 @@
 
 - Purpose: initialize Unity Gaming Services (UGS) Core and perform anonymous authentication during scoped startup, before other services that depend on UGS identity.
 - Location: `Assets/Packages/com.scaffold.ugs/Runtime/Ugs.cs` and `Container/UgsInstaller.cs`.
-- Depends on: `Scaffold.Scope` (for `IAsyncLayerInitializable`), `Unity.Services.Core`, `Unity.Services.Authentication`, `VContainer`.
+- Depends on: `com.scaffold.appflow` (`Scaffold.AppFlow.IAsyncInitializable`), `Unity.Services.Core`, `Unity.Services.Authentication`, `VContainer`.
 - Used by: application composition root (register `UgsInstaller` in your main scope alongside other infra installers).
 - Runtime/Editor: runtime-only service registration and async initialization.
-- Keywords: Unity Gaming Services, anonymous sign-in, IAsyncLayerInitializable, UnityServices.
+- Keywords: Unity Gaming Services, anonymous sign-in, IAsyncInitializable, UnityServices.
 
 ## Responsibilities
 
-- Owns `Ugs` (`IAsyncLayerInitializable`) that ensures `UnityServices` is initialized and the player is signed in anonymously when no session exists.
-- Owns `UgsInstaller` registering `Ugs` as singleton and as `IAsyncLayerInitializable`.
+- Owns `Ugs` (`Scaffold.AppFlow.IAsyncInitializable`) that ensures `UnityServices` is initialized and the player is signed in anonymously when no session exists.
+- Owns `UgsInstaller` registering `Ugs` as singleton and as `Scaffold.AppFlow.IAsyncInitializable`.
 - Does not own Cloud Code, Economy, or other UGS product APIs—those belong in their own packages/installers.
 - Does not own account linking, platform credentials, or custom authentication UI (out of scope for this minimal module).
 
@@ -22,7 +22,7 @@
 
 | Symbol | Purpose | Inputs | Outputs | Failure behavior |
 |---|---|---|---|---|
-| `Ugs.InitializeAsync` | Entry from `IAsyncLayerInitializable` | `IObjectResolver`, `CancellationToken` | completed task | throws `ArgumentNullException` if resolver is null; propagates UGS/auth exceptions |
+| `Ugs.InitializeAsync` | Entry from `IAsyncInitializable` | `CancellationToken` | completed task | propagates UGS/auth exceptions |
 | `Ugs` (class) | Holds initialization policy | DI-owned singleton | n/a | n/a |
 | `UgsInstaller.Install` | Registers `Ugs` in VContainer | `IContainerBuilder` | n/a | n/a |
 
@@ -38,7 +38,7 @@ If services are already initialized and the user is signed in, calls complete wi
 1. Ensure the project includes **Unity Services Core** and **Authentication** packages (and UGS project/linking in the Services dashboard) so `Unity.Services.Core` and `Unity.Services.Authentication` resolve.
 2. Reference `Scaffold.Ugs` and, for composition roots, `Scaffold.Ugs.Container`.
 3. Register `UgsInstaller` in the main application scope (see [Docs/App/AppStartup.md](../../../Docs/App/AppStartup.md)).
-4. Ensure `TwoScopeApplicationHost` (or your host) runs the legacy `IAsyncLayerInitializable` pass on the main scope so `Ugs` executes before modules that assume UGS is ready.
+4. Ensure your host runs the App Flow init wave for each pushed layer (e.g. `AppFlowRoot` / `AppFlowHost`) so `Ugs` executes before modules that assume UGS is ready.
 
 **Common mistakes**
 
@@ -48,7 +48,7 @@ If services are already initialized and the user is signed in, calls complete wi
 ## How to Use
 
 1. Add `UgsInstaller` to the container builder for the scope that should own UGS initialization (typically shared infra).
-2. Let your startup host resolve all `IAsyncLayerInitializable` services on the main scope after build (same pattern as `LiveOpsService`, etc.).
+2. Let your startup host resolve all `Scaffold.AppFlow.IAsyncInitializable` services after each layer’s container is built (same pattern as `LiveOpsService`, etc.).
 3. Consume Unity Authentication / other UGS APIs only after that layer has finished initializing.
 4. If you need a different auth policy (Steam, Apple, etc.), replace or extend this module’s behavior in a dedicated installer rather than patching `Ugs` ad hoc.
 
@@ -102,12 +102,12 @@ After infra initialization completes, other services may call Authentication or 
   - `Ugs` must remain safe to call when Unity Services are already initialized (no duplicate `InitializeAsync` without checking state).
   - anonymous sign-in only runs when `IsSignedIn` is false.
 - Allowed Dependencies:
-  - `Scaffold.Scope`, Unity Services Authentication/Core packages, VContainer.
+  - `com.scaffold.appflow`, Unity Services Authentication/Core packages, VContainer.
 - Forbidden Dependencies:
   - do not reference Cloud Code, LiveOps, or gameplay assemblies from `Scaffold.Ugs` runtime code.
 - Change Checklist:
   - verify the composition root still registers `UgsInstaller` before dependent services.
-  - confirm async initializer ordering with your startup host (`TwoScopeApplicationHost` runs `IAsyncLayerInitializable` after `IAsyncInitializationRunner` on the main scope).
+  - confirm async initializer ordering with your startup host (App Flow runs `IAsyncInitializable` instances registered in each layer).
 - Known Tricky Areas:
   - UGS dashboard and package versions must match; failures often surface as runtime exceptions inside `InitializeAsync`.
 
@@ -115,7 +115,7 @@ After infra initialization completes, other services may call Authentication or 
 
 - `../../../Architecture.md`
 - `../../../Docs/App/AppStartup.md`
-- `../com.scaffold.scope/README.md`
+- `../com.scaffold.appflow/README.md`
 - `../../../Docs/Testing/Testing.md`
 
 ## Changelog

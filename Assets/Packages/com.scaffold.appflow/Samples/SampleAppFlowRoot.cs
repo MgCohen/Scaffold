@@ -1,0 +1,28 @@
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using Scaffold.AppFlow;
+using Scaffold.AppFlow.Samples.Layers;
+using UnityEngine;
+
+namespace Scaffold.AppFlow.Samples
+{
+    // sample: Three layers — SampleAssetsLayer (publish), SampleConfigsLayer, SampleFeatureLayer (consume). See Samples/README.md.
+    [DefaultExecutionOrder(-1000)]
+    public sealed class SampleAppFlowRoot : AppFlowRoot
+    {
+        protected override IEnumerable<IScopeLayer> GetInitialLayers()
+        {
+            yield return new SampleAssetsLayer();
+            yield return new SampleConfigsLayer();
+        }
+
+        protected override async Task OnReadyAsync(CancellationToken ct)
+        {
+            await Host.PushAsync(new SampleFeatureLayer(), ct);
+            await Task.Delay(1000, ct);
+            await Host.PopAsync(ct);
+            Debug.Log("[Sample] feature popped; assets/configs still alive.");
+        }
+    }
+}

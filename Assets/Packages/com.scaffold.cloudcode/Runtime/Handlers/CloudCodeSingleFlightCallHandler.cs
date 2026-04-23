@@ -18,10 +18,10 @@ namespace Scaffold.CloudCode
         public async Task<string> InvokeAsync(string module, string endpoint, Dictionary<string, object> payload, CancellationToken cancellationToken)
         {
             SemaphoreSlim gate = moduleLocks.GetOrAdd(module, _ => new SemaphoreSlim(1, 1));
-            await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            await gate.WaitAsync(cancellationToken);
             try
             {
-                return await inner.InvokeAsync(module, endpoint, payload, cancellationToken).ConfigureAwait(false);
+                return await inner.InvokeAsync(module, endpoint, payload, cancellationToken);
             }
             finally
             {

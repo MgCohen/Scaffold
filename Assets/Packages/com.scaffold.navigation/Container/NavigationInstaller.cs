@@ -22,4 +22,3 @@ namespace Scaffold.Navigation.Container
         }
     }
 }
-

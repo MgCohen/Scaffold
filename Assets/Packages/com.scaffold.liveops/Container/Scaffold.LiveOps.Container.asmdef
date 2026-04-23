@@ -2,8 +2,9 @@
     "name": "Scaffold.LiveOps.Container",
     "rootNamespace": "Scaffold.LiveOps.Container",
     "references": [
+        "Scaffold.AppFlow",
+        "Scaffold.CloudCode",
         "Scaffold.LiveOps",
-        "Scaffold.Scope",
         "VContainer",
         "VContainer.Unity"
     ],

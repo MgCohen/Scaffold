@@ -20,18 +20,18 @@ namespace Scaffold.CloudCode
         {
             if (settings.TimeoutMilliseconds <= 0)
             {
-                return await inner.InvokeAsync(module, endpoint, payload, cancellationToken).ConfigureAwait(false);
+                return await inner.InvokeAsync(module, endpoint, payload, cancellationToken);
             }
 
             Task<string> callTask = inner.InvokeAsync(module, endpoint, payload, cancellationToken);
             Task delayTask = Task.Delay(settings.TimeoutMilliseconds, cancellationToken);
-            Task winner = await Task.WhenAny(callTask, delayTask).ConfigureAwait(false);
+            Task winner = await Task.WhenAny(callTask, delayTask);
             if (winner == delayTask)
             {
                 throw new TimeoutException($"Cloud Code call timed out after {settings.TimeoutMilliseconds} ms (module '{module}', endpoint '{endpoint}').");
             }
 
-            return await callTask.ConfigureAwait(false);
+            return await callTask;
         }
     }
 }

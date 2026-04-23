@@ -19,7 +19,7 @@ namespace Scaffold.CloudCode
 
         public async Task<string> InvokeAsync(string module, string endpoint, Dictionary<string, object> payload, CancellationToken cancellationToken)
         {
-            string response = await inner.InvokeAsync(module, endpoint, payload, cancellationToken).ConfigureAwait(false);
+            string response = await inner.InvokeAsync(module, endpoint, payload, cancellationToken);
             if (settings.LogRawResponses)
             {
                 Debug.Log($"[CloudCode] module '{module}' endpoint '{endpoint}' response: {response}");

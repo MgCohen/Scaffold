@@ -5,7 +5,7 @@
         "Unity.Services.Core",
         "Unity.Services.Authentication",
         "Unity.Services.CloudCode",
-        "Scaffold.Maps"
+        "VContainer"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

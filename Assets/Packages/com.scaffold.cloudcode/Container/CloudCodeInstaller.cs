@@ -1,4 +1,5 @@
 using Scaffold.CloudCode;
+using SdkCloudCode = Unity.Services.CloudCode;
 using VContainer;
 using VContainer.Unity;
 
@@ -39,6 +40,8 @@ namespace Scaffold.CloudCode.Container
 
         private void RegisterModuleService(IContainerBuilder builder)
         {
+            builder.RegisterInstance(SdkCloudCode.CloudCodeService.Instance)
+                .As<SdkCloudCode.ICloudCodeService>();
             builder.Register<CloudCodeSdkCallHandler>(Lifetime.Singleton);
             builder.Register<ICloudCodeService, CloudCodeService>(Lifetime.Singleton);
         }

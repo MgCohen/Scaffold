@@ -2,23 +2,24 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using GameModuleDTO.ModuleRequests;
-using VContainer;
+using Scaffold.AppFlow;
 
 namespace Scaffold.LiveOps
 {
     internal sealed class ModuleResponseDispatchService
     {
-        public ModuleResponseDispatchService(IObjectResolver objectResolver)
+        public ModuleResponseDispatchService(ILayerResolver layerResolver)
         {
-            if (objectResolver == null)
+            if (layerResolver == null)
             {
-                throw new ArgumentNullException(nameof(objectResolver));
+                throw new ArgumentNullException(nameof(layerResolver));
             }
 
-            this.objectResolver = objectResolver;
+            this.layerResolver = layerResolver;
         }
 
-        private readonly IObjectResolver objectResolver;
+        private readonly ILayerResolver layerResolver;
+        private IResponseHandler[] cachedHandlers;
 
         public void DispatchNestedResponses(ModuleResponse root)
         {
@@ -27,8 +28,8 @@ namespace Scaffold.LiveOps
                 return;
             }
 
-            IEnumerable<IResponseHandler> handlers = objectResolver.Resolve<IEnumerable<IResponseHandler>>();
-            if (handlers == null || !handlers.Any())
+            IResponseHandler[] handlers = cachedHandlers ??= ResolveHandlers();
+            if (handlers.Length == 0)
             {
                 return;
             }
@@ -36,7 +37,17 @@ namespace Scaffold.LiveOps
             DispatchChildren(root.Responses, handlers);
         }
 
-        private void DispatchChildren(IReadOnlyList<ModuleResponse> children, IEnumerable<IResponseHandler> handlers)
+        private IResponseHandler[] ResolveHandlers()
+        {
+            if (!layerResolver.TryResolve(out IEnumerable<IResponseHandler> all))
+            {
+                return Array.Empty<IResponseHandler>();
+            }
+
+            return all?.ToArray() ?? Array.Empty<IResponseHandler>();
+        }
+
+        private void DispatchChildren(IReadOnlyList<ModuleResponse> children, IReadOnlyList<IResponseHandler> handlers)
         {
             for (int i = 0; i < children.Count; i++)
             {
@@ -50,11 +61,12 @@ namespace Scaffold.LiveOps
             }
         }
 
-        private void DispatchForNode(ModuleResponse node, IEnumerable<IResponseHandler> handlers)
+        private void DispatchForNode(ModuleResponse node, IReadOnlyList<IResponseHandler> handlers)
         {
             Type nodeType = node.GetType();
-            foreach (IResponseHandler handler in handlers)
+            for (int i = 0; i < handlers.Count; i++)
             {
+                IResponseHandler handler = handlers[i];
                 if (handler != null && handler.HandledResponseType == nodeType)
                 {
                     handler.Handle(node);

@@ -3,7 +3,7 @@
     "rootNamespace": "Scaffold.DirectPush.Container",
     "references": [
         "Scaffold.DirectPush",
-        "Scaffold.Scope",
+        "Scaffold.AppFlow",
         "VContainer",
         "VContainer.Unity"
     ],
