@@ -5,7 +5,6 @@ using VContainer.Unity;
 
 namespace Scaffold.LiveOps.Container
 {
-    // sample: registers ILiveOpsService; install after CloudCodeInstaller. Register handlers via LiveOpsOptimisticRegistrationExtensions or As<IOptimisticCloudCodeHandler>().
     public sealed class LiveOpsInstaller : IInstaller
     {
         public void Install(IContainerBuilder builder)

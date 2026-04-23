@@ -27,10 +27,10 @@ namespace GameModule.ModuleFetchData.Unity
             return $"'{_key}'.'{key}'";
         }
 
-        protected override async Task InitializeData(IExecutionContext context)
+        protected override Task InitializeData(IExecutionContext context)
         {
             SetPlayerId(context.PlayerId);
-            await Initialize(context);
+            return base.InitializeData(context);
         }
 
         protected override async Task<Dictionary<string, string>> FetchData(IExecutionContext context)
@@ -109,43 +109,16 @@ namespace GameModule.ModuleFetchData.Unity
             await _gameApiClient.CloudSaveData.SetPrivateCustomItemBatchAsync(context, context.ServiceToken, context.ProjectId, _key, request);
         }
 
-        //Deprecated since it only search for the first page
-        protected async Task<T> GetGameValue<T>(IExecutionContext context, string databaseKey, string key)
+        public async Task<T> Get<T>(IExecutionContext context, string databaseKey, string itemKey, T defaultValue)
         {
             _key = databaseKey;
-            return await Get<T>(context, key, default);
-        }
-
-        public async Task<Dictionary<string, T>> GetAllGameValues<T>(IExecutionContext context, string key)
-        {
-            _key = key;
-            return await GetAllValues<T>(context);
-        }
-
-        public async Task<T> GetAllGameValue<T>(IExecutionContext context, string databaseKey, string key)
-        {
-            Dictionary<string, T> gameValues = await GetAllGameValues<T>(context, databaseKey);
-            _logger.LogInformation($"[GameState] Fetched all game values for player {context.PlayerId}, total count: {gameValues.Count}");
-            //debug all values
-            //string allValues = "";
-            //foreach (var kvp in gameValues)
-            //{
-            //    allValues += $"Key: {kvp.Key}, Value: {kvp.Value}\n";
-            //}
-            //_logger.LogDebug($"[GameState] All game values:\n{allValues}");
-
-
-            if (gameValues.TryGetValue(key, out T value))
-            {
-                return value;
-            }
-            return default;
+            return await Get(context, itemKey, defaultValue);
         }
 
         public async Task Set(IExecutionContext context, string databaseKey, string key, object value, bool useWriteLock = false)
         {
             _key = databaseKey;
-            await Set(context, key, value, useWriteLock);
+            await base.Set(context, key, value, useWriteLock);
         }
     }
 }

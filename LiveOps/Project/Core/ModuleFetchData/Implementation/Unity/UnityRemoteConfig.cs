@@ -21,6 +21,26 @@ namespace GameModule.ModuleFetchData.Unity
 
         }
 
+        public override Task FlushAsync(IExecutionContext context)
+        {
+            return Task.CompletedTask;
+        }
+
+        public override IAsyncDisposable BeginBatch()
+        {
+            return NoOpBatchScope.Instance;
+        }
+
+        private sealed class NoOpBatchScope : IAsyncDisposable
+        {
+            internal static readonly NoOpBatchScope Instance = new NoOpBatchScope();
+
+            public ValueTask DisposeAsync()
+            {
+                return ValueTask.CompletedTask;
+            }
+        }
+
         protected override async Task<Dictionary<string, string>> FetchData(IExecutionContext context)
         {
             Dictionary<string, string>? remoteData = null;

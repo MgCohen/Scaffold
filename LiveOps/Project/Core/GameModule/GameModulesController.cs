@@ -70,35 +70,47 @@ namespace GameModule.GameModule
             IReadOnlyCollection<string>? keys = filterKeys;
             bool useKeyFilter = keys != null && keys.Count > 0;
 
-            foreach (IGameModule gameModule in modules)
+            string[]? playerKeys = ModulePrefetchKeys.UnionOrAll(modules, m => m.PlayerKeys());
+            string[]? configKeys = ModulePrefetchKeys.UnionOrAll(modules, m => m.ConfigKeys());
+
+            await Task.WhenAll(
+                _playerData.WarmupAsync(context, playerKeys),
+                _remoteConfig.WarmupAsync(context, configKeys)
+            ).ConfigureAwait(false);
+
+            await using (_playerData.BeginBatch())
+            await using (gameState.BeginBatch())
             {
-                if (gameModule == null) continue;
-
-                if (useKeyFilter && !keys!.Contains(gameModule.Key))
+                foreach (IGameModule gameModule in modules)
                 {
-                    continue;
-                }
+                    if (gameModule == null) continue;
 
-                try
-                {
-                    IGameModuleData? moduleData = await gameModule.Initialize(context, _playerData, gameState, _remoteConfig);
-                    if (moduleData != null)
+                    if (useKeyFilter && !keys!.Contains(gameModule.Key))
                     {
-                        gameData.AddModuleData(moduleData);
+                        continue;
+                    }
+
+                    try
+                    {
+                        IGameModuleData? moduleData = await gameModule.Initialize(context, _playerData, gameState, _remoteConfig).ConfigureAwait(false);
+                        if (moduleData != null)
+                        {
+                            gameData.AddModuleData(moduleData);
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        _logger.LogError(e, "Error on module {ModuleKey}: {Message}", gameModule.Key, e.Message);
                     }
                 }
-                catch (Exception e)
-                {
-                    _logger.LogError(e, "Error on module {ModuleKey}: {Message}", gameModule.Key, e.Message);
-                }
-            }
 
-            T? response = new GameDataResponse(gameData) as T;
-            if (response == null)
-            {
-                throw new InvalidOperationException($"[ProcessModulesSequentially] Could not cast GameDataResponse to expected type '{typeof(T).Name}'.");
+                T? response = new GameDataResponse(gameData) as T;
+                if (response == null)
+                {
+                    throw new InvalidOperationException($"[ProcessModulesSequentially] Could not cast GameDataResponse to expected type '{typeof(T).Name}'.");
+                }
+                return await _moduleRequestHandler.ResolveResponse(context, request, response).ConfigureAwait(false);
             }
-            return await _moduleRequestHandler.ResolveResponse(context, request, response);
         }
     }
 }

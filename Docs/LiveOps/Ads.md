@@ -132,7 +132,7 @@ INPUT: WatchAdRequest { PlacementId }
    IF HasReachedMaxViews → log warning, skip reward
    ELSE IF IsCooldownElapsed → ✓ valid
      a. RecordAdWatched(placementId)        → WatchCount++, LastWatched = now
-     b. AddToCache(persistence)
+     b. Player.Set(context, persistence) (write-through outside GameApi batch; deferred flush inside batch)
      c. GrantReward(placementConfig)         → dispatch to correct module
    ELSE → log warning (still on cooldown), skip reward
 

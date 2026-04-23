@@ -12,6 +12,16 @@ namespace GameModule.GameApi
         Type RequestType { get; }
 
         Task<ModuleResponse> HandleAsync(GameApiSession session, object request);
+
+        /// <summary>
+        /// <c>null</c>: warm full player snapshot. Empty: skip player prefetch. Otherwise: keys for future selective fetch (currently full snapshot).
+        /// </summary>
+        string[]? PlayerKeys() => null;
+
+        /// <summary>
+        /// <c>null</c>: warm full remote config. Empty: skip config prefetch. Otherwise: keys for future selective fetch (currently full snapshot).
+        /// </summary>
+        string[]? ConfigKeys() => null;
     }
 
     /// <summary>

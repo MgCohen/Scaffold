@@ -11,10 +11,11 @@
         "dependencies": {
           "Com.Unity.Services.CloudCode.Apis": "0.0.9",
           "Com.Unity.Services.CloudCode.Core": "0.0.1",
-          "Madbox.LiveOps.DTO": "1.0.0",
           "Microsoft.AspNetCore.Http": "2.3.0",
           "Microsoft.AspNetCore.Http.Abstractions": "2.3.0",
-          "Microsoft.Extensions.Logging.Abstractions": "7.0.1"
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "8.0.0",
+          "Microsoft.Extensions.Logging.Abstractions": "7.0.1",
+          "Scaffold.LiveOps.DTO": "1.0.0"
         },
         "runtime": {
           "LiveOps.dll": {}
@@ -263,12 +264,12 @@
           }
         }
       },
-      "Madbox.LiveOps.DTO/1.0.0": {
+      "Scaffold.LiveOps.DTO/1.0.0": {
         "dependencies": {
           "Newtonsoft.Json": "13.0.3"
         },
         "runtime": {
-          "Madbox.LiveOps.DTO.dll": {
+          "Scaffold.LiveOps.DTO.dll": {
             "assemblyVersion": "1.0.0.0",
             "fileVersion": "1.0.0.0"
           }
@@ -485,7 +486,7 @@
       "path": "system.text.encodings.web/8.0.0",
       "hashPath": "system.text.encodings.web.8.0.0.nupkg.sha512"
     },
-    "Madbox.LiveOps.DTO/1.0.0": {
+    "Scaffold.LiveOps.DTO/1.0.0": {
       "type": "project",
       "serviceable": false,
       "sha512": ""

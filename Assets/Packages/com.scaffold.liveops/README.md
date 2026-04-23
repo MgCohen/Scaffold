@@ -40,6 +40,8 @@ Register concrete feature modules as `IGameClientModule` and `IAsyncInitializabl
 
 EditMode: `Assets/Packages/com.scaffold.liveops/Tests` (`LiveOpsInitializationTests`, `GameClientModuleBaseTests`).
 
+Backend (Cloud Code host): `LiveOps/Project.Tests` — prefetch key union and `DataCacheExtensions` (`dotnet test`).
+
 
 ---
 
@@ -55,6 +57,16 @@ Cloud Code backend under `LiveOps/` (Unity repo root): **DTO** (`LiveOps.DTO/`) 
 | **Main** | `LiveOps/Project/` | Cloud Code host (`GameModule.*`), `net6.0`, output assembly **`LiveOps.dll`** |
 
 Build the shared contracts with **`LiveOps/LiveOps.sln`**. The DTO project copies **`Scaffold.LiveOps.DTO.dll`** (and `.pdb` when present) to **`Assets/Plugins/Scaffold.LiveOps.DTO/`** after each build (`CopyDtoToUnityPlugins` target in `Scaffold.LiveOps.DTO.csproj`). The Cloud Code host under **`LiveOps/Project/`** is built with your Unity Cloud Code / deployment pipeline when applicable.
+
+### Cloud Code data pipeline (backend)
+
+- **GameApi** (`GameApiDispatcher.Invoke`): Resolves `handler.PlayerKeys()` and `handler.ConfigKeys()` (default `null` = warm full player + full remote config snapshot). Runs `Task.WhenAll(player.WarmupAsync(...), remoteConfig.WarmupAsync(...))`, then `await using` **`BeginBatch()`** on **player** and **game state**. Inside the batch, **`Set`** updates cache only; disposing the outermost batch calls **`FlushAsync`**, which batch-writes **all** dirty keys (never a single-key partial flush).
+- **`IGameApiHandler`** / **`IGameModule`**: Optional `PlayerKeys()` / `ConfigKeys()` with default `null`. **`null`** = full warm for that system; **empty array** = skip prefetch (lazy on first read); non-empty key lists are reserved for future selective fetch (today they still trigger a full snapshot until `FetchData(keys)` is implemented).
+- **`GameDataHandler`** unions all registered **`IGameModule`** key hints; any module returning **`null`** for a dimension forces a full warm for that dimension.
+- **`DataCacheExtensions`** (`LiveOps/Project/Core/ModuleFetchData/DataCacheExtensions.cs`): `Get` / `Set` / `GetOrSet` for **`IGameModuleData`** so **`IReadableDataCache`** / **`IWriteableDataCache`** stay free of DTO-generic methods.
+- **Direct Cloud Code** **`GameDataRequest`** path (`GameModulesController`) applies the same warmup + dual batch scope before module `Initialize` and **`ModuleRequestHandler.ResolveResponse`** (which no longer calls **`SaveCache`**; persistence is owned by the batch dispose / **`FlushAsync`**).
+
+Backend unit tests: **`LiveOps/Project.Tests`** (xUnit, `net8.0` test host) — run with `dotnet test LiveOps/Project.Tests/LiveOps.Project.Tests.csproj`.
 
 ## Unity plugins
 

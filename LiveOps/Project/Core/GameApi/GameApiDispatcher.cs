@@ -68,21 +68,33 @@ namespace GameModule.GameApi
                     ? request.Payload.ToObject(entry.RequestType, _serializer)
                     : Activator.CreateInstance(entry.RequestType);
 
-                var session = new GameApiSession(_services, _registry, context, player, gameState, remoteConfig);
-
                 object handlerObj = _services.GetService(entry.HandlerType);
                 if (handlerObj is not IGameApiHandler handler)
                 {
                     throw new InvalidOperationException($"No handler registered for {entry.RequestType.Name}.");
                 }
 
-                ModuleResponse result = await handler.HandleAsync(session, requestObj).ConfigureAwait(false);
+                string[]? playerKeys = handler.PlayerKeys();
+                string[]? configKeys = handler.ConfigKeys();
 
-                await player.FlushDirtyAsync(context).ConfigureAwait(false);
+                await Task.WhenAll(
+                    player.WarmupAsync(context, playerKeys),
+                    remoteConfig.WarmupAsync(context, configKeys)
+                ).ConfigureAwait(false);
+
+                ModuleResponse result;
+                List<ModuleResponse> nestedResponses;
+                await using (player.BeginBatch())
+                await using (gameState.BeginBatch())
+                {
+                    GameApiSession session = new GameApiSession(_services, _registry, context, player, gameState, remoteConfig);
+                    result = await handler.HandleAsync(session, requestObj).ConfigureAwait(false);
+                    nestedResponses = new List<ModuleResponse>(session.Nested);
+                }
 
                 _signals.Push(requestObj);
 
-                return GameApiEnvelopeResponse.Success(request.RequestKey, result, new List<ModuleResponse>(session.Nested));
+                return GameApiEnvelopeResponse.Success(request.RequestKey, result, nestedResponses);
             }
             catch (Exception ex)
             {

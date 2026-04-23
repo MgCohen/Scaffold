@@ -51,7 +51,7 @@ namespace GameModule.Modules.Ads
             else if (persistence.IsCooldownElapsed(placementId, placementConfig.CooldownSeconds))
             {
                 persistence.RecordAdWatched(placementId);
-                Player.AddToCache(persistence);
+                await Player.Set(context, persistence);
                 await GrantReward(context, Player, remoteConfig, placementConfig, placementId);
             }
             else

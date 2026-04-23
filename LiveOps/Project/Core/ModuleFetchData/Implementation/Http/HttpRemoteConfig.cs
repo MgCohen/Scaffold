@@ -7,7 +7,6 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Unity.Services.CloudCode.Core;
-using GameModuleDTO.GameModule;
 using GameModuleDTO.Json;
 
 namespace GameModule.ModuleFetchData.Http
@@ -122,8 +121,8 @@ namespace GameModule.ModuleFetchData.Http
 
                                 // Robust value extraction: value property -> number -> plainJson -> whole item fallback
                                 JToken valToken = itemObj["value"] ?? itemObj["number"] ?? itemObj["plainJson"] ?? itemObj;
-                                remoteData[extractionKey] = valToken.Type == JTokenType.String 
-                                    ? valToken.ToString() 
+                                remoteData[extractionKey] = valToken.Type == JTokenType.String
+                                    ? valToken.ToString()
                                     : valToken.ToString(Formatting.None);
                             }
                         }
@@ -158,7 +157,16 @@ namespace GameModule.ModuleFetchData.Http
             _isFetched = true;
         }
 
-        #region IRemoteConfig Implementation
+        public async Task WarmupAsync(IExecutionContext context, IReadOnlyCollection<string>? keys = null)
+        {
+            if (keys != null && keys.Count == 0)
+            {
+                return;
+            }
+
+            await FetchIfNeeded(context, _specialKey);
+        }
+
         public async Task<T> Get<T>(IExecutionContext context, string key, T defaultValue)
         {
             await FetchIfNeeded(context, _specialKey);
@@ -169,33 +177,10 @@ namespace GameModule.ModuleFetchData.Http
             return defaultValue;
         }
 
-        public async Task<T> Get<T>(IExecutionContext context, T defaultValue) where T : IGameModuleData
-        {
-            return await Get(context, typeof(T).Name, defaultValue);
-        }
-
-        public async Task<Dictionary<string, T>> GetAllValues<T>(IExecutionContext context)
-        {
-            await FetchIfNeeded(context, _specialKey);
-            var results = new Dictionary<string, T>();
-            foreach (var kvp in _cache)
-            {
-                try { results[kvp.Key] = kvp.Value.FromJson<T>(); } catch { }
-            }
-            return results;
-        }
-
-        public async Task<string> GetRaw(IExecutionContext context, string key)
-        {
-            await FetchIfNeeded(context, _specialKey);
-            return _cache.TryGetValue(key, out string value) ? value : string.Empty;
-        }
-
         public async Task<bool> Exists(IExecutionContext context, string key)
         {
             await FetchIfNeeded(context, _specialKey);
             return _cache.ContainsKey(key);
         }
-        #endregion
     }
 }

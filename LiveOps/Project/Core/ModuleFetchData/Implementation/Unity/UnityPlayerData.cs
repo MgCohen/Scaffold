@@ -8,7 +8,6 @@ using Unity.Services.CloudCode.Core;
 using Unity.Services.CloudCode.Shared;
 using Unity.Services.CloudSave.Model;
 
-
 namespace GameModule.ModuleFetchData.Unity
 {
     /// <summary>
@@ -92,11 +91,6 @@ namespace GameModule.ModuleFetchData.Unity
         {
             _writeLockCache.Remove(key);
             await base.Delete(context, key);
-        }
-
-        public string GetWriteLock(string key)
-        {
-            return _writeLockCache.GetValueOrDefault(key, "");
         }
     }
 }

@@ -23,7 +23,7 @@ namespace GameModule.AccessKey
                 return false;
             }
 
-            string storedKey = await gameState.GetAllGameValue<string>(context, "AccessKey", "ServerKey");
+            string storedKey = await gameState.Get<string>(context, "AccessKey", "ServerKey", string.Empty);
             return storedKey == guid;
         }
     }

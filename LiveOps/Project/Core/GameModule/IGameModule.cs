@@ -23,5 +23,11 @@ namespace GameModule.GameModule
         /// <param name="remoteConfig">The remote configuration settings.</param>
         /// <returns>The populated module data.</returns>
         public Task<IGameModuleData> Initialize(IExecutionContext context, IPlayerData Player, IGameState gameState, IRemoteConfig remoteConfig);
+
+        /// <summary><c>null</c>: warm full player snapshot; empty: skip; else keys (selective fetch TBD).</summary>
+        string[]? PlayerKeys() => null;
+
+        /// <summary><c>null</c>: warm full remote config; empty: skip; else keys (selective fetch TBD).</summary>
+        string[]? ConfigKeys() => null;
     }
 }

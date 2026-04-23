@@ -68,7 +68,7 @@ namespace GameModule.Modules.Level
             }
 
             persistence.AddCompletedLevel(request.LevelId);
-            Player.AddToCache(persistence);
+            await Player.Set(context, persistence);
 
             int reward = config.RewardPerLevel;
             if (reward > 0)

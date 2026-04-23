@@ -38,11 +38,11 @@ namespace GameModule.Response
             _signalModule.Push(request);
         }
 
-        public async Task<T> ResolveResponse<T>(IExecutionContext context, ModuleRequest<T> request, T response, IPlayerData Player = null) where T : ModuleResponse
+        public Task<T?> ResolveResponse<T>(IExecutionContext context, ModuleRequest<T> request, T response, IPlayerData? Player = null) where T : ModuleResponse
         {
             if (request == null || context == null)
             {
-                return null;
+                return Task.FromResult<T?>(null);
             }
 
             // Merge nested responses queued via AddResponse (e.g. GoldChangedResponse) onto the root
@@ -54,16 +54,7 @@ namespace GameModule.Response
             }
 
             NotifyRequestResolve(request);
-            if (Player != null)
-            {
-                await Player.SaveCache(context);
-            }
-            else
-            {
-                await _playerData.SaveCache(context);
-            }
-
-            return response;
+            return Task.FromResult<T?>(response);
         }
 
         public void AddResponse(ModuleResponse response)

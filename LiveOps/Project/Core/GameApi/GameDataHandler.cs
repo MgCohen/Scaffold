@@ -23,6 +23,10 @@ namespace GameModule.GameApi
             _modules = modules;
         }
 
+        public string[]? PlayerKeys() => ModulePrefetchKeys.UnionOrAll(_modules, m => m.PlayerKeys());
+
+        public string[]? ConfigKeys() => ModulePrefetchKeys.UnionOrAll(_modules, m => m.ConfigKeys());
+
         public async Task<GameDataResponse> HandleAsync(GameApiSession session, GameDataRequest request)
         {
             GameData gameData = new GameData();

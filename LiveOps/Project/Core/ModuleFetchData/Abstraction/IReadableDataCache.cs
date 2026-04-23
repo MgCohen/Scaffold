@@ -1,16 +1,19 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Unity.Services.CloudCode.Core;
-using GameModuleDTO.GameModule;
 
 namespace GameModule.ModuleFetchData
 {
     public interface IReadableDataCache
     {
         Task<T> Get<T>(IExecutionContext context, string key, T defaultValue);
-        Task<T> Get<T>(IExecutionContext context, T defaultValue) where T : IGameModuleData;
-        Task<Dictionary<string, T>> GetAllValues<T>(IExecutionContext context);
+
         Task<bool> Exists(IExecutionContext context, string key);
-        Task<string> GetRaw(IExecutionContext context, string key);
+
+        /// <summary>
+        /// Prefetches data into the cache. <c>null</c> or non-empty keys: full snapshot (until selective fetch exists).
+        /// Empty collection: skip prefetch (lazy on first <see cref="Get{T}"/>).
+        /// </summary>
+        Task WarmupAsync(IExecutionContext context, IReadOnlyCollection<string>? keys = null);
     }
 }

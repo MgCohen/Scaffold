@@ -67,7 +67,7 @@ namespace GameModule.Modules.Gold
             _logger.LogInformation("[GoldModule] GoldConfig is from {Min} to {Max}", config.Min, config.Max);
             goldPersistence.SetCurrent(Math.Clamp(next, config.Min, config.Max));
             long actualDelta = goldPersistence.Current - previous;
-            Player.AddToCache(goldPersistence);
+            await Player.Set(context, goldPersistence);
             _logger.LogInformation("[GoldModule] GoldPersistence is {Current} on delta {Delta}", goldPersistence.Current, actualDelta);
 
             GoldChangedResponse response = new GoldChangedResponse(goldPersistence.Current, actualDelta);
