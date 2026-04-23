@@ -4,6 +4,7 @@
     "references": [
         "Scaffold.LiveOps",
         "Scaffold.LiveOps.Container",
+        "Scaffold.AppFlow",
         "Scaffold.CloudCode",
         "VContainer",
         "UnityEngine.TestRunner",

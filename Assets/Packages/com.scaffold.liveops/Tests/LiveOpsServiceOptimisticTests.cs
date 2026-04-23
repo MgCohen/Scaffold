@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using GameModuleDTO.GameApi;
 using GameModuleDTO.ModuleRequests;
 using NUnit.Framework;
+using Scaffold.AppFlow;
 using Scaffold.CloudCode;
 using Scaffold.LiveOps.Container;
 using VContainer;
@@ -206,6 +207,7 @@ namespace Scaffold.LiveOps.Tests
             params IResponseHandler[] nestedHandlers)
         {
             var builder = new ContainerBuilder();
+            builder.Register<ContainerLayerResolver>(Lifetime.Singleton).As<ILayerResolver>();
             builder.RegisterInstance(cloudCode).As<ICloudCodeService>();
             builder.Register<CloudCodeOptimisticHandlerRegistry>(Lifetime.Singleton);
             builder.RegisterInstance(errorHandler);
@@ -235,6 +237,7 @@ namespace Scaffold.LiveOps.Tests
             IRequestHandler<OptimisticGameApiRequest, OptimisticGameApiResponse> explicitHandler)
         {
             var builder = new ContainerBuilder();
+            builder.Register<ContainerLayerResolver>(Lifetime.Singleton).As<ILayerResolver>();
             builder.RegisterInstance(cloudCode).As<ICloudCodeService>();
             builder.Register<CloudCodeOptimisticHandlerRegistry>(Lifetime.Singleton);
             builder.RegisterInstance(errorHandler);
@@ -345,6 +348,26 @@ namespace Scaffold.LiveOps.Tests
 
             public void Handle(ModuleResponse response)
             {
+            }
+        }
+
+        private sealed class ContainerLayerResolver : ILayerResolver
+        {
+            public ContainerLayerResolver(IObjectResolver top)
+            {
+                Top = top ?? throw new ArgumentNullException(nameof(top));
+            }
+
+            public IObjectResolver Top { get; }
+
+            public bool TryResolve<T>(out T value)
+            {
+                return Top.TryResolve(out value);
+            }
+
+            public T Resolve<T>()
+            {
+                return Top.Resolve<T>();
             }
         }
 

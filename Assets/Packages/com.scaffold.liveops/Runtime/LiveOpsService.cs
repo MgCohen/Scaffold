@@ -10,22 +10,21 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json.Serialization;
 using Scaffold.CloudCode;
-using VContainer;
 
 namespace Scaffold.LiveOps
 {
     internal sealed class LiveOpsService : ILiveOpsService, IAsyncInitializable
     {
-        public LiveOpsService(ICloudCodeService cloudCodeService, IObjectResolver objectResolver, CloudCodeOptimisticHandlerRegistry optimisticRegistry, CloudCodeErrorHandler cloudCodeErrorHandler)
+        public LiveOpsService(ICloudCodeService cloudCodeService, ILayerResolver layerResolver, CloudCodeOptimisticHandlerRegistry optimisticRegistry, CloudCodeErrorHandler cloudCodeErrorHandler)
         {
             if (cloudCodeService == null)
             {
                 throw new ArgumentNullException(nameof(cloudCodeService));
             }
 
-            if (objectResolver == null)
+            if (layerResolver == null)
             {
-                throw new ArgumentNullException(nameof(objectResolver));
+                throw new ArgumentNullException(nameof(layerResolver));
             }
 
             if (optimisticRegistry == null)
@@ -39,7 +38,7 @@ namespace Scaffold.LiveOps
             }
 
             this.cloudCodeService = cloudCodeService;
-            this.moduleResponseDispatchService = new ModuleResponseDispatchService(objectResolver);
+            this.moduleResponseDispatchService = new ModuleResponseDispatchService(layerResolver);
             this.optimisticRegistry = optimisticRegistry;
             this.cloudCodeErrorHandler = cloudCodeErrorHandler;
         }

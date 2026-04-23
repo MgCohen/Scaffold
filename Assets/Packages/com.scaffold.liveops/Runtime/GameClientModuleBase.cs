@@ -3,27 +3,25 @@ using System.Threading;
 using System.Threading.Tasks;
 using GameModuleDTO.GameModule;
 using Scaffold.AppFlow;
-using VContainer;
 
 namespace Scaffold.LiveOps
 {
     public abstract class GameClientModuleBase<T> : IGameClientModule, IAsyncInitializable where T : class, IGameModuleData
     {
-        protected GameClientModuleBase(IObjectResolver resolver)
+        protected GameClientModuleBase(ILiveOpsService liveOps)
         {
-            this.resolver = resolver ?? throw new ArgumentNullException(nameof(resolver));
+            this.liveOps = liveOps ?? throw new ArgumentNullException(nameof(liveOps));
         }
 
         public virtual string Key => typeof(T).Name;
 
         protected T data;
 
-        private readonly IObjectResolver resolver;
+        protected readonly ILiveOpsService liveOps;
 
         public Task InitializeAsync(CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            ILiveOpsService liveOps = resolver.Resolve<ILiveOpsService>();
             T moduleData = liveOps.GetModuleData<T>();
             data = moduleData;
             return OnInitializedAsync(moduleData);
