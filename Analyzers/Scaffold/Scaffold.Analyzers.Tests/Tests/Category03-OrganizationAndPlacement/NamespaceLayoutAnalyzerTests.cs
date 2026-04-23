@@ -14,8 +14,8 @@ public sealed class NamespaceLayoutAnalyzerTests
         var d = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             ["scaffold.SCA3005.root"] = "Scaffold",
-            ["scaffold.SCA3005.allowed_roots"] = "GameModule;GameModuleDTO;Scaffold",
-            ["scaffold.SCA3006.content_roots"] = "Assets/Scripts;LiveOps/Project",
+            ["scaffold.SCA3005.allowed_roots"] = "LiveOps;LiveOps.Core;LiveOps.Core.DTO;LiveOps.Modules;LiveOps.Modules.DTO;Scaffold",
+            ["scaffold.SCA3006.content_roots"] = "Assets/Scripts;LiveOps/Core/LiveOps.Core;LiveOps/Modules/LiveOps.Modules;LiveOps/Core/LiveOps.Core.DTO;LiveOps/Modules/LiveOps.Modules.DTO",
         };
 
         if (extra != null)
@@ -491,31 +491,6 @@ namespace Scaffold
         var diagnostics = await AnalyzerTestHarness.GetDiagnosticsByIdAsync(
             source,
             @"C:\Repo\Assets\SharedScripts\Foo.cs",
-            new NamespacePathAnalyzer(),
-            NamespacePathAnalyzer.DiagnosticId,
-            options);
-
-        Assert.Empty(diagnostics);
-    }
-
-    [Fact]
-    public async Task NoDiagnostic_WhenFileUnderLiveOpsProjectContentRoot()
-    {
-        const string source = @"
-namespace GameModule.Modules.Level
-{
-    public class LevelService { }
-}";
-
-        // Key present but empty => do not apply legacy "skip first folder segment" (path is .../Modules/Level, not a single segment).
-        var options = MergeNamespaceOptions(new Dictionary<string, string>
-        {
-            ["scaffold.SCA3006.first_segment_ignore"] = string.Empty,
-        });
-
-        var diagnostics = await AnalyzerTestHarness.GetDiagnosticsByIdAsync(
-            source,
-            @"C:\Repo\LiveOps\Project\Modules\Level\LevelService.cs",
             new NamespacePathAnalyzer(),
             NamespacePathAnalyzer.DiagnosticId,
             options);

@@ -1,5 +1,5 @@
 using System.Threading.Tasks;
-using GameModuleDTO.ModuleRequests;
+using LiveOps.Modules.DTO.ModuleRequests;
 using Scaffold.LiveOps;
 using UnityEngine;
 

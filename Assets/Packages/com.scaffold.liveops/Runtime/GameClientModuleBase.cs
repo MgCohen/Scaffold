@@ -1,7 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using GameModuleDTO.GameModule;
+using LiveOps.Core.DTO.GameModule;
 using Scaffold.AppFlow;
 
 namespace Scaffold.LiveOps

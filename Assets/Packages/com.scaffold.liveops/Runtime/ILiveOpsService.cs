@@ -1,7 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
-using GameModuleDTO.GameModule;
-using GameModuleDTO.ModuleRequests;
+using LiveOps.Core.DTO.GameModule;
+using LiveOps.Core.DTO.ModuleRequest;
 
 namespace Scaffold.LiveOps
 {

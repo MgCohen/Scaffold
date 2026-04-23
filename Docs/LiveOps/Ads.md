@@ -4,7 +4,7 @@ Keywords: ads, cloud-code, placement, cooldown, max-views, reward, gold, server-
 
 ## TL;DR
 - Purpose: Server-side validation of ad watches — enforces cooldowns, view limits, and grants rewards per placement.
-- Location: `LiveOps/Project/Modules/Ads/` (backend) + `LiveOps/LiveOps.DTO/Modules/Ads/` (shared DTOs)
+- Location: `LiveOps/Modules/LiveOps.Modules/Ads/` (backend) + `LiveOps/Modules/LiveOps.Modules.DTO/Ads/` (shared DTOs)
 - Depends on: `GoldModule` (reward dispatch), `ModuleRequestHandler` (response pipeline)
 - Used by: `Scaffold.Ads` client package via `ILiveOpsService.CallAsync()`
 - Runs on Unity Cloud Code (server-side C#)
@@ -185,7 +185,7 @@ ELSE → log unknown RewardType warning
 ## File Map
 
 ```
-LiveOps/LiveOps.DTO/Modules/Ads/
+LiveOps/Modules/LiveOps.Modules.DTO/Ads/
 ├── AdPlacementConfig.cs        → Remote config per placement
 ├── AdPlacementState.cs         → Player persistence per placement
 ├── AdPlacementClientData.cs    → Merged client payload per placement
@@ -196,8 +196,9 @@ LiveOps/LiveOps.DTO/Modules/Ads/
     ├── WatchAdRequest.cs       → Client → Server request
     └── WatchAdResponse.cs      → Server → Client response
 
-LiveOps/Project/Modules/Ads/
-└── AdsService.cs               → Cloud Code function (validation + reward)
+LiveOps/Modules/LiveOps.Modules/Ads/
+├── AdsService.cs               → Cloud Code function (validation + reward)
+└── AdsInstaller.cs             → DI registration (IGameModule)
 ```
 
 ## AI Agent Context

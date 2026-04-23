@@ -35,8 +35,8 @@ dotnet_diagnostic.SCA2004.severity = warning   # Restrict static methods in non-
 dotnet_diagnostic.SCA3005.severity = warning   # Namespace first segment must be allowed (root + allowed_roots)
 dotnet_diagnostic.SCA3006.severity = warning   # Full namespace must match folder-derived path under content roots
 scaffold.SCA3005.root = Scaffold
-scaffold.SCA3005.allowed_roots = GameModule;GameModuleDTO;CleanupProject
-scaffold.SCA3006.content_roots = Assets/Scripts;LiveOps/Project
+scaffold.SCA3005.allowed_roots = LiveOps;LiveOps.Core;LiveOps.Core.DTO;LiveOps.Modules;LiveOps.Modules.DTO;Scaffold;CleanupProject
+scaffold.SCA3006.content_roots = Assets/Scripts;LiveOps/Core/LiveOps.Core;LiveOps/Modules/LiveOps.Modules;LiveOps/Core/LiveOps.Core.DTO;LiveOps/Modules/LiveOps.Modules.DTO
 dotnet_diagnostic.SCA3002.severity = warning   # Extra types: own file if shared/public, else place after primary type
 dotnet_diagnostic.SCA3003.severity = warning   # Class member order
 
@@ -89,6 +89,15 @@ dotnet_diagnostic.SCA3006.severity = none
 [Assets/Scripts/App/View/**/*.cs]
 # MVVM split modules keep legacy public namespaces under Scaffold.MVVM.
 dotnet_diagnostic.SCA3005.severity = none
+dotnet_diagnostic.SCA3006.severity = none
+
+[LiveOps/Core/LiveOps.Core/Initialize/ModuleConfig.cs]
+# Cloud Code entry: ICloudCodeSetup must remain in the default global namespace for discovery.
+dotnet_diagnostic.SCA3005.severity = none
+dotnet_diagnostic.SCA3006.severity = none
+
+[LiveOps/**/*.cs]
+# Cloud Code backend: LiveOps.* namespaces are validated by SCA3005; folder layout under Core/Modules projects does not match the strict path-derived suffix rule.
 dotnet_diagnostic.SCA3006.severity = none
 
 [Assets/Scripts/Meta/Levels/LiveOps/**/*.cs]

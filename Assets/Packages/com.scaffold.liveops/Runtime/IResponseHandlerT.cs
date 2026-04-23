@@ -1,5 +1,5 @@
 using System;
-using GameModuleDTO.ModuleRequests;
+using LiveOps.Core.DTO.ModuleRequest;
 
 namespace Scaffold.LiveOps
 {

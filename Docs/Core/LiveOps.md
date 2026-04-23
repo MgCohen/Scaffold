@@ -4,4 +4,4 @@ Authoritative module documentation (includes client service and backend/DTO layo
 
 ## Backend note
 
-The Cloud Code host (`LiveOps/Project/`) batches player and game-state writes per request: **`WarmupAsync`** (parallel player + remote config), **`BeginBatch`** on player and game state, cache-only **`Set`** inside the batch, then **`FlushAsync`** on dispose. Handlers expose optional **`PlayerKeys()`** / **`ConfigKeys()`**; **`IGameModuleData`**-typed helpers live in **`DataCacheExtensions`**. See the README section **Cloud Code data pipeline (backend)**.
+The Cloud Code host (`LiveOps/Core/LiveOps.Core/` + `LiveOps/Modules/LiveOps.Modules/`) batches player and game-state writes per request: **`WarmupAsync`** (parallel player + remote config), **`BeginBatch`** on player and game state, cache-only **`Set`** inside the batch, then **`FlushAsync`** on dispose. Handlers expose optional **`PlayerKeys()`** / **`ConfigKeys()`**; **`IGameModuleData`**-typed helpers live in **`DataCacheExtensions`**. Feature DI is composed via **`ICloudCodeInstaller`** + **`GameModuleInstaller`**. See the README section **Cloud Code data pipeline (backend)**.

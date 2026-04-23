@@ -13,8 +13,9 @@ function Get-TestingSuiteConfig {
 
     $coverageDefaultAssemblyFilters = "+Scaffold.*"
     $excludedAssemblyNames = @(
-        "Scaffold.Schemas"
-        "Scaffold.LiveOps.DTO.dll"
+        "Scaffold.Schemas",
+        "Scaffold.LiveOps.Core.DTO.dll",
+        "Scaffold.LiveOps.Modules.DTO.dll"
     )
     $excludedGuidReferences = @(
         "GUID:c72c3642ec330a340ad91bd6bf5d6bdc"

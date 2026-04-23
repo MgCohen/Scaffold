@@ -1,6 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
-using GameModuleDTO.ModuleRequests;
+using LiveOps.Core.DTO.ModuleRequest;
+using LiveOps.Modules.DTO.ModuleRequests;
 using Scaffold.LiveOps;
 
 namespace Scaffold.DirectPush

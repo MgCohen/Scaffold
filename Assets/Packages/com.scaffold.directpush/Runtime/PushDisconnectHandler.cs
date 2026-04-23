@@ -1,7 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using GameModuleDTO.Modules.DirectPush;
+using LiveOps.Modules.DTO.DirectPush;
 using Scaffold.AppFlow;
 using UnityEngine;
 
