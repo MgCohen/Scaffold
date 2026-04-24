@@ -9,10 +9,7 @@ using Xunit;
 
 namespace LiveOps.Tests
 {
-    /// <summary>
-    /// Exercises <see cref="GameDataHandler.PlayerKeys"/> and <see cref="GameDataHandler.ConfigKeys"/>,
-    /// which expose the inlined prefetch-key union semantics (any null hint = warm full snapshot).
-    /// </summary>
+
     public sealed class ModulePrefetchKeysTests
     {
         private sealed class StubData : IGameModuleData

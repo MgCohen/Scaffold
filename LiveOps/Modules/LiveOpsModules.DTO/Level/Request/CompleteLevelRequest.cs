@@ -4,9 +4,7 @@ using Newtonsoft.Json;
 
 namespace LiveOpsModules.DTO.ModuleRequests
 {
-    /// <summary>
-    /// Request to complete a specific level.
-    /// </summary>
+
     [UsesGameApi]
     [GameApiKey("CompleteLevel")]
     public class CompleteLevelRequest : ModuleRequest<CompleteLevelResponse>

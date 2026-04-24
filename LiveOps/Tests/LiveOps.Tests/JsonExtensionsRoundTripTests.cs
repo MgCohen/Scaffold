@@ -19,7 +19,6 @@ namespace LiveOps.Tests
                     SerializationBinder = new CrossPlatformTypeBinder()
                 });
 
-            // Simulate a Unity client serializing the same $type with mscorlib instead of System.Private.CoreLib
             JToken node = JToken.Parse(json);
             if (node is not JObject root || !root.TryGetValue("$type", out JToken? t))
             {

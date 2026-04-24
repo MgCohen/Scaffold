@@ -13,9 +13,7 @@ using Unity.Services.CloudCode.Core;
 
 namespace LiveOps.GameApi
 {
-    /// <summary>
-    /// Single Cloud Code entry point that dispatches <see cref="GameApiEnvelopeRequest"/> to typed handlers.
-    /// </summary>
+
     public class GameApiDispatcher
     {
         private readonly ILogger<GameApiDispatcher> _logger;

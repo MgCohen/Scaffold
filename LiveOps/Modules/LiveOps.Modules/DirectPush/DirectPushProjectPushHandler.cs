@@ -10,9 +10,7 @@ using Unity.Services.CloudCode.Core;
 
 namespace LiveOps.Modules.DirectPush
 {
-    /// <summary>
-    /// GameApi handler: project-wide broadcast (AccessKey required).
-    /// </summary>
+
     public sealed class DirectPushProjectPushHandler : IGameApiHandler<SendProjectPushRequest, SendPushResponse>
     {
         private readonly ILogger<DirectPushProjectPushHandler> _logger;

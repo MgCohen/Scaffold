@@ -4,9 +4,7 @@ using System.Reflection;
 
 namespace LiveOps.DTO.GameApi
 {
-    /// <summary>
-    /// Resolves the wire <c>RequestKey</c> for a request DTO type.
-    /// </summary>
+
     public static class GameApiKeyResolver
     {
         public static string GetKey(Type requestType)

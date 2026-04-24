@@ -3,9 +3,7 @@ using System.Collections.Generic;
 
 namespace LiveOps.Signal
 {
-    /// <summary>
-    /// A simple in-process event bus. Registered as a singleton; safe for concurrent Cloud Code invocations.
-    /// </summary>
+
     public class SignalModule
     {
         private readonly object _gate = new();

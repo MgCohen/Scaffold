@@ -20,7 +20,6 @@ namespace LiveOps.Tests
             {
             }
 
-            /// <summary>Avoids cloud in tests; <see cref="UnityGameState" /> fetches in <see cref="FetchData" /> per namespace.</summary>
             protected override Task<Dictionary<string, string>> FetchData(IExecutionContext context)
             {
                 return Task.FromResult(new Dictionary<string, string>(System.StringComparer.Ordinal));

@@ -1,8 +1,6 @@
 namespace LiveOps.Modules.DTO.Level
 {
-    /// <summary>
-    /// Derived progression state for a level ID in config order.
-    /// </summary>
+
     public enum LevelAvailabilityState
     {
         Blocked = 0,

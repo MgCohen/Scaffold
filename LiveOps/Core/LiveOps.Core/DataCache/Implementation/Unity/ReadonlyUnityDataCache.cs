@@ -8,9 +8,7 @@ using LiveOps.DTO.Json;
 
 namespace LiveOps.ModuleFetchData
 {
-    /// <summary>
-    /// Read-only Cloud Save or Remote Config cache (implements <see cref="IReadableDataCache" /> only).
-    /// </summary>
+
     public abstract class ReadonlyUnityDataCache : IReadableDataCache
     {
         protected ReadonlyUnityDataCache(ILogger logger, IGameApiClient gameApiClient)

@@ -9,9 +9,7 @@ using Unity.Services.CloudCode.Core;
 
 namespace LiveOps.ServerAuth
 {
-    /// <summary>
-    /// Validates a GUID string against a server access key in Cloud Save (custom game state namespace + item).
-    /// </summary>
+
     public sealed class GameStateServerAuth : IServerAuth
     {
         public const string DefaultDatabaseKey = "AccessKey";

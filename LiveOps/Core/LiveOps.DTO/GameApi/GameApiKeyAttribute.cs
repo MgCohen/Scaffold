@@ -2,9 +2,7 @@ using System;
 
 namespace LiveOps.DTO.GameApi
 {
-    /// <summary>
-    /// Declares the wire <c>RequestKey</c> for a <see cref="LiveOps.DTO.ModuleRequest.ModuleRequest"/> type routed through the unified <c>GameApi</c> function.
-    /// </summary>
+
     [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
     public sealed class GameApiKeyAttribute : Attribute
     {

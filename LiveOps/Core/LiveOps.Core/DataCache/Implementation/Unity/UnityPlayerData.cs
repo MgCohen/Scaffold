@@ -10,13 +10,9 @@ using Unity.Services.CloudSave.Model;
 
 namespace LiveOps.ModuleFetchData.Unity
 {
-    /// <summary>
-    /// Orchestrates user profile details gracefully.
-    /// </summary>
+
     public class UnityPlayerData : UnityDataCache, IPlayerData
     {
-        protected Dictionary<string, string> _writeLockCache = new Dictionary<string, string>();
-
         public UnityPlayerData(ILogger<UnityPlayerData> logger, IGameApiClient gameApiClient) : base(logger, gameApiClient)
         {
             _logger = logger;
@@ -28,6 +24,8 @@ namespace LiveOps.ModuleFetchData.Unity
             _logger = logger;
             _gameApiClient = gameApiClient;
         }
+
+        protected Dictionary<string, string> _writeLockCache = new Dictionary<string, string>();
 
         protected override async Task<Dictionary<string, string>> FetchData(IExecutionContext context)
         {

@@ -9,9 +9,7 @@ using Microsoft.Extensions.Logging;
 
 namespace LiveOps.Modules.Global
 {
-    /// <summary>
-    /// Handles server-side initialization for the Global configuration.
-    /// </summary>
+
     public class GlobalConfigModule : GameModule<GlobalConfigData>
     {
         private readonly ILogger<GlobalConfigModule> _logger;

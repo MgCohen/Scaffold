@@ -5,12 +5,10 @@ using Newtonsoft.Json;
 
 namespace LiveOps.Modules.DTO.Ads
 {
-    /// <summary>
-    /// Client-facing ads payload in <see cref="LiveOps.DTO.GameModule.GameData"/> (built from persistence + config on the server).
-    /// </summary>
+
     public sealed class AdData : IGameModuleData
     {
-        /// <inheritdoc />
+
         public string Key => typeof(AdData).Name;
 
         [JsonProperty]
@@ -19,13 +17,11 @@ namespace LiveOps.Modules.DTO.Ads
         [JsonIgnore]
         public IReadOnlyDictionary<string, AdPlacementClientData> Placements => _placements;
 
-        /// <summary>Used by Newtonsoft when deserializing <c>GameData</c>.</summary>
         [JsonConstructor]
         private AdData()
         {
         }
 
-        /// <summary>Build from persistence + config (server).</summary>
         public AdData(AdsPersistence persistence, AdsConfig config)
         {
             if (persistence == null) throw new ArgumentNullException(nameof(persistence));

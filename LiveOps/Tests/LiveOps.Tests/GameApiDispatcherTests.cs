@@ -69,7 +69,7 @@ namespace LiveOps.Tests
             services.AddSingleton(registry);
             services.AddSingleton<SignalModule>();
             services.AddSingleton<ILogger<PGameApi>>(_ => NullLogger<PGameApi>.Instance);
-            // Singleton: tests resolve handlers from the root IServiceProvider (no request scope, unlike production Cloud Code).
+
             services.AddSingleton<ConfigurablePingHandler>(sp => new ConfigurablePingHandler
             {
                 PlayerKeyHint = playerKeys,

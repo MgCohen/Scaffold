@@ -9,9 +9,6 @@ namespace LiveOps.ModuleFetchData
 
         Task Delete(IExecutionContext context, string databaseKey, string key);
 
-        /// <summary>
-        /// Reads a single item from a Cloud Save custom database namespace (sets active namespace then delegates to keyed read).
-        /// </summary>
         Task<T> Get<T>(IExecutionContext context, string databaseKey, string itemKey, T defaultValue);
     }
 }

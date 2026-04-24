@@ -10,9 +10,7 @@ using Unity.Services.CloudCode.Core;
 
 namespace LiveOps.Modules.DirectPush
 {
-    /// <summary>
-    /// GameApi handler: push to a specific player (AccessKey required).
-    /// </summary>
+
     public sealed class DirectPushPlayerPushHandler : IGameApiHandler<SendPlayerPushRequest, SendPushResponse>
     {
         private readonly ILogger<DirectPushPlayerPushHandler> _logger;

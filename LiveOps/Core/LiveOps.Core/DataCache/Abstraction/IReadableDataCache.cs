@@ -10,10 +10,6 @@ namespace LiveOps.ModuleFetchData
 
         Task<bool> Exists(IExecutionContext context, string key);
 
-        /// <summary>
-        /// Prefetches data into the cache. <c>null</c> or non-empty keys: full snapshot (until selective fetch exists).
-        /// Empty collection: skip prefetch (lazy on first <see cref="Get{T}"/>).
-        /// </summary>
         Task WarmupAsync(IExecutionContext context, IReadOnlyCollection<string>? keys = null);
     }
 }

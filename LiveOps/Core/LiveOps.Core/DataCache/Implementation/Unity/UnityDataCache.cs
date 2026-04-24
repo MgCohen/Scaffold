@@ -9,13 +9,9 @@ using Unity.Services.CloudSave.Model;
 
 namespace LiveOps.ModuleFetchData
 {
-    /// <summary>
-    /// Read/write Cloud Save (player or game state). For read-only (e.g. remote config) use <see cref="ReadonlyUnityDataCache" />.
-    /// </summary>
+
     public abstract class UnityDataCache : ReadonlyUnityDataCache, IWriteableDataCache
     {
-        private int _batchDepth;
-
         protected UnityDataCache(ILogger logger, IGameApiClient gameApiClient) : base(logger, gameApiClient)
         {
         }
@@ -25,6 +21,7 @@ namespace LiveOps.ModuleFetchData
         }
 
         protected bool InBatch => _batchDepth > 0;
+        private int _batchDepth;
 
         protected abstract Task SaveData(IExecutionContext context, string key, object value, bool useWriteLock);
         protected abstract Task SaveBatchData(IExecutionContext context, List<SetItemBody> values, bool useWriteLock);

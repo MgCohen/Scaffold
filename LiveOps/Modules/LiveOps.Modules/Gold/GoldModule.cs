@@ -13,9 +13,7 @@ using Unity.Services.CloudCode.Core;
 
 namespace LiveOps.Modules.Gold
 {
-    /// <summary>
-    /// Cloud Code gold module: persistence + remote config merged into <see cref="GoldGameData"/>.
-    /// </summary>
+
     public class GoldModule : GameModule<GoldGameData>, IGameApiHandler<AddGoldRequest, GoldChangedResponse>
     {
         private readonly ILogger<GoldModule> _logger;

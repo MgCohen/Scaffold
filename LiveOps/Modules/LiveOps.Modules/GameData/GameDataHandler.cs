@@ -14,9 +14,7 @@ using Microsoft.Extensions.Logging;
 
 namespace LiveOps.Modules.GameData
 {
-    /// <summary>
-    /// Builds <see cref="GameDataResponse"/> by initializing every registered <see cref="IGameModule" /> in parallel.
-    /// </summary>
+
     public sealed class GameDataHandler : IGameApiHandler<GameDataRequest, GameDataResponse>
     {
         private readonly ILogger<GameDataHandler> _logger;

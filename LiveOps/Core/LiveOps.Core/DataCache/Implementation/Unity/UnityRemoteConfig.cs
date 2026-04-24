@@ -10,9 +10,7 @@ using Unity.Services.RemoteConfig.Model;
 
 namespace LiveOps.ModuleFetchData.Unity
 {
-    /// <summary>
-    /// Fetches server Remote Config via the Unity services SDK (read-only; see <see cref="ReadonlyUnityDataCache" />).
-    /// </summary>
+
     public class UnityRemoteConfig : ReadonlyUnityDataCache, IRemoteConfig
     {
         public UnityRemoteConfig(ILogger<UnityRemoteConfig> logger, IGameApiClient gameApiClient) : base(logger, gameApiClient)

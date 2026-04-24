@@ -11,9 +11,7 @@ using Unity.Services.CloudCode.Core;
 
 public class ModuleConfig : ICloudCodeSetup
 {
-    /// <summary>
-    /// Registers core services and handlers/modules from the build-generated <see cref="LiveOpsManifest" />.
-    /// </summary>
+
     public void Setup(ICloudCodeConfig config)
     {
         IGameApiClient gameApiClient = GameApiClient.Create();

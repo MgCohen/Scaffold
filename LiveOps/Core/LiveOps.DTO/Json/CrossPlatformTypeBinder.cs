@@ -4,9 +4,7 @@ using Newtonsoft.Json.Serialization;
 
 namespace LiveOps.DTO.Json
 {
-    /// <summary>
-    /// Resolves BCL mscorlib vs System.Private.CoreLib across Unity/Cloud Code, with an allow-list of assembly names.
-    /// </summary>
+
     public class CrossPlatformTypeBinder : ISerializationBinder
     {
         public Type BindToType(string? assemblyName, string typeName)

@@ -5,18 +5,6 @@ using LiveOps.DTO.GameApi;
 
 namespace LiveOps.GameApi
 {
-    /// <summary>
-    /// Maps <c>RequestKey</c> strings to handler metadata for all registered handlers.
-    /// </summary>
-    public sealed class HandlerEntry
-    {
-        public Type RequestType { get; init; } = null!;
-
-        public Type ResponseType { get; init; } = null!;
-
-        public Type HandlerType { get; init; } = null!;
-    }
-
     public sealed class GameApiRegistry
     {
         private readonly Dictionary<string, HandlerEntry> _map = new Dictionary<string, HandlerEntry>();
@@ -25,9 +13,6 @@ namespace LiveOps.GameApi
         {
         }
 
-        /// <summary>
-        /// Registers a concrete handler type. Production registration uses the manifest; tests may call this to wire handlers explicitly.
-        /// </summary>
         public void Register(Type handlerType)
         {
             if (handlerType == null)
@@ -43,9 +28,6 @@ namespace LiveOps.GameApi
             RegisterHandlerType(handlerType);
         }
 
-        /// <summary>
-        /// Discovers a concrete handler and registers it by <see cref="GameApiKeyAttribute.Key"/> (declared on the request DTO type).
-        /// </summary>
         public void RegisterHandlerType(Type type)
         {
             foreach (Type iface in type.GetInterfaces())

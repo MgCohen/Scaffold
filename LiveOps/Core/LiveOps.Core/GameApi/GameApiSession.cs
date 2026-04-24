@@ -9,9 +9,7 @@ using Unity.Services.CloudCode.Core;
 
 namespace LiveOps.GameApi
 {
-    /// <summary>
-    /// Per-request context for GameApi handlers (caches, nested side-effect responses).
-    /// </summary>
+
     public sealed class GameApiSession
     {
         private readonly IServiceProvider _services;

@@ -9,27 +9,19 @@ using Unity.Services.CloudSave.Model;
 
 namespace LiveOps.ModuleFetchData.Unity
 {
-    /// <summary>
-    /// Cloud Save "custom database" namespace (see <c>GetPrivateCustomItemsAsync</c> <paramref name="databaseKey" />) with isolated in-memory state per database key.
-    /// </summary>
+
     public class UnityGameState : UnityDataCache, IGameState
     {
+        public UnityGameState(ILogger<UnityDataCache> logger, IGameApiClient gameApiClient) : base(logger, gameApiClient)
+        {
+        }
+
         private const string DefaultDatabaseKey = "GameState";
         private string _activeDatabaseKey = DefaultDatabaseKey;
 
         private readonly Dictionary<string, NamespaceState> _namespaces = new(StringComparer.Ordinal);
         private string? _activeAccessToken;
         private readonly HashSet<string> _fetchedKeysForToken = new(StringComparer.Ordinal);
-
-        private sealed class NamespaceState
-        {
-            public readonly Dictionary<string, string> Cache = new(StringComparer.Ordinal);
-            public readonly Dictionary<string, object> ObjectCache = new(StringComparer.Ordinal);
-        }
-
-        public UnityGameState(ILogger<UnityDataCache> logger, IGameApiClient gameApiClient) : base(logger, gameApiClient)
-        {
-        }
 
         public override string GetDebugKey(string key)
         {
@@ -121,9 +113,6 @@ namespace LiveOps.ModuleFetchData.Unity
             }
         }
 
-        /// <summary>
-        /// Fetches the custom database identified by the current <see cref="_activeDatabaseKey" />.
-        /// </summary>
         protected override async Task<Dictionary<string, string>> FetchData(IExecutionContext context)
         {
             try
@@ -192,6 +181,12 @@ namespace LiveOps.ModuleFetchData.Unity
         {
             SetItemBatchBody request = new SetItemBatchBody(values);
             await _gameApiClient.CloudSaveData.SetPrivateCustomItemBatchAsync(context, context.ServiceToken, context.ProjectId, _activeDatabaseKey, request);
+        }
+
+        private sealed class NamespaceState
+        {
+            public readonly Dictionary<string, string> Cache = new(StringComparer.Ordinal);
+            public readonly Dictionary<string, object> ObjectCache = new(StringComparer.Ordinal);
         }
     }
 }

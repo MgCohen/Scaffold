@@ -8,9 +8,7 @@ using Unity.Services.CloudCode.Core;
 
 namespace LiveOps.Modules.DirectPush
 {
-    /// <summary>
-    /// GameApi handler: self-targeted push (no AccessKey).
-    /// </summary>
+
     public sealed class DirectPushSelfPushHandler : IGameApiHandler<SendSelfPushRequest, SendPushResponse>
     {
         private readonly ILogger<DirectPushSelfPushHandler> _logger;

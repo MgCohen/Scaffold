@@ -4,9 +4,7 @@ using Newtonsoft.Json;
 
 namespace LiveOps.Modules.DTO.Global
 {
-    /// <summary>
-    /// Configuration data for global game settings.
-    /// </summary>
+
     public class GlobalConfigData : IGameModuleData
     {
         public string Key => typeof(GlobalConfigData).Name;
@@ -23,7 +21,7 @@ namespace LiveOps.Modules.DTO.Global
             {
                 try
                 {
-                    // Handle numeric types which might be deserialized as long or double by Newtonsoft.Json
+
                     if (typeof(T) == typeof(int))
                     {
                         return (T)(object)System.Convert.ToInt32(value);

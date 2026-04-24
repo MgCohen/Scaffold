@@ -13,9 +13,7 @@ using Microsoft.Extensions.Logging;
 using Unity.Services.CloudCode.Core;
 namespace LiveOps.Modules.Ads
 {
-    /// <summary>
-    /// Cloud Code ads module: persistence + remote config merged into <see cref="AdData"/>.
-    /// </summary>
+
     public class AdsService : GameModule<AdData>, IGameApiHandler<WatchAdRequest, WatchAdResponse>
     {
         private readonly ILogger<AdsService> _logger;

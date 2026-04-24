@@ -5,18 +5,15 @@ using Newtonsoft.Json;
 
 namespace LiveOps.Modules.DTO.Ads
 {
-    /// <summary>
-    /// Player-persisted ads state: per-placement tracking of watches and times.
-    /// </summary>
+
     public sealed class AdsPersistence : IGameModuleData
     {
-        /// <inheritdoc />
+
         public string Key => typeof(AdsPersistence).Name;
 
         [JsonProperty]
         private Dictionary<string, AdPlacementState> _settings = new Dictionary<string, AdPlacementState>();
 
-        /// <summary>Gets the persisted states per placement.</summary>
         [JsonIgnore]
         public IReadOnlyDictionary<string, AdPlacementState> Settings => _settings;
 
@@ -31,7 +28,6 @@ namespace LiveOps.Modules.DTO.Ads
             return state;
         }
 
-        /// <summary>Whether another ad can be watched given the configured cooldown for a placement.</summary>
         public bool IsCooldownElapsed(string placementId, float cooldownSeconds)
         {
             var state = GetOrCreateState(placementId);
@@ -50,7 +46,6 @@ namespace LiveOps.Modules.DTO.Ads
             return state.WatchCount >= maxViews;
         }
 
-        /// <summary>Records a successful watch at the current UTC instant for a placement.</summary>
         public void RecordAdWatched(string placementId)
         {
             var state = GetOrCreateState(placementId);
@@ -58,7 +53,6 @@ namespace LiveOps.Modules.DTO.Ads
             state.WatchCount++;
         }
 
-        /// <summary>ISO UTC instant when the ad becomes available again, or empty if available now.</summary>
         internal string ComputeNextAdAvailableUtcIso(string placementId, float cooldownSeconds)
         {
             var state = GetOrCreateState(placementId);

@@ -4,12 +4,10 @@ using Newtonsoft.Json;
 
 namespace LiveOps.Modules.DTO.Gold
 {
-    /// <summary>
-    /// Aggregated gold payload returned in <see cref="LiveOps.DTO.GameModule.GameData"/> (persistence + config + reward defaults).
-    /// </summary>
+
     public sealed class GoldGameData : IGameModuleData
     {
-        /// <inheritdoc />
+
         public string Key => typeof(GoldGameData).Name;
 
         [JsonProperty]
@@ -30,13 +28,11 @@ namespace LiveOps.Modules.DTO.Gold
         [JsonIgnore]
         public long Max => _max;
 
-        /// <summary>Used by Newtonsoft when deserializing <c>GameData</c>.</summary>
         [JsonConstructor]
         private GoldGameData()
         {
         }
 
-        /// <summary>Build from persistence + config + reward config (server).</summary>
         public GoldGameData(GoldPersistence persistence, GoldConfig config)
         {
             if (persistence == null)

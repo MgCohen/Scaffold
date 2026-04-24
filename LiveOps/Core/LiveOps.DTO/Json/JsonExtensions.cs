@@ -3,9 +3,7 @@ using Newtonsoft.Json.Serialization;
 
 namespace LiveOps.DTO.Json
 {
-    /// <summary>
-    /// Shared JSON settings for DTOs round-tripping through Cloud Save and GameApi.
-    /// </summary>
+
     public static class JsonExtensions
     {
         private static readonly ISerializationBinder Binder = new CrossPlatformTypeBinder();
@@ -16,7 +14,6 @@ namespace LiveOps.DTO.Json
             MetadataPropertyHandling = MetadataPropertyHandling.ReadAhead
         };
 
-        /// <summary>Serializer contract shared with <see cref="GameApi" /> (Newtonsoft).</summary>
         public static JsonSerializer CreateGameApiSerializer() =>
             JsonSerializer.Create(new JsonSerializerSettings
             {

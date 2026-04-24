@@ -13,9 +13,7 @@ using Microsoft.Extensions.Logging;
 using Unity.Services.CloudCode.Core;
 namespace LiveOps.Modules.Level
 {
-    /// <summary>
-    /// Cloud Code level module: persistence + remote config merged into <see cref="LevelGameData"/>.
-    /// </summary>
+
     public class LevelService : GameModule<LevelGameData>, IGameApiHandler<CompleteLevelRequest, CompleteLevelResponse>
     {
         private readonly ILogger<LevelService> _logger;

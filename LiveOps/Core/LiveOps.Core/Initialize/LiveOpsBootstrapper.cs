@@ -6,17 +6,10 @@ using Unity.Services.CloudCode.Core;
 
 namespace LiveOps.Initialize
 {
-    /// <summary>
-    /// Registers <see cref="IGameApiHandler"/> and <see cref="IGameModule" /> from a compile-time
-    /// manifest (see <c>Scaffold.LiveOps.Bootstrap.Generators</c> in the deploy project). No runtime assembly scanning.
-    /// </summary>
+
     public static class LiveOpsBootstrapper
     {
-        /// <summary>
-        /// For each manifest entry: <c>AddScoped(Concrete)</c> once, then
-        /// <see cref="GameApiRegistry.RegisterHandlerType" /> for handlers, and
-        /// <c>AddScoped</c> for <see cref="IGameModule" /> to resolve to the same concrete instance.
-        /// </summary>
+
         public static void InstallFromManifest(ICloudCodeConfig config, GameApiRegistry registry, ReadOnlySpan<LiveOpsManifestEntry> entries)
         {
             if (config is null)

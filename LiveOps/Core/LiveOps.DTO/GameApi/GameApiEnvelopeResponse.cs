@@ -5,9 +5,7 @@ using Newtonsoft.Json;
 
 namespace LiveOps.DTO.GameApi
 {
-    /// <summary>
-    /// Response envelope returned by the <c>GameApi</c> Cloud Code function.
-    /// </summary>
+
     public sealed class GameApiEnvelopeResponse
     {
         public string RequestKey { get; set; }

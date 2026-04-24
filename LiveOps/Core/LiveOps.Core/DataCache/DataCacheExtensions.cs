@@ -4,9 +4,7 @@ using Unity.Services.CloudCode.Core;
 
 namespace LiveOps.ModuleFetchData
 {
-    /// <summary>
-    /// Helpers that depend on <see cref="IGameModuleData"/>; kept off cache interfaces by design.
-    /// </summary>
+
     public static class DataCacheExtensions
     {
         public static Task Set(this IWriteableDataCache cache, IExecutionContext context, IGameModuleData value, bool useWriteLock = false)
