@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using LiveOps.Core.ModuleFetchData;
+using LiveOps.ModuleFetchData;
 using LiveOps.Modules.DTO.Gold;
 using Newtonsoft.Json;
 using Unity.Services.CloudCode.Core;

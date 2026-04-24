@@ -14,8 +14,8 @@ public sealed class NamespaceLayoutAnalyzerTests
         var d = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             ["scaffold.SCA3005.root"] = "Scaffold",
-            ["scaffold.SCA3005.allowed_roots"] = "LiveOps;LiveOps.Core;LiveOps.Core.DTO;LiveOps.Modules;LiveOps.Modules.DTO;Scaffold",
-            ["scaffold.SCA3006.content_roots"] = "Assets/Scripts;LiveOps/Core/LiveOps.Core;LiveOps/Modules/LiveOps.Modules;LiveOps/Core/LiveOps.Core.DTO;LiveOps/Modules/LiveOps.Modules.DTO",
+            ["scaffold.SCA3005.allowed_roots"] = "LiveOps;LiveOps.DTO;LiveOps.Modules;LiveOps.Modules.DTO;Scaffold",
+            ["scaffold.SCA3006.content_roots"] = "Assets/Scripts;LiveOps/Core/LiveOps.Core;LiveOps/Deploy/LiveOps;LiveOps/Modules/LiveOps.Modules;LiveOps/Core/LiveOps.DTO;LiveOps/Modules/LiveOps.Modules.DTO",
         };
 
         if (extra != null)

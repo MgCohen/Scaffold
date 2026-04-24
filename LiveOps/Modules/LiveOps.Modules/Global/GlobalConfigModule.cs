@@ -1,10 +1,11 @@
+using System.Threading;
 using System.Threading.Tasks;
-using LiveOps.Core.GameModule;
-using LiveOps.Core.ModuleFetchData;
-using LiveOps.Core.DTO.GameModule;
+using LiveOps.GameApi;
+using LiveOps.GameModule;
+using LiveOps.ModuleFetchData;
+using LiveOps.DTO.GameModule;
 using LiveOps.Modules.DTO.Global;
 using Microsoft.Extensions.Logging;
-using Unity.Services.CloudCode.Core;
 
 namespace LiveOps.Modules.Global
 {
@@ -20,10 +21,13 @@ namespace LiveOps.Modules.Global
             _logger = logger;
         }
 
-        public override async Task<IGameModuleData> Initialize(IExecutionContext context, IPlayerData Player, IGameState gameState, IRemoteConfig remoteConfig)
+        public override async Task<IGameModuleData> InitializeAsync(
+            GameApiSession session,
+            CancellationToken cancellationToken = default)
         {
             _logger.LogInformation("Initializing GlobalConfigModule");
-            return await remoteConfig.Get(context, new GlobalConfigData());
+            IRemoteConfig remoteConfig = session.RemoteConfig;
+            return await remoteConfig.Get(session.Context, new GlobalConfigData());
         }
     }
 }

@@ -1,43 +1,50 @@
+using System.Threading;
 using System.Threading.Tasks;
-using LiveOps.Core.GameModule;
-using LiveOps.Core.ModuleFetchData;
+using LiveOps.GameApi;
+using LiveOps.GameModule;
+using LiveOps.ModuleFetchData;
 using LiveOps.Modules.Gold;
-using LiveOps.Core.Response;
-using LiveOps.Core.DTO.GameModule;
-using LiveOps.Core.DTO.ModuleRequest;
+using LiveOps.DTO.GameModule;
+using LiveOps.DTO.ModuleRequest;
 using LiveOps.Modules.DTO.Ads;
+using LiveOps.Modules.DTO.Gold;
 using LiveOps.Modules.DTO.ModuleRequests;
 using Microsoft.Extensions.Logging;
 using Unity.Services.CloudCode.Core;
-
 namespace LiveOps.Modules.Ads
 {
     /// <summary>
     /// Cloud Code ads module: persistence + remote config merged into <see cref="AdData"/>.
     /// </summary>
-    public class AdsService : GameModule<AdData>
+    public class AdsService : GameModule<AdData>, IGameApiHandler<WatchAdRequest, WatchAdResponse>
     {
         private readonly ILogger<AdsService> _logger;
-        private readonly ModuleRequestHandler _moduleRequestHandler;
         private readonly GoldModule _goldModule;
 
-        public AdsService(ILogger<AdsService> logger, ModuleRequestHandler moduleRequestHandler, GoldModule goldModule)
+        public AdsService(ILogger<AdsService> logger, GoldModule goldModule)
         {
             _logger = logger;
-            _moduleRequestHandler = moduleRequestHandler;
             _goldModule = goldModule;
         }
 
-        public override async Task<IGameModuleData> Initialize(IExecutionContext context, IPlayerData Player, IGameState gameState, IRemoteConfig remoteConfig)
+        public override async Task<IGameModuleData> InitializeAsync(
+            GameApiSession session,
+            CancellationToken cancellationToken = default)
         {
-            AdsPersistence persistence = await Player.GetOrSet(context, new AdsPersistence());
+            IExecutionContext context = session.Context;
+            IPlayerData player = session.Player;
+            IRemoteConfig remoteConfig = session.RemoteConfig;
+            AdsPersistence persistence = await player.GetOrSet(context, new AdsPersistence());
             AdsConfig config = await remoteConfig.Get(context, new AdsConfig());
             return new AdData(persistence, config);
         }
 
-        [CloudCodeFunction(nameof(WatchAdRequest))]
-        public async Task<WatchAdResponse> WatchAd(IExecutionContext context, IPlayerData Player, IRemoteConfig remoteConfig, WatchAdRequest request)
+        public async Task<WatchAdResponse> HandleAsync(GameApiSession session, WatchAdRequest request)
         {
+            IExecutionContext context = session.Context;
+            IPlayerData Player = session.Player;
+            IRemoteConfig remoteConfig = session.RemoteConfig;
+
             _logger.LogInformation("[WatchAdRequest] Starting for placement: {PlacementId}", request.PlacementId);
             AdsConfig config = await remoteConfig.Get(context, new AdsConfig());
             AdsPersistence persistence = await Player.GetOrSet(context, new AdsPersistence());
@@ -53,7 +60,7 @@ namespace LiveOps.Modules.Ads
             {
                 persistence.RecordAdWatched(placementId);
                 await Player.Set(context, persistence);
-                await GrantReward(context, Player, remoteConfig, placementConfig, placementId);
+                await GrantReward(context, Player, remoteConfig, placementConfig, placementId, session).ConfigureAwait(false);
             }
             else
             {
@@ -61,11 +68,16 @@ namespace LiveOps.Modules.Ads
             }
 
             AdData adData = new AdData(persistence, config);
-            WatchAdResponse response = new WatchAdResponse(adData);
-            return await _moduleRequestHandler.ResolveResponse(context, request, response);
+            return new WatchAdResponse(adData);
         }
 
-        private async Task GrantReward(IExecutionContext context, IPlayerData Player, IRemoteConfig remoteConfig, AdPlacementConfig placementConfig, string placementId)
+        private async Task GrantReward(
+            IExecutionContext context,
+            IPlayerData player,
+            IRemoteConfig remoteConfig,
+            AdPlacementConfig placementConfig,
+            string placementId,
+            GameApiSession session)
         {
             if (placementConfig.RewardAmount <= 0 || string.IsNullOrEmpty(placementConfig.RewardType))
             {
@@ -75,7 +87,8 @@ namespace LiveOps.Modules.Ads
 
             if (placementConfig.RewardType == _goldModule.Key)
             {
-                await _goldModule.AddGoldToPlayer(context, Player, remoteConfig, placementConfig.RewardAmount, enqueueNestedResponse: true);
+                await session.InvokeAsync<AddGoldRequest, GoldChangedResponse>(
+                    new AddGoldRequest(placementConfig.RewardAmount)).ConfigureAwait(false);
                 _logger.LogInformation("[AdsService] Granted {Amount} gold for placement: {PlacementId}", placementConfig.RewardAmount, placementId);
             }
             else

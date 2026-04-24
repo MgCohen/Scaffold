@@ -1,4 +1,4 @@
-using LiveOps.Core.DTO.ModuleRequest;
+using LiveOps.DTO.ModuleRequest;
 using LiveOps.Modules.DTO.Ads;
 
 namespace LiveOps.Modules.DTO.ModuleRequests

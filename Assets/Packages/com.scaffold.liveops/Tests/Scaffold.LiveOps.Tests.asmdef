@@ -19,8 +19,8 @@
     "overrideReferences": true,
     "precompiledReferences": [
         "nunit.framework.dll",
-        "Scaffold.LiveOps.Core.DTO.dll",
-        "Scaffold.LiveOps.Modules.DTO.dll"
+        "LiveOps.DTO.dll",
+        "LiveOps.Modules.DTO.dll"
     ],
     "autoReferenced": false,
     "defineConstraints": [

@@ -1,51 +1,101 @@
 using System;
 using System.Collections.Generic;
 
-namespace LiveOps.Core.Signal
+namespace LiveOps.Signal
 {
     /// <summary>
-    /// A decoupled event bus system for broadcasting requests.
+    /// A simple in-process event bus. Registered as a singleton; safe for concurrent Cloud Code invocations.
     /// </summary>
     public class SignalModule
     {
-        private readonly Dictionary<Type, Action<object>> _subscribers = new Dictionary<Type, Action<object>>();
+        private readonly object _gate = new();
+        private readonly Dictionary<Type, List<Subscriber>> _byType = new();
+
+        private readonly struct Subscriber
+        {
+            public readonly Delegate Original;
+            public readonly Action<object> Wrapped;
+
+            public Subscriber(Delegate original, Action<object> wrapped)
+            {
+                Original = original;
+                Wrapped = wrapped;
+            }
+        }
 
         public void Push<T>(T signal)
         {
+            List<Action<object>>? toRun = null;
             Type type = typeof(T);
-            if (_subscribers.TryGetValue(type, out Action<object>? handler))
+            lock (_gate)
             {
-                handler?.Invoke(signal!);
+                if (!_byType.TryGetValue(type, out List<Subscriber>? list) || list is null)
+                {
+                    return;
+                }
+
+                toRun = new List<Action<object>>(list.Count);
+                for (int i = 0; i < list.Count; i++)
+                {
+                    toRun.Add(list[i].Wrapped);
+                }
+            }
+
+            if (toRun is null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < toRun.Count; i++)
+            {
+                toRun[i](signal!);
             }
         }
 
         public void Subscribe<T>(Action<T> onNext)
         {
-            Type type = typeof(T);
-
-            Action<object> wrappedAction = (obj) =>
+            if (onNext is null)
             {
-                if (obj is T typedObj)
-                {
-                    onNext(typedObj);
-                }
-            };
-
-            if (_subscribers.ContainsKey(type))
-            {
-                _subscribers[type] += wrappedAction;
+                return;
             }
-            else
+
+            Type type = typeof(T);
+            lock (_gate)
             {
-                _subscribers[type] = wrappedAction;
+                if (!_byType.TryGetValue(type, out List<Subscriber>? list))
+                {
+                    list = new List<Subscriber>();
+                    _byType[type] = list;
+                }
+
+                Action<object> wrapped = obj =>
+                {
+                    if (obj is T t)
+                    {
+                        onNext(t);
+                    }
+                };
+                list.Add(new Subscriber(onNext, wrapped));
             }
         }
 
         public void Unsubscribe<T>(Action<T> onNext)
         {
-            // Simple generic event bus without wrapping for minus operator, ideally we'd store the original delegates to unsubscribe properly.
-            // A more complex implementation would be needed to support unsubscription cleanly if delegates are wrapped as Action<object>.
-            // Let's implement a typed subscriber list to support proper - operation.
+            if (onNext is null)
+            {
+                return;
+            }
+
+            Type type = typeof(T);
+            lock (_gate)
+            {
+                if (!_byType.TryGetValue(type, out List<Subscriber>? list))
+                {
+                    return;
+                }
+
+                list.RemoveAll(s => s.Original.Equals(onNext));
+            }
         }
     }
 }

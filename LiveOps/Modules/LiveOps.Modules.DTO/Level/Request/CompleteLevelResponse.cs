@@ -1,4 +1,4 @@
-using LiveOps.Core.DTO.ModuleRequest;
+using LiveOps.DTO.ModuleRequest;
 using LiveOps.Modules.DTO.Level;
 using Newtonsoft.Json;
 

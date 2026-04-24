@@ -1,5 +1,5 @@
 using System;
-using LiveOps.Core.DTO.ModuleRequest;
+using LiveOps.DTO.ModuleRequest;
 
 namespace Scaffold.LiveOps
 {

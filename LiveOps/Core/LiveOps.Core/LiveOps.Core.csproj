@@ -10,18 +10,12 @@
   <ItemGroup>
     <PackageReference Include="Com.Unity.Services.CloudCode.Apis" Version="0.0.9" />
     <PackageReference Include="Com.Unity.Services.CloudCode.Core" Version="0.0.1" />
-    <PackageReference Include="Microsoft.AspNetCore.Http" Version="2.3.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.3.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="7.0.1" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\LiveOps.Core.DTO\Scaffold.LiveOps.Core.DTO.csproj" />
+    <ProjectReference Include="..\LiveOps.DTO\LiveOps.DTO.csproj" />
   </ItemGroup>
-
-  <PropertyGroup>
-    <PublishReadyToRunComposite>true</PublishReadyToRunComposite>
-  </PropertyGroup>
 </Project>

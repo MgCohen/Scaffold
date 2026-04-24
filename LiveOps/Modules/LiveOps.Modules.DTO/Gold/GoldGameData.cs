@@ -1,11 +1,11 @@
 using System;
-using LiveOps.Core.DTO.GameModule;
+using LiveOps.DTO.GameModule;
 using Newtonsoft.Json;
 
 namespace LiveOps.Modules.DTO.Gold
 {
     /// <summary>
-    /// Aggregated gold payload returned in <see cref="LiveOps.Core.DTO.GameModule.GameData"/> (persistence + config + reward defaults).
+    /// Aggregated gold payload returned in <see cref="LiveOps.DTO.GameModule.GameData"/> (persistence + config + reward defaults).
     /// </summary>
     public sealed class GoldGameData : IGameModuleData
     {

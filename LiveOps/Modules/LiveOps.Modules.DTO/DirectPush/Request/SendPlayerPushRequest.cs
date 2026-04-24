@@ -1,4 +1,5 @@
-using LiveOps.Core.DTO.ModuleRequest;
+using LiveOps.DTO.GameApi;
+using LiveOps.DTO.ModuleRequest;
 
 namespace LiveOps.Modules.DTO.ModuleRequests
 {
@@ -6,6 +7,8 @@ namespace LiveOps.Modules.DTO.ModuleRequests
     /// Request to send a push notification to a specific player.
     /// Requires AccessKey validation via <see cref="Guid"/>.
     /// </summary>
+    [UsesGameApi]
+    [GameApiKey("SendPlayerPush")]
     public class SendPlayerPushRequest : ModuleRequest<SendPushResponse>
     {
         public string Message { get; set; }

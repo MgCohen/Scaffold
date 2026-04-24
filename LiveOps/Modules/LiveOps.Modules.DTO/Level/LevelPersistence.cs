@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
-using LiveOps.Core.DTO.GameModule;
+using LiveOps.DTO.GameModule;
 using Newtonsoft.Json;
 
 namespace LiveOps.Modules.DTO.Level

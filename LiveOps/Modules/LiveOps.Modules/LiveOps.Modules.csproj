@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+
+    <TargetFramework>net6.0</TargetFramework>
+
+    <Nullable>enable</Nullable>
+
+    <Configurations>Debug;Release</Configurations>
+
+    <AssemblyName>LiveOps.Modules</AssemblyName>
+
+    <RootNamespace>LiveOps.Modules</RootNamespace>
+
+  </PropertyGroup>
+
+
+
+  <ItemGroup>
+
+    <PackageReference Include="Com.Unity.Services.CloudCode.Apis" Version="0.0.9" />
+
+    <PackageReference Include="Com.Unity.Services.CloudCode.Core" Version="0.0.1" />
+
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.0" />
+
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="7.0.1" />
+
+  </ItemGroup>
+
+
+
+  <ItemGroup>
+
+    <ProjectReference Include="..\..\Core\LiveOps.Core\LiveOps.Core.csproj" />
+
+    <ProjectReference Include="..\LiveOps.Modules.DTO\LiveOps.Modules.DTO.csproj" />
+
+  </ItemGroup>
+
+</Project>

@@ -1,12 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using LiveOps.Core.ModuleFetchData;
-using LiveOps.Core.DTO.ModuleRequest;
+using LiveOps.ModuleFetchData;
+using LiveOps.DTO.GameApi;
+using LiveOps.DTO.ModuleRequest;
 using Microsoft.Extensions.DependencyInjection;
 using Unity.Services.CloudCode.Core;
 
-namespace LiveOps.Core.GameApi
+namespace LiveOps.GameApi
 {
     /// <summary>
     /// Per-request context for GameApi handlers (caches, nested side-effect responses).
@@ -55,9 +56,10 @@ namespace LiveOps.Core.GameApi
             where TReq : ModuleRequest<TRes>
             where TRes : ModuleResponse
         {
-            if (!_registry.TryGet(typeof(TReq).Name, out HandlerEntry entry))
+            string key = GameApiKeyResolver.GetKey(typeof(TReq));
+            if (!_registry.TryGet(key, out HandlerEntry? entry) || entry == null)
             {
-                throw new InvalidOperationException($"No GameApi handler registered for {typeof(TReq).Name}.");
+                throw new InvalidOperationException($"No GameApi handler registered for key '{key}' (request {typeof(TReq).Name}).");
             }
 
             object handlerObj = _services.GetService(entry.HandlerType);

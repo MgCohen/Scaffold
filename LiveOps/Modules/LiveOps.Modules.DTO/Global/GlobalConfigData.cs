@@ -1,4 +1,4 @@
-using LiveOps.Core.DTO.GameModule;
+using LiveOps.DTO.GameModule;
 using System.Collections.Generic;
 using Newtonsoft.Json;
 

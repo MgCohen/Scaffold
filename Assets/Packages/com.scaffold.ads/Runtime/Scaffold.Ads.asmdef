@@ -10,8 +10,8 @@
     "allowUnsafeCode": false,
     "overrideReferences": false,
     "precompiledReferences": [
-        "Scaffold.LiveOps.Core.DTO.dll",
-        "Scaffold.LiveOps.Modules.DTO.dll"
+        "LiveOps.DTO.dll",
+        "LiveOps.Modules.DTO.dll"
     ],
     "autoReferenced": true,
     "defineConstraints": [],

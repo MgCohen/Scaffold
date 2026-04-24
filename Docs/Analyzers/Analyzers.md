@@ -654,7 +654,7 @@ Diagnostics show the **full** expected namespace. The root segment used for that
 
 **Keys:**
 
-- `scaffold.SCA3006.content_roots` — semicolon-separated path markers (default `Assets/Scripts`). This repo also lists `LiveOps/Core/LiveOps.Core`, `LiveOps/Modules/LiveOps.Modules`, and the two DTO project roots for Cloud Code sources.
+- `scaffold.SCA3006.content_roots` — semicolon-separated path markers (default `Assets/Scripts`). This repo also lists `LiveOps/Core/LiveOps.Core`, `LiveOps/Deploy/LiveOps`, `LiveOps/Modules/LiveOps.Modules`, and the two DTO project roots for Cloud Code sources.
 - `scaffold.SCA3006.first_segment_ignore` — optional. When **omitted**, the first folder segment under the content root is skipped (legacy). When **set**, it is a semicolon-separated list of first-segment folder names to remove once (match `*` to always skip the first segment). An empty value can be supplied to disable legacy skip when tests or a folder layout need every segment.
 - `scaffold.SCA3006.suffix_ignore_globs` — optional semicolon-separated globs; paths matching a glob skip **SCA3006** only (not **SCA3005**).
 
@@ -687,8 +687,8 @@ namespace Scaffold.Navigation.Contracts { }
 dotnet_diagnostic.SCA3005.severity = warning
 dotnet_diagnostic.SCA3006.severity = warning
 scaffold.SCA3005.root = Scaffold
-scaffold.SCA3005.allowed_roots = LiveOps;LiveOps.Core;LiveOps.Core.DTO;LiveOps.Modules;LiveOps.Modules.DTO;Scaffold
-scaffold.SCA3006.content_roots = Assets/Scripts;LiveOps/Core/LiveOps.Core;LiveOps/Modules/LiveOps.Modules;LiveOps/Core/LiveOps.Core.DTO;LiveOps/Modules/LiveOps.Modules.DTO
+scaffold.SCA3005.allowed_roots = LiveOps;LiveOps.DTO;LiveOps.Modules;LiveOps.Modules.DTO;Scaffold
+scaffold.SCA3006.content_roots = Assets/Scripts;LiveOps/Core/LiveOps.Core;LiveOps/Deploy/LiveOps;LiveOps/Modules/LiveOps.Modules;LiveOps/Core/LiveOps.DTO;LiveOps/Modules/LiveOps.Modules.DTO
 ```
 
 ---

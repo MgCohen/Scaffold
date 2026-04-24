@@ -5,7 +5,7 @@ Keywords: ads, rewarded, interstitial, banner, liveops, placement, cooldown
 ## TL;DR
 - Purpose: Client-side ad orchestration — pacing, events, and reward validation via pluggable endpoint clients.
 - Location: `Assets/Packages/com.scaffold.ads/`
-- Depends on: `VContainer`, `Scaffold.LiveOps`, `Scaffold.LiveOps.Core.DTO.dll`, `Scaffold.LiveOps.Modules.DTO.dll`
+- Depends on: `VContainer`, `Scaffold.LiveOps`, `LiveOps.DTO.dll`, `LiveOps.Modules.DTO.dll`
 - Used by: `com.scaffold.ads.levelplay` (LevelPlay provider), App-layer UI controllers
 - Runtime only (no Editor tooling)
 
@@ -186,7 +186,7 @@ Two implementations of `IRewardEndpointClient`:
   - `placementId` flows end-to-end: client → request → backend → persistence → response.
   - Backend is the authoritative source for MaxViews/Cooldown; client mirrors for UX.
 - Allowed Dependencies:
-  - `VContainer`, `Scaffold.LiveOps`, `Scaffold.LiveOps.Core.DTO.dll`, `Scaffold.LiveOps.Modules.DTO.dll`
+  - `VContainer`, `Scaffold.LiveOps`, `LiveOps.DTO.dll`, `LiveOps.Modules.DTO.dll`
 - Forbidden Dependencies:
   - `com.scaffold.ads.levelplay` (provider implementation must not leak into abstraction)
   - Direct references to `GoldModule` or economy from the client package
@@ -199,7 +199,7 @@ Two implementations of `IRewardEndpointClient`:
   - `ResponseStatusType.Success` is enum value 0 (default) — responses are "success" unless explicitly set otherwise.
 
 ## Related
-- `LiveOps/LiveOps.DTO/Modules/Ads/` — Shared DTOs
+- `LiveOps/Modules/LiveOps.Modules.DTO/Ads/` — Shared DTOs
 - `LiveOps/Modules/LiveOps.Modules/Ads/AdsService.cs` — Backend validation
 - `Assets/Packages/com.scaffold.ads.levelplay/` — LevelPlay provider implementation
 - `Docs/LiveOps/LiveOps.md` — LiveOps system docs

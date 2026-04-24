@@ -1,8 +1,8 @@
 using System;
 using System.Threading.Tasks;
-using LiveOps.Core.DTO.ModuleRequest;
+using LiveOps.DTO.ModuleRequest;
 
-namespace LiveOps.Core.GameApi
+namespace LiveOps.GameApi
 {
     /// <summary>
     /// Non-generic GameApi handler contract used by <see cref="GameApiDispatcher"/> for reflection-free dispatch.

@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using LiveOps.Core.DTO.ModuleRequest;
+using LiveOps.DTO.ModuleRequest;
 
 namespace Scaffold.LiveOps
 {

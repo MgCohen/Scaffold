@@ -1,10 +1,13 @@
-using LiveOps.Core.DTO.ModuleRequest;
+using LiveOps.DTO.GameApi;
+using LiveOps.DTO.ModuleRequest;
 
 namespace LiveOps.Modules.DTO.ModuleRequests
 {
     /// <summary>
     /// Request to send a push notification to the calling player (self-push).
     /// </summary>
+    [UsesGameApi]
+    [GameApiKey("SendSelfPush")]
     public class SendSelfPushRequest : ModuleRequest<SendPushResponse>
     {
         public string Message { get; set; }

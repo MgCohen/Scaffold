@@ -1,15 +1,25 @@
-using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
-using LiveOps.Core.GameModule;
-using LiveOps.Core.ModuleFetchData;
-using LiveOps.Core.DTO.GameModule;
-using Unity.Services.CloudCode.Core;
+using LiveOps.GameModule;
+using LiveOps.GameApi;
+using LiveOps.Modules.GameData;
+using LiveOps.DTO.GameModule;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace LiveOps.Tests
 {
+    /// <summary>
+    /// Exercises <see cref="GameDataHandler.PlayerKeys"/> and <see cref="GameDataHandler.ConfigKeys"/>,
+    /// which expose the inlined prefetch-key union semantics (any null hint = warm full snapshot).
+    /// </summary>
     public sealed class ModulePrefetchKeysTests
     {
+        private sealed class StubData : IGameModuleData
+        {
+            public string Key => "stub";
+        }
+
         private sealed class StubModule : IGameModule
         {
             private readonly string[]? _playerKeys;
@@ -28,24 +38,27 @@ namespace LiveOps.Tests
 
             public string[]? ConfigKeys() => _configKeys;
 
-            public Task<IGameModuleData> Initialize(IExecutionContext context, IPlayerData Player, IGameState gameState, IRemoteConfig remoteConfig)
+            public Task<IGameModuleData> InitializeAsync(GameApiSession session, CancellationToken cancellationToken = default)
             {
-                return Task.FromResult<IGameModuleData>(null!);
+                return Task.FromResult<IGameModuleData>(new StubData());
             }
         }
 
-        [Fact]
-        public void UnionOrAll_WhenAnyModuleReturnsNull_ReturnsNull()
+        private static GameDataHandler Handler(params IGameModule[] mods)
         {
-            IGameModule[] mods =
-            {
+            return new GameDataHandler(NullLogger<GameDataHandler>.Instance, mods);
+        }
+
+        [Fact]
+        public void PlayerKeys_WhenAnyModuleReturnsNull_ReturnsNull_AndConfigKeysStillUnions()
+        {
+            GameDataHandler handler = Handler(
                 new StubModule("a", new[] { "x" }, new[] { "c" }),
-                new StubModule("b", null, new[] { "d" }),
-            };
+                new StubModule("b", null, new[] { "d" }));
 
-            Assert.Null(ModulePrefetchKeys.UnionOrAll(mods, m => m.PlayerKeys()));
+            Assert.Null(handler.PlayerKeys());
 
-            string[]? ck = ModulePrefetchKeys.UnionOrAll(mods, m => m.ConfigKeys());
+            string[]? ck = handler.ConfigKeys();
             Assert.NotNull(ck);
             Assert.Equal(2, ck!.Length);
             Assert.Contains("c", ck);
@@ -53,16 +66,14 @@ namespace LiveOps.Tests
         }
 
         [Fact]
-        public void UnionOrAll_MergesDistinctKeys()
+        public void PlayerKeys_And_ConfigKeys_MergeDistinctKeys()
         {
-            IGameModule[] mods =
-            {
+            GameDataHandler handler = Handler(
                 new StubModule("a", new[] { "p1", "p2" }, new[] { "c1" }),
-                new StubModule("b", new[] { "p2", "p3" }, new[] { "c1", "c2" }),
-            };
+                new StubModule("b", new[] { "p2", "p3" }, new[] { "c1", "c2" }));
 
-            string[]? pk = ModulePrefetchKeys.UnionOrAll(mods, m => m.PlayerKeys());
-            string[]? ck = ModulePrefetchKeys.UnionOrAll(mods, m => m.ConfigKeys());
+            string[]? pk = handler.PlayerKeys();
+            string[]? ck = handler.ConfigKeys();
 
             Assert.NotNull(pk);
             Assert.Equal(3, pk!.Length);
@@ -75,15 +86,13 @@ namespace LiveOps.Tests
         }
 
         [Fact]
-        public void UnionOrAll_AllEmptyArrays_ReturnsEmpty()
+        public void PlayerKeys_AllEmptyArrays_ReturnsEmpty()
         {
-            IGameModule[] mods =
-            {
+            GameDataHandler handler = Handler(
                 new StubModule("a", System.Array.Empty<string>(), System.Array.Empty<string>()),
-                new StubModule("b", System.Array.Empty<string>(), System.Array.Empty<string>()),
-            };
+                new StubModule("b", System.Array.Empty<string>(), System.Array.Empty<string>()));
 
-            string[]? pk = ModulePrefetchKeys.UnionOrAll(mods, m => m.PlayerKeys());
+            string[]? pk = handler.PlayerKeys();
             Assert.NotNull(pk);
             Assert.Empty(pk!);
         }

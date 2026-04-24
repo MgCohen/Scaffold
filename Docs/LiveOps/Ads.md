@@ -5,7 +5,7 @@ Keywords: ads, cloud-code, placement, cooldown, max-views, reward, gold, server-
 ## TL;DR
 - Purpose: Server-side validation of ad watches — enforces cooldowns, view limits, and grants rewards per placement.
 - Location: `LiveOps/Modules/LiveOps.Modules/Ads/` (backend) + `LiveOps/Modules/LiveOps.Modules.DTO/Ads/` (shared DTOs)
-- Depends on: `GoldModule` (reward dispatch), `ModuleRequestHandler` (response pipeline)
+- Depends on: `GoldModule` (reward dispatch), **GameApi** (`IGameApiHandler<WatchAdRequest, WatchAdResponse>`)
 - Used by: `Scaffold.Ads` client package via `ILiveOpsService.CallAsync()`
 - Runs on Unity Cloud Code (server-side C#)
 
@@ -208,7 +208,7 @@ LiveOps/Modules/LiveOps.Modules/Ads/
   - `GoldChangedResponse` nesting relies on `enqueueNestedResponse: true` — do not change to `false`.
 - Allowed Dependencies:
   - `GoldModule` (reward dispatch)
-  - `ModuleRequestHandler` (response pipeline)
+  - `GameApiDispatcher` / `IGameApiHandler<WatchAdRequest, WatchAdResponse>` (routing)
   - `IPlayerData`, `IRemoteConfig` (data access)
 - Forbidden Dependencies:
   - Client-side assemblies (`Scaffold.Ads`, `Scaffold.Ads.Levelplay`)

@@ -1,13 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using LiveOps.Core.DTO.GameModule;
+using LiveOps.DTO.GameModule;
 using Newtonsoft.Json;
 
 namespace LiveOps.Modules.DTO.Level
 {
     /// <summary>
-    /// Aggregated level payload returned in <see cref="LiveOps.Core.DTO.GameModule.GameData"/>.
+    /// Aggregated level payload returned in <see cref="LiveOps.DTO.GameModule.GameData"/>.
     /// </summary>
     public sealed class LevelGameData : IGameModuleData
     {

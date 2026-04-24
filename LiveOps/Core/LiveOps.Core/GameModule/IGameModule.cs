@@ -1,10 +1,9 @@
-using LiveOps.Core.DTO.GameModule;
-using LiveOps.Core.ModuleFetchData;
-
+using System.Threading;
 using System.Threading.Tasks;
-using Unity.Services.CloudCode.Core;
+using LiveOps.DTO.GameModule;
+using LiveOps.GameApi;
 
-namespace LiveOps.Core.GameModule
+namespace LiveOps.GameModule
 {
     /// <summary>
     /// Provides the base contract for initializing independent game module instances.
@@ -15,14 +14,11 @@ namespace LiveOps.Core.GameModule
         public string Key { get; }
 
         /// <summary>
-        /// Initializes the module by fetching the relevant data from the game state.
+        /// Populates the module from caches exposed on <see cref="GameApiSession" />.
         /// </summary>
-        /// <param name="context">The execution context.</param>
-        /// <param name="Player">The active player data.</param>
-        /// <param name="gameState">The current game state.</param>
-        /// <param name="remoteConfig">The remote configuration settings.</param>
-        /// <returns>The populated module data.</returns>
-        public Task<IGameModuleData> Initialize(IExecutionContext context, IPlayerData Player, IGameState gameState, IRemoteConfig remoteConfig);
+        Task<IGameModuleData> InitializeAsync(
+            GameApiSession session,
+            CancellationToken cancellationToken = default);
 
         /// <summary><c>null</c>: warm full player snapshot; empty: skip; else keys (selective fetch TBD).</summary>
         string[]? PlayerKeys() => null;

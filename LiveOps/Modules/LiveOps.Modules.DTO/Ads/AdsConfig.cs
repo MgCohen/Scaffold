@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using LiveOps.Core.DTO.GameModule;
+using LiveOps.DTO.GameModule;
 using Newtonsoft.Json;
 
 namespace LiveOps.Modules.DTO.Ads

@@ -1,4 +1,4 @@
-using LiveOps.Core.DTO.ModuleRequest;
+using LiveOps.DTO.ModuleRequest;
 
 namespace LiveOps.Modules.DTO.Gold
 {

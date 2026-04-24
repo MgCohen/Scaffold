@@ -1,45 +1,48 @@
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
-using LiveOps.Core.GameModule;
-using LiveOps.Core.ModuleFetchData;
-using LiveOps.Core.Response;
-using LiveOps.Core.DTO.GameModule;
-using LiveOps.Core.DTO.ModuleRequest;
-using LiveOps.Modules.DTO.ModuleRequests;
+using LiveOps.GameApi;
+using LiveOps.GameModule;
+using LiveOps.ModuleFetchData;
+using LiveOps.DTO.GameModule;
+using LiveOps.DTO.ModuleRequest;
 using LiveOps.Modules.DTO.Gold;
+using LiveOps.Modules.DTO.ModuleRequests;
 using LiveOps.Modules.DTO.Level;
-using LiveOps.Modules.Gold;
 using Microsoft.Extensions.Logging;
 using Unity.Services.CloudCode.Core;
-
 namespace LiveOps.Modules.Level
 {
     /// <summary>
     /// Cloud Code level module: persistence + remote config merged into <see cref="LevelGameData"/>.
     /// </summary>
-    public class LevelService : GameModule<LevelGameData>
+    public class LevelService : GameModule<LevelGameData>, IGameApiHandler<CompleteLevelRequest, CompleteLevelResponse>
     {
         private readonly ILogger<LevelService> _logger;
-        private readonly ModuleRequestHandler _moduleRequestHandler;
-        private readonly GoldModule _goldModule;
 
-        public LevelService(ILogger<LevelService> logger, ModuleRequestHandler moduleRequestHandler, GoldModule goldModule)
+        public LevelService(ILogger<LevelService> logger)
         {
             _logger = logger;
-            _moduleRequestHandler = moduleRequestHandler;
-            _goldModule = goldModule;
         }
 
-        public override async Task<IGameModuleData> Initialize(IExecutionContext context, IPlayerData Player, IGameState gameState, IRemoteConfig remoteConfig)
+        public override async Task<IGameModuleData> InitializeAsync(
+            GameApiSession session,
+            CancellationToken cancellationToken = default)
         {
-            LevelPersistence persistence = await Player.GetOrSet(context, new LevelPersistence());
+            IExecutionContext context = session.Context;
+            IPlayerData player = session.Player;
+            IRemoteConfig remoteConfig = session.RemoteConfig;
+            LevelPersistence persistence = await player.GetOrSet(context, new LevelPersistence());
             LevelConfig config = await remoteConfig.Get(context, new LevelConfig());
             return new LevelGameData(persistence, config);
         }
 
-        [CloudCodeFunction(nameof(CompleteLevelRequest))]
-        public async Task<CompleteLevelResponse> CompleteLevel(IExecutionContext context, IPlayerData Player, IRemoteConfig remoteConfig, CompleteLevelRequest request)
+        public async Task<CompleteLevelResponse> HandleAsync(GameApiSession session, CompleteLevelRequest request)
         {
+            IExecutionContext context = session.Context;
+            IPlayerData Player = session.Player;
+            IRemoteConfig remoteConfig = session.RemoteConfig;
+
             LevelConfig config = await remoteConfig.Get(context, new LevelConfig());
             LevelPersistence persistence = await Player.GetOrSet(context, new LevelPersistence());
 
@@ -48,14 +51,14 @@ namespace LiveOps.Modules.Level
             if (index < 0)
             {
                 _logger.LogWarning("[LevelService] Attempted to complete level {AttemptedLevel} but it is not in the valid levels list", request.LevelId);
-                return await _moduleRequestHandler.ResolveResponse(context, request, SnapshotResponse(false, persistence, config, null));
+                return SnapshotResponse(false, persistence, config, null);
             }
 
             HashSet<int> completed = new HashSet<int>(persistence.CompletedLevelIds);
             if (completed.Contains(request.LevelId))
             {
                 _logger.LogWarning("[LevelService] Level {LevelId} is already completed", request.LevelId);
-                return await _moduleRequestHandler.ResolveResponse(context, request, SnapshotResponse(false, persistence, config, null));
+                return SnapshotResponse(false, persistence, config, null);
             }
 
             if (index > 0)
@@ -64,7 +67,7 @@ namespace LiveOps.Modules.Level
                 if (!completed.Contains(previousId))
                 {
                     _logger.LogWarning("[LevelService] Previous level {PreviousId} is not completed for {AttemptedLevel}", previousId, request.LevelId);
-                    return await _moduleRequestHandler.ResolveResponse(context, request, SnapshotResponse(false, persistence, config, null));
+                    return SnapshotResponse(false, persistence, config, null);
                 }
             }
 
@@ -74,13 +77,12 @@ namespace LiveOps.Modules.Level
             int reward = config.RewardPerLevel;
             if (reward > 0)
             {
-                await _goldModule.AddGoldToPlayer(context, Player, remoteConfig, reward, enqueueNestedResponse: true);
+                await session.InvokeAsync<AddGoldRequest, GoldChangedResponse>(new AddGoldRequest(reward)).ConfigureAwait(false);
             }
 
             _logger.LogInformation("[LevelService] Level {LevelId} completed successfully for player {PlayerId}", request.LevelId, context.PlayerId);
 
-            CompleteLevelResponse response = SnapshotResponse(true, persistence, config, request.LevelId);
-            return await _moduleRequestHandler.ResolveResponse(context, request, response);
+            return SnapshotResponse(true, persistence, config, request.LevelId);
         }
 
         private static CompleteLevelResponse SnapshotResponse(bool succeeded, LevelPersistence persistence, LevelConfig config, int? completedLevelId)

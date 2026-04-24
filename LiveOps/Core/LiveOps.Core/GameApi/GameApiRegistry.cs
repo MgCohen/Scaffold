@@ -1,51 +1,32 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using LiveOps.DTO.GameApi;
 
-namespace LiveOps.Core.GameApi
+namespace LiveOps.GameApi
 {
     /// <summary>
     /// Maps <c>RequestKey</c> strings to handler metadata for all registered handlers.
     /// </summary>
     public sealed class HandlerEntry
     {
-        public Type RequestType { get; set; } = null!;
+        public Type RequestType { get; init; } = null!;
 
-        public Type ResponseType { get; set; } = null!;
+        public Type ResponseType { get; init; } = null!;
 
-        public Type HandlerType { get; set; } = null!;
+        public Type HandlerType { get; init; } = null!;
     }
 
-    /// <summary>
-    /// Maps <c>RequestKey</c> strings to request/response CLR types and concrete handler types.
-    /// </summary>
     public sealed class GameApiRegistry
     {
         private readonly Dictionary<string, HandlerEntry> _map = new Dictionary<string, HandlerEntry>();
 
-        public GameApiRegistry(params Assembly[] assemblies)
+        public GameApiRegistry()
         {
-            if (assemblies == null || assemblies.Length == 0)
-            {
-                throw new ArgumentException("At least one assembly is required.", nameof(assemblies));
-            }
-
-            foreach (Assembly assembly in assemblies)
-            {
-                foreach (Type type in assembly.GetTypes())
-                {
-                    if (type.IsAbstract || type.IsInterface)
-                    {
-                        continue;
-                    }
-
-                    RegisterHandlerType(type);
-                }
-            }
         }
 
         /// <summary>
-        /// Registers a concrete handler type (same logic as assembly scan). Use with explicit registration in <see cref="ModuleConfig"/>.
+        /// Registers a concrete handler type. Production registration uses the manifest; tests may call this to wire handlers explicitly.
         /// </summary>
         public void Register(Type handlerType)
         {
@@ -62,7 +43,10 @@ namespace LiveOps.Core.GameApi
             RegisterHandlerType(handlerType);
         }
 
-        private void RegisterHandlerType(Type type)
+        /// <summary>
+        /// Discovers a concrete handler and registers it by <see cref="GameApiKeyAttribute.Key"/> (declared on the request DTO type).
+        /// </summary>
+        public void RegisterHandlerType(Type type)
         {
             foreach (Type iface in type.GetInterfaces())
             {
@@ -77,8 +61,16 @@ namespace LiveOps.Core.GameApi
                 }
 
                 Type[] args = iface.GetGenericArguments();
-                string key = args[0].Name;
-                if (_map.TryGetValue(key, out HandlerEntry existing))
+                Type requestType = args[0];
+                GameApiKeyAttribute? keyAttr = requestType.GetCustomAttribute<GameApiKeyAttribute>(inherit: true);
+                if (keyAttr == null)
+                {
+                    throw new InvalidOperationException(
+                        $"Request type '{requestType.FullName}' must be decorated with [{nameof(GameApiKeyAttribute)}(…)].");
+                }
+
+                string key = keyAttr.Key;
+                if (_map.TryGetValue(key, out HandlerEntry? existing))
                 {
                     if (existing.HandlerType == type)
                     {
@@ -92,7 +84,7 @@ namespace LiveOps.Core.GameApi
                 {
                     RequestType = args[0],
                     ResponseType = args[1],
-                    HandlerType = type,
+                    HandlerType = type
                 };
             }
         }
@@ -114,9 +106,9 @@ namespace LiveOps.Core.GameApi
             return true;
         }
 
-        public bool TryResolve(string requestKey, out Type requestType, out Type responseType)
+        public bool TryResolve(string requestKey, out Type? requestType, out Type? responseType)
         {
-            if (!TryGet(requestKey, out HandlerEntry e))
+            if (!TryGet(requestKey, out HandlerEntry? e) || e == null)
             {
                 requestType = null;
                 responseType = null;

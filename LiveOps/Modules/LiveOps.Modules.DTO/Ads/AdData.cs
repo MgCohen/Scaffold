@@ -1,12 +1,12 @@
 using System;
 using System.Collections.Generic;
-using LiveOps.Core.DTO.GameModule;
+using LiveOps.DTO.GameModule;
 using Newtonsoft.Json;
 
 namespace LiveOps.Modules.DTO.Ads
 {
     /// <summary>
-    /// Client-facing ads payload in <see cref="LiveOps.Core.DTO.GameModule.GameData"/> (built from persistence + config on the server).
+    /// Client-facing ads payload in <see cref="LiveOps.DTO.GameModule.GameData"/> (built from persistence + config on the server).
     /// </summary>
     public sealed class AdData : IGameModuleData
     {

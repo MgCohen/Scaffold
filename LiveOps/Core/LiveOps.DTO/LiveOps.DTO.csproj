@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <AssemblyName>LiveOps.DTO</AssemblyName>
+    <Nullable>disable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>LiveOps.DTO</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <UnityPluginsDir>$(MSBuildThisFileDirectory)..\..\..\Assets\Plugins\Scaffold.LiveOps.DTO\</UnityPluginsDir>
+  </PropertyGroup>
+  <Target Name="CopyDtoToUnityPlugins" AfterTargets="Build">
+    <MakeDir Directories="$(UnityPluginsDir)" Condition="!Exists('$(UnityPluginsDir)')" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFiles="$(UnityPluginsDir)$(TargetFileName)" SkipUnchangedFiles="false" />
+    <Copy SourceFiles="$(TargetDir)$(TargetName).pdb" DestinationFiles="$(UnityPluginsDir)$(TargetName).pdb" SkipUnchangedFiles="true" Condition="Exists('$(TargetDir)$(TargetName).pdb')" />
+  </Target>
+</Project>

@@ -1,6 +1,6 @@
 using System.Threading;
 using System.Threading.Tasks;
-using LiveOps.Core.DTO.ModuleRequest;
+using LiveOps.DTO.ModuleRequest;
 using LiveOps.Modules.DTO.ModuleRequests;
 using Scaffold.LiveOps;
 

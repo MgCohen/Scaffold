@@ -6,7 +6,7 @@
 
 - Purpose: typed client for the deployed Cloud Code **LiveOps** module using shared DTO requests and responses; **bootstrap** runs an initial **`GameDataRequest`** via `Scaffold.AppFlow.IAsyncInitializable` on `LiveOpsService`.
 - Location: `Assets/Packages/com.scaffold.liveops/Runtime/` (`Scaffold.LiveOps`), installer `Scaffold.LiveOps.Container`.
-- Depends on: `Scaffold.CloudCode`, `com.scaffold.appflow` (`Scaffold.AppFlow.IAsyncInitializable`), precompiled plugins **`Scaffold.LiveOps.Core.DTO.dll`** and **`Scaffold.LiveOps.Modules.DTO.dll`** (see the **LiveOps** section below), `Newtonsoft.Json`, `VContainer`.
+- Depends on: `Scaffold.CloudCode`, `com.scaffold.appflow` (`Scaffold.AppFlow.IAsyncInitializable`), precompiled plugins **`LiveOps.DTO.dll`** and **`LiveOps.Modules.DTO.dll`** (see the **LiveOps** section below), `Newtonsoft.Json`, `VContainer`.
 - Used by: bootstrap, feature modules (`IGameClientModule` implementations, `GameClientModuleBase<T>`), and any code that calls LiveOps endpoints.
 
 ## Responsibilities
@@ -47,20 +47,21 @@ Backend (Cloud Code host): `LiveOps/Tests/LiveOps.Tests` — prefetch key union 
 
 # LiveOps
 
-Cloud Code backend under `LiveOps/` (Unity repo root): **core** (`Core/LiveOps.Core/`), **feature modules** (`Modules/LiveOps.Modules/`), and two DTO assemblies. Unity consumes precompiled **`Scaffold.LiveOps.Core.DTO.dll`** (core contracts, `LiveOps.Core.DTO.*`) and **`Scaffold.LiveOps.Modules.DTO.dll`** (feature DTOs, `LiveOps.Modules.DTO.*`).
+Cloud Code backend under `LiveOps/` (Unity repo root): **deploy shell** (`Deploy/LiveOps/`), **core library** (`Core/LiveOps.Core/`), **feature modules** (`Modules/LiveOps.Modules/`), and two DTO assemblies. Unity consumes precompiled **`LiveOps.DTO.dll`** (core contracts, `LiveOps.DTO.*`) and **`LiveOps.Modules.DTO.dll`** (feature DTOs, `LiveOps.Modules.DTO.*`).
 
 ## Layout
 
 | Part | Path | Role |
 |------|------|------|
-| **Core.DTO** | `LiveOps/Core/LiveOps.Core.DTO/` | Shared envelopes, `ModuleRequest` / `ModuleResponse`, `GameData` aggregate, JSON binder; **`Scaffold.LiveOps.Core.DTO.csproj`** |
-| **Modules.DTO** | `LiveOps/Modules/LiveOps.Modules.DTO/` | Feature payloads and requests (`GameDataRequest` / `GameDataResponse`, Ads, Gold, Level, …); **`Scaffold.LiveOps.Modules.DTO.csproj`** |
-| **Core** | `LiveOps/Core/LiveOps.Core/` | Cloud Code host core (`LiveOps.Core.*`): caches, GameApi, `ModuleConfig`, **`LiveOps.Core.csproj`** → **`LiveOps.Core.dll`** |
-| **Modules** | `LiveOps/Modules/LiveOps.Modules/` | Feature services + `*Installer` types (`LiveOps.Modules.*`); **`LiveOps.csproj`** (UGS module name **`LiveOps`**, no dots) → **`LiveOps.Modules.dll`** |
+| **Core.DTO** | `LiveOps/Core/LiveOps.DTO/` | Shared envelopes, `ModuleRequest` / `ModuleResponse`, `GameData` aggregate, JSON binder; **`LiveOps.DTO.csproj`** |
+| **Modules.DTO** | `LiveOps/Modules/LiveOps.Modules.DTO/` | Feature payloads and requests (`GameDataRequest` / `GameDataResponse`, Ads, Gold, Level, …); **`LiveOps.Modules.DTO.csproj`** |
+| **Core** | `LiveOps/Core/LiveOps.Core/` | Server-only library (`LiveOps.*` namespaces): caches, `GameApiRegistry`, `IGameApiHandler`, `LiveOpsBootstrapper`; **`LiveOps.Core.csproj`** → **`LiveOps.Core.dll`** |
+| **Modules** | `LiveOps/Modules/LiveOps.Modules/` | Feature services and `IGameModule` / handler implementations (`LiveOps.Modules.*`); registration is **manifest-driven**; **`LiveOps.Modules.csproj`** → **`LiveOps.Modules.dll`** |
+| **Deploy** | `LiveOps/Deploy/LiveOps/` | Cloud Code entry assembly: **`GameApiDispatcher`** (the only **`[CloudCodeFunction]`**), **`ModuleConfig`** (`ICloudCodeSetup`); **`LiveOps.csproj`** (UGS module id **`LiveOps`**, dot-free; matches `ModuleRequest.ModuleName`) → **`LiveOps.dll`** |
 
-Build **`LiveOps/LiveOps.sln`** (production: four projects only — keeps Cloud Code deploy bundle small). Each DTO project copies its DLL (+ PDB) to **`Assets/Plugins/Scaffold.LiveOps.DTO/`** after build.
+Build **`LiveOps/LiveOps.sln`** (production: five projects — DTOs + core + modules + deploy shell; keeps Cloud Code deploy bundle small). Each DTO project copies its DLL (+ PDB) to **`Assets/Plugins/Scaffold.LiveOps.DTO/`** after build.
 
-**Adding a feature module:** add runtime code under `Modules/LiveOps.Modules/<Feature>/`, DTOs under `Modules/LiveOps.Modules.DTO/<Feature>/`, and a **`FeatureInstaller : GameModuleInstaller`** that calls **`RegisterModule<T>`** (and **`RegisterHandler<T>`** if you add a GameApi handler). **`ModuleConfig`** discovers concrete **`ICloudCodeInstaller`** types in assemblies whose name starts with **`LiveOps`** (after **`CoreInstaller`** runs first).
+**Adding a feature module:** add runtime code under `Modules/LiveOps.Modules/<Feature>/`, DTOs under `Modules/LiveOps.Modules.DTO/<Feature>/`. **`Scaffold.LiveOps.Bootstrap.Generators`** emits **`LiveOpsManifest`** entries for new **`IGameModule`** and **`IGameApiHandler<,>`** types; rebuild **`LiveOps/Deploy/LiveOps`** so **`ModuleConfig`** / **`LiveOpsBootstrapper.InstallFromManifest`** register them. For Cloud Code calls routed through **GameApi**, implement **`IGameApiHandler<TRequest, TResponse>`** (one concrete class per handler; C# cannot implement multiple `IGameApiHandler<,>` on a single class) and add **`[GameApiKey("…")]`** on the request DTO. Do not add **`[CloudCodeFunction]`** on feature code — the only attributed method is **`GameApiDispatcher.Invoke("GameApi")`** in the deploy project.
 
 ### Cloud Code data pipeline (backend)
 
@@ -68,37 +69,38 @@ Build **`LiveOps/LiveOps.sln`** (production: four projects only — keeps Cloud 
 - **`IGameApiHandler`** / **`IGameModule`**: Optional `PlayerKeys()` / `ConfigKeys()` with default `null`. **`null`** = full warm for that system; **empty array** = skip prefetch (lazy on first read); non-empty key lists are reserved for future selective fetch (today they still trigger a full snapshot until `FetchData(keys)` is implemented).
 - **`GameDataHandler`** (`LiveOps.Modules.GameData`) unions all registered **`IGameModule`** key hints; any module returning **`null`** for a dimension forces a full warm for that dimension.
 - **`DataCacheExtensions`** (`Core/LiveOps.Core/ModuleFetchData/DataCacheExtensions.cs`): `Get` / `Set` / `GetOrSet` for **`IGameModuleData`** so **`IReadableDataCache`** / **`IWriteableDataCache`** stay free of DTO-generic methods.
-- **`ModuleRequestHandler.ResolveResponse`** does not call **`SaveCache`**; persistence is owned by the batch dispose / **`FlushAsync`**.
+- **GameApi handlers** return the primary **`ModuleResponse`** directly; nested side effects use **`GameApiSession.EmitSideEffect`**. Persistence is owned by the batch dispose / **`FlushAsync`** (not per-handler **`SaveCache`**).
 
 Backend unit tests: **`LiveOps/Tests/LiveOps.Tests`** (xUnit) — use **`LiveOps/LiveOps.Tests.sln`** (includes test project; **not** part of the deploy **`LiveOps.sln`**).
 
 ## Unity plugins
 
-Paths are **repo-root relative** (e.g. `LiveOps/Core/LiveOps.Core.DTO/` → `..\..\..\Assets\Plugins\Scaffold.LiveOps.DTO\`).
+Paths are **repo-root relative** (e.g. `LiveOps/Core/LiveOps.DTO/` → `..\..\..\Assets\Plugins\Scaffold.LiveOps.DTO\`).
 
 Manual copy is only needed if you build outside MSBuild or disable the post-build target:
 
-- `LiveOps\Core\LiveOps.Core.DTO\bin\Release\netstandard2.1\Scaffold.LiveOps.Core.DTO.dll` → `Assets\Plugins\Scaffold.LiveOps.DTO\`
-- `LiveOps\Modules\LiveOps.Modules.DTO\bin\Release\netstandard2.1\Scaffold.LiveOps.Modules.DTO.dll` → `Assets\Plugins\Scaffold.LiveOps.DTO\`
+- `LiveOps\Core\LiveOps.DTO\bin\Release\netstandard2.1\LiveOps.DTO.dll` → `Assets\Plugins\Scaffold.LiveOps.DTO\`
+- `LiveOps\Modules\LiveOps.Modules.DTO\bin\Release\netstandard2.1\LiveOps.Modules.DTO.dll` → `Assets\Plugins\Scaffold.LiveOps.DTO\`
 
 ## Build commands
 
 ```powershell
 dotnet build "LiveOps\LiveOps.sln" -c Release
 dotnet test "LiveOps\LiveOps.Tests.sln" -c Release
+dotnet publish "LiveOps\Deploy\LiveOps\LiveOps.csproj" -c Release -r linux-x64 --no-self-contained
 ```
 
 Optional manual copy:
 
 ```powershell
-Copy-Item "LiveOps\Core\LiveOps.Core.DTO\bin\Release\netstandard2.1\Scaffold.LiveOps.Core.DTO.dll" "Assets\Plugins\Scaffold.LiveOps.DTO\" -Force
-Copy-Item "LiveOps\Modules\LiveOps.Modules.DTO\bin\Release\netstandard2.1\Scaffold.LiveOps.Modules.DTO.dll" "Assets\Plugins\Scaffold.LiveOps.DTO\" -Force
+Copy-Item "LiveOps\Core\LiveOps.DTO\bin\Release\netstandard2.1\LiveOps.DTO.dll" "Assets\Plugins\Scaffold.LiveOps.DTO\" -Force
+Copy-Item "LiveOps\Modules\LiveOps.Modules.DTO\bin\Release\netstandard2.1\LiveOps.Modules.DTO.dll" "Assets\Plugins\Scaffold.LiveOps.DTO\" -Force
 ```
 
-Deploy the **LiveOps** Cloud Code module (dashboard / UGS module name must be a valid identifier, e.g. **`LiveOps`** — dots in the **project file name** are rejected). Point `LiveOps.ccmr` at **`LiveOps/Modules/LiveOps.Modules/LiveOps.csproj`** (main project with **`FolderProfile`**). Remote config is loaded from the configured HTTP or UGS Remote Config source only; there is no on-disk JSON fallback in the module.
+UGS derives the **module name** from the **deploy** project’s **`.csproj` file name** (without extension) and rejects **`.`** in that name. This repo uses **`Deploy/LiveOps/LiveOps.csproj`** for deploy (module id **`LiveOps`**, matches `ModuleRequest.ModuleName`). The **`FolderProfile.pubxml`** publish profile lives next to that project. Point **`LiveOps.ccmr`** at **`LiveOps/LiveOps.sln`** (or the deploy `.csproj` directly); Unity/UGS resolves the project that has a publish profile. Remote config is loaded from the configured HTTP or UGS Remote Config source only; there is no on-disk JSON fallback in the module.
 
 `LiveOps/Directory.Build.props` disables repository Roslyn analyzers for these projects.
 
 ## Unity client
 
-Use **`ILiveOpsService`** / **`LiveOpsService`** (`Scaffold.LiveOps`, see **Core LiveOps** above) for typed **`ModuleRequest` / `ModuleResponse`** calls, or call **`ICloudCodeService`** directly. Shared contracts ship in **`Scaffold.LiveOps.Core.DTO.dll`** and **`Scaffold.LiveOps.Modules.DTO.dll`** (`LiveOps.Core.DTO.*` and `LiveOps.Modules.DTO.*` namespaces).
+Use **`ILiveOpsService`** / **`LiveOpsService`** (`Scaffold.LiveOps`, see **Core LiveOps** above) for typed **`ModuleRequest` / `ModuleResponse`** calls, or call **`ICloudCodeService`** directly. Shared contracts ship in **`LiveOps.DTO.dll`** and **`LiveOps.Modules.DTO.dll`** (`LiveOps.DTO.*` and `LiveOps.Modules.DTO.*` namespaces).

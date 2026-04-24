@@ -8,3 +8,4 @@ SCA3006 | Design | Warning | NamespacePathAnalyzer — full namespace must match
 SCA3004 | Design | Warning | SingleTopLevelNamespaceAnalyzer — one top-level namespace per file; types/delegates at file scope outside a block `namespace { }` (same ID, distinct messages)
 SCA8001 | Quality | Info | DeadCodeInRuntimeAnalyzer — default severity suggestion
 SCA8002 | Architecture | Info | PragmaWarningDisableAnalyzer — default severity suggestion
+SCA3007 | Design | Error | GameApiKeyRequestAnalyzer — public `*Request` types inheriting `ModuleRequest<…>` in `LiveOps.DTO` or `LiveOps.Modules.DTO` must have `[GameApiKey("…")]` (GameApi wire key)

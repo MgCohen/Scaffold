@@ -1,0 +1,19 @@
+using LiveOps.DTO.GameApi;
+using LiveOps.DTO.ModuleRequest;
+
+namespace LiveOpsModules.DTO.GameData
+{
+    /// <summary>
+    /// Represents a network request for aggregated game module data.
+    /// The server builds <see cref="GameDataResponse"/> from every game module registered in cloud DI (see <c>ModuleConfig</c>).
+    /// </summary>
+    [UsesGameApi]
+    [GameApiKey("GameData")]
+    public class GameDataRequest : ModuleRequest<GameDataResponse>
+    {
+        /// <summary>Initializes a new instance for deserialization.</summary>
+        public GameDataRequest()
+        {
+        }
+    }
+}
