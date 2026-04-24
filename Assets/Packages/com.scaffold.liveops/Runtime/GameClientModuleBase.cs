@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using LiveOps.DTO.GameModule;
+using LiveOps.DTO.Keys;
 using Scaffold.AppFlow;
 
 namespace Scaffold.LiveOps
@@ -13,7 +14,7 @@ namespace Scaffold.LiveOps
             this.liveOps = liveOps ?? throw new ArgumentNullException(nameof(liveOps));
         }
 
-        public virtual string Key => typeof(T).Name;
+        public virtual string Key => KeyOf<T>.Module;
 
         protected T data;
 

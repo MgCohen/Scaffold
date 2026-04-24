@@ -1,14 +1,13 @@
-using LiveOps.DTO.GameModule;
 using System.Collections.Generic;
+using LiveOps.DTO.GameModule;
+using LiveOps.DTO.Keys;
 using Newtonsoft.Json;
 
 namespace LiveOps.Modules.DTO.Global
 {
-
+    [LiveOpsKey("GlobalConfigData")]
     public class GlobalConfigData : IGameModuleData
     {
-        public string Key => typeof(GlobalConfigData).Name;
-
         [JsonProperty]
         private Dictionary<string, object> _values = new Dictionary<string, object>();
 

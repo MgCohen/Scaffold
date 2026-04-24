@@ -1,3 +1,11 @@
+### New Rules
+
+Rule ID | Category | Severity | Notes
+--------|----------|----------|-----------
+SCA7101 | Hygiene | Warning | LiveOpsKeyAnalyzers — concrete `IGameModuleData` and types inheriting `ModuleRequest` in LiveOps DTO assemblies must have `[LiveOpsKey]`
+SCA7102 | Hygiene | Info | LiveOpsKeyAnalyzers — string literal for `key` on `IReadableDataCache` / `IWriteableDataCache` methods
+SCA7103 | Hygiene | Info | LiveOpsKeyAnalyzers — string literal for `GameApiEnvelopeRequest.RequestKey` (tests and unknown-key probe excluded)
+
 ### Changed Rules
 
 Rule ID | Category | Severity | Notes

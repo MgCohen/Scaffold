@@ -1,28 +1,25 @@
 using System.Threading.Tasks;
-using LiveOps.DTO.GameModule;
+using LiveOps.DTO.Keys;
 using Unity.Services.CloudCode.Core;
 
 namespace LiveOps.ModuleFetchData
 {
-
     public static class DataCacheExtensions
     {
-        public static Task Set(this IWriteableDataCache cache, IExecutionContext context, IGameModuleData value, bool useWriteLock = false)
+        public static Task Set<T>(this IWriteableDataCache cache, IExecutionContext context, T value, bool useWriteLock = false)
         {
-            return cache.Set(context, value.Key, value, useWriteLock);
+            return cache.Set(context, KeyOf<T>.Module, value, useWriteLock);
         }
 
         public static Task<T> Get<T>(this IReadableDataCache cache, IExecutionContext context, T defaultValue)
-            where T : IGameModuleData
         {
-            return cache.Get(context, typeof(T).Name, defaultValue);
+            return cache.Get(context, KeyOf<T>.Module, defaultValue);
         }
 
         public static async Task<T> GetOrSet<TCache, T>(this TCache cache, IExecutionContext context, T defaultValue, bool useWriteLock = false)
             where TCache : IReadableDataCache, IWriteableDataCache
-            where T : IGameModuleData
         {
-            string key = typeof(T).Name;
+            string key = KeyOf<T>.Module;
             if (await cache.Exists(context, key).ConfigureAwait(false))
             {
                 return await cache.Get(context, key, defaultValue).ConfigureAwait(false);

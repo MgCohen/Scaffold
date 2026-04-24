@@ -1,16 +1,13 @@
 using System;
 using System.Collections.Generic;
-using LiveOps.DTO.GameModule;
+using LiveOps.DTO.Keys;
 using Newtonsoft.Json;
 
 namespace LiveOps.Modules.DTO.Ads
 {
-
-    public sealed class AdsPersistence : IGameModuleData
+    [LiveOpsKey("AdsPersistence")]
+    public sealed class AdsPersistence
     {
-
-        public string Key => typeof(AdsPersistence).Name;
-
         [JsonProperty]
         private Dictionary<string, AdPlacementState> _settings = new Dictionary<string, AdPlacementState>();
 

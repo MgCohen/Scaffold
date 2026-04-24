@@ -1,15 +1,13 @@
 using System;
 using LiveOps.DTO.GameModule;
+using LiveOps.DTO.Keys;
 using Newtonsoft.Json;
 
 namespace LiveOps.Modules.DTO.Gold
 {
-
+    [LiveOpsKey("GoldGameData")]
     public sealed class GoldGameData : IGameModuleData
     {
-
-        public string Key => typeof(GoldGameData).Name;
-
         [JsonProperty]
         private long _current;
 

@@ -1,6 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using LiveOps.DTO.GameModule;
+using LiveOps.DTO.Keys;
 using LiveOps.GameApi;
 using LiveOps.GameModule;
 using Microsoft.Extensions.DependencyInjection;
@@ -10,9 +11,9 @@ namespace LiveOps.Tests
 {
     public sealed class RegisterModuleSingleInstanceTests
     {
+        [LiveOpsKey("SampleData")]
         private sealed class SampleData : IGameModuleData
         {
-            public string Key => nameof(SampleData);
         }
 
         private sealed class SampleModule : GameModule<SampleData>

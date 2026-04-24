@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using LiveOps.DTO.GameApi;
 using LiveOps.DTO.GameModule;
+using LiveOps.DTO.Keys;
 using LiveOps.DTO.ModuleRequest;
 using LiveOps.Modules.DTO.GameData;
 using Scaffold.AppFlow;
@@ -86,7 +87,7 @@ namespace Scaffold.LiveOps
 
         private async Task<TResponse> CallGameApiAsync<TResponse>(ModuleRequest<TResponse> request, CancellationToken cancellationToken) where TResponse : ModuleResponse
         {
-            GameApiEnvelopeRequest envelope = new GameApiEnvelopeRequest { RequestKey = request.GetType().Name, Payload = JObject.FromObject(request, JsonSerializer.Create(liveOpsJsonSettings)), };
+            GameApiEnvelopeRequest envelope = new GameApiEnvelopeRequest { RequestKey = KeyOf.WireOf(request), Payload = JObject.FromObject(request, JsonSerializer.Create(liveOpsJsonSettings)), };
             Task<GameApiEnvelopeResponse> serverTask = cloudCodeService.CallEndpointAsync<GameApiEnvelopeResponse>(request.ModuleName, "GameApi", envelope, cancellationToken);
 
             if (optimisticRegistry.TryResolve(request.ModuleName, "GameApi", request, out IRequestHandler<TResponse> handler, out TResponse optimistic))

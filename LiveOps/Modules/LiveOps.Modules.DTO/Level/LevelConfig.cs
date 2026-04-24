@@ -1,16 +1,13 @@
 using System;
 using System.Collections.Generic;
-using LiveOps.DTO.GameModule;
+using LiveOps.DTO.Keys;
 using Newtonsoft.Json;
 
 namespace LiveOps.Modules.DTO.Level
 {
-
-    public sealed class LevelConfig : IGameModuleData
+    [LiveOpsKey("LevelConfig")]
+    public sealed class LevelConfig
     {
-
-        public string Key => typeof(LevelConfig).Name;
-
         [JsonProperty]
         private List<int> _levels = new List<int>();
 

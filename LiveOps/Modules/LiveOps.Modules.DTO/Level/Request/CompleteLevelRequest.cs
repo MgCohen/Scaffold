@@ -1,11 +1,12 @@
+using LiveOps.DTO.Keys;
 using LiveOps.DTO.ModuleRequest;
 using Newtonsoft.Json;
 
 namespace LiveOps.Modules.DTO.ModuleRequests
 {
+    [LiveOpsKey("CompleteLevelRequest")]
     public class CompleteLevelRequest : ModuleRequest<CompleteLevelResponse>
-    {
-        public CompleteLevelRequest()
+    {        public CompleteLevelRequest()
         {
         }
 

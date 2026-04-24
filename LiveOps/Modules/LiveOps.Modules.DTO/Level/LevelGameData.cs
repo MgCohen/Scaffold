@@ -2,16 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using LiveOps.DTO.GameModule;
+using LiveOps.DTO.Keys;
 using Newtonsoft.Json;
 
 namespace LiveOps.Modules.DTO.Level
 {
-
+    [LiveOpsKey("LevelGameData")]
     public sealed class LevelGameData : IGameModuleData
     {
-
-        public string Key => typeof(LevelGameData).Name;
-
         [JsonProperty]
         private List<LevelStateEntry> _states = new List<LevelStateEntry>();
 

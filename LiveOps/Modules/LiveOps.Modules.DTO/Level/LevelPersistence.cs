@@ -1,16 +1,13 @@
 using System.Collections.Generic;
 using System.Linq;
-using LiveOps.DTO.GameModule;
+using LiveOps.DTO.Keys;
 using Newtonsoft.Json;
 
 namespace LiveOps.Modules.DTO.Level
 {
-
-    public sealed class LevelPersistence : IGameModuleData
+    [LiveOpsKey("LevelPersistence")]
+    public sealed class LevelPersistence
     {
-
-        public string Key => typeof(LevelPersistence).Name;
-
         [JsonProperty]
         private List<int> _completedLevelIds = new List<int>();
 

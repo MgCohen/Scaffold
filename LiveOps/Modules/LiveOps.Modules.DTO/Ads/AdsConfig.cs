@@ -1,15 +1,12 @@
 using System.Collections.Generic;
-using LiveOps.DTO.GameModule;
+using LiveOps.DTO.Keys;
 using Newtonsoft.Json;
 
 namespace LiveOps.Modules.DTO.Ads
 {
-
-    public sealed class AdsConfig : IGameModuleData
+    [LiveOpsKey("AdsConfig")]
+    public sealed class AdsConfig
     {
-
-        public string Key => typeof(AdsConfig).Name;
-
         [JsonProperty]
         private Dictionary<string, AdPlacementConfig> _placements = new Dictionary<string, AdPlacementConfig>();
 

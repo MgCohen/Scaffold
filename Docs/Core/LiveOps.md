@@ -4,11 +4,11 @@ Authoritative module documentation (includes client service and backend/DTO layo
 
 ## Backend note
 
-The Cloud Code host (`LiveOps/Core/LiveOps.Core/` + `LiveOps/Deploy/LiveOps/` + `LiveOps/Modules/LiveOps.Modules/`) batches player and game-state writes per request: **`WarmupAsync`** (parallel player + remote config), **`BeginBatch`** on player and game state, cache-only **`Set`** inside the batch, then **`FlushAsync`** on dispose. Handlers expose optional **`PlayerKeys()`** / **`ConfigKeys()`**; **`IGameModuleData`**-typed helpers live in **`DataCacheExtensions`**. **`ModuleConfig`** (`ICloudCodeSetup`) registers core services; handler and **IGameModule** types are registered from the build-generated manifest via **`LiveOpsBootstrapper.InstallFromManifest`**. See the README section **Cloud Code data pipeline (backend)**.
+The Cloud Code host (`LiveOps/Core/LiveOps.Core/` + `LiveOps/Deploy/LiveOps/` + `LiveOps/Modules/LiveOps.Modules/`) batches player and game-state writes per request: **`WarmupAsync`** (parallel player + remote config), **`BeginBatch`** on player and game state, cache-only **`Set`** inside the batch, then **`FlushAsync`** on dispose. Handlers expose optional **`PlayerKeys()`** / **`ConfigKeys()`**; **`DataCacheExtensions`** use **`KeyOf<T>.Module`**, backed by **`[LiveOpsKey]`** on DTOs (snapshot types still use **`IGameModuleData`** as a marker only; persistence and config do not implement it). **`ModuleConfig`** (`ICloudCodeSetup`) registers core services; handler and **IGameModule** types are registered from the build-generated manifest via **`LiveOpsBootstrapper.InstallFromManifest`**. See the README section **Cloud Code data pipeline (backend)** and [LiveOpsKeys.md](LiveOpsKeys.md).
 
 ### GameApi wire and DTOs
 
-- **`RequestKey`** on the **`GameApiEnvelopeRequest`** (single Cloud Code entry point) must equal **`Type.Name`** of the corresponding request DTO. **`GameApiRegistry`** maps request types to handlers; it throws at registration time if two distinct request **types** share the same **short name** (same `Type.Name` in different namespaces), which would produce the same **wire** key.
+- **`RequestKey`** on the **`GameApiEnvelopeRequest`** (single Cloud Code entry point) is **`KeyOf.WireOf(requestType)`** (by default, **`TRequest`.Name**). **`GameApiRegistry`** maps request types to handlers; it throws if two request types share the same resolved wire key.
 
 ### Modules and manifest
 

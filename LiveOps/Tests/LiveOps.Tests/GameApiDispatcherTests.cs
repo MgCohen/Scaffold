@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using LiveOps.DTO.GameApi;
+using LiveOps.DTO.Keys;
 using LiveOps.DTO.ModuleRequest;
 using LiveOps.GameApi;
 using LiveOps.Signal;
@@ -18,6 +19,7 @@ namespace LiveOps.Tests
 {
     public sealed class GameApiDispatcherTests
     {
+        [LiveOpsKey("PingRequest")]
         public sealed class PingRequest : ModuleRequest<PingResponse>
         {
         }
@@ -40,6 +42,7 @@ namespace LiveOps.Tests
                 Task.FromResult(new PingResponse());
         }
 
+        [LiveOpsKey("BoomRequest")]
         public sealed class BoomRequest : ModuleRequest<BoomResponse>
         {
         }

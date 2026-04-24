@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using LiveOps.DTO.Keys;
 
 namespace LiveOps.GameApi
 {
@@ -27,7 +28,7 @@ namespace LiveOps.GameApi
             RegisterHandlerType(handlerType);
         }
 
-        /// <summary>Registers a handler with explicit request/response types. Wire key is <paramref name="requestType"/>.Name.</summary>
+        /// <summary>Registers a handler with explicit request/response types. Wire key is resolved via <see cref="KeyOf.WireOf(System.Type)"/>.</summary>
         public void Register(Type handlerType, Type requestType, Type responseType)
         {
             if (handlerType == null)
@@ -50,7 +51,7 @@ namespace LiveOps.GameApi
                 throw new ArgumentException("Handler type must be a concrete class.", nameof(handlerType));
             }
 
-            string wireKey = requestType.Name;
+            string wireKey = KeyOf.WireOf(requestType);
             var entry = new HandlerEntry
             {
                 RequestType = requestType,
@@ -76,7 +77,7 @@ namespace LiveOps.GameApi
 
                 Type[] args = iface.GetGenericArguments();
                 Type requestType = args[0];
-                string wireKey = requestType.Name;
+                string wireKey = KeyOf.WireOf(requestType);
                 var entry = new HandlerEntry
                 {
                     RequestType = requestType,

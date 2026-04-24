@@ -1,20 +1,20 @@
 using System.Threading;
 using System.Threading.Tasks;
+using LiveOps.DTO.GameModule;
+using LiveOps.DTO.Keys;
 using LiveOps.GameModule;
 using LiveOps.GameApi;
 using LiveOps.Modules.GameData;
-using LiveOps.DTO.GameModule;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace LiveOps.Tests
 {
-
     public sealed class ModulePrefetchKeysTests
     {
+        [LiveOpsKey("StubData")]
         private sealed class StubData : IGameModuleData
         {
-            public string Key => "stub";
         }
 
         private sealed class StubModule : IGameModule

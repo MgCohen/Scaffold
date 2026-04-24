@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using LiveOps.DTO.Keys;
 using LiveOps.DTO.ModuleRequest;
 using LiveOps.GameApi;
 using Xunit;
@@ -8,6 +9,7 @@ namespace LiveOps.Tests
 {
     public sealed class GameApiRegistryTests
     {
+        [LiveOpsKey("M1ARequest")]
         public sealed class M1ARequest : ModuleRequest<M1AResponse>
         {
         }
@@ -22,6 +24,7 @@ namespace LiveOps.Tests
                 Task.FromResult(new M1AResponse());
         }
 
+        [LiveOpsKey("NoKeyRequest")]
         public sealed class NoKeyRequest : ModuleRequest<NoKeyResponse>
         {
         }
@@ -38,6 +41,7 @@ namespace LiveOps.Tests
 
         private static class CollideNameNs1
         {
+            [LiveOpsKey("CollideRequest")]
             public sealed class CollideRequest : ModuleRequest<CollideResponse1>
             {
             }
@@ -55,6 +59,7 @@ namespace LiveOps.Tests
 
         private static class CollideNameNs2
         {
+            [LiveOpsKey("CollideRequest")]
             public sealed class CollideRequest : ModuleRequest<CollideResponse2>
             {
             }
