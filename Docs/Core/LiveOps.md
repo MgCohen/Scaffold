@@ -8,7 +8,7 @@ The Cloud Code host (`LiveOps/Core/LiveOps.Core/` + `LiveOps/Deploy/LiveOps/` + 
 
 ### GameApi wire and DTOs
 
-- **`RequestKey`** on the **`GameApiEnvelopeRequest`** (single Cloud Code entry point) must match **`[GameApiKey("…")]`** on the corresponding request DTO (not only `Type.Name`). Enforced at runtime by **`GameApiRegistry`**, and for DTOs under **`LiveOps.DTO`** / **`LiveOps.Modules.DTO`** by analyzer **SCA3007** (see `Analyzers/Scaffold`).
+- **`RequestKey`** on the **`GameApiEnvelopeRequest`** (single Cloud Code entry point) must equal **`Type.Name`** of the corresponding request DTO. **`GameApiRegistry`** maps request types to handlers; it throws at registration time if two distinct request **types** share the same **short name** (same `Type.Name` in different namespaces), which would produce the same **wire** key.
 
 ### Modules and manifest
 

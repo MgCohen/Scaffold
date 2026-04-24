@@ -1,11 +1,7 @@
-using LiveOps.DTO.GameApi;
 using LiveOps.DTO.ModuleRequest;
 
 namespace LiveOps.Modules.DTO.ModuleRequests
 {
-
-    [UsesGameApi]
-    [GameApiKey("SendSelfPush")]
     public class SendSelfPushRequest : ModuleRequest<SendPushResponse>
     {
         public string Message { get; set; }

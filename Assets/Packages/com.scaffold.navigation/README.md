@@ -26,20 +26,20 @@
 | Symbol | Purpose | Inputs | Outputs | Failure behavior |
 |---|---|---|---|---|
 | `INavigation.Open(...)` | Open target controller/view | controller + `NavigationOptions` (see `NavigationStackPolicy`) | active navigation point | invalid config/path is ignored or guarded by provider checks |
-| `INavigation.PrepareDependencies(...)` | Run the same dependency injection pass as root opens | child `IViewController` | n/a | no-op when no injector registered |
+| `INavigation.PrepareDependencies(...)` | Run the same dependency injection pass as root opens | child `IViewController` | n/a | uses `IViewControllerDependencyInjector` (default: `NavigationInjection` registered with the installer) |
 | `NavigationStackPolicy` | Declarative stack mutation (`Push`, `ReplaceCurrent`, `ClearBelowCurrentAndPush`, `ClearAllAndPush`) | `NavigationOptions.StackPolicy` | stack updates before transition | legacy `CloseAllViews` still honored when policy is `Push` |
 | `INavigation.Close(...)` | Close a controller/view | controller | removed point or return transition | no-op when point not found |
 | `INavigation.Return()` | Return to previous point | none | previous controller | guarded behavior when no previous point |
 | `IViewController` | Controller lifecycle contract | `Bind(INavigation)` etc. | bound controller behavior | n/a |
 | `IView` | View lifecycle contract | bind/open/hide/focus/close/order | runtime view behavior | state-specific operations may no-op |
-| `NavigationInstaller` | Registers navigation services | container registry | navigation runtime wiring | fails when required contracts are unavailable |
+| `NavigationInstaller` | Registers navigation services; optional `NavigationSettings` ctor param calls `RegisterInstance` when non-null | `Transform` view holder + optional `NavigationSettings` | navigation runtime wiring | fails when required contracts are unavailable |
 | `ViewConfig` | `ViewAssetSource` (`Addressables` or `DirectPrefab`); in Addressables mode, `ViewConfig.Asset` loads the prefab; in Direct mode, a project `GameObject` prefab reference is used | mode + `Asset` or `DirectPrefab` | view prefab for non-context | invalid/missing ref fails at open time |
 
 ## Setup / Integration
 
 1. Reference `Scaffold.Navigation` for contracts and implementation/container wiring.
 2. Configure `NavigationSettings` with controller/view mappings and one `ViewConfig` asset per screen (or equivalent list); for each, set `View asset source` to Addressables and assign an addressable, or to Direct and assign a prefab that implements `IView`.
-3. Register `NavigationInstaller` in composition root (it does not own preload policy).
+3. Register `NavigationInstaller` in composition root: `new NavigationInstaller(viewHolder)` or `new NavigationInstaller(viewHolder, navigationSettings)` when you already hold a `NavigationSettings` instance; otherwise register settings through your publisher/parent scope and use the single-argument ctor.
 4. Open controllers through `INavigation`.
 
 ## How to Use
@@ -168,3 +168,4 @@ navigation.Return();
 - Migrated non-context view loading to `IAddressablesGateway`, added preload registration in installer, and documented handle-release lifecycle.
 - Refactored to remove navigation-owned preload registration, added resident prefab store + instance buffer/cache, and documented readiness-aware transition flow with unchanged `INavigation` API.
 - Added `NavigationStackPolicy`, `INavigation.PrepareDependencies`, `IViewControllerDependencyInjector`, and stack-resolution tests (`NavigationStackResolverTests`).
+- `NavigationInstaller(Transform, NavigationSettings settings = null)` optionally registers settings; `NavigationInjection` implements `IViewControllerDependencyInjector` so hosts do not register a separate no-op injector.

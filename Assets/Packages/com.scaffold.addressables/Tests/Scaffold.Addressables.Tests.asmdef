@@ -2,7 +2,10 @@
     "name": "Scaffold.Addressables.Tests",
     "rootNamespace": "Scaffold.Addressables.Tests",
     "references": [
-        "Scaffold.Addressables"
+        "Scaffold.Addressables",
+        "Scaffold.Addressables.Container",
+        "Scaffold.AppFlow",
+        "VContainer"
     ],
     "includePlatforms": [
         "Editor"

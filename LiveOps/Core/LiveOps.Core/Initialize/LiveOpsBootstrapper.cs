@@ -50,7 +50,14 @@ namespace LiveOps.Initialize
             config.Dependencies.AddScoped(t);
             if (entry.IsGameApiHandler)
             {
-                registry.RegisterHandlerType(t);
+                if (entry.RequestType != null && entry.ResponseType != null)
+                {
+                    registry.Register(t, entry.RequestType, entry.ResponseType);
+                }
+                else
+                {
+                    registry.RegisterHandlerType(t);
+                }
             }
 
             if (entry.IsGameModule)

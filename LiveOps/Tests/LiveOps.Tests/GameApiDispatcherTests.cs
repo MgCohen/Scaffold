@@ -18,7 +18,6 @@ namespace LiveOps.Tests
 {
     public sealed class GameApiDispatcherTests
     {
-        [GameApiKey("m1.ping")]
         public sealed class PingRequest : ModuleRequest<PingResponse>
         {
         }
@@ -41,7 +40,6 @@ namespace LiveOps.Tests
                 Task.FromResult(new PingResponse());
         }
 
-        [GameApiKey("m1.boom")]
         public sealed class BoomRequest : ModuleRequest<BoomResponse>
         {
         }
@@ -95,7 +93,7 @@ namespace LiveOps.Tests
 
             GameApiEnvelopeRequest env = new()
             {
-                RequestKey = "m1.ping",
+                RequestKey = nameof(PingRequest),
                 Payload = new JObject()
             };
 
@@ -141,7 +139,7 @@ namespace LiveOps.Tests
                 remote,
                 new GameApiEnvelopeRequest
                 {
-                    RequestKey = "m1.boom",
+                    RequestKey = nameof(BoomRequest),
                     Payload = new JObject()
                 }).ConfigureAwait(false);
 
@@ -163,7 +161,7 @@ namespace LiveOps.Tests
                 remote,
                 new GameApiEnvelopeRequest
                 {
-                    RequestKey = "m1.ping",
+                    RequestKey = nameof(PingRequest),
                     Payload = new JObject()
                 }).ConfigureAwait(false);
 
@@ -186,7 +184,7 @@ namespace LiveOps.Tests
                 remote,
                 new GameApiEnvelopeRequest
                 {
-                    RequestKey = "m1.ping",
+                    RequestKey = nameof(PingRequest),
                     Payload = new JObject()
                 }).ConfigureAwait(false);
 
@@ -210,7 +208,7 @@ namespace LiveOps.Tests
                 remote,
                 new GameApiEnvelopeRequest
                 {
-                    RequestKey = "m1.ping",
+                    RequestKey = nameof(PingRequest),
                     Payload = new JObject()
                 }).ConfigureAwait(false);
 

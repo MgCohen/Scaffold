@@ -1,6 +1,5 @@
 using System;
 using System.Threading.Tasks;
-using LiveOps.DTO.GameApi;
 using LiveOps.DTO.ModuleRequest;
 using LiveOps.GameApi;
 using Xunit;
@@ -9,7 +8,6 @@ namespace LiveOps.Tests
 {
     public sealed class GameApiRegistryTests
     {
-        [GameApiKey("m1.one")]
         public sealed class M1ARequest : ModuleRequest<M1AResponse>
         {
         }
@@ -22,32 +20,6 @@ namespace LiveOps.Tests
         {
             public Task<M1AResponse> HandleAsync(GameApiSession session, M1ARequest request) =>
                 Task.FromResult(new M1AResponse());
-        }
-
-        [GameApiKey("m1.dup")]
-        public sealed class Dup1Request : ModuleRequest<DupResponse>
-        {
-        }
-
-        [GameApiKey("m1.dup")]
-        public sealed class Dup2Request : ModuleRequest<DupResponse>
-        {
-        }
-
-        public sealed class DupResponse : ModuleResponse
-        {
-        }
-
-        public sealed class Dup1Handler : IGameApiHandler<Dup1Request, DupResponse>
-        {
-            public Task<DupResponse> HandleAsync(GameApiSession session, Dup1Request request) =>
-                Task.FromResult(new DupResponse());
-        }
-
-        public sealed class Dup2Handler : IGameApiHandler<Dup2Request, DupResponse>
-        {
-            public Task<DupResponse> HandleAsync(GameApiSession session, Dup2Request request) =>
-                Task.FromResult(new DupResponse());
         }
 
         public sealed class NoKeyRequest : ModuleRequest<NoKeyResponse>
@@ -64,6 +36,40 @@ namespace LiveOps.Tests
                 Task.FromResult(new NoKeyResponse());
         }
 
+        private static class CollideNameNs1
+        {
+            public sealed class CollideRequest : ModuleRequest<CollideResponse1>
+            {
+            }
+
+            public sealed class CollideResponse1 : ModuleResponse
+            {
+            }
+
+            public sealed class CollideHandler1 : IGameApiHandler<CollideRequest, CollideResponse1>
+            {
+                public Task<CollideResponse1> HandleAsync(GameApiSession session, CollideRequest request) =>
+                    Task.FromResult(new CollideResponse1());
+            }
+        }
+
+        private static class CollideNameNs2
+        {
+            public sealed class CollideRequest : ModuleRequest<CollideResponse2>
+            {
+            }
+
+            public sealed class CollideResponse2 : ModuleResponse
+            {
+            }
+
+            public sealed class CollideHandler2 : IGameApiHandler<CollideRequest, CollideResponse2>
+            {
+                public Task<CollideResponse2> HandleAsync(GameApiSession session, CollideRequest request) =>
+                    Task.FromResult(new CollideResponse2());
+            }
+        }
+
         [Fact]
         public void TryGet_unknown_key_returns_false()
         {
@@ -73,29 +79,43 @@ namespace LiveOps.Tests
         }
 
         [Fact]
-        public void RegisterHandlerType_maps_GameApiKey_to_handler_entry()
+        public void RegisterHandlerType_keys_by_TypeName_default()
         {
             var r = new GameApiRegistry();
             r.RegisterHandlerType(typeof(M1AHandler));
-            Assert.True(r.TryGet("m1.one", out HandlerEntry? e));
+            Assert.True(r.TryGet("M1ARequest", out HandlerEntry? e));
             Assert.NotNull(e);
             Assert.Same(typeof(M1ARequest), e!.RequestType);
             Assert.Same(typeof(M1AHandler), e.HandlerType);
         }
 
         [Fact]
-        public void Duplicate_key_from_second_handler_type_throws()
+        public void RegisterHandlerType_indexes_by_RequestType()
         {
             var r = new GameApiRegistry();
-            r.RegisterHandlerType(typeof(Dup1Handler));
-            Assert.Throws<InvalidOperationException>(() => r.RegisterHandlerType(typeof(Dup2Handler)));
+            r.RegisterHandlerType(typeof(M1AHandler));
+            Assert.True(r.TryGet(typeof(M1ARequest), out HandlerEntry? e));
+            Assert.NotNull(e);
+            Assert.Same(typeof(M1ARequest), e!.RequestType);
+            Assert.Same(typeof(M1AHandler), e.HandlerType);
         }
 
         [Fact]
-        public void Request_without_GameApiKey_throws()
+        public void RegisterHandlerType_throws_on_duplicate_wire_key_for_same_type_name_different_types()
         {
             var r = new GameApiRegistry();
-            Assert.Throws<InvalidOperationException>(() => r.RegisterHandlerType(typeof(NoKeyHandler)));
+            r.RegisterHandlerType(typeof(CollideNameNs1.CollideHandler1));
+            Assert.Throws<InvalidOperationException>(() => r.RegisterHandlerType(typeof(CollideNameNs2.CollideHandler2)));
+        }
+
+        [Fact]
+        public void Request_without_attribute_uses_Type_Name()
+        {
+            var r = new GameApiRegistry();
+            r.RegisterHandlerType(typeof(NoKeyHandler));
+            Assert.True(r.TryGet("NoKeyRequest", out HandlerEntry? e));
+            Assert.NotNull(e);
+            Assert.Same(typeof(NoKeyRequest), e!.RequestType);
         }
     }
 }

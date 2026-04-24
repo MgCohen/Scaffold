@@ -54,11 +54,13 @@ namespace Scaffold.LiveOps.Bootstrap.Generators
                     continue;
                 }
 
-                bool h = iGameHandler2 is not null && ImplementsGenericHandler(t, iGameHandler2);
+                ITypeSymbol? req = null;
+                ITypeSymbol? res = null;
+                bool h = iGameHandler2 is not null && TryGetHandlerArgs(t, iGameHandler2, out req, out res);
                 bool m = iModule is not null && ImplementsInterface(t, iModule);
                 if (h || m)
                 {
-                    list.Add(new Entry(t, h, m));
+                    list.Add(new Entry(t, h, m, h ? req : null, h ? res : null));
                 }
             }
 
@@ -128,14 +130,22 @@ namespace Scaffold.LiveOps.Bootstrap.Generators
             return false;
         }
 
-        private static bool ImplementsGenericHandler(INamedTypeSymbol type, INamedTypeSymbol iGameHandler2Def)
+        private static bool TryGetHandlerArgs(
+            INamedTypeSymbol type,
+            INamedTypeSymbol iGameHandler2Def,
+            out ITypeSymbol? requestType,
+            out ITypeSymbol? responseType)
         {
+            requestType = null;
+            responseType = null;
             foreach (INamedTypeSymbol? i in type.AllInterfaces)
             {
                 if (i.IsGenericType &&
                     SymbolEqualityComparer.Default.Equals(i.OriginalDefinition, iGameHandler2Def) &&
                     i.TypeArguments.Length == 2)
                 {
+                    requestType = i.TypeArguments[0];
+                    responseType = i.TypeArguments[1];
                     return true;
                 }
             }
@@ -163,13 +173,30 @@ namespace Scaffold.LiveOps.Bootstrap.Generators
             foreach (Entry e in entries)
             {
                 string full = e.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-                sb.Append("      new global::LiveOps.Initialize.LiveOpsManifestEntry(typeof(")
-                    .Append(full)
-                    .Append("), isGameApiHandler: ")
-                    .Append(e.IsHandler ? "true" : "false")
-                    .Append(", isGameModule: ")
-                    .Append(e.IsModule ? "true" : "false")
-                    .AppendLine("),");
+                if (e.IsHandler && e.Req is not null && e.Res is not null)
+                {
+                    string reqFull = e.Req.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                    string resFull = e.Res.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                    sb.Append("      new global::LiveOps.Initialize.LiveOpsManifestEntry(typeof(")
+                        .Append(full)
+                        .Append("), isGameApiHandler: true, isGameModule: ")
+                        .Append(e.IsModule ? "true" : "false")
+                        .Append(", requestType: typeof(")
+                        .Append(reqFull)
+                        .Append("), responseType: typeof(")
+                        .Append(resFull)
+                        .AppendLine(")),");
+                }
+                else
+                {
+                    sb.Append("      new global::LiveOps.Initialize.LiveOpsManifestEntry(typeof(")
+                        .Append(full)
+                        .Append("), isGameApiHandler: ")
+                        .Append(e.IsHandler ? "true" : "false")
+                        .Append(", isGameModule: ")
+                        .Append(e.IsModule ? "true" : "false")
+                        .AppendLine("),");
+                }
             }
 
             sb.AppendLine("    };");
@@ -182,16 +209,20 @@ namespace Scaffold.LiveOps.Bootstrap.Generators
 
         private readonly struct Entry
         {
-            public Entry(INamedTypeSymbol type, bool isHandler, bool isModule)
+            public Entry(INamedTypeSymbol type, bool isHandler, bool isModule, ITypeSymbol? req, ITypeSymbol? res)
             {
                 Type = type;
                 IsHandler = isHandler;
                 IsModule = isModule;
+                Req = req;
+                Res = res;
             }
 
             public INamedTypeSymbol Type { get; }
             public bool IsHandler { get; }
             public bool IsModule { get; }
+            public ITypeSymbol? Req { get; }
+            public ITypeSymbol? Res { get; }
         }
     }
 }

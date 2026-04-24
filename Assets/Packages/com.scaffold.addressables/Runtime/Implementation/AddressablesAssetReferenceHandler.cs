@@ -2,12 +2,13 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Scaffold.Addressables.Contracts;
+using Scaffold.Addressables.Internal;
 using Scaffold.Maps;
 using UnityEngine;
 
 namespace Scaffold.Addressables
 {
-    public sealed class AddressablesAssetReferenceHandler : IAssetReferenceHandler
+    internal sealed class AddressablesAssetReferenceHandler : IAssetReferenceHandler
     {
         public AddressablesAssetReferenceHandler(IAddressablesAssetClient client)
         {

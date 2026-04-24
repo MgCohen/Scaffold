@@ -12,7 +12,7 @@ namespace Scaffold.Navigation
 {
     public class NavigationController : INavigation
     {
-        public NavigationController(IEventBus events, NavigationSettings settings, Transform viewHolder, IEnumerable<INavigationMiddleware> middlewares, IAddressablesGateway addressablesGateway, IViewControllerDependencyInjector dependencyInjector = null)
+        public NavigationController(IEventBus events, NavigationSettings settings, Transform viewHolder, IEnumerable<INavigationMiddleware> middlewares, IAddressablesGateway addressablesGateway, IViewControllerDependencyInjector dependencyInjector)
         {
             if (events is null)
             {

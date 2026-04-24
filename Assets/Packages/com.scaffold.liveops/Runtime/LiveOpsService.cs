@@ -1,5 +1,4 @@
 using System;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using LiveOps.DTO.GameApi;
@@ -82,15 +81,7 @@ namespace Scaffold.LiveOps
             }
 
             cancellationToken.ThrowIfCancellationRequested();
-            if (UsesGameApiRequest(request))
-            {
-                return await CallGameApiAsync(request, cancellationToken);
-            }
-
-            Task<TResponse> endpointCall = cloudCodeService.CallEndpointAsync<TResponse>(request.ModuleName, request.FunctionName, payload: request, cancellationToken: cancellationToken);
-            TResponse response = await endpointCall;
-            moduleResponseDispatchService.DispatchNestedResponses(response);
-            return response;
+            return await CallGameApiAsync(request, cancellationToken);
         }
 
         private async Task<TResponse> CallGameApiAsync<TResponse>(ModuleRequest<TResponse> request, CancellationToken cancellationToken) where TResponse : ModuleResponse
@@ -161,9 +152,5 @@ namespace Scaffold.LiveOps
             }
         }
 
-        private bool UsesGameApiRequest<TResponse>(ModuleRequest<TResponse> request) where TResponse : ModuleResponse
-        {
-            return request.GetType().GetCustomAttribute<UsesGameApiAttribute>(inherit: false) != null;
-        }
     }
 }

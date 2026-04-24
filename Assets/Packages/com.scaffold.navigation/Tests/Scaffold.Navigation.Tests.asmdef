@@ -2,7 +2,14 @@
     "name": "Scaffold.Navigation.Tests",
     "rootNamespace": "Scaffold.Navigation.Tests",
     "references": [
-        "Scaffold.Navigation"
+        "Scaffold.Navigation",
+        "Scaffold.Navigation.Container",
+        "Scaffold.AppFlow",
+        "Scaffold.Events",
+        "Scaffold.Addressables",
+        "Unity.Addressables",
+        "VContainer",
+        "VContainer.Unity"
     ],
     "includePlatforms": [
         "Editor"

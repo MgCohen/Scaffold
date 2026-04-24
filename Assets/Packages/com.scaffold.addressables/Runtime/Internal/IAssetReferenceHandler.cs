@@ -1,8 +1,10 @@
 using System.Threading;
 using System.Threading.Tasks;
-namespace Scaffold.Addressables.Contracts
+using Scaffold.Addressables.Contracts;
+
+namespace Scaffold.Addressables.Internal
 {
-    public interface IAssetReferenceHandler
+    internal interface IAssetReferenceHandler
     {
         Task<IAssetHandle<T>> AcquireAsync<T>(string key, CancellationToken cancellationToken) where T : UnityEngine.Object;
 

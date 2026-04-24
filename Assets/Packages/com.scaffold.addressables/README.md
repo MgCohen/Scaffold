@@ -25,6 +25,7 @@ This module no longer owns preload config parsing/build/apply inside the gateway
 
 | Symbol | Purpose |
 |---|---|
+| `IAddressablesAssetClient` | Publicly registered singleton from `AddressablesInstaller`; use for publisher/catalog helpers that load outside the gateway. |
 | `IAddressablesGateway.InitializeAsync` | Best-effort startup sync (no preload pipeline). |
 | `IAddressablesGateway.LoadAsync<T>(AssetReference)` | Load one typed asset by reference. |
 | `IAddressablesGateway.LoadAsync<T>(AssetReferenceT<T>)` | Typed convenience overload. |
@@ -35,7 +36,7 @@ This module no longer owns preload config parsing/build/apply inside the gateway
 
 ## Runtime Flow
 
-1. `AddressablesInstaller` registers one singleton `AddressablesGateway` plus required client/handler.
+1. `AddressablesInstaller` registers `IAddressablesAssetClient`, an internal `IAssetReferenceHandler` implementation, and one singleton `AddressablesGateway` as `IAddressablesGateway` and `IAsyncInitializable`.
 2. Layered scope startup executes `IAsyncInitializable` on the gateway.
 3. Gateway runs best-effort `SyncCatalogAndContentAsync`.
 4. Runtime loading uses `Load/LoadAsync` APIs.
@@ -91,10 +92,11 @@ Run from repository root:
 - `Assets/Packages/com.scaffold.addressables/Runtime/Contracts/IAddressablesGateway.cs`
 - `Assets/Packages/com.scaffold.addressables/Runtime/Contracts/IAssetProvider.cs`
 - `Assets/Packages/com.scaffold.addressables/Runtime/Implementation/AddressablesGateway.cs`
-- `Assets/Packages/com.scaffold.addressables/Runtime/Implementation/AddressablesAssetReferenceHandler.cs`
+- `Assets/Packages/com.scaffold.addressables/Runtime/Internal/IAssetReferenceHandler.cs` (internal contract; not part of public API)
 
 ## Changelog
 
 - Documented CCD remote catalog setup, **Remote Weapons (Sample)** group, and corrected runtime source paths under `Assets/Packages/com.scaffold.addressables/`.
 - Moved preload ownership out of `AddressablesGateway` to provider/registrar bootstrap flow; removed preload config pipeline files and contracts.
 - Updated for gateway-centered simplification and reference-first loading API.
+- `AddressablesInstaller` registers `IAddressablesAssetClient` as a resolvable singleton; `IAssetReferenceHandler` is internal to `Scaffold.Addressables` (`Scaffold.Addressables.Internal`).

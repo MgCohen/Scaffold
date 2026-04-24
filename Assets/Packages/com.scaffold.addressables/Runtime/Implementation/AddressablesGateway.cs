@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Scaffold.Addressables.Contracts;
+using Scaffold.Addressables.Internal;
 using Scaffold.AppFlow;
 using UnityEngine.AddressableAssets;
 using UnityAddressables = UnityEngine.AddressableAssets.Addressables;
@@ -11,7 +12,7 @@ namespace Scaffold.Addressables
 {
     public sealed class AddressablesGateway : IAddressablesGateway, IAsyncInitializable
     {
-        public AddressablesGateway(IAddressablesAssetClient client, IAssetReferenceHandler assetReferenceHandler)
+        internal AddressablesGateway(IAddressablesAssetClient client, IAssetReferenceHandler assetReferenceHandler)
         {
             this.client = client ?? throw new ArgumentNullException(nameof(client));
             this.assetReferenceHandler = assetReferenceHandler ?? throw new ArgumentNullException(nameof(assetReferenceHandler));

@@ -1,12 +1,8 @@
-using LiveOps.DTO.GameApi;
 using LiveOps.DTO.ModuleRequest;
 using Newtonsoft.Json;
 
 namespace LiveOps.Modules.DTO.ModuleRequests
 {
-
-    [UsesGameApi]
-    [GameApiKey("CompleteLevel")]
     public class CompleteLevelRequest : ModuleRequest<CompleteLevelResponse>
     {
         public CompleteLevelRequest()

@@ -31,9 +31,7 @@ namespace Scaffold.LiveOps.Tests
                 ValidateCallback = (server, optimistic) => validateTcs.TrySetResult((server.Id, optimistic.Id)),
             };
 
-            var fakeCloud = new FakeCloudCodeService(
-                onGameApi: () => serverGate.Task,
-                onLegacy: null);
+            var fakeCloud = new FakeCloudCodeService(() => serverGate.Task);
 
             ILiveOpsService sut = BuildSut(fakeCloud, new CloudCodeErrorHandler(), handler);
 
@@ -63,8 +61,7 @@ namespace Scaffold.LiveOps.Tests
             };
 
             var fakeCloud = new FakeCloudCodeService(
-                onGameApi: () => Task.FromResult(GameApiEnvelopeResponse.Exception(nameof(OptimisticGameApiRequest), new InvalidOperationException("server failed"))),
-                onLegacy: null);
+                () => Task.FromResult(GameApiEnvelopeResponse.Exception(nameof(OptimisticGameApiRequest), new InvalidOperationException("server failed"))));
 
             ILiveOpsService sut = BuildSut(fakeCloud, recordingErrors, handler);
 
@@ -93,8 +90,7 @@ namespace Scaffold.LiveOps.Tests
             };
 
             var fakeCloud = new FakeCloudCodeService(
-                onGameApi: () => Task.FromResult(GameApiEnvelopeResponse.Success(nameof(OptimisticGameApiRequest), new OptimisticGameApiResponse { Id = 99 }, null)),
-                onLegacy: null);
+                () => Task.FromResult(GameApiEnvelopeResponse.Success(nameof(OptimisticGameApiRequest), new OptimisticGameApiResponse { Id = 99 }, null)));
 
             ILiveOpsService sut = BuildSut(fakeCloud, recordingErrors, handler);
 
@@ -123,9 +119,7 @@ namespace Scaffold.LiveOps.Tests
                 ValidateCallback = (_, _) => validateTcs.TrySetResult(true),
             };
 
-            var fakeCloud = new FakeCloudCodeService(
-                onGameApi: () => serverGate.Task,
-                onLegacy: null);
+            var fakeCloud = new FakeCloudCodeService(() => serverGate.Task);
 
             ILiveOpsService sut = BuildSut(fakeCloud, new CloudCodeErrorHandler(), handler, nestedHandler);
 
@@ -144,8 +138,7 @@ namespace Scaffold.LiveOps.Tests
         public async Task GameApi_WithoutRegisteredHandler_AwaitsEnvelopeAndReturnsServerResult()
         {
             var fakeCloud = new FakeCloudCodeService(
-                onGameApi: () => Task.FromResult(GameApiEnvelopeResponse.Success(nameof(OptimisticGameApiRequest), new OptimisticGameApiResponse { Id = 55 }, null)),
-                onLegacy: null);
+                () => Task.FromResult(GameApiEnvelopeResponse.Success(nameof(OptimisticGameApiRequest), new OptimisticGameApiResponse { Id = 55 }, null)));
 
             ILiveOpsService sut = BuildSut(fakeCloud, new CloudCodeErrorHandler(), optimisticHandler: null);
 
@@ -154,31 +147,10 @@ namespace Scaffold.LiveOps.Tests
         }
 
         [Test]
-        public async Task LegacyPath_WithoutUsesGameApi_DoesNotUseGameApiEnvelope()
-        {
-            var fakeCloud = new FakeCloudCodeService(
-                onGameApi: null,
-                onLegacy: (module, endpoint, payload) =>
-                {
-                    Assert.That(module, Is.EqualTo(LiveOpsModule));
-                    Assert.That(endpoint, Is.EqualTo("LegacyEcho"));
-                    Assert.That(payload, Is.TypeOf<LegacyTestRequest>());
-                    return Task.FromResult<object>(new LegacyTestResponse { Value = 42 });
-                });
-
-            ILiveOpsService sut = BuildSut(fakeCloud, new CloudCodeErrorHandler(), optimisticHandler: null);
-
-            LegacyTestResponse returned = await sut.CallAsync(new LegacyTestRequest(), CancellationToken.None).ConfigureAwait(false);
-            Assert.That(returned.Value, Is.EqualTo(42));
-            Assert.That(fakeCloud.GameApiCallCount, Is.EqualTo(0));
-        }
-
-        [Test]
         public async Task GameApiOptimistic_ExplicitRegisterOverridesContainerDiscovery()
         {
             var fakeCloud = new FakeCloudCodeService(
-                onGameApi: () => Task.FromResult(GameApiEnvelopeResponse.Success(nameof(OptimisticGameApiRequest), new OptimisticGameApiResponse { Id = 42 }, null)),
-                onLegacy: null);
+                () => Task.FromResult(GameApiEnvelopeResponse.Success(nameof(OptimisticGameApiRequest), new OptimisticGameApiResponse { Id = 42 }, null)));
 
             var containerHandler = new TestOptimisticHandler
             {
@@ -252,7 +224,6 @@ namespace Scaffold.LiveOps.Tests
             return builder.Build().Resolve<ILiveOpsService>();
         }
 
-        [UsesGameApi]
         private sealed class OptimisticGameApiRequest : ModuleRequest<OptimisticGameApiResponse>
         {
             public string Marker { get; set; }
@@ -266,16 +237,6 @@ namespace Scaffold.LiveOps.Tests
         private sealed class NestedAuditResponse : ModuleResponse
         {
             public int Hits { get; set; }
-        }
-
-        private sealed class LegacyTestRequest : ModuleRequest<LegacyTestResponse>
-        {
-            public override string FunctionName => "LegacyEcho";
-        }
-
-        private sealed class LegacyTestResponse : ModuleResponse
-        {
-            public int Value { get; set; }
         }
 
         private sealed class TestOptimisticHandler : IRequestHandler<OptimisticGameApiRequest, OptimisticGameApiResponse>, IOptimisticCloudCodeHandler
@@ -374,14 +335,12 @@ namespace Scaffold.LiveOps.Tests
         private sealed class FakeCloudCodeService : ICloudCodeService
         {
             private readonly Func<Task<GameApiEnvelopeResponse>> onGameApi;
-            private readonly Func<string, string, object, Task<object>> onLegacy;
 
             public int GameApiCallCount { get; private set; }
 
-            public FakeCloudCodeService(Func<Task<GameApiEnvelopeResponse>> onGameApi, Func<string, string, object, Task<object>> onLegacy)
+            public FakeCloudCodeService(Func<Task<GameApiEnvelopeResponse>> onGameApi)
             {
                 this.onGameApi = onGameApi;
-                this.onLegacy = onLegacy;
             }
 
             public Task<T> CallEndpointAsync<T>(string module, string endpoint, object payload = null, CancellationToken cancellationToken = default)
@@ -389,32 +348,16 @@ namespace Scaffold.LiveOps.Tests
                 if (endpoint == "GameApi")
                 {
                     GameApiCallCount++;
-                    if (onGameApi == null)
-                    {
-                        throw new InvalidOperationException("GameApi not expected.");
-                    }
-
                     return AwaitGameApiTyped<T>();
                 }
 
-                if (onLegacy == null)
-                {
-                    throw new InvalidOperationException("Legacy not expected.");
-                }
-
-                return AwaitLegacyTyped<T>(module, endpoint, payload);
+                throw new InvalidOperationException($"Unexpected endpoint: {endpoint}.");
             }
 
             private async Task<T> AwaitGameApiTyped<T>()
             {
                 GameApiEnvelopeResponse envelope = await onGameApi().ConfigureAwait(false);
                 return (T)(object)envelope;
-            }
-
-            private async Task<T> AwaitLegacyTyped<T>(string module, string endpoint, object payload)
-            {
-                object result = await onLegacy(module, endpoint, payload).ConfigureAwait(false);
-                return (T)result;
             }
         }
     }
