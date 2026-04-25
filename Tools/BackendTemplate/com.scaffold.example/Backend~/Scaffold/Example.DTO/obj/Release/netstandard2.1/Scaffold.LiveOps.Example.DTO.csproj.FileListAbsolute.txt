@@ -1,0 +1,14 @@
+C:\Unity\Scaffold\Tools\BackendTemplate\com.scaffold.example\Backend~\Scaffold\Example.DTO\bin\Release\netstandard2.1\Scaffold.LiveOps.Example.DTO.deps.json
+C:\Unity\Scaffold\Tools\BackendTemplate\com.scaffold.example\Backend~\Scaffold\Example.DTO\bin\Release\netstandard2.1\Scaffold.LiveOps.Example.DTO.dll
+C:\Unity\Scaffold\Tools\BackendTemplate\com.scaffold.example\Backend~\Scaffold\Example.DTO\bin\Release\netstandard2.1\Scaffold.LiveOps.Example.DTO.pdb
+C:\Unity\Scaffold\Tools\BackendTemplate\com.scaffold.example\Backend~\Scaffold\Example.DTO\bin\Release\netstandard2.1\LiveOps.DTO.dll
+C:\Unity\Scaffold\Tools\BackendTemplate\com.scaffold.example\Backend~\Scaffold\Example.DTO\bin\Release\netstandard2.1\LiveOps.DTO.pdb
+C:\Unity\Scaffold\Tools\BackendTemplate\com.scaffold.example\Backend~\Scaffold\Example.DTO\obj\Release\netstandard2.1\Scaffold.LiveOps.Example.DTO.csproj.AssemblyReference.cache
+C:\Unity\Scaffold\Tools\BackendTemplate\com.scaffold.example\Backend~\Scaffold\Example.DTO\obj\Release\netstandard2.1\Scaffold.LiveOps.Example.DTO.GeneratedMSBuildEditorConfig.editorconfig
+C:\Unity\Scaffold\Tools\BackendTemplate\com.scaffold.example\Backend~\Scaffold\Example.DTO\obj\Release\netstandard2.1\Scaffold.LiveOps.Example.DTO.AssemblyInfoInputs.cache
+C:\Unity\Scaffold\Tools\BackendTemplate\com.scaffold.example\Backend~\Scaffold\Example.DTO\obj\Release\netstandard2.1\Scaffold.LiveOps.Example.DTO.AssemblyInfo.cs
+C:\Unity\Scaffold\Tools\BackendTemplate\com.scaffold.example\Backend~\Scaffold\Example.DTO\obj\Release\netstandard2.1\Scaffold.LiveOps.Example.DTO.csproj.CoreCompileInputs.cache
+C:\Unity\Scaffold\Tools\BackendTemplate\com.scaffold.example\Backend~\Scaffold\Example.DTO\obj\Release\netstandard2.1\Scaffold.LiveOps.Example.DTO.sourcelink.json
+C:\Unity\Scaffold\Tools\BackendTemplate\com.scaffold.example\Backend~\Scaffold\Example.DTO\obj\Release\netstandard2.1\Scaffold.43F187A8.Up2Date
+C:\Unity\Scaffold\Tools\BackendTemplate\com.scaffold.example\Backend~\Scaffold\Example.DTO\obj\Release\netstandard2.1\Scaffold.LiveOps.Example.DTO.dll
+C:\Unity\Scaffold\Tools\BackendTemplate\com.scaffold.example\Backend~\Scaffold\Example.DTO\obj\Release\netstandard2.1\Scaffold.LiveOps.Example.DTO.pdb

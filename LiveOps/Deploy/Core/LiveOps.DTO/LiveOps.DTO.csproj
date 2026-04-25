@@ -6,6 +6,8 @@
     <LangVersion>latest</LangVersion>
     <RootNamespace>LiveOps.DTO</RootNamespace>
     <CopyDtoToUnityPlugins>true</CopyDtoToUnityPlugins>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    <CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)Generated</CompilerGeneratedFilesOutputPath>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />

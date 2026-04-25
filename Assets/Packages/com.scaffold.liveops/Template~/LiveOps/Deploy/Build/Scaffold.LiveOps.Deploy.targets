@@ -1,9 +1,0 @@
-<Project>
-  <ItemGroup>
-    <ProjectReference Include="$(LiveOpsRoot)Scaffold\Ads\Scaffold.LiveOps.Ads.csproj" />
-    <ProjectReference Include="$(LiveOpsRoot)Scaffold\Gold\Scaffold.LiveOps.Gold.csproj" />
-    <ProjectReference Include="$(LiveOpsRoot)Scaffold\Level\Scaffold.LiveOps.Level.csproj" />
-    <ProjectReference Include="$(LiveOpsRoot)Scaffold\DirectPush\Scaffold.LiveOps.DirectPush.csproj" />
-    <ProjectReference Include="$(LiveOpsRoot)Scaffold\GameData\Scaffold.LiveOps.GameData.csproj" />
-  </ItemGroup>
-</Project>

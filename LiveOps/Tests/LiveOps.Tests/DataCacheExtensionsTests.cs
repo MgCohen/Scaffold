@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using LiveOps.ModuleFetchData;
-using LiveOps.Modules.DTO.Gold;
+using LiveOps.Modules.DTO.Ads;
 using Newtonsoft.Json;
 using Unity.Services.CloudCode.Core;
 using Xunit;
@@ -72,12 +72,12 @@ namespace LiveOps.Tests
             IPlayerData cache = new MemoryPlayerCache();
             IExecutionContext ctx = null!;
 
-            GoldPersistence first = await cache.GetOrSet(ctx, new GoldPersistence(), useWriteLock: false);
+            AdsPersistence first = await cache.GetOrSet(ctx, new AdsPersistence(), useWriteLock: false);
             Assert.NotNull(first);
 
-            GoldPersistence second = await cache.GetOrSet(ctx, new GoldPersistence(), useWriteLock: false);
+            AdsPersistence second = await cache.GetOrSet(ctx, new AdsPersistence(), useWriteLock: false);
             Assert.NotNull(second);
-            Assert.True(await cache.Exists(ctx, nameof(GoldPersistence)));
+            Assert.True(await cache.Exists(ctx, nameof(AdsPersistence)));
         }
     }
 }

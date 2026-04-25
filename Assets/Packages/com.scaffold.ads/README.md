@@ -5,7 +5,7 @@ Keywords: ads, rewarded, interstitial, banner, liveops, placement, cooldown
 ## TL;DR
 - Purpose: Client-side ad orchestration — pacing, events, and reward validation via pluggable endpoint clients.
 - Location: `Assets/Packages/com.scaffold.ads/`
-- Depends on: `VContainer`, `Scaffold.LiveOps`, `LiveOps.DTO.dll`, `LiveOps.Modules.DTO.dll`
+- Depends on: `VContainer`, `Scaffold.LiveOps`, `LiveOps.DTO.dll`, `Scaffold.LiveOps.*.DTO.dll` (precompiled references from `Scaffold.LiveOps` asmdef)
 - Used by: `com.scaffold.ads.levelplay` (LevelPlay provider), App-layer UI controllers
 - Runtime only (no Editor tooling)
 
@@ -18,7 +18,7 @@ Keywords: ads, rewarded, interstitial, banner, liveops, placement, cooldown
 - Does not own:
   - SDK-specific initialization (owned by `IAdProvider` implementations in `com.scaffold.ads.levelplay`)
   - Backend validation logic (owned by `AdsService` in Cloud Code)
-  - Economy/currency mutations (owned by `GoldModule` in Cloud Code)
+  - Economy or currency mutations (implement in your Cloud Code modules under `LiveOps/Game/**` if needed)
 - Boundaries:
   - Pure C# (no MonoBehaviours in runtime assembly)
   - Uses `UnityEngine` for logging and `UnityWebRequest` only in `HttpRewardEndpointClient`
@@ -76,8 +76,8 @@ Two implementations of `IRewardEndpointClient`:
 │     │   └─► Placements["Main_Menu"] = {                         │
 │     │         CooldownSeconds: 300,                             │
 │     │         MaxViews: 5,                                      │
-│     │         RewardType: "GoldGameData",                       │
-│     │         RewardAmount: 100                                 │
+│     │         RewardType: "",                                   │
+│     │         RewardAmount: 0                                   │
 │     │       }                                                   │
 │     ├─► Load AdsPersistence from PlayerData                     │
 │     │   └─► Placements["Main_Menu"] = {                         │
@@ -89,10 +89,7 @@ Two implementations of `IRewardEndpointClient`:
 │     │   └─► IsCooldownElapsed(300s)? → YES                     │
 │     ├─► persistence.RecordAdWatched("Main_Menu")                │
 │     │   └─► WatchCount: 3, LastWatched: now                    │
-│     ├─► GrantReward("Main_Menu")                                │
-│     │   └─► RewardType == _goldModule.Key? → YES               │
-│     │   └─► GoldModule.AddGoldToPlayer(amount: 100)            │
-│     │       └─► Enqueues GoldChangedResponse as nested response │
+│     ├─► GrantReward (template logs if RewardType is set)        │
 │     └─► Return WatchAdResponse                                  │
 │                                                                 │
 ├─────────────────────────────────────────────────────────────────┤
@@ -108,13 +105,11 @@ Two implementations of `IRewardEndpointClient`:
 │        HasReachedMaxViews: false,                               │
 │        CooldownSeconds: 300,                                    │
 │        NextAdAvailableUtc: "2026-04-02T00:05:00Z",             │
-│        RewardType: "GoldGameData",                              │
-│        RewardAmount: 100                                        │
+│        RewardType: "",                                          │
+│        RewardAmount: 0                                          │
 │      }                                                          │
 │    },                                                           │
-│    Responses: [                                                 │
-│      GoldChangedResponse { Current: 1500, Delta: 100 }         │
-│    ]                                                            │
+│    Responses: [ ]                                               │
 │  }                                                              │
 │                                                                 │
 ├─────────────────────────────────────────────────────────────────┤
@@ -160,8 +155,8 @@ Two implementations of `IRewardEndpointClient`:
        "Main_Menu": {
          "CooldownSeconds": 300,
          "MaxViews": 5,
-         "RewardType": "GoldGameData",
-         "RewardAmount": 100
+         "RewardType": "",
+         "RewardAmount": 0
        }
      }
    }
@@ -169,14 +164,14 @@ Two implementations of `IRewardEndpointClient`:
 
 ## Best Practices
 - Always use `LiveOpsRewardEndpointClient` in production — it validates server-side.
-- `RewardType` must match the target module's `.Key` property (e.g. `"GoldGameData"` for `GoldModule`).
+- Optional: set `RewardType` / `RewardAmount` only when your Cloud Code host implements matching reward logic (the template `AdsService` logs a warning if they are set).
 - Keep `HttpRewardEndpointClient` only for testing or legacy endpoints.
 - Don't bypass `RewardedAdManager` — it tracks cooldowns and guards double-grants.
 - Let the backend be the source of truth for view limits and cooldowns; client checks are UX-only.
 
 ## Anti-Patterns
 - ❌ Granting rewards client-side without backend validation → exploitable.
-- ❌ Hardcoding `RewardType` strings → use the module's `.Key` property.
+- ❌ Hardcoding `RewardType` strings without a matching server handler → rewards never apply.
 - ❌ Calling `IRewardedAdService.ShowAd()` directly → bypasses cooldown and event routing.
 - ❌ Adding MonoBehaviours to `Scaffold.Ads.Runtime` assembly → keep it pure C#.
 
@@ -186,12 +181,12 @@ Two implementations of `IRewardEndpointClient`:
   - `placementId` flows end-to-end: client → request → backend → persistence → response.
   - Backend is the authoritative source for MaxViews/Cooldown; client mirrors for UX.
 - Allowed Dependencies:
-  - `VContainer`, `Scaffold.LiveOps`, `LiveOps.DTO.dll`, `LiveOps.Modules.DTO.dll`
+  - `VContainer`, `Scaffold.LiveOps`, `LiveOps.DTO.dll`, `Scaffold.LiveOps.*.DTO.dll`
 - Forbidden Dependencies:
   - `com.scaffold.ads.levelplay` (provider implementation must not leak into abstraction)
-  - Direct references to `GoldModule` or economy from the client package
+  - Direct references to Cloud Code economy modules from the client package
 - Change Checklist:
-  - If adding a new reward type: add a case in `AdsService.GrantReward()` and inject the module.
+  - If adding rewards from ads: extend `LiveOps/Scaffold/Ads/AdsService.cs` (fork) or add modules under `LiveOps/Game/**`.
   - If changing `IRewardEndpointClient`: update both `LiveOpsRewardEndpointClient` and `HttpRewardEndpointClient`.
   - Run `dotnet build` on `LiveOps/` after DTO changes.
 - Known Tricky Areas:
@@ -199,10 +194,11 @@ Two implementations of `IRewardEndpointClient`:
   - `ResponseStatusType.Success` is enum value 0 (default) — responses are "success" unless explicitly set otherwise.
 
 ## Related
-- `LiveOps/Modules/LiveOps.Modules.DTO/Ads/` — Shared DTOs
-- `LiveOps/Modules/LiveOps.Modules/Ads/AdsService.cs` — Backend validation
+- `LiveOps/Scaffold/Ads.DTO/` — Shared DTOs
+- `LiveOps/Scaffold/Ads/AdsService.cs` — Backend validation
 - `Assets/Packages/com.scaffold.ads.levelplay/` — LevelPlay provider implementation
 - `Docs/LiveOps/LiveOps.md` — LiveOps system docs
 
 ## Changelog
+- 2026-04-25: Docs updated for removal of legacy Gold/Level Cloud Code modules; template backend no longer grants gold from `AdsService`.
 - 2026-04-02: Added per-placement tracking (cooldowns, maxViews, rewards). Introduced `LiveOpsRewardEndpointClient`, renamed `RewardEndpointClient` → `HttpRewardEndpointClient`. Added `RewardType`/`RewardAmount` to config and backend reward granting via `GoldModule`.

@@ -21,10 +21,7 @@
         "nunit.framework.dll",
         "LiveOps.DTO.dll",
         "Scaffold.LiveOps.Ads.DTO.dll",
-        "Scaffold.LiveOps.Gold.DTO.dll",
-        "Scaffold.LiveOps.Level.DTO.dll",
-        "Scaffold.LiveOps.DirectPush.DTO.dll",
-        "Scaffold.LiveOps.GameData.DTO.dll"
+        "Scaffold.LiveOps.DirectPush.DTO.dll"
     ],
     "autoReferenced": false,
     "defineConstraints": [

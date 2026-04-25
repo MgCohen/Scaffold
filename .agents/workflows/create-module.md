@@ -28,7 +28,9 @@ description: Scaffolds a new module following the project's structure guidelines
 8.  **Documentation Update**:
     - Add authoritative module documentation to `Assets/Packages/<packageId>/README.md` and a short pointer under `Docs/` that links to it, following repository module-doc conventions.
     - Check for circular dependencies.
-9.  **Boundary Hygiene (Best Practice)**:
+9.  **Optional Cloud Code backend (`Backend~/`)**:
+    - If the module includes a `**Scaffold.LiveOps.<Feature>**` host slice, add `**[ModulePath]/Backend~/Scaffold/<Feature>/**` and `**<Feature.DTO>/**` (see `**Tools/BackendTemplate/com.scaffold.example**` and `**Assets/Packages/com.scaffold.liveops/README.md**`) and add the projects to `**LiveOps/LiveOps.Deploy.sln**`.
+10.  **Boundary Hygiene (Best Practice)**:
     - Keep cross-module API types in `Runtime/Contracts` and concrete logic in `Runtime`.
     - Default non-boundary classes to `internal`.
     - Default external dependencies to `<Module>`; reserve foreign runtime-only dependencies for composition roots (your application startup / `AppFlowRoot` subclass) and module-local wiring.

@@ -45,14 +45,15 @@ On Windows you can still use **`validate-changes.cmd`** or **`run-coverage-audit
 
 | Script | Purpose |
 |--------|---------|
-| `refresh-liveops-template.ps1` | Build `Scaffold.LiveOps.Bootstrap.Generators`, copy `LiveOps/Deploy` and `LiveOps/Scaffold` into `Assets/Packages/com.scaffold.liveops/Template~/LiveOps/` (excludes `bin`/`obj`). Use **`-SkipGeneratorBuild`** when MSBuild has already built the generator and copied the DLL (see `LiveOps/Deploy/Build/Scaffold.LiveOps.TemplateSync.targets`). |
-| `install-liveops-backend.ps1` | Copy from that `Template~` into repo-root `LiveOps/Deploy` and `LiveOps/Scaffold`; preserves `LiveOps/Game`. |
+| `refresh-liveops-template.ps1` | Build `Scaffold.LiveOps.Bootstrap.Generators`, then sync `LiveOps/` into every `Assets/Packages/*/Backend~/` (host `**Deploy**`, feature `**Scaffold/<Feature>**`; excludes `bin`/`obj`). Use **`-SkipGeneratorBuild`** when MSBuild has already built the generator and copied the DLL (see `LiveOps/Deploy/Build/Scaffold.LiveOps.TemplateSync.targets`). |
+| `install-liveops-backend.ps1` | Merge every `Assets/Packages/*/Backend~/` into repo-root `LiveOps/` (adds/updates `Deploy`, `Scaffold`, `LiveOps.Deploy.sln`, `liveops.manifest.json`); preserves `LiveOps/Game`. |
+| `test-liveops-deploy-cold-warm.ps1` | Times `dotnet build` / `dotnet publish` for `LiveOps.Deploy.sln` and `Deploy/LiveOps/LiveOps.csproj`; use **`-DeleteArtifacts`** to remove `LiveOps/.artifacts` first (simulates a clean tree). Lists generated `LiveOpsManifest.g.cs` under `LiveOps/.artifacts` (not per-project `obj/`). |
 
-**LiveOps template sync on `dotnet build`:** By default, after building the **`LiveOps`** host or **`Scaffold.LiveOps.Bootstrap.Generators`**, MSBuild runs `refresh-liveops-template.ps1 -SkipGeneratorBuild` so `Template~` stays in sync (same idea as post-build DLL copy).
+**LiveOps `Backend~` sync on `dotnet build`:** By default, after building the **`LiveOps`** host or **`Scaffold.LiveOps.Bootstrap.Generators`**, MSBuild runs `refresh-liveops-template.ps1 -SkipGeneratorBuild` so all package `Backend~` trees stay in sync.
 
 To disable, add a repo-root **`Directory.Build.user.props`** (gitignored; optional import in root `Directory.Build.props`) with `<ScaffoldSyncLiveOpsTemplateOnBuild>false</ScaffoldSyncLiveOpsTemplateOnBuild>`.
 
-In the Unity Editor, **Scaffold → LiveOps → Refresh Backend Template** runs the full refresh script and calls **AssetDatabase.Refresh**; use it when you prefer not to run `dotnet` from a terminal.
+In the Unity Editor (Scaffold repo only, **Editor** scripting define `SCAFFOLD_LIVEOPS_PACKAGE_DEV`), **Scaffold → LiveOps → Refresh Backend Template** runs the full refresh script and calls **AssetDatabase.Refresh**; use it when you prefer not to run `dotnet` from a terminal. Consumer projects do not ship that menu; they use **Install or Update Backend** or the CLI.
 
 ## Layout
 

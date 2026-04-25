@@ -1,23 +1,23 @@
 # LiveOps Ads Module
 
-Keywords: ads, cloud-code, placement, cooldown, max-views, reward, gold, server-validation
+Keywords: ads, cloud-code, placement, cooldown, max-views, reward, server-validation
 
 ## TL;DR
-- Purpose: Server-side validation of ad watches — enforces cooldowns, view limits, and grants rewards per placement.
-- Location: `LiveOps/Modules/LiveOps.Modules/Ads/` (backend) + `LiveOps/Modules/LiveOps.Modules.DTO/Ads/` (shared DTOs)
-- Depends on: `GoldModule` (reward dispatch), **GameApi** (`IGameApiHandler<WatchAdRequest, WatchAdResponse>`)
+- Purpose: Server-side validation of ad watches — enforces cooldowns, view limits, and records per-placement state (optional `RewardType` / `RewardAmount` are validated only; built-in economy dispatch was removed with the legacy Gold module).
+- Location: `LiveOps/Scaffold/Ads/` (backend) + `LiveOps/Scaffold/Ads.DTO/` (shared DTOs)
+- Depends on: **GameApi** (`IGameApiHandler<WatchAdRequest, WatchAdResponse>`); game-specific reward modules via **`IGameSetup`** if you extend the host
 - Used by: `Scaffold.Ads` client package via `ILiveOpsService.CallAsync()`
 - Runs on Unity Cloud Code (server-side C#)
 
 ## Responsibilities
 - Owns:
   - Server-side validation of ad watch requests (cooldown + max views)
-  - Per-placement reward dispatch (currently `GoldModule`)
+  - Logging when a placement configures `RewardType` / `RewardAmount` but no handler grants them (extend the Cloud Code host for real rewards)
   - Building `AdData` payloads for the client (merged config + persistence)
   - Persisting per-placement watch state (`AdsPersistence`)
 - Does not own:
   - Client-side ad SDK integration (owned by `com.scaffold.ads.levelplay`)
-  - Economy logic (owned by `GoldModule`)
+  - Economy or progression rewards (add a `LiveOps/Game/**` module or custom `GrantReward` logic)
   - RemoteConfig schema management (ops/dashboard concern)
 
 ## DTO Breakdown
@@ -31,7 +31,7 @@ Per-placement rules set remotely. One entry per placement ID.
 AdPlacementConfig
 ├── CooldownSeconds: float  (default: 30)    → min seconds between watches
 ├── MaxViews: int            (default: 1)     → total allowed watches
-├── RewardType: string       (default: "")    → module Key to dispatch reward to
+├── RewardType: string       (default: "")    → reserved for game-specific reward wiring (template logs a warning if set)
 └── RewardAmount: long       (default: 0)     → amount to grant
 ```
 
@@ -41,8 +41,8 @@ Container for all placements. Key: `"AdsConfig"`.
 ```
 AdsConfig
 └── Placements: Dictionary<string, AdPlacementConfig>
-    ├── "Main_Menu" → { Cooldown: 300, MaxViews: 5, RewardType: "GoldGameData", RewardAmount: 100 }
-    └── "Level_End" → { Cooldown: 60, MaxViews: 10, RewardType: "GoldGameData", RewardAmount: 50 }
+    ├── "Main_Menu" → { Cooldown: 300, MaxViews: 5, RewardType: "", RewardAmount: 0 }
+    └── "Level_End" → { Cooldown: 60, MaxViews: 10, RewardType: "", RewardAmount: 0 }
 ```
 
 ### Persistence (Player Save)
@@ -107,7 +107,7 @@ WatchAdRequest : ModuleRequest<WatchAdResponse>
 
 WatchAdResponse : ModuleResponse
 ├── Data: AdData           → updated placement states (always returned)
-└── Responses[]            → nested responses (e.g. GoldChangedResponse)
+└── Responses[]            → nested responses when handlers enqueue them via GameApi
 ```
 
 ## Backend Logic (AdsService)
@@ -138,21 +138,17 @@ INPUT: WatchAdRequest { PlacementId }
 
 5. Build fresh AdData(persistence, config)
 6. Return WatchAdResponse(adData) via ResolveResponse
-   → automatically merges any nested responses (GoldChangedResponse)
+   → merges any nested responses when a handler invokes other modules via `GameApiSession`
 
-OUTPUT: WatchAdResponse { Data: AdData, Responses: [GoldChangedResponse?] }
+OUTPUT: WatchAdResponse { Data: AdData, Responses: [...] }
 ```
 
-### `GrantReward` — Dispatch by module Key
+### `GrantReward` — Template behavior
 
 ```
 IF RewardAmount <= 0 OR RewardType is empty → no reward, return
 
-IF RewardType == _goldModule.Key ("GoldGameData")
-  → _goldModule.AddGoldToPlayer(amount, enqueueNestedResponse: true)
-  → GoldChangedResponse auto-merges into WatchAdResponse.Responses[]
-
-ELSE → log unknown RewardType warning
+ELSE → log warning: configure a game-specific module / IGameSetup to grant rewards for this RewardType
 ```
 
 ## RemoteConfig JSON Example
@@ -163,20 +159,20 @@ ELSE → log unknown RewardType warning
     "Main_Menu": {
       "CooldownSeconds": 300.0,
       "MaxViews": 5,
-      "RewardType": "GoldGameData",
-      "RewardAmount": 100
+      "RewardType": "",
+      "RewardAmount": 0
     },
     "Level_End": {
       "CooldownSeconds": 60.0,
       "MaxViews": 10,
-      "RewardType": "GoldGameData",
-      "RewardAmount": 50
+      "RewardType": "",
+      "RewardAmount": 0
     },
     "Daily_Bonus": {
       "CooldownSeconds": 86400.0,
       "MaxViews": 1,
-      "RewardType": "GoldGameData",
-      "RewardAmount": 500
+      "RewardType": "",
+      "RewardAmount": 0
     }
   }
 }
@@ -185,7 +181,7 @@ ELSE → log unknown RewardType warning
 ## File Map
 
 ```
-LiveOps/Modules/LiveOps.Modules.DTO/Ads/
+LiveOps/Scaffold/Ads.DTO/
 ├── AdPlacementConfig.cs        → Remote config per placement
 ├── AdPlacementState.cs         → Player persistence per placement
 ├── AdPlacementClientData.cs    → Merged client payload per placement
@@ -196,25 +192,22 @@ LiveOps/Modules/LiveOps.Modules.DTO/Ads/
     ├── WatchAdRequest.cs       → Client → Server request
     └── WatchAdResponse.cs      → Server → Client response
 
-LiveOps/Modules/LiveOps.Modules/Ads/
-├── AdsService.cs               → Cloud Code function (validation + reward)
-└── AdsInstaller.cs             → DI registration (IGameModule)
+LiveOps/Scaffold/Ads/
+└── AdsService.cs               → IGameModule + IGameApiHandler (validation + reward hook)
 ```
 
 ## AI Agent Context
 - Invariants:
-  - `RewardType` must match a module's `.Key` property — never use arbitrary strings.
+  - `RewardType` / `RewardAmount` are opaque in the template; wire them to your own modules if you grant rewards from ads.
   - `AdsPersistence` is the single source of truth for watch state; never mutate outside `AdsService`.
-  - `GoldChangedResponse` nesting relies on `enqueueNestedResponse: true` — do not change to `false`.
 - Allowed Dependencies:
-  - `GoldModule` (reward dispatch)
   - `GameApiDispatcher` / `IGameApiHandler<WatchAdRequest, WatchAdResponse>` (routing)
   - `IPlayerData`, `IRemoteConfig` (data access)
 - Forbidden Dependencies:
   - Client-side assemblies (`Scaffold.Ads`, `Scaffold.Ads.Levelplay`)
   - Direct file or HTTP access from Cloud Code
 - Change Checklist:
-  - Adding a new reward type → add module injection to `AdsService` constructor + add `if` branch in `GrantReward`.
+  - Adding rewards → fork `AdsService.GrantReward` or add a parallel `IGameSetup` flow; keep DTO contracts stable for clients.
   - Changing DTO fields → update both `AdPlacementConfig` and `AdPlacementClientData` + the `AdData` constructor mapping.
   - Run `dotnet build` in `LiveOps/` after any change.
 - Known Tricky Areas:
@@ -223,4 +216,5 @@ LiveOps/Modules/LiveOps.Modules/Ads/
   - `ComputeNextAdAvailableUtcIso` uses ISO 8601 "O" format — client must parse with `DateTimeStyles.AdjustToUniversal`.
 
 ## Changelog
+- 2026-04-25: Removed legacy Gold/Level Cloud Code modules; template `AdsService` no longer dispatches gold; document game-specific reward extension.
 - 2026-04-02: Initial per-placement architecture. Added `RewardType`/`RewardAmount` to config. Backend reward dispatch via `GoldModule`. Extracted all DTOs to individual files.

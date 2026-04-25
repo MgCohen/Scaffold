@@ -1,5 +1,7 @@
-# Install or update repo-root LiveOps from the com.scaffold.liveops package Template~ folder.
-# Overwrites only LiveOps/Deploy/** and LiveOps/Scaffold/**. Preserves LiveOps/Game/**.
+# Install or update repo-root LiveOps from every package that ships Backend~ (merge into LiveOps/).
+# com.scaffold.liveops/Backend~ carries Deploy/**, LiveOps.Deploy.sln, and the manifest template.
+# Feature packages (e.g. com.scaffold.ads) carry Backend~/Scaffold/<Feature>/.
+# Preserves LiveOps/Game/**.
 # Usage (from repo root): pwsh -NoProfile -File .agents/scripts/install-liveops-backend.ps1 [-DryRun] [-ProjectRoot <path>]
 
 [CmdletBinding()]
@@ -9,30 +11,35 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$template = Join-Path $ProjectRoot "Assets\Packages\com.scaffold.liveops\Template~\LiveOps"
+$packagesRoot = Join-Path $ProjectRoot "Assets\Packages"
 $destLive = Join-Path $ProjectRoot "LiveOps"
+$hostBack = Join-Path $ProjectRoot "Assets\Packages\com.scaffold.liveops\Backend~"
 
-if (-not (Test-Path $template)) {
-    throw "Template not found: $template (install com.scaffold.liveops or run refresh-liveops-template.ps1 in Scaffold repo)."
+if (-not (Test-Path $hostBack)) {
+    throw "Host Backend~ not found: $hostBack (install com.scaffold.liveops with Backend~, or run refresh-liveops-template.ps1 in the Scaffold repo)."
 }
 
 $excludeDirs = @("bin", "obj", ".vs", ".artifacts")
 $roboExcludes = @()
 foreach ($d in $excludeDirs) { $roboExcludes += @("/xd", $d) }
 
-$copyPairs = @(
-    @{ Src = (Join-Path $template "Deploy"); Dst = (Join-Path $destLive "Deploy") },
-    @{ Src = (Join-Path $template "Scaffold"); Dst = (Join-Path $destLive "Scaffold") }
-)
+$packages = Get-ChildItem -Path $packagesRoot -Directory -ErrorAction SilentlyContinue
+if (-not $packages) { throw "No packages under: $packagesRoot" }
 
-foreach ($pair in $copyPairs) {
-    if (-not (Test-Path $pair.Src)) { Write-Warning "Skip missing template source: $($pair.Src)"; continue }
-    Write-Host "Sync $($pair.Src) -> $($pair.Dst) [$(if ($DryRun) { 'dry-run' } else { 'apply' })]"
+$syncedAny = $false
+foreach ($pkg in $packages) {
+    $back = Join-Path $pkg.FullName "Backend~"
+    if (-not (Test-Path $back)) { continue }
+    $syncedAny = $true
+    Write-Host "Merge Backend~ from $($pkg.Name) -> $destLive [$(if ($DryRun) { 'dry-run' } else { 'apply' })]"
     if ($DryRun) { continue }
-    New-Item -ItemType Directory -Path $pair.Dst -Force | Out-Null
-    $args = @($pair.Src, $pair.Dst, "/MIR", "/NFL", "/NDL", "/NJH", "/NJS") + $roboExcludes
+    $args = @($back, $destLive, "/E", "/NFL", "/NDL", "/NJH", "/NJS", "/R:3", "/W:1") + $roboExcludes
     $p = Start-Process -FilePath "robocopy" -ArgumentList $args -NoNewWindow -PassThru -Wait
-    if ($p.ExitCode -ge 8) { throw "robocopy failed with exit code $($p.ExitCode)" }
+    if ($p.ExitCode -ge 8) { throw "robocopy failed with exit code $($p.ExitCode) for package $($pkg.Name)" }
+}
+
+if (-not $syncedAny) {
+    throw "No Assets/Packages/*/Backend~ folders found (expected at least com.scaffold.liveops/Backend~)."
 }
 
 $game = Join-Path $destLive "Game"
@@ -43,7 +50,7 @@ if (-not (Test-Path $game)) {
 
 $installRecord = Join-Path $destLive ".scaffold-install.json"
 $manifestOut = Join-Path $destLive "liveops.manifest.json"
-$templateManifest = Join-Path $template "liveops.manifest.template.json"
+$templateManifest = Join-Path $hostBack "liveops.manifest.template.json"
 if (Test-Path $templateManifest) {
     if ($DryRun) { Write-Host "Would copy $templateManifest -> $manifestOut" }
     else { Copy-Item -Path $templateManifest -Destination $manifestOut -Force }
@@ -58,13 +65,13 @@ $installPayload = [ordered]@{
     templateVersion = $ver
     installedRoots  = @("LiveOps/Deploy", "LiveOps/Scaffold")
     lastUpdate      = [DateTime]::UtcNow.ToString("o")
-    notes           = $null
+    notes           = "Merged from Assets/Packages/*/Backend~ (host: com.scaffold.liveops/Backend~)"
 }
 if ($DryRun) { Write-Host "Would write: $installRecord" }
 else { $installPayload | ConvertTo-Json -Depth 6 | Set-Content -Path $installRecord -Encoding UTF8 }
 
 $deploySln = Join-Path $destLive "LiveOps.Deploy.sln"
-$templateDeploySln = Join-Path $template "LiveOps.Deploy.sln"
+$templateDeploySln = Join-Path $hostBack "LiveOps.Deploy.sln"
 if (Test-Path $templateDeploySln) {
     if ($DryRun) { Write-Host "Would copy $templateDeploySln -> $deploySln" }
     else { Copy-Item -Path $templateDeploySln -Destination $deploySln -Force }

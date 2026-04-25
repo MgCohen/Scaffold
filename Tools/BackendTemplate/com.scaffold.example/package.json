@@ -1,0 +1,6 @@
+{
+  "name": "com.scaffold.example",
+  "version": "0.1.0",
+  "displayName": "Scaffold Example (template)",
+  "description": "Reference copy-paste source for a new LiveOps backend fragment. Not intended as a UPM dependency; copy Backend~/ into your feature package and rename."
+}
