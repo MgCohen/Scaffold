@@ -14,7 +14,11 @@
     "overrideReferences": false,
     "precompiledReferences": [
         "LiveOps.DTO.dll",
-        "LiveOps.Modules.DTO.dll"
+        "Scaffold.LiveOps.Ads.DTO.dll",
+        "Scaffold.LiveOps.Gold.DTO.dll",
+        "Scaffold.LiveOps.Level.DTO.dll",
+        "Scaffold.LiveOps.DirectPush.DTO.dll",
+        "Scaffold.LiveOps.GameData.DTO.dll"
     ],
     "autoReferenced": true,
     "defineConstraints": [],

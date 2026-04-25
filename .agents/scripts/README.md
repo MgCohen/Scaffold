@@ -41,6 +41,19 @@ pwsh -NoProfile -File .agents/scripts/run-unity-tests.ps1 -TestPlatform EditMode
 
 On Windows you can still use **`validate-changes.cmd`** or **`run-coverage-audit.cmd`**.
 
+## LiveOps backend (Scaffold repo)
+
+| Script | Purpose |
+|--------|---------|
+| `refresh-liveops-template.ps1` | Build `Scaffold.LiveOps.Bootstrap.Generators`, copy `LiveOps/Deploy` and `LiveOps/Scaffold` into `Assets/Packages/com.scaffold.liveops/Template~/LiveOps/` (excludes `bin`/`obj`). Use **`-SkipGeneratorBuild`** when MSBuild has already built the generator and copied the DLL (see `LiveOps/Deploy/Build/Scaffold.LiveOps.TemplateSync.targets`). |
+| `install-liveops-backend.ps1` | Copy from that `Template~` into repo-root `LiveOps/Deploy` and `LiveOps/Scaffold`; preserves `LiveOps/Game`. |
+
+**LiveOps template sync on `dotnet build`:** By default, after building the **`LiveOps`** host or **`Scaffold.LiveOps.Bootstrap.Generators`**, MSBuild runs `refresh-liveops-template.ps1 -SkipGeneratorBuild` so `Template~` stays in sync (same idea as post-build DLL copy).
+
+To disable, add a repo-root **`Directory.Build.user.props`** (gitignored; optional import in root `Directory.Build.props`) with `<ScaffoldSyncLiveOpsTemplateOnBuild>false</ScaffoldSyncLiveOpsTemplateOnBuild>`.
+
+In the Unity Editor, **Scaffold → LiveOps → Refresh Backend Template** runs the full refresh script and calls **AssetDatabase.Refresh**; use it when you prefer not to run `dotnet` from a terminal.
+
 ## Layout
 
 | Path | Purpose |

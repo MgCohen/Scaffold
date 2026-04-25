@@ -670,6 +670,16 @@ namespace Scaffold.LiveOps.Bootstrap.Generators
                 return false;
             }
 
+            if (HasScaffoldLiveOpsAssemblyAttribute(a))
+            {
+                return true;
+            }
+
+            if (n.StartsWith("Scaffold.LiveOps", StringComparison.Ordinal) || n.StartsWith("Game.LiveOps", StringComparison.Ordinal))
+            {
+                return true;
+            }
+
             if (!n.StartsWith("LiveOps", StringComparison.Ordinal))
             {
                 return false;
@@ -677,6 +687,32 @@ namespace Scaffold.LiveOps.Bootstrap.Generators
 
             return n is "LiveOps.Modules" or "LiveOps.Core" or "LiveOps" or "LiveOps.DTO" or "LiveOps.Modules.DTO"
                 || (n.EndsWith(".DTO", StringComparison.Ordinal) && n.StartsWith("LiveOps.", StringComparison.Ordinal));
+        }
+
+        private static bool HasScaffoldLiveOpsAssemblyAttribute(IAssemblySymbol a)
+        {
+            foreach (AttributeData attr in a.GetAttributes())
+            {
+                if (!string.Equals(attr.AttributeClass?.Name, "AssemblyMetadataAttribute", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                if (attr.ConstructorArguments.Length < 2)
+                {
+                    continue;
+                }
+
+                if (attr.ConstructorArguments[0].Value is string key
+                    && string.Equals(key, "ScaffoldLiveOpsAssembly", StringComparison.Ordinal)
+                    && attr.ConstructorArguments[1].Value is string value
+                    && string.Equals(value, "true", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private static void VisitAssembly(IAssemblySymbol assembly, HashSet<INamedTypeSymbol> outTypes)

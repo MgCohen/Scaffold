@@ -4,6 +4,7 @@
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <RootNamespace>LiveOps.Tests</RootNamespace>
+    <ScaffoldLiveOpsTestProject>true</ScaffoldLiveOpsTestProject>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Com.Unity.Services.CloudCode.Apis" Version="0.0.9" />
@@ -20,9 +21,6 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\Core\LiveOps.Core\LiveOps.Core.csproj" />
-    <ProjectReference Include="..\..\Modules\LiveOps.Modules\LiveOps.Modules.csproj" />
-    <ProjectReference Include="..\..\Modules\LiveOps.Modules.DTO\LiveOps.Modules.DTO.csproj" />
     <ProjectReference Include="..\..\Deploy\LiveOps\LiveOps.csproj" />
   </ItemGroup>
 </Project>

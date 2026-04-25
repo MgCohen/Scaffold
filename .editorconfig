@@ -35,8 +35,8 @@ dotnet_diagnostic.SCA2004.severity = warning   # Restrict static methods in non-
 dotnet_diagnostic.SCA3005.severity = warning   # Namespace first segment must be allowed (root + allowed_roots)
 dotnet_diagnostic.SCA3006.severity = warning   # Full namespace must match folder-derived path under content roots
 scaffold.SCA3005.root = Scaffold
-scaffold.SCA3005.allowed_roots = LiveOps;LiveOps.DTO;LiveOps.Modules;LiveOps.Modules.DTO;Scaffold;CleanupProject
-scaffold.SCA3006.content_roots = Assets/Scripts;LiveOps/Core/LiveOps.Core;LiveOps/Deploy/LiveOps;LiveOps/Modules/LiveOps.Modules;LiveOps/Core/LiveOps.DTO;LiveOps/Modules/LiveOps.Modules.DTO
+scaffold.SCA3005.allowed_roots = LiveOps;LiveOps.DTO;LiveOps.Modules;LiveOps.Modules.DTO;Scaffold;Game;CleanupProject
+scaffold.SCA3006.content_roots = Assets/Scripts;LiveOps/Deploy/Core/LiveOps.Core;LiveOps/Deploy/Core/LiveOps.DTO;LiveOps/Deploy/LiveOps;LiveOps/Scaffold;LiveOps/Game
 dotnet_diagnostic.SCA3002.severity = warning   # Extra types: own file if shared/public, else place after primary type
 dotnet_diagnostic.SCA3003.severity = warning   # Class member order
 

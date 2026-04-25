@@ -15,7 +15,7 @@ public sealed class NamespaceLayoutAnalyzerTests
         {
             ["scaffold.SCA3005.root"] = "Scaffold",
             ["scaffold.SCA3005.allowed_roots"] = "LiveOps;LiveOps.DTO;LiveOps.Modules;LiveOps.Modules.DTO;Scaffold",
-            ["scaffold.SCA3006.content_roots"] = "Assets/Scripts;LiveOps/Core/LiveOps.Core;LiveOps/Deploy/LiveOps;LiveOps/Modules/LiveOps.Modules;LiveOps/Core/LiveOps.DTO;LiveOps/Modules/LiveOps.Modules.DTO",
+            ["scaffold.SCA3006.content_roots"] = "Assets/Scripts;LiveOps/Deploy/Core/LiveOps.Core;LiveOps/Deploy/Core/LiveOps.DTO;LiveOps/Deploy/LiveOps;LiveOps/Scaffold;LiveOps/Game",
         };
 
         if (extra != null)
