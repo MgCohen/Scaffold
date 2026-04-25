@@ -679,7 +679,7 @@ PlayerSettings:
   webEnableSubmoduleStrippingCompatibility: 0
   scriptingDefineSymbols:
     Editor: SCAFFOLD_LIVEOPS_PACKAGE_DEV
-    Standalone: LEVELPLAY_DEPENDENCIES_INSTALLED
+    Standalone: LEVELPLAY_DEPENDENCIES_INSTALLED;SCAFFOLD_LIVEOPS_PACKAGE_DEV
   additionalCompilerArguments: {}
   platformArchitecture: {}
   scriptingBackend:

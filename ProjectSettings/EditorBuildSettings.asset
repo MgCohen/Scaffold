@@ -5,10 +5,10 @@ EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Scenes:
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scripts/Addressables/Addressables Load.unity
     guid: d15723d1a47b4494295e1235cd0ca6ca
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scripts/Addressables/Addressables Bootstrap.unity
     guid: f336c141a8afd449fa80ebd146956f42
   m_configObjects:

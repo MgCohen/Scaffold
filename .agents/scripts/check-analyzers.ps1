@@ -185,6 +185,13 @@ $analyzerTestsProjects = @(
     @{ Path = $analyzerTestsProjectPath; Label = "Scaffold.Analyzers.Tests" }
     @{ Path = $mvvmAnalyzerTestsProjectPath; Label = "Scaffold.Mvvm.Analyzers.Tests" }
 ) | Where-Object { Test-Path $_.Path }
+# When no test projects match (e.g. -ProjectPath not repo root) or a single result is a hashtable, normalize to
+# an object array so .Count/foreach are StrictMode-safe and we never treat one hashtable as key/value pairs.
+if ($null -eq $analyzerTestsProjects) {
+    $analyzerTestsProjects = @()
+} else {
+    $analyzerTestsProjects = [object[]]@($analyzerTestsProjects)
+}
 
 if ($SkipMvvmAnalyzerTests.IsPresent) {
     $analyzerTestsProjects = @($analyzerTestsProjects | Where-Object { $_.Label -ne "Scaffold.Mvvm.Analyzers.Tests" })
