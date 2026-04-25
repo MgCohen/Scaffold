@@ -10,7 +10,7 @@ This list records **legacy or redundant artifacts** left in place after porting 
 | Legacy request pipeline | [`LiveOps/Project/Core/Response/ModuleRequestHandler.cs`](../LiveOps/Project/Core/Response/ModuleRequestHandler.cs) — superseded by `IGameApiHandler` + `GameApiSession`. |
 | Per-module Cloud Code entry points | Module services (e.g. Ads, Gold, Level, DirectPush) with `[CloudCodeFunction]` on individual methods — migrate to `IGameApiHandler` + unified `GameApi` only, then remove duplicate endpoints. **Done in Scaffold** for the template: requests use **`Type.Name`** as wire key. |
 | Dual cache persistence | `AddToCache` / `SaveCache` on [`IWriteableDataCache`](../LiveOps/Project/Core/ModuleFetchData/Abstraction/IWriteableDataCache.cs) and [`UnityDataCache`](../LiveOps/Project/Core/ModuleFetchData/Implementation/Unity/UnityDataCache.cs) — remove after all writers use `FlushDirtyAsync` (or a single persistence path). |
-| Example / product modules | Gold, Ads, Level, GlobalConfig, DirectPush under `LiveOps/Project/Modules/` — drop or relocate if Scaffold should stay template-only. |
+| Example / product modules | Gold, Ads, Level, DirectPush under `LiveOps/Project/Modules/` — drop or relocate if Scaffold should stay template-only. |
 
 ## Client / docs
 

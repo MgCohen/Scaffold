@@ -9,6 +9,22 @@ namespace Scaffold.LiveOps.Bootstrap.Generators
     [Generator]
     public sealed class LiveOpsManifestGenerator : IIncrementalGenerator
     {
+        private static readonly DiagnosticDescriptor s_duplicateWire = new(
+            id: "LOPSKEY001",
+            title: "Duplicate GameApi wire key",
+            messageFormat: "Duplicate wire key '{0}' for types: {1}",
+            category: "LiveOps",
+            defaultSeverity: DiagnosticSeverity.Error,
+            isEnabledByDefault: true);
+
+        private static readonly DiagnosticDescriptor s_missingGeneratorRef = new(
+            id: "LOPSKEY002",
+            title: "LiveOps key map missing in DTO assembly",
+            messageFormat: "Assembly '{0}' contains [LiveOpsKey] types but has no generated LiveOpsKeyRuntimeMap; add a ProjectReference to Scaffold.LiveOps.Bootstrap.Generators with OutputItemType=\"Analyzer\" ReferenceOutputAssembly=\"false\".",
+            category: "LiveOps",
+            defaultSeverity: DiagnosticSeverity.Warning,
+            isEnabledByDefault: true);
+
         public void Initialize(IncrementalGeneratorInitializationContext context)
         {
             context.RegisterSourceOutput(
@@ -20,6 +36,11 @@ namespace Scaffold.LiveOps.Bootstrap.Generators
         {
             INamedTypeSymbol? iGameHandler2 = compilation.GetTypeByMetadataName("LiveOps.GameApi.IGameApiHandler`2");
             INamedTypeSymbol? iModule = compilation.GetTypeByMetadataName("LiveOps.GameModule.IGameModule");
+            INamedTypeSymbol? keyAttr = compilation.GetTypeByMetadataName("LiveOps.DTO.Keys.LiveOpsKeyAttribute");
+            INamedTypeSymbol? gameApiAttr = compilation.GetTypeByMetadataName("LiveOps.DTO.Keys.GameApiRequestAttribute");
+            INamedTypeSymbol? moduleRequest = compilation.GetTypeByMetadataName("LiveOps.DTO.ModuleRequest.ModuleRequest");
+            INamedTypeSymbol? iGameModuleData = compilation.GetTypeByMetadataName("LiveOps.DTO.GameModule.IGameModuleData");
+
             var types = new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
             VisitAssembly(compilation.Assembly, types);
             foreach (MetadataReference reference in compilation.References)
@@ -35,53 +56,74 @@ namespace Scaffold.LiveOps.Bootstrap.Generators
                 }
             }
 
-            EmitLiveOpsKeysCatalog(context, compilation, types);
-            ReportWireKeyCollisionsIfAny(context, compilation, types);
+            List<KeyTypeRecord> keyRecords = BuildKeyTypeRecords(
+                types,
+                keyAttr,
+                gameApiAttr,
+                moduleRequest,
+                iGameModuleData,
+                iGameHandler2,
+                iModule);
+
+            EmitLiveOpsKeysCatalog(context, compilation, keyRecords, keyAttr);
+            EmitRuntimeKeyMap(context, compilation, keyRecords);
+            ReportWireKeyCollisionsIfAny(context, keyRecords, moduleRequest);
+            ReportMissingKeyMapInDtoAssembliesIfAny(context, compilation, keyRecords);
+
             if (iGameHandler2 is null && iModule is null)
             {
-                EmitEmpty(context);
+                if (string.Equals(compilation.Assembly.Name, "LiveOps", StringComparison.Ordinal))
+                {
+                    EmitEmpty(context);
+                }
+
                 return;
             }
 
-            var list = new List<Entry>(types.Count);
-            foreach (INamedTypeSymbol t in types)
+            // Manifest is owned by the Cloud Code deploy shell only (avoids emitting LiveOpsManifest into test / tool projects that reference this generator).
+            if (!string.Equals(compilation.Assembly.Name, "LiveOps", StringComparison.Ordinal))
             {
-                if (t.IsAbstract)
+                return;
+            }
+
+            var manifestEntries = new List<Entry>(keyRecords.Count);
+            foreach (KeyTypeRecord r in keyRecords)
+            {
+                if (r.Type.IsAbstract)
                 {
                     continue;
                 }
 
-                if (t.TypeKind is not (TypeKind.Class or TypeKind.Struct))
+                if (r.Type.TypeKind is not (TypeKind.Class or TypeKind.Struct))
                 {
                     continue;
                 }
 
-                ITypeSymbol? req = null;
-                ITypeSymbol? res = null;
-                bool h = iGameHandler2 is not null && TryGetHandlerArgs(t, iGameHandler2, out req, out res);
-                bool m = iModule is not null && ImplementsInterface(t, iModule);
-                if (h || m)
+                if (r.IsGameApiHandler || r.IsGameModule)
                 {
-                    list.Add(new Entry(t, h, m, h ? req : null, h ? res : null));
+                    manifestEntries.Add(
+                        new Entry(
+                            r.Type,
+                            r.IsGameApiHandler,
+                            r.IsGameModule,
+                            r.IsGameApiHandler ? r.RequestType : null,
+                            r.IsGameApiHandler ? r.ResponseType : null));
                 }
             }
 
-            Emit(context, list);
+            Emit(context, manifestEntries);
         }
 
-        private static void EmitLiveOpsKeysCatalog(
-            SourceProductionContext context,
-            Compilation compilation,
-            IReadOnlyCollection<INamedTypeSymbol> types)
+        private static List<KeyTypeRecord> BuildKeyTypeRecords(
+            IReadOnlyCollection<INamedTypeSymbol> types,
+            INamedTypeSymbol? keyAttr,
+            INamedTypeSymbol? gameApiAttr,
+            INamedTypeSymbol? moduleRequest,
+            INamedTypeSymbol? iGameModuleData,
+            INamedTypeSymbol? iGameHandler2,
+            INamedTypeSymbol? iModule)
         {
-            INamedTypeSymbol? keyAttr = compilation.GetTypeByMetadataName("LiveOps.DTO.Keys.LiveOpsKeyAttribute");
-            if (keyAttr is null)
-            {
-                return;
-            }
-
-            var valueToIdentifier = new Dictionary<string, string>(StringComparer.Ordinal);
-            var usedConstNames = new HashSet<string>(StringComparer.Ordinal);
+            var list = new List<KeyTypeRecord>(types.Count);
             foreach (INamedTypeSymbol t in types)
             {
                 if (t is null)
@@ -89,31 +131,164 @@ namespace Scaffold.LiveOps.Bootstrap.Generators
                     continue;
                 }
 
-                if (t.GetAttributes().IsDefaultOrEmpty)
+                string moduleKey = ResolveModuleKey(t, keyAttr);
+                bool isModuleRequestSubtype = moduleRequest is not null && InheritsFrom(t, moduleRequest);
+                bool isGameModuleData = iGameModuleData is not null && ImplementsInterface(t, iGameModuleData);
+                string? wireKey = ResolveWireKeyNullable(t, gameApiAttr, moduleRequest);
+                bool hasLiveOpsKey = HasLiveOpsKeyAttribute(t, keyAttr);
+
+                bool isHandler = false;
+                bool isMod = false;
+                ITypeSymbol? req = null;
+                ITypeSymbol? res = null;
+                if (!t.IsAbstract && t.TypeKind is TypeKind.Class or TypeKind.Struct)
+                {
+                    if (iGameHandler2 is not null)
+                    {
+                        isHandler = TryGetHandlerArgs(t, iGameHandler2, out req, out res);
+                    }
+
+                    if (iModule is not null)
+                    {
+                        isMod = ImplementsInterface(t, iModule);
+                    }
+                }
+
+                list.Add(
+                    new KeyTypeRecord(
+                        t,
+                        moduleKey,
+                        wireKey,
+                        hasLiveOpsKey,
+                        isModuleRequestSubtype,
+                        isGameModuleData,
+                        isHandler,
+                        isMod,
+                        req,
+                        res));
+            }
+
+            return list;
+        }
+
+        private static bool HasLiveOpsKeyAttribute(INamedTypeSymbol t, INamedTypeSymbol? keyAttr)
+        {
+            if (keyAttr is null || t.GetAttributes().IsDefaultOrEmpty)
+            {
+                return false;
+            }
+
+            foreach (AttributeData ad in t.GetAttributes())
+            {
+                if (ad.AttributeClass is null || !SymbolEqualityComparer.Default.Equals(ad.AttributeClass, keyAttr) ||
+                    ad.ConstructorArguments.Length < 1)
                 {
                     continue;
                 }
 
+                if (ad.ConstructorArguments[0].Value is string v && !string.IsNullOrEmpty(v))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static string ResolveModuleKey(INamedTypeSymbol t, INamedTypeSymbol? keyAttr)
+        {
+            if (keyAttr is not null)
+            {
                 foreach (AttributeData ad in t.GetAttributes())
                 {
-                    if (ad.AttributeClass is null || !SymbolEqualityComparer.Default.Equals(ad.AttributeClass, keyAttr)
-                        || ad.ConstructorArguments.Length < 1)
+                    if (ad.AttributeClass is null || !SymbolEqualityComparer.Default.Equals(ad.AttributeClass, keyAttr) ||
+                        ad.ConstructorArguments.Length < 1)
                     {
                         continue;
                     }
 
-                    if (ad.ConstructorArguments[0].Value is not string value || string.IsNullOrEmpty(value))
+                    if (ad.ConstructorArguments[0].Value is string value && !string.IsNullOrEmpty(value))
                     {
-                        continue;
+                        return value;
                     }
-
-                    if (valueToIdentifier.ContainsKey(value))
-                    {
-                        continue;
-                    }
-
-                    valueToIdentifier[value] = MakeUniqueConstIdentifier(value, usedConstNames);
                 }
+            }
+
+            return t.Name;
+        }
+
+        /// <summary>
+        /// Wire key only for GameApi / ModuleRequest; null for persistence, config, and other storage-only DTOs
+        /// (avoids duplicating the module/storage string as a fake wire key).
+        /// </summary>
+        private static string? ResolveWireKeyNullable(
+            INamedTypeSymbol t,
+            INamedTypeSymbol? gameApiAttr,
+            INamedTypeSymbol? moduleRequest)
+        {
+            if (gameApiAttr is not null)
+            {
+                foreach (AttributeData ad in t.GetAttributes())
+                {
+                    if (ad.AttributeClass is null || !SymbolEqualityComparer.Default.Equals(ad.AttributeClass, gameApiAttr) ||
+                        ad.ConstructorArguments.Length < 1)
+                    {
+                        continue;
+                    }
+
+                    if (ad.ConstructorArguments[0].Value is string s && !string.IsNullOrEmpty(s))
+                    {
+                        return s;
+                    }
+                }
+            }
+
+            if (moduleRequest is not null && InheritsFrom(t, moduleRequest))
+            {
+                return t.Name;
+            }
+
+            return null;
+        }
+
+        private static void EmitLiveOpsKeysCatalog(
+            SourceProductionContext context,
+            Compilation compilation,
+            IReadOnlyList<KeyTypeRecord> keyRecords,
+            INamedTypeSymbol? keyAttr)
+        {
+            if (keyAttr is null)
+            {
+                return;
+            }
+
+            if (!string.Equals(compilation.Assembly.Name, "LiveOps", StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            var valueToIdentifier = new Dictionary<string, string>(StringComparer.Ordinal);
+            var usedConstNames = new HashSet<string>(StringComparer.Ordinal);
+            foreach (KeyTypeRecord r in keyRecords)
+            {
+                if (!r.HasLiveOpsKeyAttribute)
+                {
+                    continue;
+                }
+
+                // Const catalog: snapshot modules (GameData) and request types only — not per-slot persistence/config keys.
+                if (!r.IsModuleRequestSubtype && !r.IsGameModuleData)
+                {
+                    continue;
+                }
+
+                string value = r.ModuleKey;
+                if (string.IsNullOrEmpty(value) || valueToIdentifier.ContainsKey(value))
+                {
+                    continue;
+                }
+
+                valueToIdentifier[value] = MakeUniqueConstIdentifier(value, usedConstNames);
             }
 
             if (valueToIdentifier.Count == 0)
@@ -143,18 +318,18 @@ namespace Scaffold.LiveOps.Bootstrap.Generators
 
         private static void ReportWireKeyCollisionsIfAny(
             SourceProductionContext context,
-            Compilation compilation,
-            IReadOnlyCollection<INamedTypeSymbol> types)
+            IReadOnlyList<KeyTypeRecord> keyRecords,
+            INamedTypeSymbol? moduleRequest)
         {
-            INamedTypeSymbol? moduleRequest = compilation.GetTypeByMetadataName("LiveOps.DTO.ModuleRequest.ModuleRequest");
             if (moduleRequest is null)
             {
                 return;
             }
 
             var wireToTypes = new Dictionary<string, List<INamedTypeSymbol>>(StringComparer.Ordinal);
-            foreach (INamedTypeSymbol t in types)
+            foreach (KeyTypeRecord r in keyRecords)
             {
+                INamedTypeSymbol t = r.Type;
                 if (t.IsAbstract || t.TypeKind is not (TypeKind.Class or TypeKind.Struct))
                 {
                     continue;
@@ -166,12 +341,12 @@ namespace Scaffold.LiveOps.Bootstrap.Generators
                     continue;
                 }
 
-                if (!InheritsFrom(t, moduleRequest))
+                if (!r.IsModuleRequestSubtype)
                 {
                     continue;
                 }
 
-                string wire = ResolveWireKeyForType(compilation, t);
+                string wire = r.WireKey!;
                 if (!wireToTypes.TryGetValue(wire, out List<INamedTypeSymbol>? list))
                 {
                     list = new List<INamedTypeSymbol>(2);
@@ -181,13 +356,6 @@ namespace Scaffold.LiveOps.Bootstrap.Generators
                 list.Add(t);
             }
 
-            var duplicateWire = new DiagnosticDescriptor(
-                id: "LOPSKEY001",
-                title: "Duplicate GameApi wire key",
-                messageFormat: "Duplicate wire key '{0}' for types: {1}",
-                category: "LiveOps",
-                defaultSeverity: DiagnosticSeverity.Error,
-                isEnabledByDefault: true);
             foreach (KeyValuePair<string, List<INamedTypeSymbol>> kv in wireToTypes)
             {
                 if (kv.Value.Count < 2)
@@ -203,8 +371,98 @@ namespace Scaffold.LiveOps.Bootstrap.Generators
 
                 string joined = string.Join(", ", names);
                 context.ReportDiagnostic(
-                    Diagnostic.Create(duplicateWire, Location.None, kv.Key, joined));
+                    Diagnostic.Create(s_duplicateWire, Location.None, kv.Key, joined));
             }
+        }
+
+        private static void ReportMissingKeyMapInDtoAssembliesIfAny(
+            SourceProductionContext context,
+            Compilation compilation,
+            IReadOnlyList<KeyTypeRecord> keyRecords)
+        {
+            if (!string.Equals(compilation.Assembly.Name, "LiveOps", StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            var reported = new HashSet<IAssemblySymbol>(SymbolEqualityComparer.Default);
+            foreach (KeyTypeRecord r in keyRecords)
+            {
+                if (!r.HasLiveOpsKeyAttribute)
+                {
+                    continue;
+                }
+
+                IAssemblySymbol asm = r.Type.ContainingAssembly;
+                string? asmName = asm.Name;
+                if (asmName is not null && asmName.IndexOf("Test", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    continue;
+                }
+
+                if (SymbolEqualityComparer.Default.Equals(asm, compilation.Assembly))
+                {
+                    continue;
+                }
+
+                if (!reported.Add(asm))
+                {
+                    continue;
+                }
+
+                if (FindLiveOpsKeyRuntimeMapType(asm) is not null)
+                {
+                    continue;
+                }
+
+                context.ReportDiagnostic(
+                    Diagnostic.Create(s_missingGeneratorRef, Location.None, asmName ?? asm.ToDisplayString()));
+            }
+        }
+
+        private static INamedTypeSymbol? FindLiveOpsKeyRuntimeMapType(IAssemblySymbol assembly)
+        {
+            INamespaceSymbol? ns = assembly.GlobalNamespace;
+            ns = FindChildNamespace(ns, "LiveOps");
+            if (ns is null)
+            {
+                return null;
+            }
+
+            ns = FindChildNamespace(ns, "Keys");
+            if (ns is null)
+            {
+                return null;
+            }
+
+            ns = FindChildNamespace(ns, "Generated");
+            if (ns is null)
+            {
+                return null;
+            }
+
+            foreach (INamedTypeSymbol t in ns.GetTypeMembers())
+            {
+                if (t.Name == "LiveOpsKeyRuntimeMap")
+                {
+                    return t;
+                }
+            }
+
+            return null;
+        }
+
+        private static INamespaceSymbol? FindChildNamespace(INamespaceSymbol parent, string name)
+        {
+            foreach (INamespaceSymbol child in parent.GetNamespaceMembers())
+            {
+                if (child.Name == name)
+                {
+                    return child;
+                }
+            }
+
+            return null;
         }
 
         private static bool InheritsFrom(INamedTypeSymbol type, INamedTypeSymbol baseType)
@@ -223,27 +481,108 @@ namespace Scaffold.LiveOps.Bootstrap.Generators
             return false;
         }
 
-        private static string ResolveWireKeyForType(Compilation compilation, INamedTypeSymbol t)
+        private static void EmitRuntimeKeyMap(
+            SourceProductionContext context,
+            Compilation compilation,
+            IReadOnlyList<KeyTypeRecord> keyRecords)
         {
-            INamedTypeSymbol? gameApi = compilation.GetTypeByMetadataName("LiveOps.DTO.Keys.GameApiRequestAttribute");
-            if (gameApi is not null)
+            IAssemblySymbol sourceAssembly = compilation.Assembly;
+            var list = new List<KeyTypeRecord>(32);
+            foreach (KeyTypeRecord r in keyRecords)
             {
-                foreach (AttributeData ad in t.GetAttributes())
+                if (!r.HasLiveOpsKeyAttribute)
                 {
-                    if (ad.AttributeClass is null || !SymbolEqualityComparer.Default.Equals(ad.AttributeClass, gameApi) ||
-                        ad.ConstructorArguments.Length < 1)
-                    {
-                        continue;
-                    }
-
-                    if (ad.ConstructorArguments[0].Value is string s && !string.IsNullOrEmpty(s))
-                    {
-                        return s;
-                    }
+                    continue;
                 }
+
+                if (!SymbolEqualityComparer.Default.Equals(r.Type.ContainingAssembly, sourceAssembly))
+                {
+                    continue;
+                }
+
+                list.Add(r);
             }
 
-            return t.Name;
+            if (list.Count == 0)
+            {
+                return;
+            }
+
+            list.Sort(
+                (a, b) => string.Compare(
+                    a.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                    b.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                    StringComparison.Ordinal));
+
+            var sb = new StringBuilder(8192);
+            sb.AppendLine("// <auto-generated/>");
+            sb.AppendLine("#nullable enable");
+            sb.AppendLine("using System;");
+            sb.AppendLine("using System.Collections.Generic;");
+            sb.AppendLine("using System.Runtime.CompilerServices;");
+            sb.AppendLine("using LiveOps.DTO.Keys;");
+            sb.AppendLine();
+            sb.AppendLine("namespace LiveOps.Keys.Generated");
+            sb.AppendLine("{");
+            sb.AppendLine("  internal static class LiveOpsKeyRuntimeMap");
+            sb.AppendLine("  {");
+            sb.AppendLine("    private static readonly KeyValuePair<RuntimeTypeHandle, global::LiveOps.DTO.Keys.LiveOpsKeyResolution>[] s_entries =");
+            sb.AppendLine("      new KeyValuePair<RuntimeTypeHandle, global::LiveOps.DTO.Keys.LiveOpsKeyResolution>[]");
+            sb.AppendLine("      {");
+
+            for (int i = 0; i < list.Count; i++)
+            {
+                KeyTypeRecord e = list[i];
+                string typeFq = e.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                string mEsc = EscapeCSharpStringLiteral(e.ModuleKey);
+                sb.Append("        new KeyValuePair<RuntimeTypeHandle, global::LiveOps.DTO.Keys.LiveOpsKeyResolution>(")
+                    .Append("typeof(")
+                    .Append(typeFq)
+                    .Append(").TypeHandle, new global::LiveOps.DTO.Keys.LiveOpsKeyResolution(\"")
+                    .Append(mEsc)
+                    .Append("\", ");
+                if (e.WireKey is null)
+                {
+                    sb.Append("null");
+                }
+                else
+                {
+                    sb.Append('"').Append(EscapeCSharpStringLiteral(e.WireKey)).Append('"');
+                }
+
+                sb.Append("))");
+                sb.AppendLine(i < list.Count - 1 ? "," : string.Empty);
+            }
+
+            sb.AppendLine("      };");
+            sb.AppendLine();
+            sb.AppendLine("    [ModuleInitializer]");
+            sb.AppendLine("    internal static void Register()");
+            sb.AppendLine("    {");
+            sb.AppendLine("      global::LiveOps.DTO.Keys.LiveOpsKeyResolver.Contribute(s_entries);");
+            sb.AppendLine("    }");
+            sb.AppendLine("  }");
+            sb.AppendLine("}");
+            sb.AppendLine();
+            sb.AppendLine("namespace System.Runtime.CompilerServices");
+            sb.AppendLine("{");
+            sb.AppendLine("  [AttributeUsage(AttributeTargets.Method, Inherited = false)]");
+            sb.AppendLine("  internal sealed class ModuleInitializerAttribute : Attribute");
+            sb.AppendLine("  {");
+            sb.AppendLine("  }");
+            sb.AppendLine("}");
+
+            context.AddSource("LiveOpsKeyRuntimeMap.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
+        }
+
+        private static string EscapeCSharpStringLiteral(string s)
+        {
+            if (s is null)
+            {
+                return string.Empty;
+            }
+
+            return s.Replace("\\", "\\\\").Replace("\"", "\\\"");
         }
 
         private static string MakeUniqueConstIdentifier(string value, HashSet<string> usedConstNames)
@@ -331,8 +670,13 @@ namespace Scaffold.LiveOps.Bootstrap.Generators
                 return false;
             }
 
-            return n.StartsWith("LiveOps", StringComparison.Ordinal) &&
-                (n is "LiveOps.Modules" or "LiveOps.Core" or "LiveOps" or "LiveOps.DTO" or "LiveOps.Modules.DTO");
+            if (!n.StartsWith("LiveOps", StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            return n is "LiveOps.Modules" or "LiveOps.Core" or "LiveOps" or "LiveOps.DTO" or "LiveOps.Modules.DTO"
+                || (n.EndsWith(".DTO", StringComparison.Ordinal) && n.StartsWith("LiveOps.", StringComparison.Ordinal));
         }
 
         private static void VisitAssembly(IAssemblySymbol assembly, HashSet<INamedTypeSymbol> outTypes)
@@ -461,6 +805,53 @@ namespace Scaffold.LiveOps.Bootstrap.Generators
             sb.AppendLine("}");
 
             context.AddSource("LiveOpsManifest.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
+        }
+
+        private readonly struct KeyTypeRecord
+        {
+            public KeyTypeRecord(
+                INamedTypeSymbol type,
+                string moduleKey,
+                string? wireKey,
+                bool hasLiveOpsKeyAttribute,
+                bool isModuleRequestSubtype,
+                bool isGameModuleData,
+                bool isGameApiHandler,
+                bool isGameModule,
+                ITypeSymbol? requestType,
+                ITypeSymbol? responseType)
+            {
+                Type = type;
+                ModuleKey = moduleKey;
+                WireKey = wireKey;
+                HasLiveOpsKeyAttribute = hasLiveOpsKeyAttribute;
+                IsModuleRequestSubtype = isModuleRequestSubtype;
+                IsGameModuleData = isGameModuleData;
+                IsGameApiHandler = isGameApiHandler;
+                IsGameModule = isGameModule;
+                RequestType = requestType;
+                ResponseType = responseType;
+            }
+
+            public INamedTypeSymbol Type { get; }
+
+            public string ModuleKey { get; }
+
+            public string? WireKey { get; }
+
+            public bool HasLiveOpsKeyAttribute { get; }
+
+            public bool IsModuleRequestSubtype { get; }
+
+            public bool IsGameModuleData { get; }
+
+            public bool IsGameApiHandler { get; }
+
+            public bool IsGameModule { get; }
+
+            public ITypeSymbol? RequestType { get; }
+
+            public ITypeSymbol? ResponseType { get; }
         }
 
         private readonly struct Entry

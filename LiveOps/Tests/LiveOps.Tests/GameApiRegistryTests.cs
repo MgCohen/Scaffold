@@ -39,7 +39,7 @@ namespace LiveOps.Tests
                 Task.FromResult(new NoKeyResponse());
         }
 
-        private static class CollideNameNs1
+        internal static class CollideNameNs1
         {
             [LiveOpsKey("CollideRequest")]
             public sealed class CollideRequest : ModuleRequest<CollideResponse1>
@@ -57,7 +57,7 @@ namespace LiveOps.Tests
             }
         }
 
-        private static class CollideNameNs2
+        internal static class CollideNameNs2
         {
             [LiveOpsKey("CollideRequest")]
             public sealed class CollideRequest : ModuleRequest<CollideResponse2>

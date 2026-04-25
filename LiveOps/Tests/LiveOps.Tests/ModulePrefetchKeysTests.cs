@@ -13,7 +13,7 @@ namespace LiveOps.Tests
     public sealed class ModulePrefetchKeysTests
     {
         [LiveOpsKey("StubData")]
-        private sealed class StubData : IGameModuleData
+        internal sealed class StubData : IGameModuleData
         {
         }
 

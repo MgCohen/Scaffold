@@ -5,6 +5,9 @@
     <Configurations>Debug;Release</Configurations>
     <AssemblyName>LiveOps</AssemblyName>
     <RootNamespace>LiveOps</RootNamespace>
+    <!-- Writes Roslyn output under obj/Generated/Scaffold.LiveOps.Bootstrap.Generators/.../ (LiveOpsKeys.g.cs, LiveOpsManifest.g.cs). -->
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    <CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)Generated</CompilerGeneratedFilesOutputPath>
   </PropertyGroup>
 
   <ItemGroup>

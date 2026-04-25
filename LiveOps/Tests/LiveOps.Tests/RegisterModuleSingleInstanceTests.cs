@@ -12,7 +12,7 @@ namespace LiveOps.Tests
     public sealed class RegisterModuleSingleInstanceTests
     {
         [LiveOpsKey("SampleData")]
-        private sealed class SampleData : IGameModuleData
+        internal sealed class SampleData : IGameModuleData
         {
         }
 
