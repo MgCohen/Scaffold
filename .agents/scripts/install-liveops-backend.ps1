@@ -77,6 +77,57 @@ if (Test-Path $templateDeploySln) {
     if ($DryRun) { Write-Host "Would copy $templateDeploySln -> $deploySln" }
     else { Copy-Item -Path $templateDeploySln -Destination $deploySln -Force }
 }
+
+# Sync the deploy solution against on-disk reality:
+#   - prune: drop Project entries whose .csproj does not exist (e.g. peer Scaffold packages opted out)
+#   - add: register every LiveOps/Scaffold/** + LiveOps/Game/** csproj (excluding *.Tests.csproj)
+# Mirrors LiveOpsBackendInstall.PruneMissingProjectsFromSolution + EnsureDiscoveredProjectsInSolution.
+# Requires `dotnet` on PATH; on failure we warn-and-continue because the build still resolves these
+# via Scaffold.LiveOps.Deploy.targets globs.
+if (-not $DryRun -and (Test-Path $deploySln)) {
+    $dotnet = Get-Command dotnet -ErrorAction SilentlyContinue
+    if (-not $dotnet) {
+        Write-Warning "dotnet not on PATH — skipping LiveOps.Deploy.sln prune+add. Build still works via Scaffold.LiveOps.Deploy.targets globs."
+    }
+    else {
+        $slnDir = Split-Path -Parent $deploySln
+        $projectLineRegex = '^Project\("\{[0-9A-Fa-f-]+\}"\)\s*=\s*"[^"]*",\s*"([^"]+\.csproj)",\s*"\{[0-9A-Fa-f-]+\}"\s*$'
+        $existing = New-Object System.Collections.Generic.HashSet[string] ([System.StringComparer]::OrdinalIgnoreCase)
+        foreach ($line in Get-Content -LiteralPath $deploySln) {
+            $m = [System.Text.RegularExpressions.Regex]::Match($line, $projectLineRegex)
+            if (-not $m.Success) { continue }
+            $rel = $m.Groups[1].Value.Replace('\', [IO.Path]::DirectorySeparatorChar).Replace('/', [IO.Path]::DirectorySeparatorChar)
+            $full = [IO.Path]::GetFullPath((Join-Path $slnDir $rel))
+            if (-not (Test-Path -LiteralPath $full)) {
+                & dotnet sln $deploySln remove $full | Out-Null
+            }
+            else {
+                [void]$existing.Add($full)
+            }
+        }
+        $candidates = @()
+        foreach ($sub in @("Scaffold", "Game")) {
+            $root = Join-Path $destLive $sub
+            if (-not (Test-Path -LiteralPath $root)) { continue }
+            $candidates += Get-ChildItem -LiteralPath $root -Recurse -Filter *.csproj -File -ErrorAction SilentlyContinue |
+                Where-Object { -not $_.Name.EndsWith('.Tests.csproj', [StringComparison]::OrdinalIgnoreCase) }
+        }
+        $toAdd = @()
+        foreach ($f in $candidates) {
+            if (-not $existing.Contains([IO.Path]::GetFullPath($f.FullName))) { $toAdd += $f.FullName }
+        }
+        if ($toAdd.Count -gt 0) {
+            & dotnet sln $deploySln add @toAdd
+            if ($LASTEXITCODE -ne 0) {
+                Write-Warning "dotnet sln add returned $LASTEXITCODE; build still works via Scaffold.LiveOps.Deploy.targets globs."
+            }
+            else {
+                Write-Host "Synced $($toAdd.Count) feature/game project(s) into $deploySln"
+            }
+        }
+    }
+}
+
 Write-Host "Game tree preserved. Cloud Code (.ccmr): use $(Join-Path $destLive 'LiveOps.Deploy.sln') (not LiveOps.sln, which includes tests and can exceed the 10MB upload cap)."
 if (-not $DryRun) {
     Write-Host "Optional: dotnet build `"$destLive\Deploy\LiveOps\LiveOps.csproj`" -c Release"

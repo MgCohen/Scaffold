@@ -154,11 +154,201 @@ namespace Scaffold.LiveOps.Editor
             {
                 WriteInstallRecord(installRecord, ReadComScaffoldLiveopsVersion(ctx.HostBack));
             }
-            CopyRequiredHostTemplate(dryRun, Path.Combine(ctx.HostBack, "LiveOps.Deploy.sln"), Path.Combine(ctx.DestLive, "LiveOps.Deploy.sln"), "copy solution");
+            string deploySln = Path.Combine(ctx.DestLive, "LiveOps.Deploy.sln");
+            CopyRequiredHostTemplate(dryRun, Path.Combine(ctx.HostBack, "LiveOps.Deploy.sln"), deploySln, "copy solution");
+            PruneMissingProjectsFromSolution(deploySln, dryRun);
+            EnsureDiscoveredProjectsInSolution(ctx, deploySln, dryRun);
         }
 
-        // Host template files (Deploy solution + manifest) are required. Surface a clear error when the
-        // resolved package is missing them — usually a UPM Git pull where .sln/.csproj are gitignored.
+        /// <summary>Sample: register on-disk LiveOps/Scaffold/** and LiveOps/Game/** csproj files in the deploy solution via <c>dotnet sln add</c>; warn-and-continue if dotnet is missing because the glob-based Deploy.targets still wires the build.</summary>
+        private static void EnsureDiscoveredProjectsInSolution(LiveOpsBackendInstallContext ctx, string slnPath, bool dryRun)
+        {
+            if (dryRun) return;
+            if (!File.Exists(slnPath)) return;
+            List<string> discovered = DiscoverDeployFeatureProjects(ctx.DestLive);
+            if (discovered.Count == 0) return;
+            List<string> missing = FilterMissingFromSolution(discovered, slnPath);
+            if (missing.Count == 0) return;
+            TryRunDotnetSlnAdd(slnPath, missing);
+        }
+
+        private static List<string> FilterMissingFromSolution(List<string> discovered, string slnPath)
+        {
+            HashSet<string> existing = ReadSolutionProjectFullPaths(slnPath);
+            var missing = new List<string>(discovered.Count);
+            foreach (string csproj in discovered)
+            {
+                if (!existing.Contains(Path.GetFullPath(csproj))) missing.Add(csproj);
+            }
+            return missing;
+        }
+
+        private static void TryRunDotnetSlnAdd(string slnPath, List<string> missing)
+        {
+            try
+            {
+                RunDotnetSlnAdd(slnPath, missing);
+            }
+            catch (Exception ex)
+            {
+                UnityEngine.Debug.LogWarning("[LiveOps] Skipped solution sync (dotnet sln add failed): " + ex.Message + ". Build still works via Scaffold.LiveOps.Deploy.targets globs.");
+            }
+        }
+
+        private static List<string> DiscoverDeployFeatureProjects(string destLive)
+        {
+            var result = new List<string>();
+            EnumerateDeployFeatureProjects(Path.Combine(destLive, "Scaffold"), result);
+            EnumerateDeployFeatureProjects(Path.Combine(destLive, "Game"), result);
+            return result;
+        }
+
+        private static void EnumerateDeployFeatureProjects(string root, List<string> sink)
+        {
+            if (!Directory.Exists(root)) return;
+            foreach (string csproj in Directory.EnumerateFiles(root, "*.csproj", SearchOption.AllDirectories))
+            {
+                if (csproj.EndsWith(".Tests.csproj", StringComparison.OrdinalIgnoreCase)) continue;
+                sink.Add(csproj);
+            }
+        }
+
+        private static HashSet<string> ReadSolutionProjectFullPaths(string slnPath)
+        {
+            var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            string slnDir = Path.GetDirectoryName(Path.GetFullPath(slnPath)) ?? string.Empty;
+            var projectLine = new Regex("^Project\\(\"\\{[0-9A-Fa-f-]+\\}\"\\)\\s*=\\s*\"[^\"]*\",\\s*\"([^\"]+)\",\\s*\"\\{[0-9A-Fa-f-]+\\}\"\\s*$", RegexOptions.CultureInvariant);
+            foreach (string line in File.ReadAllLines(slnPath))
+            {
+                AddProjectFullPathFromLine(line, slnDir, projectLine, set);
+            }
+            return set;
+        }
+
+        private static void AddProjectFullPathFromLine(string line, string slnDir, Regex projectLine, HashSet<string> set)
+        {
+            Match m = projectLine.Match(line);
+            if (!m.Success) return;
+            string rel = m.Groups[1].Value;
+            if (!rel.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase)) return;
+            string normalized = rel.Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
+            string combined = Path.Combine(slnDir, normalized);
+            set.Add(Path.GetFullPath(combined));
+        }
+
+        private static void RunDotnetSlnAdd(string slnPath, List<string> csprojPaths)
+        {
+            var startInfo = BuildDotnetSlnAddStartInfo(slnPath, csprojPaths);
+            using var proc = Process.Start(startInfo);
+            if (proc is null) throw new InvalidOperationException("Failed to start dotnet process.");
+            string stdout = proc.StandardOutput.ReadToEnd();
+            string stderr = proc.StandardError.ReadToEnd();
+            proc.WaitForExit();
+            if (proc.ExitCode != 0) throw new InvalidOperationException("dotnet sln add exit " + proc.ExitCode + ": " + stderr.Trim() + " " + stdout.Trim());
+            UnityEngine.Debug.Log("[LiveOps] Synced " + csprojPaths.Count + " feature/game project(s) into " + slnPath);
+        }
+
+        private static ProcessStartInfo BuildDotnetSlnAddStartInfo(string slnPath, List<string> csprojPaths)
+        {
+            string arguments = BuildDotnetSlnAddArgumentsLine(slnPath, csprojPaths);
+            return new ProcessStartInfo
+            {
+                FileName = "dotnet",
+                Arguments = arguments,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardError = true,
+                RedirectStandardOutput = true,
+            };
+        }
+
+        private static string BuildDotnetSlnAddArgumentsLine(string slnPath, List<string> csprojPaths)
+        {
+            var sb = new StringBuilder(256);
+            sb.Append("sln ");
+            sb.Append(QuoteForCmd(slnPath));
+            sb.Append(" add");
+            foreach (string csproj in csprojPaths)
+            {
+                sb.Append(' ');
+                sb.Append(QuoteForCmd(csproj));
+            }
+            return sb.ToString();
+        }
+
+        /// <summary>Sample: strip <c>Project</c> entries from <paramref name="slnPath"/> whose <c>.csproj</c> is absent (peer LiveOps packages opted out), so <c>ugs deploy</c> / <c>dotnet build</c> don't fail with MSB3202.</summary>
+        private static void PruneMissingProjectsFromSolution(string slnPath, bool dryRun)
+        {
+            if (dryRun) return;
+            if (!File.Exists(slnPath)) return;
+            string[] lines = File.ReadAllLines(slnPath);
+            var projectLine = new Regex("^Project\\(\"\\{[0-9A-Fa-f-]+\\}\"\\)\\s*=\\s*\"[^\"]*\",\\s*\"([^\"]+)\",\\s*\"(\\{[0-9A-Fa-f-]+\\})\"\\s*$", RegexOptions.CultureInvariant);
+            HashSet<string> missingGuids = CollectMissingProjectGuids(lines, slnPath, projectLine);
+            if (missingGuids.Count == 0) return;
+            List<string> output = StripProjectEntriesByGuid(lines, missingGuids, projectLine);
+            File.WriteAllLines(slnPath, output, new UTF8Encoding(false));
+            UnityEngine.Debug.Log("[LiveOps] Pruned " + missingGuids.Count + " missing project reference(s) from " + slnPath);
+        }
+
+        private static HashSet<string> CollectMissingProjectGuids(string[] lines, string slnPath, Regex projectLine)
+        {
+            string slnDir = Path.GetDirectoryName(Path.GetFullPath(slnPath)) ?? string.Empty;
+            var missingGuids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (string line in lines)
+            {
+                AddIfMissingProjectGuid(line, slnDir, projectLine, missingGuids);
+            }
+            return missingGuids;
+        }
+
+        private static void AddIfMissingProjectGuid(string line, string slnDir, Regex projectLine, HashSet<string> missingGuids)
+        {
+            Match m = projectLine.Match(line);
+            if (!m.Success) return;
+            string rel = m.Groups[1].Value;
+            if (!rel.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase)) return;
+            string normalized = rel.Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
+            string combined = Path.Combine(slnDir, normalized);
+            string full = Path.GetFullPath(combined);
+            if (!File.Exists(full)) missingGuids.Add(m.Groups[2].Value);
+        }
+
+        private static List<string> StripProjectEntriesByGuid(string[] lines, HashSet<string> missingGuids, Regex projectLine)
+        {
+            var output = new List<string>(lines.Length);
+            bool dropping = false;
+            foreach (string raw in lines)
+            {
+                dropping = ProcessSlnLineForStrip(raw, missingGuids, projectLine, dropping, output);
+            }
+            return output;
+        }
+
+        private static bool ProcessSlnLineForStrip(string raw, HashSet<string> missingGuids, Regex projectLine, bool dropping, List<string> output)
+        {
+            if (dropping)
+            {
+                if (raw.TrimStart().StartsWith("EndProject", StringComparison.Ordinal)) return false;
+                return true;
+            }
+            Match m = projectLine.Match(raw);
+            if (m.Success && missingGuids.Contains(m.Groups[2].Value)) return true;
+            if (LineStartsWithAnyGuid(raw, missingGuids)) return false;
+            output.Add(raw);
+            return false;
+        }
+
+        private static bool LineStartsWithAnyGuid(string raw, HashSet<string> missingGuids)
+        {
+            string trimmed = raw.TrimStart();
+            foreach (string g in missingGuids)
+            {
+                if (trimmed.StartsWith(g, StringComparison.OrdinalIgnoreCase)) return true;
+            }
+            return false;
+        }
+
+        /// <summary>Sample: copy a required host template (deploy solution or manifest) from <paramref name="from"/> to <paramref name="to"/>; throw a clear error when the source is missing (typical for UPM Git pulls that gitignore <c>Backend~</c> .sln/.csproj).</summary>
         private static void CopyRequiredHostTemplate(bool dryRun, string from, string to, string label)
         {
             if (!File.Exists(from))
