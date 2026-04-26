@@ -5,6 +5,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
+using UnityEditor.PackageManager;
 
 namespace Scaffold.LiveOps.Editor
 {
@@ -27,31 +28,79 @@ namespace Scaffold.LiveOps.Editor
         {
             if (string.IsNullOrEmpty(projectRoot)) throw new InvalidOperationException("Project root is empty.");
             projectRoot = Path.GetFullPath(projectRoot);
-            string packagesRoot = Path.Combine(projectRoot, "Assets", "Packages");
-            if (!Directory.Exists(packagesRoot)) throw new InvalidOperationException("No packages under: " + packagesRoot);
-            string hostBack = Path.Combine(packagesRoot, "com.scaffold.liveops", "Backend~");
-            if (!Directory.Exists(hostBack)) throw new InvalidOperationException("Host Backend~ not found: " + hostBack + " (install com.scaffold.liveops with Backend~, or run refresh-liveops-template.ps1 in the Scaffold repo).");
+            string hostBack = ResolveHostBackendDirectory(projectRoot);
             string destLive = Path.Combine(projectRoot, "LiveOps");
-            return new LiveOpsBackendInstallContext(projectRoot, packagesRoot, destLive, hostBack);
+            return new LiveOpsBackendInstallContext(projectRoot, destLive, hostBack);
+        }
+
+        private static string ResolveHostBackendDirectory(string projectRoot)
+        {
+            string embedded = Path.Combine(projectRoot, "Assets", "Packages", "com.scaffold.liveops", "Backend~");
+            if (Directory.Exists(embedded)) return Path.GetFullPath(embedded);
+
+            PackageInfo? info = PackageInfo.FindForAssembly(typeof(LiveOpsBackendInstall).Assembly);
+            if (info is not null && !string.IsNullOrEmpty(info.resolvedPath))
+            {
+                string fromUpm = Path.Combine(info.resolvedPath, "Backend~");
+                if (Directory.Exists(fromUpm)) return Path.GetFullPath(fromUpm);
+            }
+
+            throw new InvalidOperationException(
+                "Host Backend~ not found. Expected Assets/Packages/com.scaffold.liveops/Backend~ or the same under the UPM package path (e.g. Library/PackageCache/.../Backend~). " +
+                "Tried: " + embedded);
         }
 
         private static void MergeAllPackages(LiveOpsBackendInstallContext ctx, bool dryRun)
         {
-            var packageDirs = new List<string>(Directory.EnumerateDirectories(ctx.PackagesRoot));
-            packageDirs.Sort(StringComparer.OrdinalIgnoreCase);
+            List<(string BackPath, string Label)> entries = CollectBackendMergeEntries(ctx.ProjectRoot);
+            if (entries.Count == 0) throw new InvalidOperationException("No Backend~ folders found under Assets/Packages or UPM packages (expected at least com.scaffold.liveops/Backend~).");
             bool syncedAny = false;
-            foreach (string pkg in packageDirs)
+            foreach ((string backPath, string label) in entries)
             {
-                syncedAny = TryMergeOnePackage(ctx, pkg, dryRun) || syncedAny;
+                syncedAny = TryMergeOnePackage(ctx, backPath, label, dryRun) || syncedAny;
             }
-            if (!syncedAny) throw new InvalidOperationException("No Assets/Packages/*/Backend~ folders found (expected at least com.scaffold.liveops/Backend~).");
+            if (!syncedAny) throw new InvalidOperationException("No package Backend~ folders were merged (unexpected).");
         }
 
-        private static bool TryMergeOnePackage(LiveOpsBackendInstallContext ctx, string pkg, bool dryRun)
+        private static List<(string BackPath, string Label)> CollectBackendMergeEntries(string projectRoot)
         {
-            string back = Path.Combine(pkg, "Backend~");
-            if (!Directory.Exists(back)) return false;
-            string name = Path.GetFileName(pkg.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            var result = new List<(string, string)>();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            AddBackendsFromAssetsPackages(projectRoot, result, seen);
+            AddBackendsFromRegisteredPackages(result, seen);
+            result.Sort((a, b) => string.Compare(a.Item2, b.Item2, StringComparison.OrdinalIgnoreCase));
+            return result;
+        }
+
+        private static void AddBackendsFromAssetsPackages(string projectRoot, List<(string full, string label)> result, HashSet<string> seen)
+        {
+            string assetsPackages = Path.Combine(projectRoot, "Assets", "Packages");
+            if (!Directory.Exists(assetsPackages)) return;
+            foreach (string d in Directory.EnumerateDirectories(assetsPackages))
+            {
+                TryAddBackend(result, seen, Path.Combine(d, "Backend~"), Path.GetFileName(d));
+            }
+        }
+
+        private static void AddBackendsFromRegisteredPackages(List<(string full, string label)> result, HashSet<string> seen)
+        {
+            foreach (PackageInfo pi in PackageInfo.GetAllRegisteredPackages())
+            {
+                if (string.IsNullOrEmpty(pi.resolvedPath)) continue;
+                TryAddBackend(result, seen, Path.Combine(pi.resolvedPath, "Backend~"), pi.name);
+            }
+        }
+
+        private static void TryAddBackend(List<(string full, string label)> result, HashSet<string> seen, string backPath, string label)
+        {
+            if (!Directory.Exists(backPath)) return;
+            string full = Path.GetFullPath(backPath);
+            if (!seen.Add(full)) return;
+            result.Add((full, label));
+        }
+
+        private static bool TryMergeOnePackage(LiveOpsBackendInstallContext ctx, string back, string name, bool dryRun)
+        {
             UnityEngine.Debug.Log("[LiveOps] Merge Backend~ from " + name + " -> " + ctx.DestLive + " [" + (dryRun ? "dry-run" : "apply") + "]");
             if (dryRun) return true;
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -89,7 +138,7 @@ namespace Scaffold.LiveOps.Editor
             }
             else
             {
-                WriteInstallRecord(installRecord, ReadComScaffoldLiveopsVersion(ctx.ProjectRoot));
+                WriteInstallRecord(installRecord, ReadComScaffoldLiveopsVersion(ctx.HostBack));
             }
             CopyIfExistsDryRun(dryRun, Path.Combine(ctx.HostBack, "LiveOps.Deploy.sln"), Path.Combine(ctx.DestLive, "LiveOps.Deploy.sln"), "copy solution");
         }
@@ -202,7 +251,7 @@ namespace Scaffold.LiveOps.Editor
             sb.Append("    \"LiveOps/Scaffold\"\n");
             sb.Append("  ],\n");
             sb.Append("  \"lastUpdate\": \"").Append(EscapeJson(iso)).Append("\",\n");
-            sb.Append("  \"notes\": \"").Append(EscapeJson("Merged from Assets/Packages/*/Backend~ (host: com.scaffold.liveops/Backend~)")).Append("\"\n");
+            sb.Append("  \"notes\": \"").Append(EscapeJson("Merged from package Backend~ (Assets/Packages and UPM; host: com.scaffold.liveops)")).Append("\"\n");
             sb.Append("}\n");
             File.WriteAllText(path, sb.ToString(), new UTF8Encoding(false));
         }
@@ -212,9 +261,11 @@ namespace Scaffold.LiveOps.Editor
             return s.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal);
         }
 
-        private static string ReadComScaffoldLiveopsVersion(string projectRoot)
+        private static string ReadComScaffoldLiveopsVersion(string hostBackDirectory)
         {
-            string pkgPath = Path.Combine(projectRoot, "Assets", "Packages", "com.scaffold.liveops", "package.json");
+            string? packageRoot = Path.GetDirectoryName(hostBackDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            if (string.IsNullOrEmpty(packageRoot)) return "0.0.0";
+            string pkgPath = Path.Combine(packageRoot, "package.json");
             if (!File.Exists(pkgPath)) return "0.0.0";
             string text = File.ReadAllText(pkgPath);
             var m = Regex.Match(text, @"""version""\s*:\s*""([^""]+)""", RegexOptions.CultureInvariant);
