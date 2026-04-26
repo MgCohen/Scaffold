@@ -24,13 +24,27 @@ namespace Scaffold.LiveOps.Editor
             LogPostInstallHints(ctx.DestLive, dryRun);
         }
 
-        private static LiveOpsBackendInstallContext CreateContext(string projectRoot)
+        internal static LiveOpsBackendInstallContext CreateContext(string projectRoot)
         {
             if (string.IsNullOrEmpty(projectRoot)) throw new InvalidOperationException("Project root is empty.");
             projectRoot = Path.GetFullPath(projectRoot);
             string hostBack = ResolveHostBackendDirectory(projectRoot);
             string destLive = Path.Combine(projectRoot, "LiveOps");
             return new LiveOpsBackendInstallContext(projectRoot, destLive, hostBack);
+        }
+
+        /// <summary>Sample: merges a single <c>packageDir/Backend~</c> into <see cref="LiveOpsBackendInstallContext.DestLive"/>. Skips and logs if <c>Backend~</c> is missing (returns <c>false</c>).</summary>
+        internal static bool MergeOnePackage(LiveOpsBackendInstallContext ctx, string packageDir, bool dryRun)
+        {
+            string back = Path.Combine(Path.GetFullPath(packageDir), "Backend~");
+            if (!Directory.Exists(back))
+            {
+                UnityEngine.Debug.Log("[LiveOps] No Backend~ under " + packageDir + " — skipped.");
+                return false;
+            }
+
+            string name = Path.GetFileName(packageDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            return MergeFromBackendPath(ctx, Path.GetFullPath(back), name, dryRun);
         }
 
         private static string ResolveHostBackendDirectory(string projectRoot)
@@ -57,7 +71,7 @@ namespace Scaffold.LiveOps.Editor
             bool syncedAny = false;
             foreach ((string backPath, string label) in entries)
             {
-                syncedAny = TryMergeOnePackage(ctx, backPath, label, dryRun) || syncedAny;
+                syncedAny = MergeFromBackendPath(ctx, backPath, label, dryRun) || syncedAny;
             }
             if (!syncedAny) throw new InvalidOperationException("No package Backend~ folders were merged (unexpected).");
         }
@@ -99,7 +113,7 @@ namespace Scaffold.LiveOps.Editor
             result.Add((full, label));
         }
 
-        private static bool TryMergeOnePackage(LiveOpsBackendInstallContext ctx, string back, string name, bool dryRun)
+        private static bool MergeFromBackendPath(LiveOpsBackendInstallContext ctx, string back, string name, bool dryRun)
         {
             UnityEngine.Debug.Log("[LiveOps] Merge Backend~ from " + name + " -> " + ctx.DestLive + " [" + (dryRun ? "dry-run" : "apply") + "]");
             if (dryRun) return true;
@@ -114,7 +128,7 @@ namespace Scaffold.LiveOps.Editor
             return true;
         }
 
-        private static void EnsureGameDir(string destLive, bool dryRun)
+        internal static void EnsureGameDir(string destLive, bool dryRun)
         {
             string game = Path.Combine(destLive, "Game");
             if (Directory.Exists(game)) return;
@@ -128,9 +142,9 @@ namespace Scaffold.LiveOps.Editor
             }
         }
 
-        private static void ApplyHostTemplateFiles(LiveOpsBackendInstallContext ctx, bool dryRun)
+        internal static void ApplyHostTemplateFiles(LiveOpsBackendInstallContext ctx, bool dryRun)
         {
-            CopyIfExistsDryRun(dryRun, Path.Combine(ctx.HostBack, "liveops.manifest.template.json"), Path.Combine(ctx.DestLive, "liveops.manifest.json"), "copy manifest");
+            CopyRequiredHostTemplate(dryRun, Path.Combine(ctx.HostBack, "liveops.manifest.template.json"), Path.Combine(ctx.DestLive, "liveops.manifest.json"), "copy manifest");
             string installRecord = Path.Combine(ctx.DestLive, ".scaffold-install.json");
             if (dryRun)
             {
@@ -140,12 +154,20 @@ namespace Scaffold.LiveOps.Editor
             {
                 WriteInstallRecord(installRecord, ReadComScaffoldLiveopsVersion(ctx.HostBack));
             }
-            CopyIfExistsDryRun(dryRun, Path.Combine(ctx.HostBack, "LiveOps.Deploy.sln"), Path.Combine(ctx.DestLive, "LiveOps.Deploy.sln"), "copy solution");
+            CopyRequiredHostTemplate(dryRun, Path.Combine(ctx.HostBack, "LiveOps.Deploy.sln"), Path.Combine(ctx.DestLive, "LiveOps.Deploy.sln"), "copy solution");
         }
 
-        private static void CopyIfExistsDryRun(bool dryRun, string from, string to, string label)
+        // Host template files (Deploy solution + manifest) are required. Surface a clear error when the
+        // resolved package is missing them — usually a UPM Git pull where .sln/.csproj are gitignored.
+        private static void CopyRequiredHostTemplate(bool dryRun, string from, string to, string label)
         {
-            if (!File.Exists(from)) return;
+            if (!File.Exists(from))
+            {
+                throw new FileNotFoundException(
+                    "Host template missing: " + from + ". " +
+                    "If com.scaffold.liveops was installed via UPM Git, ensure the source repo's .gitignore does not ignore " +
+                    "Assets/Packages/**/Backend~/**/*.sln and *.csproj, and that the file is committed.", from);
+            }
             if (dryRun)
             {
                 UnityEngine.Debug.Log("[LiveOps] Would " + label + " " + from + " -> " + to);

@@ -165,6 +165,9 @@ Utility/**/bin
 # LiveOps Cloud Code .NET projects
 !LiveOps/**/*.csproj
 !LiveOps/**/*.sln
+# LiveOps package Backend~ templates (shipped via UPM Git so consumer projects can install them).
+!Assets/Packages/**/Backend~/**/*.csproj
+!Assets/Packages/**/Backend~/**/*.sln
 # Centralized build output (LiveOps/Directory.Build.props redirects bin/obj here).
 LiveOps/.artifacts/
 # Legacy in-tree bin/obj (kept ignored in case anyone restores the old layout locally).
