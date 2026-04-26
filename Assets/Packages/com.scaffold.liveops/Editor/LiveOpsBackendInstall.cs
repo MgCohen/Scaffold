@@ -13,6 +13,9 @@ namespace Scaffold.LiveOps.Editor
     internal static class LiveOpsBackendInstall
     {
         private static readonly string[] robocopyExcludeDirNames = { "bin", "obj", ".vs", ".artifacts" };
+        private static readonly Regex nestedProjectsMappingLine = new Regex(
+            "^\\s*(\\{[0-9A-Fa-f-]+\\})\\s*=\\s*\\{[0-9A-Fa-f-]+\\}\\s*$",
+            RegexOptions.CultureInvariant);
 
         /// <summary>Sample: orchestrates merge and host template steps; see class summary on LiveOpsBackendInstall.</summary>
         public static void Run(string projectRoot, bool dryRun)
@@ -144,23 +147,13 @@ namespace Scaffold.LiveOps.Editor
 
         internal static void ApplyHostTemplateFiles(LiveOpsBackendInstallContext ctx, bool dryRun)
         {
-            CopyRequiredHostTemplate(dryRun, Path.Combine(ctx.HostBack, "liveops.manifest.template.json"), Path.Combine(ctx.DestLive, "liveops.manifest.json"), "copy manifest");
-            string installRecord = Path.Combine(ctx.DestLive, ".scaffold-install.json");
-            if (dryRun)
-            {
-                UnityEngine.Debug.Log("[LiveOps] Would write: " + installRecord);
-            }
-            else
-            {
-                WriteInstallRecord(installRecord, ReadComScaffoldLiveopsVersion(ctx.HostBack));
-            }
             string deploySln = Path.Combine(ctx.DestLive, "LiveOps.Deploy.sln");
             CopyRequiredHostTemplate(dryRun, Path.Combine(ctx.HostBack, "LiveOps.Deploy.sln"), deploySln, "copy solution");
             PruneMissingProjectsFromSolution(deploySln, dryRun);
             EnsureDiscoveredProjectsInSolution(ctx, deploySln, dryRun);
         }
 
-        /// <summary>Sample: register on-disk LiveOps/Scaffold/** and LiveOps/Game/** csproj files in the deploy solution via <c>dotnet sln add</c>; warn-and-continue if dotnet is missing because the glob-based Deploy.targets still wires the build.</summary>
+        /// <summary>Sample: register on-disk LiveOps/Scaffold/** and LiveOps/Game/** csproj files in the deploy solution via <c>dotnet sln add --solution-folder</c>; warn-and-continue if dotnet is missing because the glob-based Deploy.targets still wires the build.</summary>
         private static void EnsureDiscoveredProjectsInSolution(LiveOpsBackendInstallContext ctx, string slnPath, bool dryRun)
         {
             if (dryRun) return;
@@ -169,7 +162,80 @@ namespace Scaffold.LiveOps.Editor
             if (discovered.Count == 0) return;
             List<string> missing = FilterMissingFromSolution(discovered, slnPath);
             if (missing.Count == 0) return;
-            TryRunDotnetSlnAdd(slnPath, missing);
+            string slnDir = Path.GetDirectoryName(Path.GetFullPath(slnPath)) ?? string.Empty;
+            Dictionary<string, List<string>> byFolder = GroupCsprojPathsBySolutionFolder(slnDir, missing);
+            foreach (KeyValuePair<string, List<string>> kv in byFolder)
+            {
+                TryRunDotnetSlnAdd(slnPath, kv.Key, kv.Value);
+            }
+        }
+
+        /// <summary>Sample: maps a deploy-tree csproj path to a <c>dotnet sln add --solution-folder</c> path (forward slashes). Keep in sync with <c>Map-CsprojToSolutionFolder</c> in <c>.agents/scripts/install-liveops-backend.ps1</c>.</summary>
+        internal static string MapCsprojToSolutionFolder(string slnDir, string csprojFullPath)
+        {
+            string slnFull = Path.GetFullPath(slnDir);
+            string projFull = Path.GetFullPath(csprojFullPath);
+            string rel = Path.GetRelativePath(slnFull, projFull);
+            if (rel.StartsWith("..", StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException("csproj is not under solution directory: " + csprojFullPath);
+            }
+
+            string[] parts = rel.Split(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length < 2)
+            {
+                throw new InvalidOperationException("Unexpected csproj depth relative to solution: " + rel);
+            }
+
+            return MapRelativeLiveOpsCsprojToSolutionFolder(parts, rel);
+        }
+
+        private static string MapRelativeLiveOpsCsprojToSolutionFolder(string[] parts, string rel)
+        {
+            string top = parts[0];
+            if (string.Equals(top, "Deploy", StringComparison.OrdinalIgnoreCase)) return MapDeployTreeToSolutionFolder(parts);
+            if (string.Equals(top, "Scaffold", StringComparison.OrdinalIgnoreCase)) return "Scaffold/" + StripDtoParentFolderSuffix(parts[1]);
+            if (string.Equals(top, "Game", StringComparison.OrdinalIgnoreCase)) return "Game/" + StripDtoParentFolderSuffix(parts[1]);
+            throw new InvalidOperationException("Unrecognized LiveOps.Deploy.sln project layout (expected Deploy/, Scaffold/, or Game/): " + rel);
+        }
+
+        private static string MapDeployTreeToSolutionFolder(string[] parts)
+        {
+            string second = parts[1];
+            if (string.Equals(second, "Core", StringComparison.OrdinalIgnoreCase)) return "Deploy/Core";
+            if (!string.Equals(second, "LiveOps", StringComparison.OrdinalIgnoreCase)) return "Deploy/" + second;
+            string fileName = parts[parts.Length - 1];
+            if (string.Equals(fileName, "LiveOps.csproj", StringComparison.OrdinalIgnoreCase)) return "Deploy/Host";
+            return "Deploy/" + second;
+        }
+
+        private static string StripDtoParentFolderSuffix(string folderName)
+        {
+            const string suffix = ".DTO";
+            if (folderName.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+            {
+                return folderName.Substring(0, folderName.Length - suffix.Length);
+            }
+
+            return folderName;
+        }
+
+        private static Dictionary<string, List<string>> GroupCsprojPathsBySolutionFolder(string slnDir, List<string> csprojPaths)
+        {
+            var byFolder = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+            foreach (string csproj in csprojPaths)
+            {
+                string folder = MapCsprojToSolutionFolder(slnDir, csproj);
+                if (!byFolder.TryGetValue(folder, out List<string>? list))
+                {
+                    list = new List<string>();
+                    byFolder[folder] = list;
+                }
+
+                list.Add(csproj);
+            }
+
+            return byFolder;
         }
 
         private static List<string> FilterMissingFromSolution(List<string> discovered, string slnPath)
@@ -183,11 +249,11 @@ namespace Scaffold.LiveOps.Editor
             return missing;
         }
 
-        private static void TryRunDotnetSlnAdd(string slnPath, List<string> missing)
+        private static void TryRunDotnetSlnAdd(string slnPath, string solutionFolder, List<string> csprojPaths)
         {
             try
             {
-                RunDotnetSlnAdd(slnPath, missing);
+                RunDotnetSlnAdd(slnPath, solutionFolder, csprojPaths);
             }
             catch (Exception ex)
             {
@@ -236,21 +302,21 @@ namespace Scaffold.LiveOps.Editor
             set.Add(Path.GetFullPath(combined));
         }
 
-        private static void RunDotnetSlnAdd(string slnPath, List<string> csprojPaths)
+        private static void RunDotnetSlnAdd(string slnPath, string solutionFolder, List<string> csprojPaths)
         {
-            var startInfo = BuildDotnetSlnAddStartInfo(slnPath, csprojPaths);
+            var startInfo = BuildDotnetSlnAddStartInfo(slnPath, solutionFolder, csprojPaths);
             using var proc = Process.Start(startInfo);
             if (proc is null) throw new InvalidOperationException("Failed to start dotnet process.");
             string stdout = proc.StandardOutput.ReadToEnd();
             string stderr = proc.StandardError.ReadToEnd();
             proc.WaitForExit();
             if (proc.ExitCode != 0) throw new InvalidOperationException("dotnet sln add exit " + proc.ExitCode + ": " + stderr.Trim() + " " + stdout.Trim());
-            UnityEngine.Debug.Log("[LiveOps] Synced " + csprojPaths.Count + " feature/game project(s) into " + slnPath);
+            UnityEngine.Debug.Log("[LiveOps] Synced " + csprojPaths.Count + " project(s) into " + slnPath + " (folder: " + solutionFolder + ")");
         }
 
-        private static ProcessStartInfo BuildDotnetSlnAddStartInfo(string slnPath, List<string> csprojPaths)
+        private static ProcessStartInfo BuildDotnetSlnAddStartInfo(string slnPath, string solutionFolder, List<string> csprojPaths)
         {
-            string arguments = BuildDotnetSlnAddArgumentsLine(slnPath, csprojPaths);
+            string arguments = BuildDotnetSlnAddArgumentsLine(slnPath, solutionFolder, csprojPaths);
             return new ProcessStartInfo
             {
                 FileName = "dotnet",
@@ -262,12 +328,18 @@ namespace Scaffold.LiveOps.Editor
             };
         }
 
-        private static string BuildDotnetSlnAddArgumentsLine(string slnPath, List<string> csprojPaths)
+        private static string BuildDotnetSlnAddArgumentsLine(string slnPath, string solutionFolder, List<string> csprojPaths)
         {
             var sb = new StringBuilder(256);
             sb.Append("sln ");
             sb.Append(QuoteForCmd(slnPath));
             sb.Append(" add");
+            if (!string.IsNullOrEmpty(solutionFolder))
+            {
+                sb.Append(" --solution-folder ");
+                sb.Append(QuoteForCmd(solutionFolder));
+            }
+
             foreach (string csproj in csprojPaths)
             {
                 sb.Append(' ');
@@ -333,6 +405,11 @@ namespace Scaffold.LiveOps.Editor
             }
             Match m = projectLine.Match(raw);
             if (m.Success && missingGuids.Contains(m.Groups[2].Value)) return true;
+            Match nested = nestedProjectsMappingLine.Match(raw);
+            if (nested.Success && missingGuids.Contains(nested.Groups[1].Value))
+            {
+                return false;
+            }
             if (LineStartsWithAnyGuid(raw, missingGuids)) return false;
             output.Add(raw);
             return false;
@@ -452,36 +529,5 @@ namespace Scaffold.LiveOps.Editor
             return false;
         }
 
-        private static void WriteInstallRecord(string path, string templateVersion)
-        {
-            string iso = DateTime.UtcNow.ToString("o");
-            var sb = new StringBuilder(400);
-            sb.Append("{\n");
-            sb.Append("  \"templateVersion\": \"").Append(EscapeJson(templateVersion)).Append("\",\n");
-            sb.Append("  \"installedRoots\": [\n");
-            sb.Append("    \"LiveOps/Deploy\",\n");
-            sb.Append("    \"LiveOps/Scaffold\"\n");
-            sb.Append("  ],\n");
-            sb.Append("  \"lastUpdate\": \"").Append(EscapeJson(iso)).Append("\",\n");
-            sb.Append("  \"notes\": \"").Append(EscapeJson("Merged from package Backend~ (Assets/Packages and UPM; host: com.scaffold.liveops)")).Append("\"\n");
-            sb.Append("}\n");
-            File.WriteAllText(path, sb.ToString(), new UTF8Encoding(false));
-        }
-
-        private static string EscapeJson(string s)
-        {
-            return s.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal);
-        }
-
-        private static string ReadComScaffoldLiveopsVersion(string hostBackDirectory)
-        {
-            string? packageRoot = Path.GetDirectoryName(hostBackDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-            if (string.IsNullOrEmpty(packageRoot)) return "0.0.0";
-            string pkgPath = Path.Combine(packageRoot, "package.json");
-            if (!File.Exists(pkgPath)) return "0.0.0";
-            string text = File.ReadAllText(pkgPath);
-            var m = Regex.Match(text, @"""version""\s*:\s*""([^""]+)""", RegexOptions.CultureInvariant);
-            return m.Success ? m.Groups[1].Value : "0.0.0";
-        }
     }
 }

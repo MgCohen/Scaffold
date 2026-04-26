@@ -11,8 +11,8 @@ For architecture details and client API, see [`../../Assets/Packages/com.scaffol
 | Path | Role |
 |------|------|
 | **`LiveOps/`** (Scaffold repo, repository root) | **Source of truth** while you develop: `LiveOps/Deploy/`, `LiveOps/Scaffold/<Feature>/`, etc. |
-| **`Assets/Packages/<packageId>/Backend~/`** | **Shipped snapshot** for that package. The **host** (`com.scaffold.liveops`) carries `Backend~/Deploy/`, `Backend~/Deploy/Tools/Generators/`, `LiveOps.Deploy.sln`, and `liveops.manifest.template.json`. **Feature** packages (e.g. `com.scaffold.ads`) carry `Backend~/Scaffold/Ads/` and `Backend~/Scaffold/Ads.DTO/`. |
-| **Consumer’s `LiveOps/`** (game project repo root) | **Merged** from **all** installed packages’ `Backend~/` trees by the **install** script. Result: `LiveOps/Deploy/`, `LiveOps/Scaffold/`, solution + manifest, while **`LiveOps/Game/**` is preserved** (see below). |
+| **`Assets/Packages/<packageId>/Backend~/`** | **Shipped snapshot** for that package. The **host** (`com.scaffold.liveops`) carries `Backend~/Directory.Build.props`, `Backend~/Deploy/`, `Backend~/Deploy/Tools/Generators/`, and `LiveOps.Deploy.sln`. **Feature** packages (e.g. `com.scaffold.ads`) carry `Backend~/Scaffold/Ads/` and `Backend~/Scaffold/Ads.DTO/`. |
+| **Consumer’s `LiveOps/`** (game project repo root) | **Merged** from **all** installed packages’ `Backend~/` trees by the **install** script. Result: `LiveOps/Directory.Build.props`, `LiveOps/Deploy/`, `LiveOps/Scaffold/`, and `LiveOps/LiveOps.Deploy.sln`, while **`LiveOps/Game/**` is preserved** (see below). |
 | **`LiveOps/Game/**`** | **Consumer-only** Cloud Code (game-specific modules, `IGameSetup` implementations you do not want overwritten). **The install script does not copy anything into `LiveOps/Game/`.** Add and maintain that tree in the game repository yourself. |
 
 **Important:** `Backend~` is **not** deployed to `LiveOps/Game/`. The merge target is `LiveOps/Deploy` and `LiveOps/Scaffold` only.
@@ -48,7 +48,7 @@ pwsh -NoProfile -File .agents/scripts/refresh-liveops-template.ps1 -SkipGenerato
 - Requires the **`SCAFFOLD_LIVEOPS_PACKAGE_DEV`** scripting define for the **Editor** platform (see this repo’s `PlayerSettings`).
 - Invokes the same `refresh-liveops-template.ps1` as the CLI.
 
-**What the refresh does (summary):** For each package that contains `Backend~/`, it mirrors the matching folders from `LiveOps/` (for example `LiveOps/Scaffold/Ads` → `com.scaffold.ads/Backend~/Scaffold/Ads`, and `LiveOps/Deploy/...` → `com.scaffold.liveops/Backend~/Deploy/...`), then copies `liveops.manifest.json` and `LiveOps.Deploy.sln` into the **host** package’s `Backend~/`.
+**What the refresh does (summary):** For each package that contains `Backend~/`, it mirrors the matching folders from `LiveOps/` (for example `LiveOps/Scaffold/Ads` → `com.scaffold.ads/Backend~/Scaffold/Ads`, and `LiveOps/Deploy/...` → `com.scaffold.liveops/Backend~/Deploy/...`), then copies `LiveOps/LiveOps.Deploy.sln` and `LiveOps/Directory.Build.props` into the **host** package’s `Backend~/`.
 
 ### 2.3 New feature package (bootstrap)
 
@@ -79,7 +79,7 @@ pwsh -NoProfile -File .agents/scripts/install-liveops-backend.ps1
 
 - **Scaffold → LiveOps → Install or Update Backend**
 
-**What the install does (summary):** For every `Assets/Packages/*/Backend~/`, it **merges** that folder into the repo-root `LiveOps/` (adds/updates `Deploy`, `Scaffold`, etc., using `robocopy /E` — it does **not** mirror-delete unrelated paths like a full `Game` tree wipe). It copies `liveops.manifest.template.json` and `LiveOps.Deploy.sln` from the **host** package (`com.scaffold.liveops/Backend~`), creates `LiveOps/Game` if missing, and writes `.scaffold-install.json` with the host package version.
+**What the install does (summary):** For every `Assets/Packages/*/Backend~/`, it **merges** that folder into the repo-root `LiveOps/` (adds/updates `Directory.Build.props`, `Deploy`, `Scaffold`, etc., using `robocopy /E` — it does **not** mirror-delete unrelated paths like a full `Game` tree wipe). It copies `LiveOps.Deploy.sln` from the **host** package (`com.scaffold.liveops/Backend~`) and creates `LiveOps/Game` if missing.
 
 **It does not populate `LiveOps/Game`.** If you need game-only handlers or `IGameSetup` under source control, create `LiveOps/Game/**` in the game repo and add projects to the solution as needed.
 
@@ -120,7 +120,7 @@ pwsh -NoProfile -File .agents/scripts/install-liveops-backend.ps1
 | [`.agents/scripts/install-liveops-backend.ps1`](../../.agents/scripts/install-liveops-backend.ps1) | Optional CLI: same as menu; use when not in Unity (e.g. CI) or from a Scaffold checkout |
 | [`Assets/Packages/com.scaffold.liveops/Editor/LiveOpsBackendInstall.cs`](../../Assets/Packages/com.scaffold.liveops/Editor/LiveOpsBackendInstall.cs) | **Install** merge logic in the package (menu); [`LiveOpsBackendInstallContext.cs`](../../Assets/Packages/com.scaffold.liveops/Editor/LiveOpsBackendInstallContext.cs) holds path bundle |
 | [`Assets/Packages/com.scaffold.liveops/Editor/LiveOpsTemplateMenu.cs`](../../Assets/Packages/com.scaffold.liveops/Editor/LiveOpsTemplateMenu.cs) | Unity menu: **Install** (in-package) and **Refresh** (requires `.agents/scripts` in Scaffold) |
-| [`LiveOps/Deploy/Build/Scaffold.LiveOps.TemplateSync.targets`](../../LiveOps/Deploy/Build/Scaffold.LiveOps.TemplateSync.targets) | MSBuild: run refresh with `-SkipGeneratorBuild` after certain builds (optional) |
+| [`.agents/msbuild/Scaffold.LiveOps.TemplateSync.targets`](../../.agents/msbuild/Scaffold.LiveOps.TemplateSync.targets) | MSBuild: dev-only post-build hook that runs refresh with `-SkipGeneratorBuild` after `LiveOps.csproj` builds or after the generator copies its DLL. Imported via `LiveOps/Directory.Build.props` (Exists-guarded so it self-disables in consumer installs). |
 
 ---
 

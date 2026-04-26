@@ -45,7 +45,7 @@ On Windows you can still use **`validate-changes.cmd`** or **`run-coverage-audit
 
 | Script | Purpose |
 |--------|---------|
-| `refresh-liveops-template.ps1` | Build `Scaffold.LiveOps.Bootstrap.Generators`, then sync `LiveOps/` into every `Assets/Packages/*/Backend~/` (host `**Deploy**`, feature `**Scaffold/<Feature>**`; excludes `bin`/`obj`). Use **`-SkipGeneratorBuild`** when MSBuild has already built the generator and copied the DLL (see `LiveOps/Deploy/Build/Scaffold.LiveOps.TemplateSync.targets`). |
+| `refresh-liveops-template.ps1` | Build `Scaffold.LiveOps.Bootstrap.Generators`, then sync `LiveOps/` into every `Assets/Packages/*/Backend~/` (host `**Deploy**`, feature `**Scaffold/<Feature>**`; excludes `bin`/`obj`). Use **`-SkipGeneratorBuild`** when MSBuild has already built the generator and copied the DLL (see `.agents/msbuild/Scaffold.LiveOps.TemplateSync.targets`). |
 | `install-liveops-backend.ps1` | Same merge as **Scaffold → LiveOps → Install or Update Backend** (implemented in `com.scaffold.liveops` as `LiveOpsBackendInstall`); this script is for CLI/CI or when running from a `.agents/scripts` checkout. |
 | `test-liveops-deploy-cold-warm.ps1` | Times `dotnet build` / `dotnet publish` for `LiveOps.Deploy.sln` and `Deploy/LiveOps/LiveOps.csproj`; use **`-DeleteArtifacts`** to remove `LiveOps/.artifacts` first (simulates a clean tree). Lists generated `LiveOpsManifest.g.cs` under `LiveOps/.artifacts` (not per-project `obj/`). |
 

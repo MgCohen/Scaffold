@@ -12,6 +12,53 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
+# Keep in sync with LiveOpsBackendInstall.MapCsprojToSolutionFolder (Assets/Packages/com.scaffold.liveops/Editor/LiveOpsBackendInstall.cs).
+function Strip-DtoParentFolderSuffix {
+    param([string] $FolderName)
+    if ($FolderName.EndsWith('.DTO', [StringComparison]::OrdinalIgnoreCase)) {
+        return $FolderName.Substring(0, $FolderName.Length - 4)
+    }
+    return $FolderName
+}
+
+function Map-CsprojToSolutionFolder {
+    param(
+        [string] $SlnDir,
+        [string] $CsprojFullPath
+    )
+    $slnFull = [IO.Path]::GetFullPath($SlnDir)
+    $projFull = [IO.Path]::GetFullPath($CsprojFullPath)
+    $rel = [IO.Path]::GetRelativePath($slnFull, $projFull)
+    if ($rel.StartsWith('..', [StringComparison]::Ordinal)) {
+        throw "csproj is not under solution directory: $CsprojFullPath"
+    }
+    $parts = @($rel -split '[\\/]+' | Where-Object { $_ -ne '' })
+    if ($parts.Count -lt 2) {
+        throw "Unexpected csproj depth relative to solution: $rel"
+    }
+    $top = $parts[0]
+    if ($top -ieq 'Deploy') {
+        $second = $parts[1]
+        if ($second -ieq 'Core') { return 'Deploy/Core' }
+        if ($second -ieq 'LiveOps') {
+            $fileName = $parts[$parts.Count - 1]
+            if ($fileName -ieq 'LiveOps.csproj') { return 'Deploy/Host' }
+            return "Deploy/$second"
+        }
+        return "Deploy/$second"
+    }
+    if ($top -ieq 'Scaffold') {
+        $module = Strip-DtoParentFolderSuffix $parts[1]
+        return "Scaffold/$module"
+    }
+    if ($top -ieq 'Game') {
+        $module = Strip-DtoParentFolderSuffix $parts[1]
+        return "Game/$module"
+    }
+    throw "Unrecognized LiveOps.Deploy.sln project layout (expected Deploy/, Scaffold/, or Game/): $rel"
+}
+
 $packagesRoot = Join-Path $ProjectRoot "Assets\Packages"
 $destLive = Join-Path $ProjectRoot "LiveOps"
 $hostBack = Join-Path $ProjectRoot "Assets\Packages\com.scaffold.liveops\Backend~"
@@ -49,28 +96,6 @@ if (-not (Test-Path $game)) {
     else { New-Item -ItemType Directory -Path $game -Force | Out-Null }
 }
 
-$installRecord = Join-Path $destLive ".scaffold-install.json"
-$manifestOut = Join-Path $destLive "liveops.manifest.json"
-$templateManifest = Join-Path $hostBack "liveops.manifest.template.json"
-if (Test-Path $templateManifest) {
-    if ($DryRun) { Write-Host "Would copy $templateManifest -> $manifestOut" }
-    else { Copy-Item -Path $templateManifest -Destination $manifestOut -Force }
-}
-
-$ver = "0.0.0"
-if (Test-Path (Join-Path $ProjectRoot "Assets\Packages\com.scaffold.liveops\package.json")) {
-    $pkg = Get-Content (Join-Path $ProjectRoot "Assets\Packages\com.scaffold.liveops\package.json") -Raw | ConvertFrom-Json
-    if ($pkg.version) { $ver = $pkg.version }
-}
-$installPayload = [ordered]@{
-    templateVersion = $ver
-    installedRoots  = @("LiveOps/Deploy", "LiveOps/Scaffold")
-    lastUpdate      = [DateTime]::UtcNow.ToString("o")
-    notes           = "Merged from Assets/Packages/*/Backend~ (host: com.scaffold.liveops/Backend~)"
-}
-if ($DryRun) { Write-Host "Would write: $installRecord" }
-else { $installPayload | ConvertTo-Json -Depth 6 | Set-Content -Path $installRecord -Encoding UTF8 }
-
 $deploySln = Join-Path $destLive "LiveOps.Deploy.sln"
 $templateDeploySln = Join-Path $hostBack "LiveOps.Deploy.sln"
 if (Test-Path $templateDeploySln) {
@@ -91,19 +116,32 @@ if (-not $DryRun -and (Test-Path $deploySln)) {
     }
     else {
         $slnDir = Split-Path -Parent $deploySln
-        $projectLineRegex = '^Project\("\{[0-9A-Fa-f-]+\}"\)\s*=\s*"[^"]*",\s*"([^"]+\.csproj)",\s*"\{[0-9A-Fa-f-]+\}"\s*$'
+        $projectLineRegex = '^Project\("\{[0-9A-Fa-f-]+\}"\)\s*=\s*"[^"]*",\s*"([^"]+\.csproj)",\s*"(\{[0-9A-Fa-f-]+\})"\s*$'
+        $nestedLineRegex = '^\s*(\{[0-9A-Fa-f-]+\})\s*=\s*\{[0-9A-Fa-f-]+\}\s*$'
         $existing = New-Object System.Collections.Generic.HashSet[string] ([System.StringComparer]::OrdinalIgnoreCase)
+        $prunedGuids = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
         foreach ($line in Get-Content -LiteralPath $deploySln) {
             $m = [System.Text.RegularExpressions.Regex]::Match($line, $projectLineRegex)
             if (-not $m.Success) { continue }
             $rel = $m.Groups[1].Value.Replace('\', [IO.Path]::DirectorySeparatorChar).Replace('/', [IO.Path]::DirectorySeparatorChar)
             $full = [IO.Path]::GetFullPath((Join-Path $slnDir $rel))
             if (-not (Test-Path -LiteralPath $full)) {
+                [void]$prunedGuids.Add($m.Groups[2].Value)
                 & dotnet sln $deploySln remove $full | Out-Null
             }
             else {
                 [void]$existing.Add($full)
             }
+        }
+        if ($prunedGuids.Count -gt 0) {
+            $outLines = New-Object System.Collections.Generic.List[string]
+            foreach ($slLine in [IO.File]::ReadAllLines($deploySln)) {
+                $nm = [regex]::Match($slLine, $nestedLineRegex)
+                if ($nm.Success -and $prunedGuids.Contains($nm.Groups[1].Value)) { continue }
+                [void]$outLines.Add($slLine)
+            }
+            $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+            [IO.File]::WriteAllLines($deploySln, $outLines.ToArray(), $utf8NoBom)
         }
         $candidates = @()
         foreach ($sub in @("Scaffold", "Game")) {
@@ -114,15 +152,30 @@ if (-not $DryRun -and (Test-Path $deploySln)) {
         }
         $toAdd = @()
         foreach ($f in $candidates) {
-            if (-not $existing.Contains([IO.Path]::GetFullPath($f.FullName))) { $toAdd += $f.FullName }
+            if (-not $existing.Contains([IO.Path]::GetFullPath($f.FullName))) { $toAdd += $f }
         }
         if ($toAdd.Count -gt 0) {
-            & dotnet sln $deploySln add @toAdd
-            if ($LASTEXITCODE -ne 0) {
-                Write-Warning "dotnet sln add returned $LASTEXITCODE; build still works via Scaffold.LiveOps.Deploy.targets globs."
+            $byFolder = @{}
+            foreach ($f in $toAdd) {
+                $folder = Map-CsprojToSolutionFolder -SlnDir $slnDir -CsprojFullPath $f.FullName
+                if (-not $byFolder.ContainsKey($folder)) {
+                    $byFolder[$folder] = New-Object System.Collections.Generic.List[string]
+                }
+                $byFolder[$folder].Add($f.FullName)
             }
-            else {
-                Write-Host "Synced $($toAdd.Count) feature/game project(s) into $deploySln"
+            $synced = 0
+            foreach ($folder in $byFolder.Keys) {
+                $paths = $byFolder[$folder]
+                & dotnet sln $deploySln add --solution-folder $folder @paths
+                if ($LASTEXITCODE -ne 0) {
+                    Write-Warning "dotnet sln add returned $LASTEXITCODE (folder $folder); build still works via Scaffold.LiveOps.Deploy.targets globs."
+                }
+                else {
+                    $synced += $paths.Count
+                }
+            }
+            if ($synced -gt 0) {
+                Write-Host "Synced $synced feature/game project(s) into $deploySln (by solution folder)"
             }
         }
     }

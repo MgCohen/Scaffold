@@ -27,8 +27,28 @@
     <MSBuildProjectExtensionsPath>$(BaseIntermediateOutputPath)</MSBuildProjectExtensionsPath>
   </PropertyGroup>
 
+  <!--
+    SDK DefaultItemExcludes only covers $(BaseOutputPath)/** and $(BaseIntermediateOutputPath)/**.
+    After relocating output to LiveOps/.artifacts/, legacy ./obj and ./bin next to each csproj
+    are no longer excluded from the default **/*.cs glob. Stale generated files there
+    (AssemblyInfo.cs, target-framework AssemblyAttributes.cs) compile with real outputs under
+    .artifacts and produce CS0579 duplicate assembly attributes. See dotnet/sdk#3485.
+  -->
+  <PropertyGroup>
+    <DefaultItemExcludes>$(DefaultItemExcludes);$(MSBuildProjectDirectory)\obj\**</DefaultItemExcludes>
+    <DefaultItemExcludes>$(DefaultItemExcludes);$(MSBuildProjectDirectory)\bin\**</DefaultItemExcludes>
+  </PropertyGroup>
+
   <Import Project="$(LiveOpsRoot)Deploy\Build\Scaffold.LiveOps.Common.props"
           Condition="Exists('$(LiveOpsRoot)Deploy\Build\Scaffold.LiveOps.Common.props')" />
   <Import Project="$(LiveOpsRoot)Deploy\Build\Scaffold.LiveOps.DtoCopy.targets"
           Condition="Exists('$(LiveOpsRoot)Deploy\Build\Scaffold.LiveOps.DtoCopy.targets')" />
+
+  <!--
+    Dev-only template sync. Lives at <repo>/.agents/msbuild/ in the Scaffold dev repo
+    and is absent in consumer installs (consumers don't ship .agents/), so the Exists()
+    guard makes this a no-op everywhere except Scaffold itself.
+  -->
+  <Import Project="$(RepositoryRoot).agents\msbuild\Scaffold.LiveOps.TemplateSync.targets"
+          Condition="Exists('$(RepositoryRoot).agents\msbuild\Scaffold.LiveOps.TemplateSync.targets')" />
 </Project>

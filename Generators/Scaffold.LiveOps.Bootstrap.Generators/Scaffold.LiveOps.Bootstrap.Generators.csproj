@@ -20,5 +20,5 @@
       SkipUnchangedFiles="true" />
   </Target>
 
-  <Import Project="..\..\LiveOps\Deploy\Build\Scaffold.LiveOps.TemplateSync.targets" />
+  <Import Project="..\..\.agents\msbuild\Scaffold.LiveOps.TemplateSync.targets" />
 </Project>

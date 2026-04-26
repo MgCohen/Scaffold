@@ -59,6 +59,10 @@ namespace LiveOps.DTO.Json
                 name.Equals("System.Private.CoreLib", StringComparison.Ordinal) ||
                 name.Equals("mscorlib", StringComparison.Ordinal) ||
                 name.Equals("netstandard", StringComparison.Ordinal) ||
+                // Game/Scaffold and shell: align with LiveOpsManifestGenerator.IsRelevantRef (non-metadata rules).
+                name.Equals("LiveOps", StringComparison.Ordinal) ||
+                name.StartsWith("Game.LiveOps", StringComparison.Ordinal) ||
+                name.StartsWith("Scaffold.LiveOps", StringComparison.Ordinal) ||
                 name.StartsWith("LiveOps.", StringComparison.Ordinal) ||
                 name.StartsWith("LiveOps.Modules.", StringComparison.Ordinal) ||
                 name.StartsWith("LiveOps.Modules", StringComparison.Ordinal) ||

@@ -23,7 +23,6 @@
   </ItemGroup>
 
   <Import Project="$(LiveOpsRoot)Deploy\Build\Scaffold.LiveOps.Deploy.targets" />
-  <Import Project="$(LiveOpsRoot)Deploy\Build\Scaffold.LiveOps.TemplateSync.targets" />
 
   <PropertyGroup>
     <PublishReadyToRunComposite>true</PublishReadyToRunComposite>

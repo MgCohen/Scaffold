@@ -143,24 +143,7 @@ namespace Scaffold.LiveOps.Editor
 
         private static void CopyHostTemplateFromLiveOps(LiveOpsBackendInstallContext ctx, bool dryRun)
         {
-            CopyHostManifestIfPresent(ctx, dryRun);
             CopyHostSlnIfPresent(ctx, dryRun);
-        }
-
-        private static void CopyHostManifestIfPresent(LiveOpsBackendInstallContext ctx, bool dryRun)
-        {
-            string src = Path.Combine(ctx.DestLive, "liveops.manifest.json");
-            string dst = Path.Combine(ctx.HostBack, "liveops.manifest.template.json");
-            if (!File.Exists(src))
-            {
-                return;
-            }
-            if (dryRun)
-            {
-                Debug.Log("[LiveOps] Would copy " + src + " -> " + dst);
-                return;
-            }
-            File.Copy(src, dst, true);
         }
 
         private static void CopyHostSlnIfPresent(LiveOpsBackendInstallContext ctx, bool dryRun)

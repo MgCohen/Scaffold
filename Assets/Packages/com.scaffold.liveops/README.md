@@ -63,6 +63,18 @@ Cloud Code backend under `LiveOps/`: **Deploy** (host, shared core, build, gener
 | **Build**             | `LiveOps/Deploy/Build/`                                                 | Shared `Directory.Build` imports, DTO copy targets                                                                                                                                             |
 | **Artifacts**         | `LiveOps/.artifacts/bin/<Project>/`** and `.artifacts/obj/<Project>/`** | Centralized build output (gitignored). All `LiveOps/**` projects redirect `BaseOutputPath`/`BaseIntermediateOutputPath` here via `LiveOps/Directory.Build.props` so source folders stay clean. |
 
+### LiveOps.Deploy.sln (solution folders)
+
+Opening `**LiveOps/LiveOps.Deploy.sln**` in Visual Studio or Rider shows a virtual tree aligned with on-disk paths:
+
+| Solution folder | Projects |
+| --- | --- |
+| **Deploy** / **Core** | `LiveOps.Core`, `LiveOps.DTO` (`Deploy/Core/...`) |
+| **Deploy** / **Host** | `LiveOps` host (`Deploy/LiveOps/LiveOps.csproj`) |
+| **Scaffold** / *&lt;Feature&gt;* | Each `**Scaffold.LiveOps.<Feature>**` and `**Scaffold.LiveOps.<Feature>.DTO**` under `LiveOps/Scaffold/<Feature>/` and `LiveOps/Scaffold/<Feature.DTO>/` |
+| **Game** / *&lt;Module&gt;* | Consumer modules under `LiveOps/Game/<Module>/` and `LiveOps/Game/<Module.DTO>/` (folders appear after those projects exist) |
+
+**Install or Update Backend** (menu) and **`**install-liveops-backend.ps1**`** copy the template `**Backend~/LiveOps.Deploy.sln**`, prune missing `.csproj` entries, remove stale `NestedProjects` rows for pruned GUIDs, then add any discovered `LiveOps/Scaffold/**` and `LiveOps/Game/**` projects with `**dotnet sln add --solution-folder**`, using the same path mapping as `**LiveOpsBackendInstall.MapCsprojToSolutionFolder**` (kept in sync with `**.agents/scripts/install-liveops-backend.ps1**`). Re-running install **re-copies the template and re-syncs nesting**; manually edited solution-folder layout in a consumer repo is **normalized** to this structure on the next install.
 
 Build `**LiveOps/LiveOps.sln**` (local, includes tests) or `**LiveOps/LiveOps.Deploy.sln**` (no test project; matches what `**LiveOps.ccmr**` deploys to UGS Cloud Code). DTO projects copy `**<AssemblyName>.dll**` from `**LiveOps/.artifacts/bin/<Project>/**` to `**Assets/Plugins/Scaffold.LiveOps.DTO/**` (shared MSBuild target).
 

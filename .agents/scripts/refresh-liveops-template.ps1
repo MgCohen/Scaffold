@@ -69,13 +69,6 @@ foreach ($pkg in Get-ChildItem -Path $packagesRoot -Directory) {
 }
 
 $hostBack = Join-Path $repoRoot "Assets\Packages\com.scaffold.liveops\Backend~"
-$manifestTemplate = Join-Path $hostBack "liveops.manifest.template.json"
-$manifestSource = Join-Path $liveOps "liveops.manifest.json"
-if (Test-Path $manifestSource) {
-    if ($DryRun) { Write-Host "Would copy $manifestSource -> $manifestTemplate" }
-    else { Copy-Item -Path $manifestSource -Destination $manifestTemplate -Force }
-}
-
 $deploySlnSource = Join-Path $liveOps "LiveOps.Deploy.sln"
 $deploySlnTemplate = Join-Path $hostBack "LiveOps.Deploy.sln"
 if (Test-Path $deploySlnSource) {

@@ -1,9 +1,9 @@
 <Project>
   <!--
-    Auto-discover feature and game ProjectReferences from the on-disk LiveOps/ tree.
-    Mirrors liveops.manifest.json featureGlobs/excludeGlobs so the deploy build always
-    matches what is actually installed (no hand-edit required when packages are
-    added/removed or when LiveOps/Game/* modules are authored).
+    Auto-discover feature and game ProjectReferences from the on-disk LiveOps/ tree
+    so the deploy build always matches what is actually installed (no hand-edit
+    required when packages are added/removed or when LiveOps/Game/* modules are
+    authored).
   -->
   <ItemGroup>
     <ProjectReference Include="$(LiveOpsRoot)Scaffold\**\*.csproj"
