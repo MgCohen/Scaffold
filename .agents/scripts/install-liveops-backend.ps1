@@ -2,6 +2,7 @@
 # com.scaffold.liveops/Backend~ carries Deploy/**, LiveOps.Deploy.sln, and the manifest template.
 # Feature packages (e.g. com.scaffold.ads) carry Backend~/Scaffold/<Feature>/.
 # Preserves LiveOps/Game/**.
+# Unity: Scaffold > LiveOps > Install or Update Backend runs the same flow in com.scaffold.liveops (Scaffold.LiveOps.Editor, LiveOpsBackendInstall) without this script.
 # Usage (from repo root): pwsh -NoProfile -File .agents/scripts/install-liveops-backend.ps1 [-DryRun] [-ProjectRoot <path>]
 
 [CmdletBinding()]

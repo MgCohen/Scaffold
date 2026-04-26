@@ -5,20 +5,32 @@ using UnityEngine;
 
 namespace Scaffold.LiveOps.Editor
 {
-    /// <summary>Sample menu: runs <c>install-liveops-backend.ps1</c> / <c>refresh-liveops-template.ps1</c> (see <c>SCAFFOLD_LIVEOPS_PACKAGE_DEV</c>).</summary>
+    /// <summary>Sample: Unity menu for LiveOps backend install (in-package) or refresh template (Scaffold dev, <c>.agents/scripts</c>).</summary>
     public static class LiveOpsTemplateMenu
     {
         private const string installMenu = "Scaffold/LiveOps/Install or Update Backend";
 
+#if SCAFFOLD_LIVEOPS_PACKAGE_DEV
+        private const string refreshMenu = "Scaffold/LiveOps/Refresh Backend Template";
+#endif
+
         [MenuItem(installMenu)]
         public static void InstallOrUpdateBackend()
         {
-            RunAgentScript("install-liveops-backend.ps1");
+            string projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
+            try
+            {
+                LiveOpsBackendInstall.Run(projectRoot, dryRun: false);
+                Debug.Log("[LiveOps] install-liveops-backend completed successfully.");
+                AssetDatabase.Refresh();
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError("[LiveOps] " + ex.Message);
+            }
         }
 
 #if SCAFFOLD_LIVEOPS_PACKAGE_DEV
-        private const string refreshMenu = "Scaffold/LiveOps/Refresh Backend Template";
-
         [MenuItem(refreshMenu)]
         public static void RefreshBackendTemplate()
         {

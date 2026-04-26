@@ -69,13 +69,13 @@ The [`create-module`](../../.agents/workflows/create-module.md) workflow include
 
 ### 3.2 Merge all `Backend~/` into `LiveOps/`
 
-**Command line (from the consumer project root, the folder that contains `Assets/`):**
+**Command line (optional; from a Scaffold repo checkout, consumer project root = folder that contains `Assets/`):**
 
 ```powershell
 pwsh -NoProfile -File .agents/scripts/install-liveops-backend.ps1
 ```
 
-**Unity menu:**
+**Unity menu (recommended in game repos; same merge logic as the script, shipped in the package):**
 
 - **Scaffold → LiveOps → Install or Update Backend**
 
@@ -105,7 +105,7 @@ pwsh -NoProfile -File .agents/scripts/install-liveops-backend.ps1
 ## 5. Guidance for AI agents
 
 - In the **Scaffold** repo, prefer editing **`LiveOps/`**, then run **`refresh-liveops-template.ps1`** (or `-SkipGeneratorBuild` when the generator DLL is already current). Commit changes to both `LiveOps/` and the affected **`Backend~/`** trees when those files change.
-- In a **consumer** repo, run **`install-liveops-backend.ps1`** after adding or updating packages, then build **`LiveOps.Deploy.sln`**.
+- In a **consumer** repo, run **Scaffold → LiveOps → Install or Update Backend** (or from a Scaffold checkout, **`install-liveops-backend.ps1`**) after adding or updating packages, then build **`LiveOps.Deploy.sln`**.
 - **Do not** describe install as copying into **`LiveOps/Game/`**.
 - **Do not** invent a one-click “sync only this feature to `Backend~`” — the standard tool is a **full refresh** that updates all package `Backend~` folders that map to `LiveOps/`.
 - For a **new** module, start from **[`Tools/BackendTemplate/com.scaffold.example`](../../Tools/BackendTemplate/com.scaffold.example)**, add projects to the LiveOps solution, implement under `LiveOps/Scaffold/`, then **refresh**.
@@ -117,8 +117,9 @@ pwsh -NoProfile -File .agents/scripts/install-liveops-backend.ps1
 | File | Purpose |
 |------|---------|
 | [`.agents/scripts/refresh-liveops-template.ps1`](../../.agents/scripts/refresh-liveops-template.ps1) | Scaffold repo: `LiveOps/` → `Assets/Packages/*/Backend~/` |
-| [`.agents/scripts/install-liveops-backend.ps1`](../../.agents/scripts/install-liveops-backend.ps1) | Any consumer: `Assets/Packages/*/Backend~/` → repo-root `LiveOps/` |
-| [`Assets/Packages/com.scaffold.liveops/Editor/LiveOpsTemplateMenu.cs`](../../Assets/Packages/com.scaffold.liveops/Editor/LiveOpsTemplateMenu.cs) | Unity menu entries for the two scripts (when available) |
+| [`.agents/scripts/install-liveops-backend.ps1`](../../.agents/scripts/install-liveops-backend.ps1) | Optional CLI: same as menu; use when not in Unity (e.g. CI) or from a Scaffold checkout |
+| [`Assets/Packages/com.scaffold.liveops/Editor/LiveOpsBackendInstall.cs`](../../Assets/Packages/com.scaffold.liveops/Editor/LiveOpsBackendInstall.cs) | **Install** merge logic in the package (menu); [`LiveOpsBackendInstallContext.cs`](../../Assets/Packages/com.scaffold.liveops/Editor/LiveOpsBackendInstallContext.cs) holds path bundle |
+| [`Assets/Packages/com.scaffold.liveops/Editor/LiveOpsTemplateMenu.cs`](../../Assets/Packages/com.scaffold.liveops/Editor/LiveOpsTemplateMenu.cs) | Unity menu: **Install** (in-package) and **Refresh** (requires `.agents/scripts` in Scaffold) |
 | [`LiveOps/Deploy/Build/Scaffold.LiveOps.TemplateSync.targets`](../../LiveOps/Deploy/Build/Scaffold.LiveOps.TemplateSync.targets) | MSBuild: run refresh with `-SkipGeneratorBuild` after certain builds (optional) |
 
 ---
