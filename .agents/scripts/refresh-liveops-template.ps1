@@ -83,5 +83,15 @@ if (Test-Path $deploySlnSource) {
     else { Copy-Item -Path $deploySlnSource -Destination $deploySlnTemplate -Force }
 }
 
+# Top-level LiveOps/Directory.Build.props ships through Backend~ so consumer installs
+# get $(LiveOpsRoot)/$(RepositoryRoot) and the Common.props import out of the box.
+# Without this, fresh installs fail with MSB4019 / CS0103 on LiveOpsManifest.
+$dirBuildSource = Join-Path $liveOps "Directory.Build.props"
+$dirBuildTemplate = Join-Path $hostBack "Directory.Build.props"
+if (Test-Path $dirBuildSource) {
+    if ($DryRun) { Write-Host "Would copy $dirBuildSource -> $dirBuildTemplate" }
+    else { Copy-Item -Path $dirBuildSource -Destination $dirBuildTemplate -Force }
+}
+
 Write-Host "Done. Host template root: $hostBack"
 exit 0
