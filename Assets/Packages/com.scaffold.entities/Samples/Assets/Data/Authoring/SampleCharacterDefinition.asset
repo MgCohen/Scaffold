@@ -22,12 +22,12 @@ MonoBehaviour:
         rid: 4306785480214053135
       variableAuthoring: {fileID: 11400000, guid: a103d4567890abcd1234567890abcdef, type: 2}
     - key:
-        key: Health
+        key: MoveSpeed
         type: 1
       variableLegacy: {fileID: 0}
       baseValue:
         rid: 4306785480214053133
-      variableAuthoring: {fileID: 11400000, guid: a103d4567890abcd1234567890abcdef, type: 2}
+      variableAuthoring: {fileID: 11400000, guid: b203d4567890abcd1234567890abcdef, type: 2}
     - key:
         key: Flat
         type: 3

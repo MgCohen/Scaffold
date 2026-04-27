@@ -17,13 +17,21 @@ You can see this working when: a test creates a `StateEntity` backed by a real `
 ## Progress
 
 - Author initial ExecPlan at `Plans/EntitiesStateBridge/EntitiesStateBridge-ExecPlan.md` (this file).
-- Milestone 1 — Unity Decoupling: `EntityModifierEntry` uses `Variable` only; `IEntityDefinition` interface introduced; `EntityDefinition` becomes plain C#; `EntityDefinitionAsset` is the new ScriptableObject wrapper; all interface constraints updated.
-- Milestone 2 — Internal Restructuring: `ModifierId` record added; combination logic extracted to `EntityVariableComputer`; `IEntityVariableStorage` interface introduced; `LocalVariableStorage` owns bags and modifier state; `BaseEntityInstance` abstract class holds the read surface; `EntityInstance` extends it with write methods; `IReadOnlyEntity` / `IMutableEntity` replace the old three-level interface hierarchy.
-- Milestone 3 — Extension Package: `com.scaffold.entities.states` package created; `EntityVariableState` record, `StoreVariableStorage`, `StateEntity`, mutators, and `EntityStateFactory` implemented; integration tests prove snapshot round-trips restore entity variable values correctly.
+- **Milestone 1 — Unity Decoupling (core deliverables landed in package):**
+  - `Variable`/`VariableEntry`/`EntityModifierEntry` keys are **`Variable`** (serializable **`class`**, not positional record — Unity Serialization does not cooperate with boxed `SerializedProperty` access for records).
+  - `IEntityDefinition`; plain C# `EntityDefinition`; `EntityDefinitionAsset` (`ScriptableObject`) implements the interface; interface constraints use `where TDefinition : IEntityDefinition`.
+  - `VariableBag` / `EntityInstance` / `EntityComponentT` / samples and tests updated for the new model.
+  - **Editor authoring path:** `#if UNITY_EDITOR` **`variableAuthoring`** (`VariableSO`) on `VariableEntry` / `EntityModifierEntry` for stable ObjectField binding; inline `Variable` + legacy `variableLegacy` still supported; `VariableKeySoField` writes inline key members from SO pickers; **`VariableValueFactory.CreateDefault`** + **`RebaseSerialized*PayloadIfMismatch`** keep **`SerializeReference`** payloads aligned when the variable **type** changes (e.g. float → bool).
+  - **Editor robustness:** `ApplyModifiedProperties` invalidates cached `SerializedProperty` handles — drawers **re-resolve** `.value` and **`RefreshExtraPathsAfterSerializeReferencePayloadChanged`** before drawing expanded/`PropertyField` UI.
+  - **Tooling slim-down:** Removed AssetDatabase “find VariableSO by key name” display fallback; **`ResolveSoForDisplay`** = **`variableAuthoring` | `variableLegacy`** only; inlined **`key`** / **`type`** SerializedProperty lookup for **`Variable`** (removed multi-name probe helpers).
+- Milestone 2 — Internal Restructuring: **not started** (`ModifierId`, `EntityVariableComputer`, `IEntityVariableStorage`, `LocalVariableStorage`, `BaseEntityInstance`, `IMutableEntity` per plan sections below still pending).
+- Milestone 3 — Extension Package: **not started** (`com.scaffold.entities.states`, Store bridge, Mutators — pending).
 
 ## Surprises & Discoveries
 
-Document unexpected behaviors, bugs, optimizations, or insights discovered during implementation. Provide concise evidence.
+- **SerializedProperty + positional records**: Using `SerializedProperty.boxedValue` / struct-style accessors on **`Variable`** backed by positional record shapes caused **`InvalidOperationException`** until **`Variable`** became an explicit **`[Serializable] class`** with **`[SerializeField]`** fields (**`key`**, **`type`**).
+- **ApplyModifiedProperties invalidates sibling properties**: Calling **`ApplyModifiedProperties`** from the VariableSO **`ObjectField`** handler while still holding **`modifierValue.value` / `baseValue.value`** from an earlier **`FindPropertyRelative`** caused **`ObjectDisposedException`**. Fix: **`SerializedObject.Update()`** and **re-query** paths after apply (see **`ResolveValueNestedPropertyAfterApply`** and drawer refresh helpers).
+- **Type change without new `VariableValue` instance**: Changing **`VariableSO`** while leaving the old **`FloatVariableValue`** (etc.) under **`SerializeReference`** left the inspector showing the wrong payload type until **rebase** logic replaced the managed reference with **`VariableValueFactory.CreateDefault(expectedType)`**.
 
 ## Decision Log
 
@@ -51,9 +59,9 @@ Author: Design session, 2026-04-27.
 - Decision: `IEntityVariableStorage` is a read-only interface. It has no write methods. Write operations belong to the concrete storage implementations (`LocalVariableStorage` for standalone, `store.Execute(...)` for state-backed) and are not part of the shared contract.
 Rationale: `BaseEntityInstance` only needs to read from storage to implement its read surface. Expressing write operations on the storage interface would mean `StateEntity` would have to either implement them or throw, reintroducing the problem we are trying to avoid. The type system enforces the correct pattern: code that needs to write must hold either an `IMutableEntity` (standalone) or a `Store` reference (state-backed).
 Author: Design session, 2026-04-27.
-- Decision: `VariableEntry` stores a `Variable` record as its key, not a `VariableSO` reference. The SO is never stored in serialized data — it is only used as a drag-and-drop authoring convenience in the property drawer. The drawer resolves the backing `Variable.Key` string to a matching `VariableSO` asset for display via `AssetDatabase`, and converts on assignment. The `VariableBag` used by `EntityDefinitionAsset` is therefore keyed entirely by `Variable` records at every layer — runtime, serialized data, and snapshot — with no SO references anywhere in the data model.
-Rationale: ScriptableObjects are authoring and utility helpers; they must not appear as first-party keys in base classes, serialized fields, or bags. Storing the SO reference in `VariableEntry` leaks a Unity asset dependency into every consumer of the bag regardless of whether they use Unity. The drawer-resolution pattern (find SO by name match, store only the record) is the correct separation: designer experience is preserved, runtime purity is enforced.
-Author: Design session, 2026-04-27.
+- Decision: `VariableEntry` stores a **`Variable`** key (inline serialization), not a **`VariableSO`** as the runtime key. **Runtime / player data stays SO-free.** For **editor authoring**, optional **`variableAuthoring`** (`#if UNITY_EDITOR` `[SerializeField] VariableSO`) binds the picker; **`variableLegacy`** supports migration from former `variable` serialization. **`ResolveSoForDisplay`** uses **`variableAuthoring` | `variableLegacy`** — **no AssetDatabase sweep by name for display** (removed to reduce tooling and cost; orphaned rows without either reference show **`None`** until assigned).
+Rationale: ScriptableObjects remain authoring-facing; the authoritative key for gameplay is **`Variable`**. Explicit editor-only **`variableAuthoring`** gives a stable Object reference without implying SO in player builds (`UNITY_EDITOR`-stripped field). Name-based **`FindAssets`** was dropped as redundant once authoring ref + inline fill existed.
+Author: Scaffold.Entities iteration, 2026-04-27–2026-04 (amends 2026-04-27 design session text that assumed name-only resolution).
 
 ## Outcomes & Retrospective
 
@@ -836,4 +844,6 @@ public static class EntityStateFactory
 
 - **2026-04-27** — Initial ExecPlan authored from design session covering state/entities incompatibility, Unity decoupling requirements, and bridge package architecture.
 - **2026-04-27** — Step 1.1 expanded to cover `VariableEntry` key change from `VariableSO` to `Variable` record. Step 1.4 (`EntityDefinitionAsset`) updated to use a pure `Variable`-keyed bag with no SO references in serialized data; SO-taking `AddVariable` overload converts immediately and stores the record. Property drawer approach documented: drawer resolves `VariableSO` by name match at draw time, stores `Variable` record on assignment. Decision Log entry added. Rationale: SOs are authoring/utility helpers and must not appear as first-party keys in base classes or serialized fields.
+- **2026-04-27** — **Progress / Surprises / Decision Log** updated for Milestone 1 editor follow-on: `Variable` as serializable **`class`**; **`variableAuthoring`**; **`SerializeReference`** payload rebase; SerializedProperty lifecycle after **`ApplyModifiedProperties`**; removal of AssetDatabase-only SO resolution for **`ResolveSoForDisplay`**. Detailed step text in §Context / §Step 1.1 retains older wording in places — treat **Progress** + **Decision Log** + **Surprises** as the current source of truth for those behaviors until the long-form sections are fully reconciled.
+
 
