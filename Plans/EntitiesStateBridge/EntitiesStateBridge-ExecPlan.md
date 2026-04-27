@@ -24,6 +24,7 @@ You can see this working when: a test creates a `StateEntity` backed by a real `
   - **Editor authoring path:** `#if UNITY_EDITOR` **`variableAuthoring`** (`VariableSO`) on `VariableEntry` / `EntityModifierEntry` for stable ObjectField binding; inline `Variable` + legacy `variableLegacy` still supported; `VariableKeySoField` writes inline key members from SO pickers; **`VariableValueFactory.CreateDefault`** + **`RebaseSerialized*PayloadIfMismatch`** keep **`SerializeReference`** payloads aligned when the variable **type** changes (e.g. float → bool).
   - **Editor robustness:** `ApplyModifiedProperties` invalidates cached `SerializedProperty` handles — drawers **re-resolve** `.value` and **`RefreshExtraPathsAfterSerializeReferencePayloadChanged`** before drawing expanded/`PropertyField` UI.
   - **Tooling slim-down:** Removed AssetDatabase “find VariableSO by key name” display fallback; **`ResolveSoForDisplay`** = **`variableAuthoring` | `variableLegacy`** only; inlined **`key`** / **`type`** SerializedProperty lookup for **`Variable`** (removed multi-name probe helpers).
+  - **Definition API:** **`AddVariable(Variable, VariableValue)`** only on **`EntityDefinition`** and **`EntityDefinitionAsset`** — no **`AddVariable(VariableSO, ...)`** overload; call sites with a **`VariableSO`** use **`(Variable)so`** (or **`VariableSO`**→**`Variable`** conversion) when calling **`AddVariable`**.
 - Milestone 2 — Internal Restructuring: **not started** (`ModifierId`, `EntityVariableComputer`, `IEntityVariableStorage`, `LocalVariableStorage`, `BaseEntityInstance`, `IMutableEntity` per plan sections below still pending).
 - Milestone 3 — Extension Package: **not started** (`com.scaffold.entities.states`, Store bridge, Mutators — pending).
 
@@ -62,6 +63,9 @@ Author: Design session, 2026-04-27.
 - Decision: `VariableEntry` stores a **`Variable`** key (inline serialization), not a **`VariableSO`** as the runtime key. **Runtime / player data stays SO-free.** For **editor authoring**, optional **`variableAuthoring`** (`#if UNITY_EDITOR` `[SerializeField] VariableSO`) binds the picker; **`variableLegacy`** supports migration from former `variable` serialization. **`ResolveSoForDisplay`** uses **`variableAuthoring` | `variableLegacy`** — **no AssetDatabase sweep by name for display** (removed to reduce tooling and cost; orphaned rows without either reference show **`None`** until assigned).
 Rationale: ScriptableObjects remain authoring-facing; the authoritative key for gameplay is **`Variable`**. Explicit editor-only **`variableAuthoring`** gives a stable Object reference without implying SO in player builds (`UNITY_EDITOR`-stripped field). Name-based **`FindAssets`** was dropped as redundant once authoring ref + inline fill existed.
 Author: Scaffold.Entities iteration, 2026-04-27–2026-04 (amends 2026-04-27 design session text that assumed name-only resolution).
+- Decision: **`EntityDefinition` and `EntityDefinitionAsset` do not expose `AddVariable(VariableSO, VariableValue)`**. Only **`AddVariable(Variable key, VariableValue defaultValue)`** is part of the API. Code that has a `VariableSO` calls **`AddVariable((Variable)so, defaultValue)`** (or equivalent conversion) at the call site.
+Rationale: Avoids an SO-typed surface on definition types; keeps authoring keys purely `Variable`-typed in method signatures while `VariableSO` remains available for editor pickers and asset references.
+Author: Scaffold.Entities iteration, 2026-04-27.
 
 ## Outcomes & Retrospective
 
@@ -150,9 +154,9 @@ namespace Scaffold.Entities
 
 `TryGetDefaultValue` returns the base value for a variable key as declared in the definition. `DefinedVariables` enumerates the keys that have defaults. These are the only two things `BaseEntityInstance` needs from a definition at runtime.
 
-**Step 1.3 — Make `EntityDefinition` a plain C# class.** Open `Runtime/Core/EntityDefinition.cs`. Remove `: ScriptableObject`. Remove `OnEnable()` and `OnValidate()` — these are Unity lifecycle callbacks that only apply to ScriptableObjects. Remove the `AddVariable(VariableSO variable, VariableValue defaultValue)` overload — SO-taking methods move to the asset wrapper. Add `AddVariable(Variable key, VariableValue defaultValue)` as the primary mutation method (this already exists via the bag's `Add` method; expose it directly on the definition for use in code-only construction). Implement `IEntityDefinition`: `TryGetDefaultValue` delegates to `bag.TryGetBase(key, out value)`, and `DefinedVariables` returns `bag.LocalKeys`. The class no longer has any `using UnityEngine` imports.
+**Step 1.3 — Make `EntityDefinition` a plain C# class.** Open `Runtime/Core/EntityDefinition.cs`. Remove `: ScriptableObject`. Remove `OnEnable()` and `OnValidate()` — these are Unity lifecycle callbacks that only apply to ScriptableObjects. Remove any legacy `AddVariable(VariableSO variable, VariableValue defaultValue)` overload if it still exists. Expose **`AddVariable(Variable key, VariableValue defaultValue)`** only (no `VariableSO` overload on `EntityDefinition` or `EntityDefinitionAsset`). Call sites that hold a `VariableSO` pass **`(Variable)so`** (or use `VariableSO`’s conversion to `Variable`, if defined) when calling **`AddVariable`**. Implement `IEntityDefinition`: `TryGetDefaultValue` delegates to `bag.TryGetBase(key, out value)`, and `DefinedVariables` returns `bag.LocalKeys`. The class no longer has any `using UnityEngine` imports.
 
-**Step 1.4 — Create `EntityDefinitionAsset`.** Create a new file `Runtime/Core/EntityDefinitionAsset.cs`. This is the Unity ScriptableObject that holds a definition for inspector authoring. It does not inherit from `EntityDefinition` — it is a flat ScriptableObject that implements `IEntityDefinition` directly. Its serialized `VariableBag` uses `VariableEntry` objects whose keys are `Variable` records (not SO references), exactly as updated in Step 1.1. Unity lifecycle methods live here. The `AddVariable` convenience overload that takes a `VariableSO` converts immediately to a `Variable` record and stores that — the SO is never persisted:
+**Step 1.4 — Create `EntityDefinitionAsset`.** Create a new file `Runtime/Core/EntityDefinitionAsset.cs`. This is the Unity ScriptableObject that holds a definition for inspector authoring. It does not inherit from `EntityDefinition` — it is a flat ScriptableObject that implements `IEntityDefinition` directly. Its serialized `VariableBag` uses `VariableEntry` objects whose keys are `Variable` records (not SO references), exactly as updated in Step 1.1. Unity lifecycle methods live here. **`AddVariable` takes a `Variable` only** — do not add a `VariableSO` overload; callers use **`(Variable)so`** at the call site when needed.
 
 ```
 using System.Collections.Generic;
@@ -182,17 +186,12 @@ namespace Scaffold.Entities
             bag.RebuildCache();
         }
 
-        // Editor-only convenience: convert SO to Variable record on entry.
-        // The SO is never stored; only the resulting Variable record is serialized.
-        public void AddVariable(VariableSO variable, VariableValue defaultValue)
-            => AddVariable((Variable)variable, defaultValue);
-
         internal void RebuildLookup() => bag.RebuildCache();
     }
 }
 ```
 
-The key point: the serialized bag contains `VariableEntry` objects with `Variable` record keys. There is no SO reference anywhere in the serialized data. The `OnValidate` no longer calls `EnsureValueMatchesType` on each entry because that method previously validated the SO's declared type against the value type — with `Variable` records as keys, the type is embedded in the record itself and can be validated directly against `entry.BaseValue.Type` if needed without SO involvement.
+The key point: the serialized bag contains `VariableEntry` objects with `Variable` keys. There is no SO reference anywhere in the serialized definition data. The `OnValidate` no longer calls `EnsureValueMatchesType` on each entry because that method previously validated the SO's declared type against the value type — with `Variable` as keys, the type is embedded in the key and can be validated directly against `entry.BaseValue.Type` if needed without SO involvement.
 
 **Step 1.5 — Update all interface constraints.** Open `Runtime/Core/IReadOnlyEntity.cs`, `Runtime/Core/IEntity.cs`, and `Runtime/Core/IInstance.cs`. In each file, change `where TDefinition : EntityDefinition` to `where TDefinition : IEntityDefinition`. The `out` covariance modifier on `TDefinition` in `IReadOnlyEntity` is preserved.
 
@@ -843,7 +842,8 @@ public static class EntityStateFactory
 ## Revision history
 
 - **2026-04-27** — Initial ExecPlan authored from design session covering state/entities incompatibility, Unity decoupling requirements, and bridge package architecture.
-- **2026-04-27** — Step 1.1 expanded to cover `VariableEntry` key change from `VariableSO` to `Variable` record. Step 1.4 (`EntityDefinitionAsset`) updated to use a pure `Variable`-keyed bag with no SO references in serialized data; SO-taking `AddVariable` overload converts immediately and stores the record. Property drawer approach documented: drawer resolves `VariableSO` by name match at draw time, stores `Variable` record on assignment. Decision Log entry added. Rationale: SOs are authoring/utility helpers and must not appear as first-party keys in base classes or serialized fields.
+- **2026-04-27** — Step 1.1 expanded to cover `VariableEntry` key change from `VariableSO` to `Variable` record. Step 1.4 (`EntityDefinitionAsset`) updated to use a pure `Variable`-keyed bag with no SO references in serialized data. Property drawer approach documented: drawer resolves `VariableSO` by name match at draw time, stores `Variable` record on assignment. Decision Log entry added. Rationale: SOs are authoring/utility helpers and must not appear as first-party keys in base classes or serialized fields.
+- **2026-04-27** — Plan amended: **no `AddVariable(VariableSO, ...)` on definitions**. Only `AddVariable(Variable, ...)`; SO→`Variable` cast at call sites. ExecPlan sample code and Step 1.3/1.4 text updated accordingly; Decision Log records the decision.
 - **2026-04-27** — **Progress / Surprises / Decision Log** updated for Milestone 1 editor follow-on: `Variable` as serializable **`class`**; **`variableAuthoring`**; **`SerializeReference`** payload rebase; SerializedProperty lifecycle after **`ApplyModifiedProperties`**; removal of AssetDatabase-only SO resolution for **`ResolveSoForDisplay`**. Detailed step text in §Context / §Step 1.1 retains older wording in places — treat **Progress** + **Decision Log** + **Surprises** as the current source of truth for those behaviors until the long-form sections are fully reconciled.
 
 
