@@ -12,7 +12,7 @@ namespace Scaffold.Entities.Tests
         {
             VariableSO hp = CreateVariableSo("HP", VariableValueType.Float);
             var bag = new VariableBag();
-            bag.AddSerializedEntry(VariableEntry.Create(hp, new FloatVariableValue { Value = 7f }));
+            bag.AddSerializedEntry(VariableEntry.Create((Variable)hp, new FloatVariableValue { Value = 7f }));
             bag.RebuildCache();
 
             Assert.That(bag.TryGetBase((Variable)hp, out VariableValue v), Is.True);
@@ -24,7 +24,7 @@ namespace Scaffold.Entities.Tests
         {
             VariableSO hp = CreateVariableSo("HP", VariableValueType.Float);
             var parent = new VariableBag();
-            parent.AddSerializedEntry(VariableEntry.Create(hp, new FloatVariableValue { Value = 10f }));
+            parent.AddSerializedEntry(VariableEntry.Create((Variable)hp, new FloatVariableValue { Value = 10f }));
             parent.RebuildCache();
 
             var child = new VariableBag();
@@ -40,7 +40,7 @@ namespace Scaffold.Entities.Tests
         {
             VariableSO hp = CreateVariableSo("HP", VariableValueType.Float);
             var parent = new VariableBag();
-            parent.AddSerializedEntry(VariableEntry.Create(hp, new FloatVariableValue { Value = 10f }));
+            parent.AddSerializedEntry(VariableEntry.Create((Variable)hp, new FloatVariableValue { Value = 10f }));
             parent.RebuildCache();
 
             var child = new VariableBag();

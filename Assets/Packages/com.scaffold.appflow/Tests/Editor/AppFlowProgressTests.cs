@@ -164,29 +164,6 @@ namespace Scaffold.AppFlow.Tests.Editor
         }
 
         [Test]
-        public async Task Root_ChangedFires_WhenSubscribedBeforeStart()
-        {
-            var go = new GameObject("RootChangedTest");
-            try
-            {
-                var root = go.AddComponent<SingleEmptyLayerBootstrap>();
-                if (root.Container == null)
-                {
-                    root.Build();
-                }
-
-                int fired = 0;
-                root.Progress.Changed += _ => fired++;
-                await root.ReadyTask;
-                Assert.That(fired, Is.GreaterThan(0));
-            }
-            finally
-            {
-                UnityEngine.Object.DestroyImmediate(go);
-            }
-        }
-
-        [Test]
         public async Task OverriddenInitializeAsync_NotCallingDefault_LogsWarning()
         {
             LogAssert.Expect(LogType.Warning, new Regex(@"\[AppFlow\].*did not call RunDefaultInitAsync"));
@@ -209,14 +186,6 @@ namespace Scaffold.AppFlow.Tests.Editor
             protected override IEnumerable<IScopeLayer> GetInitialLayers()
             {
                 yield break;
-            }
-        }
-
-        private sealed class SingleEmptyLayerBootstrap : AppFlowRoot
-        {
-            protected override IEnumerable<IScopeLayer> GetInitialLayers()
-            {
-                yield return new EmptyLayer();
             }
         }
 

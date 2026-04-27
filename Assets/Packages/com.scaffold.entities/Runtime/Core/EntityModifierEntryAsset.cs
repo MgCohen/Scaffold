@@ -14,21 +14,17 @@ namespace Scaffold.Entities
         [SerializeField]
         private EntityModifierEntry entry = new();
 
-        private EntityModifierEntry ToRuntimeEntry()
+#if UNITY_EDITOR
+        private void OnValidate()
         {
-            VariableSO? variableSo = entry.Variable;
-            VariableValue? payload = entry.ModifierValue;
-            if (variableSo == null)
-            {
-                return new EntityModifierEntry();
-            }
-
-            return new EntityModifierEntry(variableSo, payload);
+            entry.EditorApplyAuthoringIntoInlineSerializedKeyAndClearLegacy();
+            entry.RebaseSerializedModifierPayloadIfMismatch();
         }
+#endif
 
         public static explicit operator EntityModifierEntry(EntityModifierEntryAsset? asset)
         {
-            return asset == null ? null! : asset.ToRuntimeEntry();
+            return asset == null ? null! : asset.entry;
         }
     }
 }

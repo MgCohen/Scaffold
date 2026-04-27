@@ -1,14 +1,16 @@
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace Scaffold.Entities
 {
-    public class EntityDefinition : IEntityDefinition
+    [CreateAssetMenu(menuName = "Scaffold/Entity/Definition", fileName = "EntityDefinition")]
+    public class EntityDefinitionAsset : ScriptableObject, IEntityDefinition
     {
         internal IReadOnlyList<VariableEntry> Entries => bag.Entries;
 
         internal VariableBag Bag => bag;
 
-        private readonly VariableBag bag = new VariableBag();
+        [SerializeField] private VariableBag bag = new VariableBag();
 
         public IEnumerable<Variable> DefinedVariables => bag.LocalKeys;
 
@@ -19,16 +21,21 @@ namespace Scaffold.Entities
 
         public void AddVariable(Variable key, VariableValue defaultValue)
         {
-            AddEntry(VariableEntry.Create(key, defaultValue));
+            bag.AddSerializedEntry(VariableEntry.Create(key, defaultValue));
             RebuildLookup();
         }
 
-        internal void AddEntry(VariableEntry entry)
+        private void OnEnable()
         {
-            if (entry != null)
-            {
-                bag.AddSerializedEntry(entry);
-            }
+            RebuildLookup();
+        }
+
+        private void OnValidate()
+        {
+#if UNITY_EDITOR
+            bag.EditorApplyVariableAuthoringFromValidation();
+#endif
+            RebuildLookup();
         }
 
         internal void RebuildLookup()

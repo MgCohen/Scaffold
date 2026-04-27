@@ -27,7 +27,7 @@ namespace Scaffold.Entities.Editor
             }
 
             SerializedProperty defProp = inst.FindPropertyRelative("definition");
-            if (defProp == null || defProp.objectReferenceValue is not EntityDefinition def)
+            if (defProp == null || defProp.objectReferenceValue is not EntityDefinitionAsset def)
             {
                 return;
             }
@@ -37,7 +37,7 @@ namespace Scaffold.Entities.Editor
             DrawBagFieldDisabled(def);
         }
 
-        private void DrawBagFieldDisabled(EntityDefinition def)
+        private void DrawBagFieldDisabled(EntityDefinitionAsset def)
         {
             using (SerializedObject defSo = new SerializedObject(def))
             {

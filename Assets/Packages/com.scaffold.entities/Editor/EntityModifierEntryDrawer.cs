@@ -29,25 +29,44 @@ namespace Scaffold.Entities.Editor
 
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
-            SerializedProperty variableProp = property.FindPropertyRelative("variable");
-            SerializedProperty modifierValue = property.FindPropertyRelative("modifierValue");
-            SerializedProperty inlineValue = modifierValue != null ? modifierValue.FindPropertyRelative("value") : null;
+            OnGuiForModifierEntry(position, property, label);
+        }
 
-            var extraPaths = new List<string>();
-            CollectExtraChildPropertyPaths(modifierValue, extraPaths);
-            bool hasExtras = extraPaths.Count > 0;
-
+        private void OnGuiForModifierEntry(Rect position, SerializedProperty property, GUIContent label)
+        {
+            GetModifierEntrySerializedState(property, out SerializedProperty keyProp, out SerializedProperty authoringProp, out SerializedProperty legacyProp, out SerializedProperty modifierValue, out SerializedProperty inlineValue, out List<string> extraPaths, out bool hasExtras);
             float singleLineHeight = EditorGUIUtility.singleLineHeight;
             float spacing = EditorGUIUtility.standardVerticalSpacing;
-
             EditorGUI.BeginProperty(position, label, property);
-            DrawHeaderRow(position, variableProp, modifierValue, inlineValue, hasExtras, singleLineHeight);
-            if (hasExtras && modifierValue != null && modifierValue.isExpanded)
+            DrawHeaderRow(position, property, keyProp, authoringProp, legacyProp, modifierValue, inlineValue, hasExtras, singleLineHeight);
+            RefreshExtraPathsAfterSerializeReferencePayloadChanged(property, "modifierValue", extraPaths, out SerializedProperty mv, out bool he);
+            if (he && mv != null && mv.isExpanded)
             {
                 DrawExpandedExtraFields(position, property.serializedObject, extraPaths, singleLineHeight, spacing);
             }
 
             EditorGUI.EndProperty();
+        }
+
+        private void RefreshExtraPathsAfterSerializeReferencePayloadChanged(SerializedProperty entryProperty, string payloadRelativeName, List<string> extraPaths, out SerializedProperty payload, out bool hasExtrasNow)
+        {
+            entryProperty.serializedObject.Update();
+            payload = entryProperty.FindPropertyRelative(payloadRelativeName);
+            extraPaths.Clear();
+            CollectExtraChildPropertyPaths(payload, extraPaths);
+            hasExtrasNow = extraPaths.Count > 0;
+        }
+
+        private void GetModifierEntrySerializedState(SerializedProperty property, out SerializedProperty keyProp, out SerializedProperty authoringProp, out SerializedProperty legacyProp, out SerializedProperty modifierValue, out SerializedProperty inlineValue, out List<string> extraPaths, out bool hasExtras)
+        {
+            keyProp = property.FindPropertyRelative("key");
+            authoringProp = property.FindPropertyRelative("variableAuthoring");
+            legacyProp = property.FindPropertyRelative("variableLegacy");
+            modifierValue = property.FindPropertyRelative("modifierValue");
+            inlineValue = modifierValue != null ? modifierValue.FindPropertyRelative("value") : null;
+            extraPaths = new List<string>();
+            CollectExtraChildPropertyPaths(modifierValue, extraPaths);
+            hasExtras = extraPaths.Count > 0;
         }
 
         private float MeasureExpandedExtrasHeight(SerializedObject so, List<string> extraPaths, float spacing)
@@ -67,31 +86,31 @@ namespace Scaffold.Entities.Editor
             return sum;
         }
 
-        private void DrawHeaderRow(Rect position, SerializedProperty variableProp, SerializedProperty modifierValue, SerializedProperty inlineValue, bool hasExtras, float singleLineHeight)
+        private void DrawHeaderRow(Rect position, SerializedProperty entryProperty, SerializedProperty keyProp, SerializedProperty authoringProp, SerializedProperty legacyProp, SerializedProperty modifierValue, SerializedProperty inlineValue, bool hasExtras, float singleLineHeight)
         {
-            float rowY = position.y;
             float rowW = position.width;
             float x = position.x;
+            float rowY = position.y;
             ApplyFoldoutStrip(hasExtras, modifierValue, ref x, ref rowW, rowY, singleLineHeight);
-            DrawHeaderSoAndValue(x, rowY, rowW, variableProp, inlineValue, singleLineHeight);
+            DrawHeaderSoAndValue(x, rowY, rowW, entryProperty, keyProp, authoringProp, legacyProp, inlineValue, singleLineHeight);
         }
 
-        private void DrawHeaderSoAndValue(float x, float rowY, float rowW, SerializedProperty variableProp, SerializedProperty inlineValue, float singleLineHeight)
+        private void DrawHeaderSoAndValue(float x, float rowY, float rowW, SerializedProperty entryProperty, SerializedProperty keyProp, SerializedProperty authoringProp, SerializedProperty legacyProp, SerializedProperty inlineValue, float singleLineHeight)
         {
             if (inlineValue == null)
             {
-                DrawSoOnly(x, rowY, rowW, variableProp, singleLineHeight);
+                DrawSoOnly(x, rowY, rowW, entryProperty, keyProp, authoringProp, legacyProp, singleLineHeight);
                 return;
             }
 
-            bool hasVariableSo = variableProp.objectReferenceValue != null;
+            bool hasVariableSo = VariableKeySoField.ResolveSoForDisplay(authoringProp, legacyProp) != null;
             if (hasVariableSo)
             {
-                DrawSoAndInlineValue(x, rowY, rowW, variableProp, inlineValue, singleLineHeight);
+                DrawSoAndInlineValue(x, rowY, rowW, entryProperty, keyProp, authoringProp, legacyProp, singleLineHeight);
             }
             else
             {
-                DrawSoAndReservedValueSlot(x, rowY, rowW, variableProp, singleLineHeight);
+                DrawSoAndReservedValueSlot(x, rowY, rowW, entryProperty, keyProp, authoringProp, legacyProp, singleLineHeight);
             }
         }
 
@@ -107,29 +126,32 @@ namespace Scaffold.Entities.Editor
             rowW -= foldoutWidth;
         }
 
-        private void DrawSoAndInlineValue(float x, float rowY, float rowW, SerializedProperty variableProp, SerializedProperty inlineValue, float singleLineHeight)
+        private void DrawSoAndInlineValue(float x, float rowY, float rowW, SerializedProperty entryProperty, SerializedProperty keyProp, SerializedProperty authoringProp, SerializedProperty legacyProp, float singleLineHeight)
         {
             float valueW = ComputeValueColumnWidth(rowW);
             float soW = rowW - valueW - soValueGap;
             Rect soRect = new Rect(x, rowY, soW, singleLineHeight);
             Rect valRect = new Rect(x + soW + soValueGap, rowY, valueW, singleLineHeight);
-
-            EditorGUI.PropertyField(soRect, variableProp, GUIContent.none);
-            EditorGUI.PropertyField(valRect, inlineValue, GUIContent.none);
+            VariableKeySoField.DrawObjectField(soRect, entryProperty, authoringProp, keyProp, legacyProp, "modifierValue");
+            SerializedProperty? valueNested = VariableKeySoField.ResolveValueNestedPropertyAfterApply(entryProperty, "modifierValue");
+            if (valueNested != null)
+            {
+                EditorGUI.PropertyField(valRect, valueNested, GUIContent.none);
+            }
         }
 
-        private void DrawSoAndReservedValueSlot(float x, float rowY, float rowW, SerializedProperty variableProp, float singleLineHeight)
+        private void DrawSoAndReservedValueSlot(float x, float rowY, float rowW, SerializedProperty entryProperty, SerializedProperty keyProp, SerializedProperty authoringProp, SerializedProperty legacyProp, float singleLineHeight)
         {
             float valueW = ComputeValueColumnWidth(rowW);
             float soW = rowW - valueW - soValueGap;
             Rect soRect = new Rect(x, rowY, soW, singleLineHeight);
-            EditorGUI.PropertyField(soRect, variableProp, GUIContent.none);
+            VariableKeySoField.DrawObjectField(soRect, entryProperty, authoringProp, keyProp, legacyProp, "modifierValue");
         }
 
-        private void DrawSoOnly(float x, float rowY, float rowW, SerializedProperty variableProp, float singleLineHeight)
+        private void DrawSoOnly(float x, float rowY, float rowW, SerializedProperty entryProperty, SerializedProperty keyProp, SerializedProperty authoringProp, SerializedProperty legacyProp, float singleLineHeight)
         {
             Rect soRect = new Rect(x, rowY, rowW, singleLineHeight);
-            EditorGUI.PropertyField(soRect, variableProp, GUIContent.none);
+            VariableKeySoField.DrawObjectField(soRect, entryProperty, authoringProp, keyProp, legacyProp, "modifierValue");
         }
 
         private float ComputeValueColumnWidth(float rowW)

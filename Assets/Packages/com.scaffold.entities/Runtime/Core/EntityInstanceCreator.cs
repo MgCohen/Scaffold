@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace Scaffold.Entities
 {
-    public sealed class EntityInstanceCreator<TDefinition> where TDefinition : EntityDefinition
+    public sealed class EntityInstanceCreator<TDefinition> where TDefinition : IEntityDefinition
     {
         public EntityInstanceCreator(IInstanceIdGenerator idGenerator)
         {

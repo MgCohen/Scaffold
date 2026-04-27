@@ -6,7 +6,7 @@ namespace Scaffold.Entities.Samples
         menuName = "Scaffold/Samples/Sample Character Definition",
         fileName = "SampleCharacterDefinition",
         order = 0)]
-    public sealed class SampleCharacterDefinition : EntityDefinition
+    public sealed class SampleCharacterDefinition : EntityDefinitionAsset
     {
     }
 }

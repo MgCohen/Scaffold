@@ -51,15 +51,24 @@ namespace Scaffold.Entities
             localCache.Clear();
             for (int i = 0; i < entries.Count; i++)
             {
-                VariableEntry entry = entries[i];
-                if (entry == null || entry.Variable == null || entry.BaseValue == null)
-                {
-                    continue;
-                }
-
-                Variable entryKey = (Variable)entry.Variable;
-                localCache[entryKey] = entry.BaseValue;
+                AddEntryToCacheIfValid(entries[i]);
             }
+        }
+
+        private void AddEntryToCacheIfValid(VariableEntry entry)
+        {
+            if (entry == null)
+            {
+                return;
+            }
+
+            Variable entryKey = entry.Key;
+            if (string.IsNullOrEmpty(entryKey.Key) || entry.BaseValue == null)
+            {
+                return;
+            }
+
+            localCache[entryKey] = entry.BaseValue;
         }
 
         internal void AddSerializedEntry(VariableEntry entry)
@@ -69,6 +78,18 @@ namespace Scaffold.Entities
                 entries.Add(entry);
             }
         }
+
+#if UNITY_EDITOR
+        internal void EditorApplyVariableAuthoringFromValidation()
+        {
+            for (int i = 0; i < entries.Count; i++)
+            {
+                VariableEntry entry = entries[i];
+                entry?.EditorApplyAuthoringIntoInlineSerializedKeyAndClearLegacy();
+                entry?.RebaseSerializedPayloadIfMismatch();
+            }
+        }
+#endif
 
         public bool Add(Variable key, VariableValue initialBase)
         {

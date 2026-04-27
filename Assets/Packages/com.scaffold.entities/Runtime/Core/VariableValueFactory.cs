@@ -4,6 +4,18 @@ namespace Scaffold.Entities
 {
     internal static class VariableValueFactory
     {
+        internal static VariableValue CreateDefault(VariableValueType type)
+        {
+            return type switch
+            {
+                VariableValueType.String => new StringVariableValue(),
+                VariableValueType.Float => new FloatVariableValue(),
+                VariableValueType.Int => new IntVariableValue(),
+                VariableValueType.Bool => new BoolVariableValue(),
+                _ => new StringVariableValue(),
+            };
+        }
+
         internal static VariableValue From<T>(T value)
         {
             return value switch

@@ -22,7 +22,7 @@ namespace Scaffold.Entities.Editor.Tests
             {
                 SerializedProperty entry = soAsset.FindProperty("entry");
                 Assert.IsNotNull(entry);
-                entry.FindPropertyRelative("variable").objectReferenceValue = healthVariable;
+                entry.FindPropertyRelative("variableLegacy").objectReferenceValue = healthVariable;
 
                 SerializedProperty modifierValue = entry.FindPropertyRelative("modifierValue");
                 Assert.IsNotNull(modifierValue);
@@ -32,7 +32,7 @@ namespace Scaffold.Entities.Editor.Tests
 
             var runtime = (EntityModifierEntry)asset;
             Assert.IsNotNull(runtime);
-            Assert.AreSame(healthVariable, runtime.Variable);
+            Assert.AreEqual((Variable)healthVariable, runtime.Key);
             Assert.IsInstanceOf<FloatVariableValue>(runtime.ModifierValue);
             Assert.AreEqual(25f, ((FloatVariableValue)runtime.ModifierValue).Value, 0.0001f);
         }

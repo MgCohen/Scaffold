@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace Scaffold.Entities
 {
-    public class EntityComponent<TDefinition> : EntityComponent, IInstance<TDefinition> where TDefinition : EntityDefinition
+    public class EntityComponent<TDefinition> : EntityComponent, IInstance<TDefinition> where TDefinition : IEntityDefinition
     {
         internal EntityInstance<TDefinition> Instance => instance;
         [SerializeField] private EntityInstance<TDefinition> instance;
@@ -91,6 +91,8 @@ namespace Scaffold.Entities
 #if UNITY_EDITOR
         private void OnValidate()
         {
+            instance?.EditorApplyVariableAuthoringOnBagsFromValidation();
+
             if (!Application.isPlaying)
             {
                 return;

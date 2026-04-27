@@ -82,7 +82,7 @@ namespace Scaffold.Entities.Tests
             var delta = new FloatVariableValue { Value = 5f };
             state.AddModifier(new EntityModifierEntry(hp, delta));
 
-            Assert.That(def.TryGetBaseValue((Variable)hp, out VariableValue baseV), Is.True);
+            Assert.That(def.TryGetDefaultValue((Variable)hp, out VariableValue baseV), Is.True);
             Assert.That(((FloatVariableValue)baseV).Value, Is.EqualTo(10f));
         }
 
@@ -495,11 +495,10 @@ namespace Scaffold.Entities.Tests
 
         private EntityDefinition CreateDefinition(params (VariableSO so, VariableValue baseValue)[] rows)
         {
-            var def = ScriptableObject.CreateInstance<EntityDefinition>();
-            def.name = "TestDefinition";
+            var def = new EntityDefinition();
             foreach ((VariableSO so, VariableValue bv) in rows)
             {
-                def.AddEntry(VariableEntry.Create(so, bv));
+                def.AddEntry(VariableEntry.Create((Variable)so, bv));
             }
 
             def.RebuildLookup();

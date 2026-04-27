@@ -1,0 +1,160 @@
+using UnityEditor;
+using UnityEngine;
+using Scaffold.Entities;
+using VariableSO = Scaffold.Entities.VariableSO;
+using VRec = Scaffold.Entities.Variable;
+
+namespace Scaffold.Entities.Editor
+{
+    internal static class VariableKeySoField
+    {
+        internal static VariableSO? ResolveSoForDisplay(SerializedProperty? variableAuthoringProp, SerializedProperty? legacyProperty)
+        {
+            VariableSO? authoring = TryGetSerializedAuthoring(variableAuthoringProp);
+            if (authoring != null)
+            {
+                return authoring;
+            }
+
+            return legacyProperty?.objectReferenceValue as VariableSO;
+        }
+
+        private static VariableSO? TryGetSerializedAuthoring(SerializedProperty? variableAuthoringProp)
+        {
+            if (variableAuthoringProp == null ||
+                variableAuthoringProp.propertyType != SerializedPropertyType.ObjectReference)
+            {
+                return null;
+            }
+
+            return variableAuthoringProp.objectReferenceValue as VariableSO;
+        }
+
+        internal static void DrawObjectField(Rect soRect, SerializedProperty entryProperty, SerializedProperty? variableAuthoringProp, SerializedProperty keyProp, SerializedProperty legacyProp, string serializedValueRelativePath)
+        {
+            VariableSO? c = ResolveSoForDisplay(variableAuthoringProp, legacyProp);
+            EditorGUI.BeginChangeCheck();
+            VariableSO? n = (VariableSO)EditorGUI.ObjectField(soRect, GUIContent.none, c, typeof(VariableSO), false);
+            if (!EditorGUI.EndChangeCheck())
+            {
+                return;
+            }
+
+            WriteAuthoringSerializedIfPresent(variableAuthoringProp, n);
+            AssignVariableSerializedFromSo(keyProp, legacyProp, n);
+            RebaseManagedReferencePayloadForVariableSo(entryProperty, serializedValueRelativePath, n);
+            entryProperty.serializedObject.ApplyModifiedProperties();
+        }
+
+        internal static SerializedProperty? ResolveValueNestedPropertyAfterApply(SerializedProperty entryProperty, string serializeReferenceContainerRelativeName)
+        {
+            entryProperty.serializedObject.Update();
+            SerializedProperty container = entryProperty.FindPropertyRelative(serializeReferenceContainerRelativeName);
+            return container?.FindPropertyRelative("value");
+        }
+
+        internal static void RebaseManagedReferencePayloadForVariableSo(SerializedProperty entryProperty, string valueRelativePath, VariableSO? selectedSo)
+        {
+            VariableValueType expected = selectedSo == null ? VariableValueType.String : selectedSo.ValueType;
+            SerializedProperty? payload = entryProperty.FindPropertyRelative(valueRelativePath);
+            if (payload == null || payload.propertyType != SerializedPropertyType.ManagedReference)
+            {
+                return;
+            }
+
+            VariableValue? current = payload.managedReferenceValue as VariableValue;
+            if (current != null && current.Type == expected)
+            {
+                return;
+            }
+
+            payload.managedReferenceValue = VariableValueFactory.CreateDefault(expected);
+        }
+
+        private static void WriteAuthoringSerializedIfPresent(SerializedProperty? authoringProp, VariableSO? so)
+        {
+            if (authoringProp?.propertyType == SerializedPropertyType.ObjectReference)
+            {
+                authoringProp.objectReferenceValue = so;
+            }
+        }
+
+        internal static void AssignVariableSerializedFromSo(SerializedProperty? keyProp, SerializedProperty? legacyProp, VariableSO? so)
+        {
+            if (keyProp == null)
+            {
+                return;
+            }
+
+            if (!AssignInlineVariableSerializable(keyProp, so))
+            {
+                WriteLegacyReference(legacyProp, so);
+                return;
+            }
+
+            ClearLegacyReference(legacyProp);
+        }
+
+        internal static void ClearLegacyReference(SerializedProperty? legacyProp)
+        {
+            if (legacyProp?.objectReferenceValue != null)
+            {
+                legacyProp.objectReferenceValue = null;
+            }
+        }
+
+        internal static void WriteLegacyReference(SerializedProperty? legacyProp, VariableSO? so)
+        {
+            if (legacyProp != null)
+            {
+                legacyProp.objectReferenceValue = so;
+            }
+        }
+
+        internal static bool AssignInlineVariableSerializable(SerializedProperty keyRoot, VariableSO? so)
+        {
+            SerializedProperty? keyMember = keyRoot.FindPropertyRelative("key");
+            if (keyMember == null || keyMember.propertyType != SerializedPropertyType.String)
+            {
+                return false;
+            }
+
+            SerializedProperty? typeMember = keyRoot.FindPropertyRelative("type");
+            if (typeMember == null || (typeMember.propertyType != SerializedPropertyType.Enum &&
+                    typeMember.propertyType != SerializedPropertyType.Integer))
+            {
+                return false;
+            }
+
+            return so == null
+                ? ClearVariableMembers(keyMember, typeMember)
+                : FillVariableMembers(keyMember, typeMember, so);
+        }
+
+        internal static bool ClearVariableMembers(SerializedProperty keyMember, SerializedProperty typeMember)
+        {
+            keyMember.stringValue = "";
+            AssignTypeOrdinal(typeMember, (int)Scaffold.Entities.VariableValueType.String);
+            return true;
+        }
+
+        internal static bool FillVariableMembers(SerializedProperty keyMember, SerializedProperty typeMember, VariableSO so)
+        {
+            VRec v = so;
+            keyMember.stringValue = v.Key;
+            AssignTypeOrdinal(typeMember, (int)v.Type);
+            return true;
+        }
+
+        private static void AssignTypeOrdinal(SerializedProperty typeMember, int ordinalValue)
+        {
+            if (typeMember.propertyType == SerializedPropertyType.Enum)
+            {
+                typeMember.enumValueIndex = ordinalValue;
+                return;
+            }
+
+            typeMember.intValue = ordinalValue;
+        }
+    }
+}

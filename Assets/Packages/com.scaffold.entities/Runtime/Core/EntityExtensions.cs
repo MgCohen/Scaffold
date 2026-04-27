@@ -4,29 +4,29 @@ namespace Scaffold.Entities
 {
     internal static class EntityExtensions
     {
-        internal static IDisposable Subscribe<TDef, T>(this IReadOnlyEntity<TDef> entity, Variable key, Action<T> onChange) where TDef : EntityDefinition
+        internal static IDisposable Subscribe<TDef, T>(this IReadOnlyEntity<TDef> entity, Variable key, Action<T> onChange) where TDef : IEntityDefinition
         {
             return entity.Subscribe(key, av => DispatchSubscribePrimitive(av, onChange));
         }
 
-        internal static IDisposable SubscribeToVariable<TDef, TVar>(this IReadOnlyEntity<TDef> entity, Variable key, Action<TVar> onChange) where TDef : EntityDefinition where TVar : VariableValue
+        internal static IDisposable SubscribeToVariable<TDef, TVar>(this IReadOnlyEntity<TDef> entity, Variable key, Action<TVar> onChange) where TDef : IEntityDefinition where TVar : VariableValue
         {
             return entity.Subscribe(key, av => DispatchSubscribeVariable(av, onChange));
         }
 
-        internal static bool AddVariable<TDef, T>(this IEntity<TDef> entity, Variable key, T initialValue) where TDef : EntityDefinition
+        internal static bool AddVariable<TDef, T>(this IEntity<TDef> entity, Variable key, T initialValue) where TDef : IEntityDefinition
         {
             return entity.AddVariable(key, VariableValueFactory.From(initialValue));
         }
 
-        internal static void AddModifier<TDef, T>(this IInstance<TDef> instance, Variable key, T value) where TDef : EntityDefinition
+        internal static void AddModifier<TDef, T>(this IInstance<TDef> instance, Variable key, T value) where TDef : IEntityDefinition
         {
             VariableValue modifierPayload = VariableValueFactory.From(value);
             var entry = new EntityModifierEntry(key, modifierPayload);
             instance.AddModifier(entry);
         }
 
-        internal static void AddModifier<TDef, T>(this IInstance<TDef> instance, string variableName, T value) where TDef : EntityDefinition
+        internal static void AddModifier<TDef, T>(this IInstance<TDef> instance, string variableName, T value) where TDef : IEntityDefinition
         {
             Variable key = ResolveVariableByName(instance, variableName);
             VariableValue modifierPayload = VariableValueFactory.From(value);
@@ -50,7 +50,7 @@ namespace Scaffold.Entities
             }
         }
 
-        private static Variable ResolveVariableByName<TDef>(IInstance<TDef> instance, string name) where TDef : EntityDefinition
+        private static Variable ResolveVariableByName<TDef>(IInstance<TDef> instance, string name) where TDef : IEntityDefinition
         {
             EntityInstance<TDef>? ei = instance as EntityInstance<TDef>;
             if (ei == null && instance is EntityComponent<TDef> component)

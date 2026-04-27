@@ -5,7 +5,7 @@ using UnityEngine;
 namespace Scaffold.Entities
 {
     [Serializable]
-    public class EntityInstance<TDefinition> : IInstance<TDefinition> where TDefinition : EntityDefinition
+    public class EntityInstance<TDefinition> : IInstance<TDefinition> where TDefinition : IEntityDefinition
     {
         public InstanceId Id => id;
         [SerializeField] private InstanceId id;
@@ -23,7 +23,15 @@ namespace Scaffold.Entities
         {
             id = instanceId;
             definition = entityDefinition ?? throw new ArgumentNullException(nameof(entityDefinition));
-            entityDefinition.RebuildLookup();
+            switch (entityDefinition)
+            {
+                case EntityDefinition d:
+                    d.RebuildLookup();
+                    break;
+                case EntityDefinitionAsset a:
+                    a.RebuildLookup();
+                    break;
+            }
             modifierHandler = new VariableModifierHandler();
             notifier = new VariableNotifier();
             EnsureInstanceBags();
@@ -228,24 +236,6 @@ namespace Scaffold.Entities
             return TryFindKeyInBagLocalKeys(instanceEffectiveBag, name, out key);
         }
 
-#if UNITY_EDITOR
-        internal void NotifyAllEffectiveValues()
-        {
-            if (notifier == null || instanceEffectiveBag == null)
-            {
-                return;
-            }
-
-            foreach (Variable key in instanceEffectiveBag.LocalKeys)
-            {
-                if (instanceEffectiveBag.TryGetBase(key, out VariableValue value))
-                {
-                    notifier.Notify(key, value);
-                }
-            }
-        }
-#endif
-
         private bool TryFindKeyInDefinition(string name, out Variable key)
         {
             key = default!;
@@ -254,12 +244,11 @@ namespace Scaffold.Entities
                 return false;
             }
 
-            for (int i = 0; i < definition.Entries.Count; i++)
+            foreach (Variable v in definition.DefinedVariables)
             {
-                VariableEntry entry = definition.Entries[i];
-                if (entry?.Variable != null && entry.Variable.name == name)
+                if (v.Key == name)
                 {
-                    key = (Variable)entry.Variable;
+                    key = v;
                     return true;
                 }
             }
@@ -282,6 +271,24 @@ namespace Scaffold.Entities
             return false;
         }
 
+#if UNITY_EDITOR
+        internal void NotifyAllEffectiveValues()
+        {
+            if (notifier == null || instanceEffectiveBag == null)
+            {
+                return;
+            }
+
+            foreach (Variable key in instanceEffectiveBag.LocalKeys)
+            {
+                if (instanceEffectiveBag.TryGetBase(key, out VariableValue value))
+                {
+                    notifier.Notify(key, value);
+                }
+            }
+        }
+#endif
+
         private IDisposable RegisterSubscription(Variable key, Action<VariableValue> adapter)
         {
             notifier.Add(key, adapter);
@@ -293,6 +300,25 @@ namespace Scaffold.Entities
 
             return new VariableSubscriptionToken(notifier, key, adapter);
         }
+
+#if UNITY_EDITOR
+        internal void EditorApplyVariableAuthoringOnBagsFromValidation()
+        {
+            if (instanceBaseBag == null)
+            {
+                instanceBaseBag = new VariableBag();
+            }
+
+            if (instanceEffectiveBag == null)
+            {
+                instanceEffectiveBag = new VariableBag();
+            }
+
+            instanceBaseBag.EditorApplyVariableAuthoringFromValidation();
+            instanceEffectiveBag.EditorApplyVariableAuthoringFromValidation();
+        }
+
+#endif
 
         private void EnsureInstanceBags()
         {
@@ -307,9 +333,23 @@ namespace Scaffold.Entities
             }
         }
 
+
+
         private void WireBagParentsToDefinition(TDefinition entityDefinition)
         {
-            instanceBaseBag.SetParent(entityDefinition.Bag);
+            switch (entityDefinition)
+            {
+                case EntityDefinition def:
+                    instanceBaseBag.SetParent(def.Bag);
+                    break;
+                case EntityDefinitionAsset asset:
+                    instanceBaseBag.SetParent(asset.Bag);
+                    break;
+                default:
+                    instanceBaseBag.SetParent(null);
+                    break;
+            }
+
             instanceBaseBag.RebuildCache();
             instanceEffectiveBag.SetParent(instanceBaseBag);
             instanceEffectiveBag.RebuildCache();

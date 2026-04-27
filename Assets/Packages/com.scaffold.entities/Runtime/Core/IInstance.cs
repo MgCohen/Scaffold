@@ -1,6 +1,6 @@
 namespace Scaffold.Entities
 {
-    public interface IInstance<TDefinition> : IEntity<TDefinition> where TDefinition : EntityDefinition
+    public interface IInstance<TDefinition> : IEntity<TDefinition> where TDefinition : IEntityDefinition
     {
         void AddModifier(EntityModifierEntry entry);
 

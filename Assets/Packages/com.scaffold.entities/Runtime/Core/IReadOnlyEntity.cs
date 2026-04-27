@@ -2,7 +2,7 @@ using System;
 
 namespace Scaffold.Entities
 {
-    public interface IReadOnlyEntity<out TDefinition> where TDefinition : EntityDefinition
+    public interface IReadOnlyEntity<out TDefinition> where TDefinition : IEntityDefinition
     {
         InstanceId Id { get; }
 

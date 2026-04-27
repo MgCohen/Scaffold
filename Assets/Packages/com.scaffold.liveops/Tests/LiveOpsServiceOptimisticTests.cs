@@ -187,6 +187,14 @@ namespace Scaffold.LiveOps.Tests
             if (optimisticHandler != null)
             {
                 builder.RegisterInstance(optimisticHandler).As<IOptimisticCloudCodeHandler>().AsImplementedInterfaces();
+                if (optimisticHandler is TestOptimisticHandler testOptimistic)
+                {
+                    builder.RegisterBuildCallback(resolver =>
+                    {
+                        CloudCodeOptimisticHandlerRegistry registry = resolver.Resolve<CloudCodeOptimisticHandlerRegistry>();
+                        registry.Register(testOptimistic);
+                    });
+                }
             }
 
             foreach (IResponseHandler h in nestedHandlers)

@@ -11,50 +11,83 @@ namespace Scaffold.Entities
         {
         }
 
-        internal VariableEntry(VariableSO variable, VariableValue baseVal)
+        internal VariableEntry(Variable key, VariableValue baseVal)
         {
-            this.variable = variable;
+            this.key = key;
             baseValue = baseVal;
         }
 
-        internal VariableSO Variable => variable;
-        [FormerlySerializedAs("attribute")]
-        [SerializeField] private VariableSO variable;
+        internal Variable Key
+        {
+            get
+            {
+                if (key != null && !string.IsNullOrEmpty(key.Key))
+                {
+                    return key;
+                }
 
-        internal VariableValue BaseValue => baseValue;
+                if (variableLegacy != null)
+                {
+                    return (Variable)variableLegacy;
+                }
+
+                return key ?? new Variable(string.Empty, VariableValueType.String);
+            }
+        }
+
+        internal VariableValue BaseValue
+        {
+            get
+            {
+                return baseValue;
+            }
+        }
+
+        [SerializeField] private Variable? key;
+
+        [SerializeField]
+        [FormerlySerializedAs("variable")]
+        private VariableSO variableLegacy;
+
         [SerializeReference][SerializeField] private VariableValue baseValue;
 
-        internal void EnsureValueMatchesType()
+#if UNITY_EDITOR
+        [SerializeField]
+        private VariableSO variableAuthoring;
+
+        internal void EditorApplyAuthoringIntoInlineSerializedKeyAndClearLegacy()
         {
-            if (variable == null)
+            if (variableAuthoring == null)
             {
                 return;
             }
 
-            VariableValueType required = variable.ValueType;
-            if (baseValue != null && baseValue.Type == required)
+            key = (Variable)variableAuthoring;
+            variableLegacy = null;
+        }
+
+#endif
+
+        internal void RebaseSerializedPayloadIfMismatch()
+        {
+            Variable k = Key;
+            if (string.IsNullOrEmpty(k.Key))
             {
                 return;
             }
 
-            baseValue = CreateDefaultForType(required);
-        }
-
-        internal static VariableEntry Create(VariableSO variable, VariableValue baseVal)
-        {
-            return new VariableEntry(variable, baseVal);
-        }
-
-        private static VariableValue CreateDefaultForType(VariableValueType required)
-        {
-            return required switch
+            VariableValueType expected = k.Type;
+            if (baseValue != null && baseValue.Type == expected)
             {
-                VariableValueType.Float => new FloatVariableValue(),
-                VariableValueType.Int => new IntVariableValue(),
-                VariableValueType.Bool => new BoolVariableValue(),
-                VariableValueType.String => new StringVariableValue(),
-                _ => null!
-            };
+                return;
+            }
+
+            baseValue = VariableValueFactory.CreateDefault(expected);
+        }
+
+        internal static VariableEntry Create(Variable key, VariableValue baseVal)
+        {
+            return new VariableEntry(key, baseVal);
         }
     }
 }
