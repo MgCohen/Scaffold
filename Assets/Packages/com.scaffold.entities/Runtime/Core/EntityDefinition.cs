@@ -1,16 +1,21 @@
+using System;
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace Scaffold.Entities
 {
-    public class EntityDefinition : IEntityDefinition
+    [Serializable]
+    public class EntityDefinition : IEntityDefinition, IDefinitionVariableBagProvider
     {
+        public IEnumerable<Variable> DefinedVariables => bag.LocalKeys;
+
         internal IReadOnlyList<VariableEntry> Entries => bag.Entries;
 
         internal VariableBag Bag => bag;
 
-        private readonly VariableBag bag = new VariableBag();
+        [SerializeField] private VariableBag bag = new VariableBag();
 
-        public IEnumerable<Variable> DefinedVariables => bag.LocalKeys;
+        VariableBag IDefinitionVariableBagProvider.Bag => Bag;
 
         public bool TryGetDefaultValue(Variable key, out VariableValue value)
         {
@@ -34,6 +39,11 @@ namespace Scaffold.Entities
         internal void RebuildLookup()
         {
             bag.RebuildCache();
+        }
+
+        void IDefinitionVariableBagProvider.RebuildLookup()
+        {
+            RebuildLookup();
         }
     }
 }

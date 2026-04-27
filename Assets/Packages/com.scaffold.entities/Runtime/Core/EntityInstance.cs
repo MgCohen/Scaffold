@@ -5,7 +5,7 @@ using UnityEngine;
 namespace Scaffold.Entities
 {
     [Serializable]
-    public class EntityInstance<TDefinition> : IInstance<TDefinition> where TDefinition : IEntityDefinition
+    public partial class EntityInstance<TDefinition> : IInstance<TDefinition> where TDefinition : IEntityDefinition
     {
         public InstanceId Id => id;
         [SerializeField] private InstanceId id;
@@ -23,14 +23,9 @@ namespace Scaffold.Entities
         {
             id = instanceId;
             definition = entityDefinition ?? throw new ArgumentNullException(nameof(entityDefinition));
-            switch (entityDefinition)
+            if (entityDefinition is IDefinitionVariableBagProvider bagSource)
             {
-                case EntityDefinition d:
-                    d.RebuildLookup();
-                    break;
-                case EntityDefinitionAsset a:
-                    a.RebuildLookup();
-                    break;
+                bagSource.RebuildLookup();
             }
             modifierHandler = new VariableModifierHandler();
             notifier = new VariableNotifier();
@@ -271,24 +266,6 @@ namespace Scaffold.Entities
             return false;
         }
 
-#if UNITY_EDITOR
-        internal void NotifyAllEffectiveValues()
-        {
-            if (notifier == null || instanceEffectiveBag == null)
-            {
-                return;
-            }
-
-            foreach (Variable key in instanceEffectiveBag.LocalKeys)
-            {
-                if (instanceEffectiveBag.TryGetBase(key, out VariableValue value))
-                {
-                    notifier.Notify(key, value);
-                }
-            }
-        }
-#endif
-
         private IDisposable RegisterSubscription(Variable key, Action<VariableValue> adapter)
         {
             notifier.Add(key, adapter);
@@ -300,25 +277,6 @@ namespace Scaffold.Entities
 
             return new VariableSubscriptionToken(notifier, key, adapter);
         }
-
-#if UNITY_EDITOR
-        internal void EditorApplyVariableAuthoringOnBagsFromValidation()
-        {
-            if (instanceBaseBag == null)
-            {
-                instanceBaseBag = new VariableBag();
-            }
-
-            if (instanceEffectiveBag == null)
-            {
-                instanceEffectiveBag = new VariableBag();
-            }
-
-            instanceBaseBag.EditorApplyVariableAuthoringFromValidation();
-            instanceEffectiveBag.EditorApplyVariableAuthoringFromValidation();
-        }
-
-#endif
 
         private void EnsureInstanceBags()
         {
@@ -337,18 +295,10 @@ namespace Scaffold.Entities
 
         private void WireBagParentsToDefinition(TDefinition entityDefinition)
         {
-            switch (entityDefinition)
-            {
-                case EntityDefinition def:
-                    instanceBaseBag.SetParent(def.Bag);
-                    break;
-                case EntityDefinitionAsset asset:
-                    instanceBaseBag.SetParent(asset.Bag);
-                    break;
-                default:
-                    instanceBaseBag.SetParent(null);
-                    break;
-            }
+            instanceBaseBag.SetParent(
+                entityDefinition is IDefinitionVariableBagProvider bagProvider
+                    ? bagProvider.Bag
+                    : null);
 
             instanceBaseBag.RebuildCache();
             instanceEffectiveBag.SetParent(instanceBaseBag);

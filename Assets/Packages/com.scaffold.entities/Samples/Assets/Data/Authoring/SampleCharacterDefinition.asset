@@ -9,50 +9,51 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d403d4567890abcd1234567890abcdef, type: 3}
+  m_Script: {fileID: 11500000, guid: f8cdbc787b884777b1352541fb8fcea5, type: 3}
   m_Name: SampleCharacterDefinition
   m_EditorClassIdentifier: 
-  bag:
-    entries:
-    - key:
-        key: Health
-        type: 1
-      variableLegacy: {fileID: 0}
-      baseValue:
-        rid: 4306785480214053135
-      variableAuthoring: {fileID: 11400000, guid: a103d4567890abcd1234567890abcdef, type: 2}
-    - key:
-        key: MoveSpeed
-        type: 1
-      variableLegacy: {fileID: 0}
-      baseValue:
-        rid: 4306785480214053133
-      variableAuthoring: {fileID: 11400000, guid: b203d4567890abcd1234567890abcdef, type: 2}
-    - key:
-        key: Flat
-        type: 3
-      variableLegacy: {fileID: 0}
-      baseValue:
-        rid: 4306785480214053149
-      variableAuthoring: {fileID: 11400000, guid: 72f2ac934ad355b468104b01b4939710, type: 2}
+  definition:
+    bag:
+      entries:
+      - key:
+          key: Health
+          type: 1
+        variableLegacy: {fileID: 0}
+        baseValue:
+          rid: 4306785481091186691
+        variableAuthoring: {fileID: 11400000, guid: a103d4567890abcd1234567890abcdef, type: 2}
+      - key:
+          key: MoveSpeed
+          type: 1
+        variableLegacy: {fileID: 0}
+        baseValue:
+          rid: 4306785481091186692
+        variableAuthoring: {fileID: 11400000, guid: b203d4567890abcd1234567890abcdef, type: 2}
+      - key:
+          key: Flat
+          type: 3
+        variableLegacy: {fileID: 0}
+        baseValue:
+          rid: 4306785481091186693
+        variableAuthoring: {fileID: 11400000, guid: 72f2ac934ad355b468104b01b4939710, type: 2}
   references:
     version: 2
     RefIds:
-    - rid: 4306785480214053133
+    - rid: 4306785481091186691
       type: {class: FloatVariableValue, ns: Scaffold.Entities, asm: Scaffold.Entities}
       data:
         value: 0
         min: 0
         max: 100
         clamped: 0
-    - rid: 4306785480214053135
+    - rid: 4306785481091186692
       type: {class: FloatVariableValue, ns: Scaffold.Entities, asm: Scaffold.Entities}
       data:
         value: 0
         min: 0
         max: 100
         clamped: 0
-    - rid: 4306785480214053149
+    - rid: 4306785481091186693
       type: {class: BoolVariableValue, ns: Scaffold.Entities, asm: Scaffold.Entities}
       data:
         value: 0

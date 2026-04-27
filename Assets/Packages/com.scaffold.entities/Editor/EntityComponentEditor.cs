@@ -37,25 +37,6 @@ namespace Scaffold.Entities.Editor
             DrawBagFieldDisabled(def);
         }
 
-        private void DrawBagFieldDisabled(EntityDefinitionAsset def)
-        {
-            using (SerializedObject defSo = new SerializedObject(def))
-            {
-                defSo.Update();
-                SerializedProperty bagProp = defSo.FindProperty("bag");
-                if (bagProp == null)
-                {
-                    return;
-                }
-
-                bool wasEnabled = GUI.enabled;
-                GUI.enabled = false;
-                EditorGUILayout.PropertyField(bagProp, new GUIContent("Shared variables"), true);
-                GUI.enabled = wasEnabled;
-                defSo.ApplyModifiedProperties();
-            }
-        }
-
         private void DrawEffectiveBagEditable()
         {
             serializedObject.Update();
@@ -75,6 +56,34 @@ namespace Scaffold.Entities.Editor
             EditorGUILayout.LabelField("Effective Variables (debug — edits notify subscribers)", EditorStyles.boldLabel);
             EditorGUILayout.PropertyField(effectiveBag, new GUIContent("Effective Bag"), true);
             serializedObject.ApplyModifiedProperties();
+        }
+
+        private void DrawBagFieldDisabled(EntityDefinitionAsset def)
+        {
+            using SerializedObject defSo = new SerializedObject(def);
+            defSo.Update();
+            SerializedProperty bagProp = FindDefinitionBagProperty(defSo);
+            if (bagProp == null)
+            {
+                return;
+            }
+
+            RenderReadOnlyBagField(defSo, bagProp);
+        }
+
+        private SerializedProperty? FindDefinitionBagProperty(SerializedObject defAssetSo)
+        {
+            SerializedProperty definitionProp = defAssetSo.FindProperty("definition");
+            return definitionProp == null ? null : definitionProp.FindPropertyRelative("bag");
+        }
+
+        private void RenderReadOnlyBagField(SerializedObject defSo, SerializedProperty bagProp)
+        {
+            bool wasEnabled = GUI.enabled;
+            GUI.enabled = false;
+            EditorGUILayout.PropertyField(bagProp, new GUIContent("Shared variables"), true);
+            GUI.enabled = wasEnabled;
+            defSo.ApplyModifiedProperties();
         }
     }
 }

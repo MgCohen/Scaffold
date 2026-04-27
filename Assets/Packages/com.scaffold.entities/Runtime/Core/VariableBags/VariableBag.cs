@@ -45,6 +45,14 @@ namespace Scaffold.Entities
             return parent != null && parent.TryGetBase(key, out value);
         }
 
+        internal void AddSerializedEntry(VariableEntry entry)
+        {
+            if (entry != null)
+            {
+                entries.Add(entry);
+            }
+        }
+
         internal void RebuildCache()
         {
             EnsureCache();
@@ -69,14 +77,6 @@ namespace Scaffold.Entities
             }
 
             localCache[entryKey] = entry.BaseValue;
-        }
-
-        internal void AddSerializedEntry(VariableEntry entry)
-        {
-            if (entry != null)
-            {
-                entries.Add(entry);
-            }
         }
 
 #if UNITY_EDITOR

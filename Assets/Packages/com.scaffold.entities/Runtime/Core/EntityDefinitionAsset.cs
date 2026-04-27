@@ -4,25 +4,26 @@ using UnityEngine;
 namespace Scaffold.Entities
 {
     [CreateAssetMenu(menuName = "Scaffold/Entity/Definition", fileName = "EntityDefinition")]
-    public class EntityDefinitionAsset : ScriptableObject, IEntityDefinition
+    public class EntityDefinitionAsset : ScriptableObject, IEntityDefinition, IDefinitionVariableBagProvider
     {
-        internal IReadOnlyList<VariableEntry> Entries => bag.Entries;
+        public IEnumerable<Variable> DefinedVariables => definition.DefinedVariables;
 
-        internal VariableBag Bag => bag;
+        [SerializeField] private EntityDefinition definition = new EntityDefinition();
 
-        [SerializeField] private VariableBag bag = new VariableBag();
+        internal IReadOnlyList<VariableEntry> Entries => definition.Entries;
 
-        public IEnumerable<Variable> DefinedVariables => bag.LocalKeys;
+        internal VariableBag Bag => definition.Bag;
+
+        VariableBag IDefinitionVariableBagProvider.Bag => definition.Bag;
 
         public bool TryGetDefaultValue(Variable key, out VariableValue value)
         {
-            return bag.TryGetBase(key, out value);
+            return definition.TryGetDefaultValue(key, out value);
         }
 
         public void AddVariable(Variable key, VariableValue defaultValue)
         {
-            bag.AddSerializedEntry(VariableEntry.Create(key, defaultValue));
-            RebuildLookup();
+            definition.AddVariable(key, defaultValue);
         }
 
         private void OnEnable()
@@ -33,14 +34,19 @@ namespace Scaffold.Entities
         private void OnValidate()
         {
 #if UNITY_EDITOR
-            bag.EditorApplyVariableAuthoringFromValidation();
+            definition.Bag.EditorApplyVariableAuthoringFromValidation();
 #endif
             RebuildLookup();
         }
 
         internal void RebuildLookup()
         {
-            bag.RebuildCache();
+            definition.RebuildLookup();
+        }
+
+        void IDefinitionVariableBagProvider.RebuildLookup()
+        {
+            RebuildLookup();
         }
     }
 }
