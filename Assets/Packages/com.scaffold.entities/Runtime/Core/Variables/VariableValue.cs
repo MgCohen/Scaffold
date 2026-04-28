@@ -1,14 +1,13 @@
 using System;
 using System.Collections.Generic;
-using UnityEngine;
+using UnityEngine.Scripting;
 
 namespace Scaffold.Entities
 {
+    [Preserve]
     [Serializable]
     public abstract class VariableValue
     {
-        public abstract VariableValueType Type { get; }
-
         public abstract VariableValue Combine(IReadOnlyList<VariableValue> contributions);
     }
 }

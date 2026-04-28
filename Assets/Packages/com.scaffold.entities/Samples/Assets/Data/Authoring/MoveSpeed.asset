@@ -12,5 +12,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dfd26dd94e89447889f600b6c748a69c, type: 3}
   m_Name: MoveSpeed
   m_EditorClassIdentifier: 
-  valueType: 1
+  payloadTypeId: float
   description: Sample move speed variable (float).

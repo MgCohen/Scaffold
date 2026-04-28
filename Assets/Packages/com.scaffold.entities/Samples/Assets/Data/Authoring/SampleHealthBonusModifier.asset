@@ -15,7 +15,7 @@ MonoBehaviour:
   entry:
     key:
       key: Health
-      type: 1
+      payloadTypeId: float
     variableLegacy: {fileID: 0}
     modifierValue:
       rid: 4306785480214053163
@@ -27,6 +27,3 @@ MonoBehaviour:
       type: {class: FloatVariableValue, ns: Scaffold.Entities, asm: Scaffold.Entities}
       data:
         value: 0
-        min: 0
-        max: 100
-        clamped: 0

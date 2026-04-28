@@ -4,8 +4,8 @@
 
 ## TL;DR
 
-- Purpose: **Definition** / **instance** model with **`VariableSO`** identity and **`VariableValueType`**, typed **`VariableValue`** payloads (`FloatVariableValue`, `IntVariableValue`, `BoolVariableValue`, `StringVariableValue`), **`Variable`** record keys, **`IVariableBag` / `VariableBag`** (parent-chained base resolution), instance-only **modifiers**, **`InstanceId`** (runtime int id), and **instance-scoped creation** via **`EntityInstanceCreator<TDefinition>`** with an injectable **`IInstanceIdGenerator`**. Each instance uses a **three-bag chain**: definition **`VariableBag`** (shared bases) → **`instanceBaseBag`** (runtime-only bases; structural **`OnVariableStructuralChange`**) → **`instanceEffectiveBag`** (modifier results via silent local writes). Reads use **`TryGetBase`** on the effective bag.
-- **Interfaces:** **`IReadOnlyEntity<TDefinition>`** (read + subscribe base overload + **`SubscribeToVariableStructuralChanges`**) and **`IMutableEntity<TDefinition>`** (adds **`AddVariable` / `RemoveVariable`**, **`AddModifier`** returning **`ModifierId`**, **`RemoveModifier(Variable, ModifierId)`**, **`ClearModifiers`**). **`EntityInstance<TDefinition>`** and **`EntityComponent<TDefinition>`** implement **`IMutableEntity<TDefinition>`**. Internal **`EntityExtensions`** provides typed **`Subscribe`**, **`SubscribeToVariable`**, **`AddVariable<T>`**, **`AddModifier<T>`** ( **`Variable`** / **`VariableSO`** key), and a string convenience **`AddModifier(..., string name, VariableValueType type, T value)`** that builds **`new Variable(name, type)`** (caller supplies the correct type; no name-only resolution).
+- Purpose: **Definition** / **instance** model with **`VariableSO`** identity and stable **`payloadTypeId`** strings (via **`[VariableValueId]`** on concrete **`VariableValue`** types), typed payloads (`FloatVariableValue`, `IntVariableValue`, `BoolVariableValue`, `StringVariableValue`), **`Variable`** keys (**`Key`** + **`PayloadTypeId`**), **`IVariableBag` / `VariableBag`** (parent-chained base resolution), instance-only **modifiers**, **`InstanceId`** (runtime int id), and **instance-scoped creation** via **`EntityInstanceCreator<TDefinition>`** with an injectable **`IInstanceIdGenerator`**. Each instance uses a **three-bag chain**: definition **`VariableBag`** (shared bases) → **`instanceBaseBag`** (runtime-only bases; structural **`OnVariableStructuralChange`**) → **`instanceEffectiveBag`** (modifier results via silent local writes). Reads use **`TryGetBase`** on the effective bag.
+- **Interfaces:** **`IReadOnlyEntity<TDefinition>`** (read + subscribe base overload + **`SubscribeToVariableStructuralChanges`**) and **`IMutableEntity<TDefinition>`** (adds **`AddVariable` / `RemoveVariable`**, **`AddModifier`** returning **`ModifierId`**, **`RemoveModifier(Variable, ModifierId)`**, **`ClearModifiers`**). **`EntityInstance<TDefinition>`** and **`EntityComponent<TDefinition>`** implement **`IMutableEntity<TDefinition>`**. Internal **`EntityExtensions`** provides typed **`Subscribe`**, **`SubscribeToVariable`**, **`AddVariable<T>`**, **`AddModifier<T>`** ( **`Variable`** / **`VariableSO`** key), and **`AddModifier(..., string name, string payloadTypeId, T value)`** that builds **`new Variable(name, payloadTypeId)`** (caller supplies the correct payload id; no name-only resolution).
 - **Location:** `Assets/Packages/com.scaffold.entities/Runtime/` — **`Core/`** and **`Behavior/`**. Assemblies: `Scaffold.Entities`, `Scaffold.Entities.Tests`, `Scaffold.Entities.Editor`, `Scaffold.Entities.Editor.Tests`, optional **`Scaffold.Entities.Samples`**.
 - **Unity coupling:** References `UnityEngine`. See [Architecture.md](../../../Architecture.md).
 - **Consumers:** Reference `Scaffold.Entities` from your module `.asmdef`.
@@ -15,14 +15,14 @@
 | Subfolder | Responsibility |
 |-----------|----------------|
 | **`Definitions/`** | `EntityDefinition`, `EntityDefinitionAsset`, `IEntityDefinition`, `IDefinitionVariableBagProvider`, `EntityModifierEntry`, `EntityModifierEntryAsset`. |
-| **`Variables/`** | Keys and payloads: `Variable`, `VariableSO`, `VariableEntry`, `VariableValue` + **`Values/`**, `VariableValueType`, `IVariableValue`. |
+| **`Variables/`** | Keys and payloads: `Variable`, `VariableSO`, `VariableEntry`, `VariableValue` + **`Values/`**, `VariableValueIdAttribute`, `IVariableValue`. |
 | **`VariableBags/`** | `IVariableBag`, `VariableBag`, `VariableStructuralChange` (parent chain for bases; structural notifications). |
 | **`Instance/`** | Runtime entity slice: `BaseEntityInstance`, `EntityInstance` (+ editor partial), `EntityInstanceCreator`, `LocalVariableStorage`, `VariableModifierHandler`, `EntityVariableComputer`, `IEntityVariableStorage`. |
 | **`Contracts/`** | `IReadOnlyEntity`, `IMutableEntity`. |
 | **`Identity/`** | `InstanceId`, id generators (`IInstanceIdGenerator`, `IncrementingInstanceIdGenerator`), `ModifierId`. |
 | **`Subscriptions/`** | `VariableNotifier`, `CallbackDisposable`, `EmptyDisposable`. |
 | **`Hosting/`** | `EntityComponent`, `EntityComponent<TDefinition>`. |
-| **`Utilities/`** | `EntityExtensions`, `VariableValueFactory`. |
+| **`Utilities/`** | `EntityExtensions`, `VariableValueFactory`, **`VariableValueRegistry`** (internal id ↔ type map). |
 
 ## Folder layout (other runtime)
 
@@ -43,9 +43,9 @@ Authoritative module pointer: [`Docs/Core/Entities.md`](../../../Docs/Core/Entit
 
 | Symbol | Role |
 |--------|------|
-| `Variable` | Record key: **`Key`** + **`VariableValueType`**. |
-| `VariableSO` | `ScriptableObject` slot; implicit conversion to **`Variable`**. |
-| `VariableValue` | Abstract base; concrete float/int/bool/string value types. |
+| `Variable` | Key: **`Key`** + **`PayloadTypeId`** (stable string id, e.g. `float`, `string`). |
+| `VariableSO` | `ScriptableObject` slot carrying **`PayloadTypeId`**; inspector uses a **payload type** popup; implicit conversion to **`Variable`**. |
+| `VariableValue` | Abstract base; concrete subclasses declare **`[VariableValueId("…")]`**; factories and serialization resolve types via the internal registry (no silent fallback). |
 | `VariableEntry` | Serializable definition row (used by **`VariableBag`** and Unity drawers); authoring fields are not part of the public read surface. |
 | `IVariableBag` | Read: **`Parent`**, **`TryGetBase`**, **`LocalKeys`**. |
 | `VariableBag` | Chained reads, **`Add` / `Remove`**, silent local writes for effective layer. |
@@ -65,11 +65,24 @@ Authoritative module pointer: [`Docs/Core/Entities.md`](../../../Docs/Core/Entit
 - **Resolve by slot:** use **`Variable`** keys (implicit from **`VariableSO`** where convenient).
 - **Three-bag chain:** definition → **`instanceBaseBag`** → **`instanceEffectiveBag`**.
 - **Structural vs value:** base bag **`Add` / `Remove`** raise **`OnVariableStructuralChange`** (**`Added`** with value, **`Removed`** with null value); modifier recalculation uses silent effective writes and **`VariableNotifier`**.
-- **Combine:** **`VariableModifierHandler`** layered on **`EntityVariableComputer`** (numeric sum + clamp; bool last wins; string concat).
+- **Combine:** **`VariableModifierHandler`** layered on **`EntityVariableComputer`** (numeric sum for float/int; bool last wins; string concat).
+
+## Breaking changes (serialization)
+
+- **`VariableSO`** now serializes **`payloadTypeId`** as a **string** (e.g. `float`). Older assets that used **`valueType`** as an enum ordinal **will not deserialize correctly** — re-author those assets.
+- **`Variable`** now serializes **`payloadTypeId`** instead of an enum **`type`** field. Inline serialized keys in YAML must use **`payloadTypeId`**.
+- **`FloatVariableValue` / `IntVariableValue`** no longer expose **`Min` / `Max` / `Clamped`**; **`Combine`** uses plain sums only (no clamp). Model clamps with separate variables if needed.
+
+## Adding a new payload type
+
+1. Subclass **`VariableValue`** (concrete, non-abstract).
+2. Add **`[VariableValueId("your-id")]`** with a stable, unique id.
+3. Provide a **public parameterless constructor** (default struct fields ok).
+4. Rebuild; the runtime registry discovers the type (see **`Runtime/link.xml`** + **`AlwaysLinkAssembly`** if IL2CPP stripping is aggressive).
 
 ## Testing
 
-- `EntityInstanceTests`, **`VariableBagTests`** under `Tests/Runtime/`.
+- `EntityInstanceTests`, **`VariableBagTests`**, **`VariableValueFactoryTests`** under `Tests/Runtime/`.
 - Editor drawer registration: **`VariablePropertyDrawerEditorTests`**, **`EntityModifierEntryAssetEditorTests`** (modifier drawer + wrapper cast).
 
 ## Related

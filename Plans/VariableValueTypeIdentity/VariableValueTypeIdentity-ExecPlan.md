@@ -4,25 +4,25 @@ overview: Replace VariableValueType enum with a stable string ID per VariableVal
 todos:
   - id: stable-id-attribute
     content: Add [VariableValueId("...")] attribute, decorate the four concrete VariableValue subclasses, build a startup registry mapping ID <-> Type with duplicate detection
-    status: pending
+    status: completed
   - id: variablevalue-shape
     content: Drop VariableValueType enum + VariableValue.Type override; remove Min/Max/Clamped from FloatVariableValue and IntVariableValue (Combine retained, deferred to follow-up plan)
-    status: pending
+    status: completed
   - id: serialize-id-on-keys
     content: Add private serialized payloadTypeId string on VariableSO; keep Variable as a record; equality on Variable uses (Key, payloadTypeId) strings
-    status: pending
+    status: completed
   - id: factory-and-rebase
     content: Refactor VariableValueFactory.CreateDefault to take Type or payload ID; validate via VariableValueRegistry membership (not IsAssignableFrom); update VariableEntry/EntityModifierEntry rebase to compare GetType() against expected Type from registry; loud failure on unknown ID
-    status: pending
+    status: completed
   - id: editor-typecache
     content: New CustomEditor for VariableSO with TypeCache.GetTypesDerivedFrom<VariableValue>() filtered to !IsAbstract && !IsGenericTypeDefinition; popup writes ID string; refactor VariableKeySoField to assign ID string and rebase managed reference via Type from registry
-    status: pending
+    status: completed
   - id: il2cpp-preserve
     content: Add link.xml + [Preserve] on VariableValue/VariableValueIdAttribute so the registry's reflection scan survives IL2CPP managed-code stripping at High; smoke-test with an IL2CPP build
-    status: pending
+    status: completed
   - id: tests-samples-docs
     content: Update runtime/editor tests to use SetPayloadType(Type) helper; re-author sample .asset files to new shape; update package README; run validate-changes.ps1 + Unity EditMode tests
-    status: pending
+    status: completed
 isProject: false
 ---
 

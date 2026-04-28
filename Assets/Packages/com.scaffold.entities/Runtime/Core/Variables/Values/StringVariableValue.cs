@@ -5,10 +5,9 @@ using UnityEngine;
 namespace Scaffold.Entities
 {
     [Serializable]
+    [VariableValueId("string")]
     public sealed class StringVariableValue : VariableValue, IVariableValue<string>
     {
-        public override VariableValueType Type => VariableValueType.String;
-
         public string Value
         {
             get => value;

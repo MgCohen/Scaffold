@@ -50,7 +50,6 @@ namespace Scaffold.Entities.Editor
 
         private void RefreshExtraPathsAfterSerializeReferencePayloadChanged(SerializedProperty entryProperty, string payloadRelativeName, List<string> extraPaths, out SerializedProperty payload, out bool hasExtrasNow)
         {
-            entryProperty.serializedObject.Update();
             payload = entryProperty.FindPropertyRelative(payloadRelativeName);
             extraPaths.Clear();
             CollectExtraChildPropertyPaths(payload, extraPaths);
@@ -132,8 +131,8 @@ namespace Scaffold.Entities.Editor
             float soW = rowW - valueW - soValueGap;
             Rect soRect = new Rect(x, rowY, soW, singleLineHeight);
             Rect valRect = new Rect(x + soW + soValueGap, rowY, valueW, singleLineHeight);
-            VariableKeySoField.DrawObjectField(soRect, entryProperty, authoringProp, keyProp, legacyProp, "modifierValue");
-            SerializedProperty? valueNested = VariableKeySoField.ResolveValueNestedPropertyAfterApply(entryProperty, "modifierValue");
+            bool appliedSoChanges = VariableKeySoField.DrawObjectField(soRect, entryProperty, authoringProp, keyProp, legacyProp, "modifierValue");
+            SerializedProperty? valueNested = appliedSoChanges ? VariableKeySoField.ResolveNestedValueAfterSoApply(entryProperty, "modifierValue") : VariableKeySoField.FindNestedValueProperty(entryProperty, "modifierValue");
             if (valueNested != null)
             {
                 EditorGUI.PropertyField(valRect, valueNested, GUIContent.none);

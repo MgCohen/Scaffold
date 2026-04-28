@@ -94,7 +94,7 @@ namespace Scaffold.Entities
 
             throw new InvalidCastException(
 
-                $"Variable '{key?.Key ?? "?"}' has type {av.Type} but {typeof(T).Name} was requested.");
+                $"Variable '{key?.Key ?? "?"}' has runtime payload type {av.GetType().Name} but {typeof(T).Name} was requested.");
 
         }
 

@@ -12,5 +12,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dfd26dd94e89447889f600b6c748a69c, type: 3}
   m_Name: Flat
   m_EditorClassIdentifier: 
-  valueType: 3
-  description: Sample health variable (float).
+  payloadTypeId: bool
+  description: Sample bool variable.

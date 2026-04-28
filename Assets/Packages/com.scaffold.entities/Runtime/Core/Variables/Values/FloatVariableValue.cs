@@ -5,10 +5,9 @@ using UnityEngine;
 namespace Scaffold.Entities
 {
     [Serializable]
+    [VariableValueId("float")]
     public sealed class FloatVariableValue : VariableValue, IVariableValue<float>
     {
-        public override VariableValueType Type => VariableValueType.Float;
-
         public float Value
         {
             get => value;
@@ -17,33 +16,6 @@ namespace Scaffold.Entities
 
         [SerializeField]
         private float value;
-
-        public float Min
-        {
-            get => min;
-            set => this.min = value;
-        }
-
-        [SerializeField]
-        private float min = 0;
-
-        public float Max
-        {
-            get => max;
-            set => this.max = value;
-        }
-
-        [SerializeField]
-        private float max = 100;
-
-        public bool Clamped
-        {
-            get => clamped;
-            set => clamped = value;
-        }
-
-        [SerializeField]
-        private bool clamped;
 
         public float Get()
         {
@@ -61,11 +33,7 @@ namespace Scaffold.Entities
                 }
             }
 
-            if (clamped)
-            {
-                sum = Math.Clamp(sum, Min, Max);
-            }
-            return new FloatVariableValue { Value = sum, Min = Min, Max = Max };
+            return new FloatVariableValue { Value = sum };
         }
     }
 }

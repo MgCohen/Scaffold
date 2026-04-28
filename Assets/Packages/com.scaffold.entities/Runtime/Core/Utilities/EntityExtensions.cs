@@ -26,9 +26,9 @@ namespace Scaffold.Entities
             entity.AddModifier(entry);
         }
 
-        internal static void AddModifier<TDef, T>(this IMutableEntity<TDef> entity, string name, VariableValueType type, T value) where TDef : IEntityDefinition
+        internal static void AddModifier<TDef, T>(this IMutableEntity<TDef> entity, string name, string payloadTypeId, T value) where TDef : IEntityDefinition
         {
-            entity.AddModifier(new Variable(name, type), value);
+            entity.AddModifier(new Variable(name, payloadTypeId), value);
         }
 
         private static void DispatchSubscribePrimitive<T>(VariableValue av, Action<T> onChange)

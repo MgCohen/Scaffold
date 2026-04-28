@@ -30,40 +30,63 @@ namespace Scaffold.Entities.Editor
             return variableAuthoringProp.objectReferenceValue as VariableSO;
         }
 
-        internal static void DrawObjectField(Rect soRect, SerializedProperty entryProperty, SerializedProperty? variableAuthoringProp, SerializedProperty keyProp, SerializedProperty legacyProp, string serializedValueRelativePath)
+        internal static bool DrawObjectField(Rect soRect, SerializedProperty entryProperty, SerializedProperty? variableAuthoringProp, SerializedProperty keyProp, SerializedProperty legacyProp, string serializedValueRelativePath)
         {
             VariableSO? c = ResolveSoForDisplay(variableAuthoringProp, legacyProp);
             EditorGUI.BeginChangeCheck();
             VariableSO? n = (VariableSO)EditorGUI.ObjectField(soRect, GUIContent.none, c, typeof(VariableSO), false);
             if (!EditorGUI.EndChangeCheck())
             {
-                return;
+                return false;
             }
 
             WriteAuthoringSerializedIfPresent(variableAuthoringProp, n);
             AssignVariableSerializedFromSo(keyProp, legacyProp, n);
             RebaseManagedReferencePayloadForVariableSo(entryProperty, serializedValueRelativePath, n);
             entryProperty.serializedObject.ApplyModifiedProperties();
+            return true;
         }
 
-        internal static SerializedProperty? ResolveValueNestedPropertyAfterApply(SerializedProperty entryProperty, string serializeReferenceContainerRelativeName)
+        internal static SerializedProperty? ResolveNestedValueAfterSoApply(SerializedProperty entryProperty, string serializeReferenceContainerRelativeName)
         {
             entryProperty.serializedObject.Update();
             SerializedProperty container = entryProperty.FindPropertyRelative(serializeReferenceContainerRelativeName);
             return container?.FindPropertyRelative("value");
         }
 
+        internal static SerializedProperty? FindNestedValueProperty(SerializedProperty entryProperty, string serializeReferenceContainerRelativeName)
+        {
+            SerializedProperty container = entryProperty.FindPropertyRelative(serializeReferenceContainerRelativeName);
+            return container?.FindPropertyRelative("value");
+        }
+
         internal static void RebaseManagedReferencePayloadForVariableSo(SerializedProperty entryProperty, string valueRelativePath, VariableSO? selectedSo)
         {
-            VariableValueType expected = selectedSo == null ? VariableValueType.String : selectedSo.ValueType;
-            SerializedProperty? payload = entryProperty.FindPropertyRelative(valueRelativePath);
-            if (payload == null || payload.propertyType != SerializedPropertyType.ManagedReference)
+            string expectedId = selectedSo == null ? "string" : selectedSo.PayloadTypeId;
+            if (!VariableValueRegistry.TryResolve(expectedId, out System.Type expected))
+            {
+                Debug.LogWarning($"Unknown VariableSO payload id '{expectedId}'. Skipping managed-reference rebase.");
+                return;
+            }
+
+            if (!TryGetManagedPayload(entryProperty, valueRelativePath, out SerializedProperty payload))
             {
                 return;
             }
 
+            ApplyPayloadDefault(payload, expected);
+        }
+
+        private static bool TryGetManagedPayload(SerializedProperty entryProperty, string valueRelativePath, out SerializedProperty payload)
+        {
+            payload = entryProperty.FindPropertyRelative(valueRelativePath);
+            return payload != null && payload.propertyType == SerializedPropertyType.ManagedReference;
+        }
+
+        private static void ApplyPayloadDefault(SerializedProperty payload, System.Type expected)
+        {
             VariableValue? current = payload.managedReferenceValue as VariableValue;
-            if (current != null && current.Type == expected)
+            if (current != null && current.GetType() == expected)
             {
                 return;
             }
@@ -119,42 +142,30 @@ namespace Scaffold.Entities.Editor
                 return false;
             }
 
-            SerializedProperty? typeMember = keyRoot.FindPropertyRelative("type");
-            if (typeMember == null || (typeMember.propertyType != SerializedPropertyType.Enum &&
-                    typeMember.propertyType != SerializedPropertyType.Integer))
+            SerializedProperty? payloadMember = keyRoot.FindPropertyRelative("payloadTypeId");
+            if (payloadMember == null || payloadMember.propertyType != SerializedPropertyType.String)
             {
                 return false;
             }
 
             return so == null
-                ? ClearVariableMembers(keyMember, typeMember)
-                : FillVariableMembers(keyMember, typeMember, so);
+                ? ClearVariableMembers(keyMember, payloadMember)
+                : FillVariableMembers(keyMember, payloadMember, so);
         }
 
-        internal static bool ClearVariableMembers(SerializedProperty keyMember, SerializedProperty typeMember)
+        internal static bool ClearVariableMembers(SerializedProperty keyMember, SerializedProperty payloadMember)
         {
             keyMember.stringValue = "";
-            AssignTypeOrdinal(typeMember, (int)Scaffold.Entities.VariableValueType.String);
+            payloadMember.stringValue = "string";
             return true;
         }
 
-        internal static bool FillVariableMembers(SerializedProperty keyMember, SerializedProperty typeMember, VariableSO so)
+        internal static bool FillVariableMembers(SerializedProperty keyMember, SerializedProperty payloadMember, VariableSO so)
         {
             VRec v = so;
             keyMember.stringValue = v.Key;
-            AssignTypeOrdinal(typeMember, (int)v.Type);
+            payloadMember.stringValue = v.PayloadTypeId;
             return true;
-        }
-
-        private static void AssignTypeOrdinal(SerializedProperty typeMember, int ordinalValue)
-        {
-            if (typeMember.propertyType == SerializedPropertyType.Enum)
-            {
-                typeMember.enumValueIndex = ordinalValue;
-                return;
-            }
-
-            typeMember.intValue = ordinalValue;
         }
     }
 }

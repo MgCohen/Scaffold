@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using NUnit.Framework;
 using Scaffold.Entities;
@@ -10,7 +11,7 @@ namespace Scaffold.Entities.Tests
         [Test]
         public void TryGetBase_SingleBag_ReturnsSerializedEntry()
         {
-            VariableSO hp = CreateVariableSo("HP", VariableValueType.Float);
+            VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
             var bag = new VariableBag();
             bag.AddSerializedEntry(VariableEntry.Create((Variable)hp, new FloatVariableValue { Value = 7f }));
             bag.RebuildCache();
@@ -22,7 +23,7 @@ namespace Scaffold.Entities.Tests
         [Test]
         public void TryGetBase_ChildFallsBackToParent()
         {
-            VariableSO hp = CreateVariableSo("HP", VariableValueType.Float);
+            VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
             var parent = new VariableBag();
             parent.AddSerializedEntry(VariableEntry.Create((Variable)hp, new FloatVariableValue { Value = 10f }));
             parent.RebuildCache();
@@ -38,7 +39,7 @@ namespace Scaffold.Entities.Tests
         [Test]
         public void TryGetBase_ChildWinsOverParent()
         {
-            VariableSO hp = CreateVariableSo("HP", VariableValueType.Float);
+            VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
             var parent = new VariableBag();
             parent.AddSerializedEntry(VariableEntry.Create((Variable)hp, new FloatVariableValue { Value = 10f }));
             parent.RebuildCache();
@@ -57,7 +58,7 @@ namespace Scaffold.Entities.Tests
         {
             var bag = new VariableBag();
             bag.RebuildCache();
-            var key = new Variable("Poison", VariableValueType.Float);
+            var key = new Variable("Poison", "float");
             var added = new List<(Variable, VariableValue)>();
             var removed = new List<Variable>();
             bag.OnVariableStructuralChange += (kind, k, v) =>
@@ -87,7 +88,7 @@ namespace Scaffold.Entities.Tests
         {
             var bag = new VariableBag();
             bag.RebuildCache();
-            var key = new Variable("X", VariableValueType.Int);
+            var key = new Variable("X", "int");
             Assert.That(bag.Add(key, new IntVariableValue { Value = 1 }), Is.True);
             Assert.That(bag.Add(key, new IntVariableValue { Value = 2 }), Is.False);
         }
@@ -97,7 +98,7 @@ namespace Scaffold.Entities.Tests
         {
             var bag = new VariableBag();
             bag.RebuildCache();
-            var key = new Variable("Silent", VariableValueType.Float);
+            var key = new Variable("Silent", "float");
             int addedEvents = 0;
             int removedEvents = 0;
             bag.OnVariableStructuralChange += (kind, _, _) =>
@@ -127,16 +128,16 @@ namespace Scaffold.Entities.Tests
         {
             var bag = new VariableBag();
             bag.RebuildCache();
-            var key = new Variable("N", VariableValueType.Float);
+            var key = new Variable("N", "float");
             bag.SetLocalSilent(key, null!);
             Assert.That(bag.HasLocalKey(key), Is.False);
         }
 
-        private static VariableSO CreateVariableSo(string assetName, VariableValueType valueType)
+        private static VariableSO CreateVariableSo(string assetName, Type payloadType)
         {
             var so = ScriptableObject.CreateInstance<VariableSO>();
             so.name = assetName;
-            so.SetValueType(valueType);
+            so.SetPayloadType(payloadType);
             return so;
         }
     }

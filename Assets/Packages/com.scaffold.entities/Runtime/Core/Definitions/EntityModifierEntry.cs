@@ -32,17 +32,11 @@ namespace Scaffold.Entities
                     return (Variable)variableLegacy;
                 }
 
-                return key ?? new Variable(string.Empty, VariableValueType.String);
+                return key ?? new Variable(string.Empty);
             }
         }
 
-        public VariableValue ModifierValue
-        {
-            get
-            {
-                return modifierValue;
-            }
-        }
+        public VariableValue ModifierValue => modifierValue;
 
         [SerializeField] private Variable? key;
 
@@ -61,8 +55,12 @@ namespace Scaffold.Entities
                 return;
             }
 
-            VariableValueType expected = k.Type;
-            if (modifierValue != null && modifierValue.Type == expected)
+            if (!VariablePayloadTypeHelpers.TryResolvePayload(k, nameof(EntityModifierEntry), out Type expected))
+            {
+                return;
+            }
+
+            if (modifierValue != null && modifierValue.GetType() == expected)
             {
                 return;
             }

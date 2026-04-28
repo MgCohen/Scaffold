@@ -13,7 +13,7 @@ namespace Scaffold.Entities.Editor.Tests
             var healthVariable = ScriptableObject.CreateInstance<VariableSO>();
             using (var soVar = new SerializedObject(healthVariable))
             {
-                soVar.FindProperty("valueType").enumValueIndex = (int)VariableValueType.Float;
+                soVar.FindProperty("payloadTypeId").stringValue = "float";
                 soVar.ApplyModifiedPropertiesWithoutUndo();
             }
 

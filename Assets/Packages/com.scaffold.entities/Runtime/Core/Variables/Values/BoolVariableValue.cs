@@ -5,10 +5,9 @@ using UnityEngine;
 namespace Scaffold.Entities
 {
     [Serializable]
+    [VariableValueId("bool")]
     public sealed class BoolVariableValue : VariableValue, IVariableValue<bool>
     {
-        public override VariableValueType Type => VariableValueType.Bool;
-
         public bool Value
         {
             get => value;

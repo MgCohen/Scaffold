@@ -19,7 +19,7 @@ namespace Scaffold.Entities.Tests
         [Test]
         public void TryGetVariable_ByVariableSO_ReturnsDefinitionDefault()
         {
-            VariableSO hp = CreateVariableSo("HP", VariableValueType.Float);
+            VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
             EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 100f }));
             EntityInstance<EntityDefinition> state = creator.Create(def);
 
@@ -32,7 +32,7 @@ namespace Scaffold.Entities.Tests
         [Test]
         public void TryGetValue_WhenPresent_ReturnsTypedValue()
         {
-            VariableSO hp = CreateVariableSo("HP", VariableValueType.Float);
+            VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
             EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 42f }));
             EntityInstance<EntityDefinition> state = creator.Create(def);
 
@@ -43,7 +43,7 @@ namespace Scaffold.Entities.Tests
         [Test]
         public void TryGetValue_WhenMissing_ReturnsFalse()
         {
-            VariableSO hp = CreateVariableSo("HP", VariableValueType.Float);
+            VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
             EntityDefinition def = CreateDefinition();
             EntityInstance<EntityDefinition> state = creator.Create(def);
 
@@ -53,7 +53,7 @@ namespace Scaffold.Entities.Tests
         [Test]
         public void TryGetValue_WhenTypeMismatch_ReturnsFalse()
         {
-            VariableSO hp = CreateVariableSo("HP", VariableValueType.Float);
+            VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
             EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 10f }));
             EntityInstance<EntityDefinition> state = creator.Create(def);
 
@@ -63,7 +63,7 @@ namespace Scaffold.Entities.Tests
         [Test]
         public void Modifiers_OnInstance_SumFloatValues()
         {
-            VariableSO hp = CreateVariableSo("HP", VariableValueType.Float);
+            VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
             EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 10f }));
             EntityInstance<EntityDefinition> state = creator.Create(def);
             var delta = new FloatVariableValue { Value = 5f };
@@ -76,7 +76,7 @@ namespace Scaffold.Entities.Tests
         [Test]
         public void Modifiers_DoNotMutateDefinition()
         {
-            VariableSO hp = CreateVariableSo("HP", VariableValueType.Float);
+            VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
             EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 10f }));
             EntityInstance<EntityDefinition> state = creator.Create(def);
             var delta = new FloatVariableValue { Value = 5f };
@@ -89,7 +89,7 @@ namespace Scaffold.Entities.Tests
         [Test]
         public void Creator_AssignsNonEmptyInstanceId()
         {
-            VariableSO hp = CreateVariableSo("HP", VariableValueType.Float);
+            VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
             EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 1f }));
             EntityInstance<EntityDefinition> state = creator.Create(def);
 
@@ -99,7 +99,7 @@ namespace Scaffold.Entities.Tests
         [Test]
         public void RemoveModifier_AfterNumericCombine_RestoresDefinitionBase()
         {
-            VariableSO hp = CreateVariableSo("HP", VariableValueType.Float);
+            VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
             EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 10f }));
             EntityInstance<EntityDefinition> state = creator.Create(def);
             var delta = new FloatVariableValue { Value = 5f };
@@ -115,7 +115,7 @@ namespace Scaffold.Entities.Tests
         [Test]
         public void ClearModifiers_RemovesAllContributionsRestoresDefinitionBase()
         {
-            VariableSO hp = CreateVariableSo("HP", VariableValueType.Float);
+            VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
             EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 10f }));
             EntityInstance<EntityDefinition> state = creator.Create(def);
             var d1 = new FloatVariableValue { Value = 4f };
@@ -132,7 +132,7 @@ namespace Scaffold.Entities.Tests
         [Test]
         public void RemoveModifier_UnknownEntry_ReturnsFalse()
         {
-            VariableSO hp = CreateVariableSo("HP", VariableValueType.Float);
+            VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
             EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 10f }));
             EntityInstance<EntityDefinition> state = creator.Create(def);
             Assert.That(state.RemoveModifier((Variable)hp, ModifierId.New()), Is.False);
@@ -142,7 +142,7 @@ namespace Scaffold.Entities.Tests
         [Test]
         public void Subscribe_FiresImmediatelyWithCurrentValue()
         {
-            VariableSO hp = CreateVariableSo("HP", VariableValueType.Float);
+            VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
             EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 50f }));
             EntityInstance<EntityDefinition> state = creator.Create(def);
 
@@ -156,7 +156,7 @@ namespace Scaffold.Entities.Tests
         [Test]
         public void Subscribe_FiresOnModifierAdd()
         {
-            VariableSO hp = CreateVariableSo("HP", VariableValueType.Float);
+            VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
             EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 10f }));
             EntityInstance<EntityDefinition> state = creator.Create(def);
 
@@ -172,7 +172,7 @@ namespace Scaffold.Entities.Tests
         [Test]
         public void Subscribe_FiresOnModifierRemove()
         {
-            VariableSO hp = CreateVariableSo("HP", VariableValueType.Float);
+            VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
             EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 10f }));
             EntityInstance<EntityDefinition> state = creator.Create(def);
             var mod = new EntityModifierEntry(hp, new FloatVariableValue { Value = 5f });
@@ -190,7 +190,7 @@ namespace Scaffold.Entities.Tests
         [Test]
         public void Subscribe_DoesNotFireAfterUnsubscribe()
         {
-            VariableSO hp = CreateVariableSo("HP", VariableValueType.Float);
+            VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
             EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 10f }));
             EntityInstance<EntityDefinition> state = creator.Create(def);
 
@@ -209,7 +209,7 @@ namespace Scaffold.Entities.Tests
         [Test]
         public void Subscribe_Float_FiresImmediatelyWithTypedValue()
         {
-            VariableSO hp = CreateVariableSo("HP", VariableValueType.Float);
+            VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
             EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 42f }));
             EntityInstance<EntityDefinition> state = creator.Create(def);
 
@@ -223,7 +223,7 @@ namespace Scaffold.Entities.Tests
         [Test]
         public void Subscribe_Float_FiresOnModifierAdd()
         {
-            VariableSO hp = CreateVariableSo("HP", VariableValueType.Float);
+            VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
             EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 10f }));
             EntityInstance<EntityDefinition> state = creator.Create(def);
 
@@ -238,7 +238,7 @@ namespace Scaffold.Entities.Tests
         [Test]
         public void SubscribeToVariable_FloatVariableValue_FiresImmediately()
         {
-            VariableSO hp = CreateVariableSo("HP", VariableValueType.Float);
+            VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
             EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 33f }));
             EntityInstance<EntityDefinition> state = creator.Create(def);
 
@@ -253,7 +253,7 @@ namespace Scaffold.Entities.Tests
         [Test]
         public void Subscribe_Typed_DisposeStopsFurtherNotifications()
         {
-            VariableSO hp = CreateVariableSo("HP", VariableValueType.Float);
+            VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
             EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 10f }));
             EntityInstance<EntityDefinition> state = creator.Create(def);
 
@@ -270,7 +270,7 @@ namespace Scaffold.Entities.Tests
         [Test]
         public void Subscribe_Untyped_ReturnsTokenThatDisposes()
         {
-            VariableSO hp = CreateVariableSo("HP", VariableValueType.Float);
+            VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
             EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 10f }));
             EntityInstance<EntityDefinition> state = creator.Create(def);
 
@@ -287,7 +287,7 @@ namespace Scaffold.Entities.Tests
         [Test]
         public void EffectiveBag_NoModifierLayer_ForDefinitionVariableWithoutModifiers()
         {
-            VariableSO hp = CreateVariableSo("HP", VariableValueType.Float);
+            VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
             EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 10f }));
             EntityInstance<EntityDefinition> state = creator.Create(def);
 
@@ -299,8 +299,8 @@ namespace Scaffold.Entities.Tests
         [Test]
         public void AddVariable_ThenRead_WorksAndCachesWhenModifiersApplied()
         {
-            VariableSO poison = CreateVariableSo("Poison", VariableValueType.Float);
-            VariableSO hp = CreateVariableSo("HP", VariableValueType.Float);
+            VariableSO poison = CreateVariableSo("Poison", typeof(FloatVariableValue));
+            VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
             EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 10f }));
             EntityInstance<EntityDefinition> state = creator.Create(def);
 
@@ -316,7 +316,7 @@ namespace Scaffold.Entities.Tests
         [Test]
         public void RuntimeVariable_AfterModifierRemoved_ReadsOriginalBase()
         {
-            VariableSO poison = CreateVariableSo("Poison", VariableValueType.Float);
+            VariableSO poison = CreateVariableSo("Poison", typeof(FloatVariableValue));
             EntityDefinition def = CreateDefinition();
             EntityInstance<EntityDefinition> state = creator.Create(def);
             state.AddVariable(poison, new FloatVariableValue { Value = 5f });
@@ -333,7 +333,7 @@ namespace Scaffold.Entities.Tests
         [Test]
         public void RemoveVariable_ClearsModifiersAndStructuralSubscriptionFires()
         {
-            VariableSO poison = CreateVariableSo("Poison", VariableValueType.Float);
+            VariableSO poison = CreateVariableSo("Poison", typeof(FloatVariableValue));
             EntityDefinition def = CreateDefinition();
             EntityInstance<EntityDefinition> state = creator.Create(def);
             state.AddVariable(poison, new FloatVariableValue { Value = 5f });
@@ -359,7 +359,7 @@ namespace Scaffold.Entities.Tests
         [Test]
         public void SubscribeToVariableStructuralChanges_FiresWhenRuntimeSlotAdded()
         {
-            VariableSO poison = CreateVariableSo("Poison", VariableValueType.Float);
+            VariableSO poison = CreateVariableSo("Poison", typeof(FloatVariableValue));
             EntityDefinition def = CreateDefinition();
             EntityInstance<EntityDefinition> state = creator.Create(def);
 
@@ -381,7 +381,7 @@ namespace Scaffold.Entities.Tests
         [Test]
         public void AddModifier_TypedExtension_Float_SumsCorrectly()
         {
-            VariableSO hp = CreateVariableSo("HP", VariableValueType.Float);
+            VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
             EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 10f }));
             EntityInstance<EntityDefinition> state = creator.Create(def);
             state.AddModifier(hp, 5f);
@@ -391,7 +391,7 @@ namespace Scaffold.Entities.Tests
         [Test]
         public void AddModifier_TypedExtension_Int_SumsCorrectly()
         {
-            VariableSO n = CreateVariableSo("N", VariableValueType.Int);
+            VariableSO n = CreateVariableSo("N", typeof(IntVariableValue));
             EntityDefinition def = CreateDefinition((n, new IntVariableValue { Value = 10 }));
             EntityInstance<EntityDefinition> state = creator.Create(def);
             state.AddModifier(n, 3);
@@ -401,28 +401,28 @@ namespace Scaffold.Entities.Tests
         [Test]
         public void AddModifier_ByNameAndType_DelegatesToVariableKey()
         {
-            VariableSO hp = CreateVariableSo("HP", VariableValueType.Float);
+            VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
             EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 10f }));
             EntityInstance<EntityDefinition> state = creator.Create(def);
-            state.AddModifier("HP", VariableValueType.Float, 4f);
+            state.AddModifier("HP", "float", 4f);
             Assert.That(state.GetValue<float>(hp), Is.EqualTo(14f));
         }
 
         [Test]
         public void AddModifier_ByNameAndType_UnknownSlot_DoesNotThrow_ModifierOrphaned()
         {
-            VariableSO hp = CreateVariableSo("HP", VariableValueType.Float);
+            VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
             EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 10f }));
             EntityInstance<EntityDefinition> state = creator.Create(def);
-            Assert.DoesNotThrow(() => state.AddModifier("Missing", VariableValueType.Float, 1f));
-            var orphanKey = new Variable("Missing", VariableValueType.Float);
+            Assert.DoesNotThrow(() => state.AddModifier("Missing", "float", 1f));
+            var orphanKey = new Variable("Missing", "float");
             Assert.Throws<InvalidOperationException>(() => state.GetValue<float>(orphanKey));
         }
 
         [Test]
         public void AddVariable_TypedExtension_AddsSlotCorrectly()
         {
-            VariableSO poison = CreateVariableSo("Poison", VariableValueType.Float);
+            VariableSO poison = CreateVariableSo("Poison", typeof(FloatVariableValue));
             EntityDefinition def = CreateDefinition();
             EntityInstance<EntityDefinition> state = creator.Create(def);
             Assert.That(state.AddVariable(poison, 2.5f), Is.True);
@@ -432,7 +432,7 @@ namespace Scaffold.Entities.Tests
         [Test]
         public void Subscribe_PrimitiveExtension_FiresFloat()
         {
-            VariableSO hp = CreateVariableSo("HP", VariableValueType.Float);
+            VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
             EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 7f }));
             EntityInstance<EntityDefinition> state = creator.Create(def);
             float got = 0f;
@@ -445,7 +445,7 @@ namespace Scaffold.Entities.Tests
         [Test]
         public void Subscribe_VariableValueExtension_FiresFloatVariableValue()
         {
-            VariableSO hp = CreateVariableSo("HP", VariableValueType.Float);
+            VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
             EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 8f }));
             EntityInstance<EntityDefinition> state = creator.Create(def);
             FloatVariableValue got = null!;
@@ -459,7 +459,7 @@ namespace Scaffold.Entities.Tests
         [Test]
         public void NotifyAllEffectiveValues_FiresSubscribersForAllKeys()
         {
-            VariableSO hp = CreateVariableSo("HP", VariableValueType.Float);
+            VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
             EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 10f }));
             EntityInstance<EntityDefinition> state = creator.Create(def);
             state.AddModifier(new EntityModifierEntry(hp, new FloatVariableValue { Value = 2f }));
@@ -475,7 +475,7 @@ namespace Scaffold.Entities.Tests
         [Test]
         public void NotifyAllEffectiveValues_WithNoSubscribers_DoesNotThrow()
         {
-            VariableSO hp = CreateVariableSo("HP", VariableValueType.Float);
+            VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
             EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 10f }));
             EntityInstance<EntityDefinition> state = creator.Create(def);
             Assert.DoesNotThrow(() => state.NotifyAllEffectiveValues());
@@ -484,7 +484,7 @@ namespace Scaffold.Entities.Tests
         [Test]
         public void EntityInstance_Subclass_InheritsFullBehavior()
         {
-            VariableSO hp = CreateVariableSo("HP", VariableValueType.Float);
+            VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
             EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 3f }));
             var state = new TestEntityInstance();
             state.Initialize(new InstanceId(1), def);
@@ -497,11 +497,11 @@ namespace Scaffold.Entities.Tests
         {
         }
 
-        private VariableSO CreateVariableSo(string assetName, VariableValueType valueType)
+        private VariableSO CreateVariableSo(string assetName, Type payloadType)
         {
             var so = ScriptableObject.CreateInstance<VariableSO>();
             so.name = assetName;
-            so.SetValueType(valueType);
+            so.SetPayloadType(payloadType);
             return so;
         }
 

@@ -18,21 +18,21 @@ MonoBehaviour:
       - variableAuthoring: {fileID: 11400000, guid: a103d4567890abcd1234567890abcdef, type: 2}
         key:
           key: Health
-          type: 1
+          payloadTypeId: float
         variableLegacy: {fileID: 0}
         baseValue:
           rid: 4306785481091186691
       - variableAuthoring: {fileID: 11400000, guid: b203d4567890abcd1234567890abcdef, type: 2}
         key:
           key: MoveSpeed
-          type: 1
+          payloadTypeId: float
         variableLegacy: {fileID: 0}
         baseValue:
           rid: 4306785481091186692
       - variableAuthoring: {fileID: 11400000, guid: 72f2ac934ad355b468104b01b4939710, type: 2}
         key:
           key: Flat
-          type: 3
+          payloadTypeId: bool
         variableLegacy: {fileID: 0}
         baseValue:
           rid: 4306785481091186693
@@ -43,16 +43,10 @@ MonoBehaviour:
       type: {class: FloatVariableValue, ns: Scaffold.Entities, asm: Scaffold.Entities}
       data:
         value: 0
-        min: 0
-        max: 100
-        clamped: 0
     - rid: 4306785481091186692
       type: {class: FloatVariableValue, ns: Scaffold.Entities, asm: Scaffold.Entities}
       data:
         value: 0
-        min: 0
-        max: 100
-        clamped: 0
     - rid: 4306785481091186693
       type: {class: BoolVariableValue, ns: Scaffold.Entities, asm: Scaffold.Entities}
       data:

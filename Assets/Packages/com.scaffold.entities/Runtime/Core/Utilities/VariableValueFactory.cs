@@ -4,16 +4,27 @@ namespace Scaffold.Entities
 {
     internal static class VariableValueFactory
     {
-        internal static VariableValue CreateDefault(VariableValueType type)
+        internal static VariableValue CreateDefault(Type payloadType)
         {
-            return type switch
+            if (payloadType == null || !VariableValueRegistry.Contains(payloadType))
             {
-                VariableValueType.String => new StringVariableValue(),
-                VariableValueType.Float => new FloatVariableValue(),
-                VariableValueType.Int => new IntVariableValue(),
-                VariableValueType.Bool => new BoolVariableValue(),
-                _ => new StringVariableValue(),
-            };
+                throw new ArgumentException(
+                    $"Type {payloadType} is not a registered VariableValue. " +
+                    $"Concrete subclasses must declare [VariableValueId(\"...\")].",
+                    nameof(payloadType));
+            }
+
+            return (VariableValue)Activator.CreateInstance(payloadType)!;
+        }
+
+        internal static VariableValue CreateDefault(string payloadTypeId)
+        {
+            if (!VariableValueRegistry.TryResolve(payloadTypeId, out Type t))
+            {
+                throw new ArgumentException($"Unknown VariableValue payload id: '{payloadTypeId}'.");
+            }
+
+            return CreateDefault(t);
         }
 
         internal static VariableValue From<T>(T value)

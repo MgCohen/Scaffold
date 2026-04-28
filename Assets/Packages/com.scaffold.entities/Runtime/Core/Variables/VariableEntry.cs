@@ -31,17 +31,11 @@ namespace Scaffold.Entities
                     return (Variable)variableLegacy;
                 }
 
-                return key ?? new Variable(string.Empty, VariableValueType.String);
+                return key ?? new Variable(string.Empty);
             }
         }
 
-        internal VariableValue BaseValue
-        {
-            get
-            {
-                return baseValue;
-            }
-        }
+        internal VariableValue BaseValue => baseValue;
 
         [SerializeField] private Variable? key;
 
@@ -59,8 +53,12 @@ namespace Scaffold.Entities
                 return;
             }
 
-            VariableValueType expected = k.Type;
-            if (baseValue != null && baseValue.Type == expected)
+            if (!VariablePayloadTypeHelpers.TryResolvePayload(k, nameof(VariableEntry), out Type expected))
+            {
+                return;
+            }
+
+            if (baseValue != null && baseValue.GetType() == expected)
             {
                 return;
             }
