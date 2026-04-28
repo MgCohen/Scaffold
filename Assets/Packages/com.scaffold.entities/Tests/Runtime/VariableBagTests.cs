@@ -60,8 +60,17 @@ namespace Scaffold.Entities.Tests
             var key = new Variable("Poison", VariableValueType.Float);
             var added = new List<(Variable, VariableValue)>();
             var removed = new List<Variable>();
-            bag.OnVariableAdded += (k, v) => added.Add((k, v));
-            bag.OnVariableRemoved += removed.Add;
+            bag.OnVariableStructuralChange += (kind, k, v) =>
+            {
+                if (kind == VariableStructuralChange.Added && v != null)
+                {
+                    added.Add((k, v));
+                }
+                else if (kind == VariableStructuralChange.Removed)
+                {
+                    removed.Add(k);
+                }
+            };
 
             Assert.That(bag.Add(key, new FloatVariableValue { Value = 2f }), Is.True);
             Assert.That(added.Count, Is.EqualTo(1));
@@ -91,8 +100,17 @@ namespace Scaffold.Entities.Tests
             var key = new Variable("Silent", VariableValueType.Float);
             int addedEvents = 0;
             int removedEvents = 0;
-            bag.OnVariableAdded += (_, _) => addedEvents++;
-            bag.OnVariableRemoved += _ => removedEvents++;
+            bag.OnVariableStructuralChange += (kind, _, _) =>
+            {
+                if (kind == VariableStructuralChange.Added)
+                {
+                    addedEvents++;
+                }
+                else
+                {
+                    removedEvents++;
+                }
+            };
 
             bag.SetLocalSilent(key, new FloatVariableValue { Value = 9f });
             Assert.That(bag.TryGetBase(key, out VariableValue v), Is.True);

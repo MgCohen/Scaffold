@@ -14,24 +14,24 @@ namespace Scaffold.Entities
             return entity.Subscribe(key, av => DispatchSubscribeVariable(av, onChange));
         }
 
-        internal static bool AddVariable<TDef, T>(this IEntity<TDef> entity, Variable key, T initialValue) where TDef : IEntityDefinition
+        internal static bool AddVariable<TDef, T>(this IMutableEntity<TDef> entity, Variable key, T initialValue) where TDef : IEntityDefinition
         {
             return entity.AddVariable(key, VariableValueFactory.From(initialValue));
         }
 
-        internal static void AddModifier<TDef, T>(this IInstance<TDef> instance, Variable key, T value) where TDef : IEntityDefinition
+        internal static void AddModifier<TDef, T>(this IMutableEntity<TDef> entity, Variable key, T value) where TDef : IEntityDefinition
         {
             VariableValue modifierPayload = VariableValueFactory.From(value);
             var entry = new EntityModifierEntry(key, modifierPayload);
-            instance.AddModifier(entry);
+            entity.AddModifier(entry);
         }
 
-        internal static void AddModifier<TDef, T>(this IInstance<TDef> instance, string variableName, T value) where TDef : IEntityDefinition
+        internal static void AddModifier<TDef, T>(this IMutableEntity<TDef> entity, string variableName, T value) where TDef : IEntityDefinition
         {
-            Variable key = ResolveVariableByName(instance, variableName);
+            Variable key = ResolveVariableByName(entity, variableName);
             VariableValue modifierPayload = VariableValueFactory.From(value);
             var entry = new EntityModifierEntry(key, modifierPayload);
-            instance.AddModifier(entry);
+            entity.AddModifier(entry);
         }
 
         private static void DispatchSubscribePrimitive<T>(VariableValue av, Action<T> onChange)
@@ -50,10 +50,10 @@ namespace Scaffold.Entities
             }
         }
 
-        private static Variable ResolveVariableByName<TDef>(IInstance<TDef> instance, string name) where TDef : IEntityDefinition
+        private static Variable ResolveVariableByName<TDef>(IMutableEntity<TDef> entity, string name) where TDef : IEntityDefinition
         {
-            EntityInstance<TDef>? ei = instance as EntityInstance<TDef>;
-            if (ei == null && instance is EntityComponent<TDef> component)
+            EntityInstance<TDef>? ei = entity as EntityInstance<TDef>;
+            if (ei == null && entity is EntityComponent<TDef> component)
             {
                 ei = component.Instance;
             }

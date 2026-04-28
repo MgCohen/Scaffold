@@ -6,7 +6,7 @@ using UnityEngine.Serialization;
 namespace Scaffold.Entities
 {
     [Serializable]
-    public sealed class EntityModifierEntry
+    public sealed partial class EntityModifierEntry
     {
         public EntityModifierEntry(Variable key, VariableValue modifierValue)
         {
@@ -52,23 +52,6 @@ namespace Scaffold.Entities
 
         [SerializeReference]
         private VariableValue modifierValue;
-
-#if UNITY_EDITOR
-        [SerializeField]
-        private VariableSO variableAuthoring;
-
-        internal void EditorApplyAuthoringIntoInlineSerializedKeyAndClearLegacy()
-        {
-            if (variableAuthoring == null)
-            {
-                return;
-            }
-
-            key = (Variable)variableAuthoring;
-            variableLegacy = null;
-        }
-
-#endif
 
         internal void RebaseSerializedModifierPayloadIfMismatch()
         {

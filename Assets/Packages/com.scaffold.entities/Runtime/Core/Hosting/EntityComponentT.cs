@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace Scaffold.Entities
 {
-    public class EntityComponent<TDefinition> : EntityComponent, IInstance<TDefinition> where TDefinition : IEntityDefinition
+    public partial class EntityComponent<TDefinition> : EntityComponent, IMutableEntity<TDefinition> where TDefinition : IEntityDefinition
     {
         internal EntityInstance<TDefinition> Instance => instance;
         [SerializeField] private EntityInstance<TDefinition> instance;
@@ -43,14 +43,14 @@ namespace Scaffold.Entities
             return Instance.TryGetVariable(key, out value);
         }
 
-        public void AddModifier(EntityModifierEntry entry)
+        public ModifierId AddModifier(EntityModifierEntry entry)
         {
-            Instance.AddModifier(entry);
+            return Instance.AddModifier(entry);
         }
 
-        public bool RemoveModifier(EntityModifierEntry entry)
+        public bool RemoveModifier(Variable key, ModifierId id)
         {
-            return Instance.RemoveModifier(entry);
+            return Instance.RemoveModifier(key, id);
         }
 
         public void ClearModifiers()
@@ -78,28 +78,9 @@ namespace Scaffold.Entities
             return Instance.RemoveVariable(key);
         }
 
-        public IDisposable SubscribeToVariableAdded(Action<Variable, VariableValue> onAdded)
+        public IDisposable SubscribeToVariableStructuralChanges(Action<VariableStructuralChange, Variable, VariableValue?> handler)
         {
-            return Instance.SubscribeToVariableAdded(onAdded);
+            return Instance.SubscribeToVariableStructuralChanges(handler);
         }
-
-        public IDisposable SubscribeToVariableRemoved(Action<Variable> onRemoved)
-        {
-            return Instance.SubscribeToVariableRemoved(onRemoved);
-        }
-
-#if UNITY_EDITOR
-        private void OnValidate()
-        {
-            instance?.EditorApplyVariableAuthoringOnBagsFromValidation();
-
-            if (!Application.isPlaying)
-            {
-                return;
-            }
-
-            instance?.NotifyAllEffectiveValues();
-        }
-#endif
     }
 }

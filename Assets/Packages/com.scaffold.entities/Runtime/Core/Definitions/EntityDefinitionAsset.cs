@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Scaffold.Entities
 {
     [CreateAssetMenu(menuName = "Scaffold/Entity/Definition", fileName = "EntityDefinition")]
-    public class EntityDefinitionAsset : ScriptableObject, IEntityDefinition, IDefinitionVariableBagProvider
+    public partial class EntityDefinitionAsset : ScriptableObject, IEntityDefinition, IDefinitionVariableBagProvider
     {
         public IEnumerable<Variable> DefinedVariables => definition.DefinedVariables;
 
@@ -33,11 +33,11 @@ namespace Scaffold.Entities
 
         private void OnValidate()
         {
-#if UNITY_EDITOR
-            definition.Bag.EditorApplyVariableAuthoringFromValidation();
-#endif
+            EditorAfterValidateBeforeRebuild();
             RebuildLookup();
         }
+
+        partial void EditorAfterValidateBeforeRebuild();
 
         internal void RebuildLookup()
         {

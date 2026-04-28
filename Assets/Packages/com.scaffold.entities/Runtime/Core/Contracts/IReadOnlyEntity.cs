@@ -18,8 +18,6 @@ namespace Scaffold.Entities
 
         void Unsubscribe(Variable key, Action<VariableValue> onChange);
 
-        IDisposable SubscribeToVariableAdded(Action<Variable, VariableValue> onAdded);
-
-        IDisposable SubscribeToVariableRemoved(Action<Variable> onRemoved);
+        IDisposable SubscribeToVariableStructuralChanges(Action<VariableStructuralChange, Variable, VariableValue?> handler);
     }
 }

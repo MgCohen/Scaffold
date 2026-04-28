@@ -5,29 +5,18 @@ using UnityEngine;
 namespace Scaffold.Entities
 {
     [Serializable]
-    public sealed class VariableBag : IVariableBag
+    public sealed partial class VariableBag : IVariableBag
     {
         public IVariableBag Parent => parent;
-
         [NonSerialized] private IVariableBag parent;
 
         internal IReadOnlyList<VariableEntry> Entries => entries;
-
         [SerializeField] private List<VariableEntry> entries = new List<VariableEntry>();
 
-        public IEnumerable<Variable> LocalKeys
-        {
-            get
-            {
-                EnsureCache();
-                return localCache.Keys;
-            }
-        }
+        public IEnumerable<Variable> LocalKeys => localCache.Keys;
+        [NonSerialized] private Dictionary<Variable, VariableValue> localCache = new Dictionary<Variable, VariableValue>();
 
-        [NonSerialized] private Dictionary<Variable, VariableValue> localCache;
-
-        public event Action<Variable, VariableValue> OnVariableAdded;
-        public event Action<Variable> OnVariableRemoved;
+        public event Action<VariableStructuralChange, Variable, VariableValue?> OnVariableStructuralChange;
 
         public void SetParent(IVariableBag newParent)
         {
@@ -36,7 +25,6 @@ namespace Scaffold.Entities
 
         public bool TryGetBase(Variable key, out VariableValue value)
         {
-            EnsureCache();
             if (localCache.TryGetValue(key, out value))
             {
                 return true;
@@ -55,7 +43,6 @@ namespace Scaffold.Entities
 
         internal void RebuildCache()
         {
-            EnsureCache();
             localCache.Clear();
             for (int i = 0; i < entries.Count; i++)
             {
@@ -79,18 +66,6 @@ namespace Scaffold.Entities
             localCache[entryKey] = entry.BaseValue;
         }
 
-#if UNITY_EDITOR
-        internal void EditorApplyVariableAuthoringFromValidation()
-        {
-            for (int i = 0; i < entries.Count; i++)
-            {
-                VariableEntry entry = entries[i];
-                entry?.EditorApplyAuthoringIntoInlineSerializedKeyAndClearLegacy();
-                entry?.RebaseSerializedPayloadIfMismatch();
-            }
-        }
-#endif
-
         public bool Add(Variable key, VariableValue initialBase)
         {
             if (initialBase == null)
@@ -98,26 +73,24 @@ namespace Scaffold.Entities
                 return false;
             }
 
-            EnsureCache();
             if (localCache.ContainsKey(key))
             {
                 return false;
             }
 
             localCache[key] = initialBase;
-            OnVariableAdded?.Invoke(key, initialBase);
+            OnVariableStructuralChange?.Invoke(VariableStructuralChange.Added, key, initialBase);
             return true;
         }
 
         public bool Remove(Variable key)
         {
-            EnsureCache();
             if (!localCache.Remove(key))
             {
                 return false;
             }
 
-            OnVariableRemoved?.Invoke(key);
+            OnVariableStructuralChange?.Invoke(VariableStructuralChange.Removed, key, null);
             return true;
         }
 
@@ -128,28 +101,17 @@ namespace Scaffold.Entities
                 return;
             }
 
-            EnsureCache();
             localCache[key] = value;
         }
 
         internal bool RemoveLocalSilent(Variable key)
         {
-            EnsureCache();
             return localCache.Remove(key);
         }
 
         internal bool HasLocalKey(Variable key)
         {
-            EnsureCache();
             return localCache.ContainsKey(key);
-        }
-
-        private void EnsureCache()
-        {
-            if (localCache == null)
-            {
-                localCache = new Dictionary<Variable, VariableValue>();
-            }
         }
     }
 }

@@ -5,7 +5,7 @@ using UnityEngine.Serialization;
 namespace Scaffold.Entities
 {
     [Serializable]
-    public sealed class VariableEntry
+    public sealed partial class VariableEntry
     {
         public VariableEntry()
         {
@@ -50,23 +50,6 @@ namespace Scaffold.Entities
         private VariableSO variableLegacy;
 
         [SerializeReference][SerializeField] private VariableValue baseValue;
-
-#if UNITY_EDITOR
-        [SerializeField]
-        private VariableSO variableAuthoring;
-
-        internal void EditorApplyAuthoringIntoInlineSerializedKeyAndClearLegacy()
-        {
-            if (variableAuthoring == null)
-            {
-                return;
-            }
-
-            key = (Variable)variableAuthoring;
-            variableLegacy = null;
-        }
-
-#endif
 
         internal void RebaseSerializedPayloadIfMismatch()
         {

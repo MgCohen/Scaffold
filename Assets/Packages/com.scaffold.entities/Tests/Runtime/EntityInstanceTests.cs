@@ -104,11 +104,11 @@ namespace Scaffold.Entities.Tests
             EntityInstance<EntityDefinition> state = creator.Create(def);
             var delta = new FloatVariableValue { Value = 5f };
             var mod = new EntityModifierEntry(hp, delta);
-            state.AddModifier(mod);
+            ModifierId modId = state.AddModifier(mod);
 
             Assert.That(state.GetValue<float>(hp), Is.EqualTo(15f));
 
-            Assert.That(state.RemoveModifier(mod), Is.True);
+            Assert.That(state.RemoveModifier((Variable)hp, modId), Is.True);
             Assert.That(state.GetValue<float>(hp), Is.EqualTo(10f));
         }
 
@@ -135,10 +135,8 @@ namespace Scaffold.Entities.Tests
             VariableSO hp = CreateVariableSo("HP", VariableValueType.Float);
             EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 10f }));
             EntityInstance<EntityDefinition> state = creator.Create(def);
-            var neverAdded = new EntityModifierEntry(hp, new FloatVariableValue { Value = 5f });
-
-            Assert.That(state.RemoveModifier(neverAdded), Is.False);
-            Assert.That(state.RemoveModifier(null), Is.False);
+            Assert.That(state.RemoveModifier((Variable)hp, ModifierId.New()), Is.False);
+            Assert.That(state.RemoveModifier((Variable)hp, default), Is.False);
         }
 
         [Test]
@@ -178,12 +176,12 @@ namespace Scaffold.Entities.Tests
             EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 10f }));
             EntityInstance<EntityDefinition> state = creator.Create(def);
             var mod = new EntityModifierEntry(hp, new FloatVariableValue { Value = 5f });
-            state.AddModifier(mod);
+            ModifierId modId = state.AddModifier(mod);
 
             VariableValue received = null!;
             state.Subscribe(hp, v => received = v);
 
-            state.RemoveModifier(mod);
+            state.RemoveModifier((Variable)hp, modId);
 
             Assert.That(received, Is.Not.Null);
             Assert.That(((FloatVariableValue)received).Value, Is.EqualTo(10f));
@@ -323,10 +321,10 @@ namespace Scaffold.Entities.Tests
             EntityInstance<EntityDefinition> state = creator.Create(def);
             state.AddVariable(poison, new FloatVariableValue { Value = 5f });
             var mod = new EntityModifierEntry(poison, new FloatVariableValue { Value = 2f });
-            state.AddModifier(mod);
+            ModifierId modId = state.AddModifier(mod);
             Assert.That(state.GetValue<float>(poison), Is.EqualTo(7f));
 
-            Assert.That(state.RemoveModifier(mod), Is.True);
+            Assert.That(state.RemoveModifier((Variable)poison, modId), Is.True);
             Assert.That(state.GetValue<float>(poison), Is.EqualTo(5f));
             Assert.That(state.ContainsModifiedValueCache(poison), Is.False);
             Assert.That(state.InstanceBagHasLocalKey(poison), Is.True);
@@ -342,7 +340,13 @@ namespace Scaffold.Entities.Tests
             state.AddModifier(new EntityModifierEntry(poison, new FloatVariableValue { Value = 1f }));
 
             var removed = new List<Variable>();
-            using (state.SubscribeToVariableRemoved(removed.Add))
+            using (state.SubscribeToVariableStructuralChanges((kind, k, _) =>
+            {
+                if (kind == VariableStructuralChange.Removed)
+                {
+                    removed.Add(k);
+                }
+            }))
             {
                 Assert.That(state.RemoveVariable(poison), Is.True);
             }
@@ -353,14 +357,20 @@ namespace Scaffold.Entities.Tests
         }
 
         [Test]
-        public void SubscribeToVariableAdded_FiresWhenRuntimeSlotAdded()
+        public void SubscribeToVariableStructuralChanges_FiresWhenRuntimeSlotAdded()
         {
             VariableSO poison = CreateVariableSo("Poison", VariableValueType.Float);
             EntityDefinition def = CreateDefinition();
             EntityInstance<EntityDefinition> state = creator.Create(def);
 
             Variable seen = null!;
-            using (state.SubscribeToVariableAdded((k, _) => seen = k))
+            using (state.SubscribeToVariableStructuralChanges((kind, k, _) =>
+            {
+                if (kind == VariableStructuralChange.Added)
+                {
+                    seen = k;
+                }
+            }))
             {
                 state.AddVariable(poison, new FloatVariableValue { Value = 1f });
             }
