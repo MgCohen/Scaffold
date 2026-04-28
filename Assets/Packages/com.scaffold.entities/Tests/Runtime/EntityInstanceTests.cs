@@ -399,22 +399,24 @@ namespace Scaffold.Entities.Tests
         }
 
         [Test]
-        public void AddModifier_ByName_ResolvesAndApplies()
+        public void AddModifier_ByNameAndType_DelegatesToVariableKey()
         {
             VariableSO hp = CreateVariableSo("HP", VariableValueType.Float);
             EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 10f }));
             EntityInstance<EntityDefinition> state = creator.Create(def);
-            state.AddModifier("HP", 4f);
+            state.AddModifier("HP", VariableValueType.Float, 4f);
             Assert.That(state.GetValue<float>(hp), Is.EqualTo(14f));
         }
 
         [Test]
-        public void AddModifier_ByName_UnknownName_Throws()
+        public void AddModifier_ByNameAndType_UnknownSlot_DoesNotThrow_ModifierOrphaned()
         {
             VariableSO hp = CreateVariableSo("HP", VariableValueType.Float);
             EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 10f }));
             EntityInstance<EntityDefinition> state = creator.Create(def);
-            Assert.Throws<InvalidOperationException>(() => state.AddModifier("Missing", 1f));
+            Assert.DoesNotThrow(() => state.AddModifier("Missing", VariableValueType.Float, 1f));
+            var orphanKey = new Variable("Missing", VariableValueType.Float);
+            Assert.Throws<InvalidOperationException>(() => state.GetValue<float>(orphanKey));
         }
 
         [Test]

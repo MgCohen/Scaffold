@@ -26,12 +26,9 @@ namespace Scaffold.Entities
             entity.AddModifier(entry);
         }
 
-        internal static void AddModifier<TDef, T>(this IMutableEntity<TDef> entity, string variableName, T value) where TDef : IEntityDefinition
+        internal static void AddModifier<TDef, T>(this IMutableEntity<TDef> entity, string name, VariableValueType type, T value) where TDef : IEntityDefinition
         {
-            Variable key = ResolveVariableByName(entity, variableName);
-            VariableValue modifierPayload = VariableValueFactory.From(value);
-            var entry = new EntityModifierEntry(key, modifierPayload);
-            entity.AddModifier(entry);
+            entity.AddModifier(new Variable(name, type), value);
         }
 
         private static void DispatchSubscribePrimitive<T>(VariableValue av, Action<T> onChange)
@@ -48,23 +45,6 @@ namespace Scaffold.Entities
             {
                 onChange(typed);
             }
-        }
-
-        private static Variable ResolveVariableByName<TDef>(IMutableEntity<TDef> entity, string name) where TDef : IEntityDefinition
-        {
-            EntityInstance<TDef>? ei = entity as EntityInstance<TDef>;
-            if (ei == null && entity is EntityComponent<TDef> component)
-            {
-                ei = component.Instance;
-            }
-
-            if (ei != null && ei.TryResolveKeyByName(name, out Variable key))
-            {
-                return key;
-            }
-
-            throw new InvalidOperationException(
-                $"No variable with name '{name}' exists on this entity.");
         }
     }
 }

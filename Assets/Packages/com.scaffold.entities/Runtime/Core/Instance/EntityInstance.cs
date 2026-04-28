@@ -58,55 +58,5 @@ namespace Scaffold.Entities
         {
             return localStorage.InstanceBagHasLocalKey(key);
         }
-
-        internal bool TryResolveKeyByName(string name, out Variable key)
-        {
-            if (TryFindKeyInDefinition(name, out key))
-            {
-                return true;
-            }
-
-            if (TryFindKeyInBagLocalKeys(localStorage.InstanceBaseBag, name, out key))
-            {
-                return true;
-            }
-
-            return TryFindKeyInBagLocalKeys(localStorage.InstanceEffectiveBag, name, out key);
-        }
-
-        private bool TryFindKeyInDefinition(string name, out Variable key)
-        {
-            key = default!;
-            if (definition == null)
-            {
-                return false;
-            }
-
-            foreach (Variable v in definition.DefinedVariables)
-            {
-                if (v.Key == name)
-                {
-                    key = v;
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        private bool TryFindKeyInBagLocalKeys(VariableBag bag, string name, out Variable key)
-        {
-            foreach (Variable k in bag.LocalKeys)
-            {
-                if (k.Key == name)
-                {
-                    key = k;
-                    return true;
-                }
-            }
-
-            key = default!;
-            return false;
-        }
     }
 }

@@ -15,27 +15,27 @@ MonoBehaviour:
   definition:
     bag:
       entries:
-      - key:
+      - variableAuthoring: {fileID: 11400000, guid: a103d4567890abcd1234567890abcdef, type: 2}
+        key:
           key: Health
           type: 1
         variableLegacy: {fileID: 0}
         baseValue:
           rid: 4306785481091186691
-        variableAuthoring: {fileID: 11400000, guid: a103d4567890abcd1234567890abcdef, type: 2}
-      - key:
+      - variableAuthoring: {fileID: 11400000, guid: b203d4567890abcd1234567890abcdef, type: 2}
+        key:
           key: MoveSpeed
           type: 1
         variableLegacy: {fileID: 0}
         baseValue:
           rid: 4306785481091186692
-        variableAuthoring: {fileID: 11400000, guid: b203d4567890abcd1234567890abcdef, type: 2}
-      - key:
+      - variableAuthoring: {fileID: 11400000, guid: 72f2ac934ad355b468104b01b4939710, type: 2}
+        key:
           key: Flat
           type: 3
         variableLegacy: {fileID: 0}
         baseValue:
           rid: 4306785481091186693
-        variableAuthoring: {fileID: 11400000, guid: 72f2ac934ad355b468104b01b4939710, type: 2}
   references:
     version: 2
     RefIds:

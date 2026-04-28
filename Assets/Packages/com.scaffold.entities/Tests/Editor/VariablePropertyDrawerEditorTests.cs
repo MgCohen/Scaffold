@@ -22,5 +22,11 @@ namespace Scaffold.Entities.Editor.Tests
         {
             Assert.IsNotNull(typeof(EntityModifierEntryDrawer));
         }
+
+        [Test]
+        public void VariableSOEditor_Type_IsRegistered()
+        {
+            Assert.IsNotNull(typeof(VariableSOEditor));
+        }
     }
 }
