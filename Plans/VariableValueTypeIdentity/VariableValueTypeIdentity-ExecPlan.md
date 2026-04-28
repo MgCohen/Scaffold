@@ -1,6 +1,6 @@
 ---
 name: VariableValue type identity refactor (stable-ID + cleanup)
-overview: Replace VariableValueType enum with a stable string ID per VariableValue subclass (declared via attribute), drive authoring UI via TypeCache in the Editor, migrate existing YAML/assets from enum ordinals, and bundle the dead Min/Max/Clamped removal. Combine-on-modifier is explicitly deferred to a follow-up.
+overview: Replace VariableValueType enum with a stable string ID per VariableValue subclass (declared via attribute), drive authoring UI via TypeCache in the Editor, and bundle the dead Min/Max/Clamped removal. No migration code — existing assets break and are re-authored. Combine-on-modifier is explicitly deferred to a follow-up.
 todos:
   - id: stable-id-attribute
     content: Add [VariableValueId("...")] attribute, decorate the four concrete VariableValue subclasses, build a startup registry mapping ID <-> Type with duplicate detection
@@ -9,19 +9,19 @@ todos:
     content: Drop VariableValueType enum + VariableValue.Type override; remove Min/Max/Clamped from FloatVariableValue and IntVariableValue (Combine retained, deferred to follow-up plan)
     status: pending
   - id: serialize-id-on-keys
-    content: Add private serialized payloadTypeId string on VariableSO (and on Variable only if disk-serialized — verify first); cache resolved Type in [NonSerialized] field; rewrite Equals/GetHashCode to use the ID string
+    content: Add private serialized payloadTypeId string on VariableSO; keep Variable as a record; equality on Variable uses (Key, payloadTypeId) strings
     status: pending
   - id: factory-and-rebase
-    content: Refactor VariableValueFactory.CreateDefault to take Type or payload ID; update VariableEntry/EntityModifierEntry rebase to compare GetType() against expected Type from registry; loud failure (editor validation error) on unknown ID, not silent String fallback
+    content: Refactor VariableValueFactory.CreateDefault to take Type or payload ID; validate via VariableValueRegistry membership (not IsAssignableFrom); update VariableEntry/EntityModifierEntry rebase to compare GetType() against expected Type from registry; loud failure on unknown ID
     status: pending
   - id: editor-typecache
     content: New CustomEditor for VariableSO with TypeCache.GetTypesDerivedFrom<VariableValue>() filtered to !IsAbstract && !IsGenericTypeDefinition; popup writes ID string; refactor VariableKeySoField to assign ID string and rebase managed reference via Type from registry
     status: pending
-  - id: migration
-    content: ISerializationCallbackReceiver on VariableSO — read legacy [FormerlySerializedAs("valueType")] int via transient field in OnAfterDeserialize, map ordinal->ID once, then strip via one-shot AssetDatabase re-save pass
+  - id: il2cpp-preserve
+    content: Add link.xml + [Preserve] on VariableValue/VariableValueIdAttribute so the registry's reflection scan survives IL2CPP managed-code stripping at High; smoke-test with an IL2CPP build
     status: pending
   - id: tests-samples-docs
-    content: Update runtime/editor tests to use SetPayloadType(Type) helper; resave sample .asset files to new shape; update package README; run validate-changes.ps1 + Unity EditMode tests
+    content: Update runtime/editor tests to use SetPayloadType(Type) helper; re-author sample .asset files to new shape; update package README; run validate-changes.ps1 + Unity EditMode tests
     status: pending
 isProject: false
 ---
@@ -33,13 +33,13 @@ isProject: false
 - Remove the closed `VariableValueType` enum and the abstract `Type` discriminator on `VariableValue`.
 - Represent "what kind of payload this variable expects" as a **stable string ID** declared per concrete `VariableValue` subclass, decoupled from assembly/namespace/type renames.
 - Drive authoring UI from `TypeCache.GetTypesDerivedFrom<VariableValue>()`.
-- Bundle removal of unused `Min`/`Max`/`Clamped` on `FloatVariableValue` / `IntVariableValue` (touching the same files anyway).
-- Migrate existing YAML assets from the legacy `valueType: <int>` field with no manual user action.
+- Bundle removal of unused `Min`/`Max`/`Clamped` on `FloatVariableValue` / `IntVariableValue` (touching the same files anyway). **This is an accepted behavior change**: `IntVariableValue.Combine` currently always calls `Math.Clamp(sum, Min, Max)` and `FloatVariableValue.Combine` clamps when `Clamped == true`. Audit found no production assets relying on this: `Min`/`Max`/`Clamped` are never validated at write-time, never tested, and `Hp`/`MaxHp`-style use cases are better modeled as two variables. Post-refactor `Combine` is a plain sum — no clamp, no compat shim.
 
 ## Explicitly out of scope (deferred follow-ups)
 
 - **Combine relocation to modifiers** (`IModifier<T>` + ordering/phase). Lives in a separate ExecPlan after this lands. `VariableValue.Combine` stays as-is in this PR.
 - New value types (`Vector3VariableValue`, `GameObjectVariableValue`). The system will support them after this refactor; adding them is its own task.
+- **Migration**. No legacy field handling, no ordinal-to-ID mapper, no `ISerializationCallbackReceiver`, no one-shot re-save passes. Existing `.asset` files with `valueType: <int>` will break. Sample assets are re-authored by hand as part of this PR; consumers of pre-existing variable assets re-author them. Accept the breakage.
 
 ## Why stable IDs and not AssemblyQualifiedName
 
@@ -66,7 +66,7 @@ public sealed class VariableValueIdAttribute : Attribute
 [VariableValueId("string")] public sealed class StringVariableValue : VariableValue { ... }
 ```
 
-Renames are free. Migration ordinals map directly: `0→"string"`, `1→"float"`, `2→"int"`, `3→"bool"`.
+Renames are free.
 
 ## Coupling diagram (after refactor)
 
@@ -85,7 +85,7 @@ flowchart LR
   Editor --> Registry
 ```
 
-Concrete `VariableValue` instances match via `GetType()`; rebase compares against `Registry.Resolve(payloadTypeId)`.
+Concrete `VariableValue` instances match via `GetType()`; rebase compares against `Registry.TryResolve(payloadTypeId)`.
 
 ## 1. `VariableValueRegistry` (new)
 
@@ -101,11 +101,27 @@ internal static class VariableValueRegistry
 {
     public static bool TryResolve(string id, out Type type);
     public static bool TryGetId(Type type, out string id);
+    public static bool Contains(Type type);
     public static IReadOnlyList<Type> AllConcreteTypes { get; }   // editor convenience
 }
 ```
 
-`Type.GetType` is **not used** anywhere — registry is the single resolution path.
+`Type.GetType` is **not used** anywhere — registry is the single resolution path. Only registry-tracked types are valid `VariableValue` payloads; types missing the attribute don't exist as far as the system is concerned.
+
+### IL2CPP preservation
+
+The registry relies on `AppDomain.GetAssemblies()` + `Attribute.GetCustomAttributes`. Unity's managed code stripping cannot statically detect reflection-only references, so concrete `VariableValue` subclasses can be stripped at Medium/High stripping levels in IL2CPP players. Two-part mitigation, both required:
+
+1. **`[Preserve]` on the base class and the attribute** — `[assembly: AlwaysLinkAssembly]` on the package's runtime asmdef, plus `[Preserve]` (`UnityEngine.Scripting.PreserveAttribute`) on `VariableValue` and `VariableValueIdAttribute`.
+2. **`link.xml`** under `Assets/Packages/com.scaffold.entities/Runtime/` preserving the runtime assembly fully. Pattern:
+   ```xml
+   <linker>
+     <assembly fullname="Scaffold.Entities" preserve="all"/>
+   </linker>
+   ```
+   This is the simplest robust answer — the package is small, full-preserve is fine. Optimizing later (per-type `[Preserve]` codegen) can replace this if/when stripping savings matter.
+
+Validation: build an IL2CPP player with stripping level **High**, run a smoke test that resolves each registered ID via the registry. Add to the package's manual QA checklist.
 
 ## 2. `VariableValue` and value subclasses
 
@@ -143,90 +159,77 @@ public sealed class FloatVariableValue : VariableValue, IVariableValue<float>
 
 ## 3. `VariableValueFactory`
 
-- `CreateDefault(Type payloadType)` — validates `payloadType` is concrete and assignable to `VariableValue`, otherwise throws (editor) / logs and returns null (runtime). **No silent String fallback.**
-- `CreateDefault(string payloadTypeId)` — resolves via `VariableValueRegistry`, then delegates. Unknown ID = error.
+Validation goes through the registry, not reflection on the type hierarchy. If a type isn't in the registry, it isn't a usable `VariableValue` — the registry already enforces "concrete subclass with `[VariableValueId]`", so checking membership is equivalent to (and tighter than) `IsAssignableFrom + !IsAbstract`.
+
+- `CreateDefault(Type payloadType)` — must be present in `VariableValueRegistry`, otherwise throws. **No silent fallback.**
+- `CreateDefault(string payloadTypeId)` — resolves via registry, then delegates. Unknown ID = throws.
 - `From<T>(T value)` — unchanged shape.
 
 ```csharp
 internal static VariableValue CreateDefault(Type payloadType)
 {
-    if (payloadType == null
-        || payloadType.IsAbstract
-        || !typeof(VariableValue).IsAssignableFrom(payloadType))
+    if (payloadType == null || !VariableValueRegistry.Contains(payloadType))
     {
         throw new ArgumentException(
-            $"Invalid VariableValue payload type: {payloadType}");
+            $"Type {payloadType} is not a registered VariableValue. " +
+            $"Concrete subclasses must declare [VariableValueId(\"...\")].");
     }
     return (VariableValue)Activator.CreateInstance(payloadType);
 }
+
+internal static VariableValue CreateDefault(string payloadTypeId)
+{
+    if (!VariableValueRegistry.TryResolve(payloadTypeId, out Type t))
+    {
+        throw new ArgumentException(
+            $"Unknown VariableValue payload id: '{payloadTypeId}'.");
+    }
+    return CreateDefault(t);
+}
+```
+
+Rebase helpers in `VariableEntry` / `EntityModifierEntry` use the same path:
+
+```csharp
+if (!VariableValueRegistry.TryResolve(key.PayloadTypeId, out Type expected))
+{
+    // unknown ID — log + skip rebase, do not coerce
+    return;
+}
+if (baseValue != null && baseValue.GetType() == expected) return;
+baseValue = VariableValueFactory.CreateDefault(expected);
 ```
 
 ## 4. Serialized identity on keys
 
-Audit first: **is `Variable` ever serialized to disk independently of `VariableSO`?** Search for `[SerializeField] Variable` / `[SerializeReference] Variable` outside `VariableSO`. If no, **skip migration on `Variable`** — keep it as a record with manual `Equals`/`GetHashCode` over `(Key, payloadTypeId)`. If yes, mirror the migration on it.
-
-`VariableSO`:
+`Variable` **stays a record**. Its second positional parameter changes from `VariableValueType Type` to `string PayloadTypeId`:
 
 ```csharp
-public sealed class VariableSO : ScriptableObject, ISerializationCallbackReceiver
+public record Variable(string Key, string PayloadTypeId);
+```
+
+Record value-equality already compares both fields as strings — no manual `Equals`/`GetHashCode` needed. Used safely as a `Dictionary<Variable, ...>` key in `VariableModifierHandler`.
+
+`VariableSO` carries the same string field:
+
+```csharp
+public sealed class VariableSO : ScriptableObject
 {
     [SerializeField] private string key = "";
     [SerializeField] private string payloadTypeId = "string";
 
-    [NonSerialized] private Type cachedType;
-    [NonSerialized] private bool cacheValid;
-
+    public string Key => key;
     public string PayloadTypeId => payloadTypeId;
 
-    public Type PayloadType
-    {
-        get
-        {
-            if (!cacheValid)
-            {
-                VariableValueRegistry.TryResolve(payloadTypeId, out cachedType);
-                cacheValid = true;
-            }
-            return cachedType; // may be null on unknown ID — caller decides
-        }
-    }
-
-    public void OnBeforeSerialize() { }
-    public void OnAfterDeserialize() { cacheValid = false; /* + migration, see §5 */ }
+    // implicit conversion / explicit ToVariable() builds: new Variable(key, payloadTypeId)
 }
 ```
 
-## 5. Migration from `valueType: <int>` ordinals
+No `ISerializationCallbackReceiver`, no cached `Type`. Registry resolution is a dictionary lookup — cheap enough for the hot paths that need it. If a hot path ever profiles as a problem, add caching then.
 
-Approach: transient legacy int field, consumed once, never re-serialized.
+Audit/grep for callers that read the old `Type` (enum) or `VariableValueType` and update them to `PayloadTypeId` (string) — straight rename.
 
-```csharp
-// Inside VariableSO
-[SerializeField, FormerlySerializedAs("valueType")]
-private int legacyValueType = -1;
-
-public void OnAfterDeserialize()
-{
-    if (legacyValueType >= 0)
-    {
-        payloadTypeId = LegacyOrdinalToId(legacyValueType); // 0=string,1=float,2=int,3=bool
-        legacyValueType = -1; // sentinel; cleaned up by re-save pass
-    }
-    cacheValid = false;
-}
-```
-
-Then run a one-shot editor migrator (menu item or `[InitializeOnLoad]` guarded by version key in `EditorPrefs`):
-
-1. `AssetDatabase.FindAssets("t:VariableSO")`
-2. Load each, mark dirty, save.
-3. After saving, drop the `legacyValueType` field in a follow-up commit (Unity gracefully handles missing fields on next deserialize).
-
-This avoids `legacyValueType: -1` lingering in YAML forever.
-
-Sample `.asset` files under `Samples/` should be re-saved by hand (or via the same migrator) so the repo doesn't carry mixed-shape examples.
-
-## 6. Editor — TypeCache-driven authoring
+## 5. Editor — TypeCache-driven authoring
 
 New `Editor/VariableSOEditor.cs`:
 
@@ -242,6 +245,7 @@ public sealed class VariableSOEditor : Editor
         if (cachedTypes != null) return;
         cachedTypes = TypeCache.GetTypesDerivedFrom<VariableValue>()
             .Where(t => !t.IsAbstract && !t.IsGenericTypeDefinition)
+            .Where(t => VariableValueRegistry.Contains(t))
             .OrderBy(t => t.Name)
             .ToArray();
         cachedLabels = cachedTypes.Select(t => new GUIContent(t.Name)).ToArray();
@@ -262,59 +266,51 @@ Filtering rules:
 
 - `!IsAbstract` — skip the base.
 - `!IsGenericTypeDefinition` — skip open generics.
-- (Optional) skip types missing `VariableValueIdAttribute` and surface a HelpBox listing them.
+- `VariableValueRegistry.Contains(t)` — skip concrete subclasses that lack `[VariableValueId]` (registry already filters them out, double-checked here for clarity).
 
 Refactor `Editor/VariableKeySoField.cs`:
 
 - Replace any `enumValueIndex` / ordinal wiring with `payloadTypeId` string assignment.
-- `RebaseManagedReferencePayloadForVariableSo`: resolve default via `selectedSo.PayloadType` from registry; on null, log + skip rebase rather than coerce.
+- `RebaseManagedReferencePayloadForVariableSo`: resolve default via registry from the SO's `PayloadTypeId`; on unknown ID, log + skip rebase rather than coerce.
 
 `TypeCache` is editor-only and stays under the `Editor/` asmdef — already enforced by package layout.
 
-## 7. Equality and dictionary-key stability
+## 6. Equality and dictionary-key stability
 
 `VariableModifierHandler` keys a `Dictionary<Variable, ...>` on `Variable`. After this refactor:
 
-- `Variable.Equals` compares `(Key, payloadTypeId)` — both strings.
-- `GetHashCode` combines the same two strings.
-- **Never** compare resolved `Type` instances or AQN — stick to the ID string for hot paths.
+- `Variable` is a record with `(string Key, string PayloadTypeId)` — synthesized value equality compares both strings. No manual override needed.
+- **Never** compare resolved `Type` instances anywhere — stick to the ID string for hot paths.
 
-If `Variable` stays a record, override the synthesized equality manually (records use all properties, but if `payloadTypeId` is the only non-Key state, default behavior is fine — verify).
-
-If `Variable` converts to a class, **grep for**:
-
-- `Variable with { ... }` — must be rewritten as constructor calls.
-- `is Variable("x", _)` — pattern matches break.
-- Any LINQ `.Distinct()` / `.GroupBy()` over `Variable` — relies on equality.
-
-## 8. Tests
+## 7. Tests
 
 - `EntityInstanceTests`, `VariableBagTests`: replace `CreateVariableSo(..., VariableValueType.Float)` with a test helper `SetPayloadType(this VariableSO so, Type t)` that writes the ID string + sets dirty.
 - `EntityModifierEntryAssetEditorTests`: drop `FindProperty("valueType").enumValueIndex`; use the helper or set `payloadTypeId` directly.
-- Add a new test: round-trip a legacy YAML SO (with `valueType: 1`) through deserialize → assert `PayloadType == typeof(FloatVariableValue)` and `legacyValueType == -1`.
 - Add a registry test: duplicate `[VariableValueId("foo")]` triggers a clear error (use a private test-only assembly or a guard hook).
+- Add a factory test: `CreateDefault` of an unregistered type throws.
 
-## 9. Documentation
+## 8. Documentation
 
 Update `Assets/Packages/com.scaffold.entities/README.md`:
 
 - Payload type is now a concrete `VariableValue` subclass identified by stable ID via `[VariableValueId]`.
 - Authoring uses the type-picker driven by `TypeCache`.
 - How to add a new type (subclass + attribute + parameterless ctor).
-- Migration is automatic on first asset load; the bundled migrator clears legacy fields.
+- **Breaking change note**: existing `valueType: <int>` assets will not load; re-author them.
 
-## 10. Quality gate
+## 9. Quality gate
 
 - `validate-changes.ps1` per `AGENTS.md`.
 - Unity EditMode tests: `com.scaffold.entities` package.
-- Manual: open a Unity scene with an existing `Health.asset`, confirm inspector shows the new type-picker preselected to `FloatVariableValue`, save, confirm YAML now contains `payloadTypeId: float` and no `valueType`.
+- Manual: re-author `Health.asset` (and any other sample SOs) under the new shape; confirm inspector shows the type-picker, save, confirm YAML now contains `payloadTypeId: float` and no `valueType`.
 
 ## Risks and decisions
 
 - **Unknown ID at runtime** — fail loud (editor: error in `OnValidate` / inspector banner; runtime: log error and skip rebase). Never silently coerce.
 - **Duplicate `[VariableValueId]`** — registry throws on init; surfaces as a build error in editor, log + degraded behavior in player.
 - **Activator constraint** — concrete `VariableValue` subclasses must have a public parameterless ctor. Documented in the README "adding a new type" section.
-- **Variable record vs class** — decided by the §4 audit. If `Variable` is runtime-only, keep it a record and avoid the migration noise. Default assumption: keep it a record.
-- **Sample assets in repo** — re-saved as part of this PR so review diff shows the new shape side-by-side with code changes.
+- **Breaking change (assets)** — existing serialized variable assets break. Accepted, no migration path. Sample assets in this PR are re-authored to demonstrate the new shape; downstream consumers re-author theirs.
+- **Breaking change (clamp behavior)** — `IntVariableValue.Combine` no longer clamps; `FloatVariableValue.Combine` no longer respects `Clamped`. Accepted per audit; no compat shim. Documented in the README's breaking-change note alongside the asset breakage.
+- **IL2CPP stripping** — covered by `link.xml` + `[Preserve]` on base class/attribute (see §1 IL2CPP preservation). Validated by an IL2CPP-High smoke build.
 
 Scope is **package-internal**: all `VariableValueType` references live under `com.scaffold.entities`; public surface change is bounded to `Variable`, `VariableSO`, removal of the enum, and removal of `VariableValue.Type` / `Min` / `Max` / `Clamped`.
