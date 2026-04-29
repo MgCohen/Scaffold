@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
 using Scaffold.Maps;
@@ -341,7 +342,7 @@ namespace Scaffold.States
             return Get<TState>(Reference.Null);
         }
 
-        public TState Get<TState>(IReference reference) where TState : BaseState
+        public TState Get<TState>(IReference? reference) where TState : BaseState
         {
             var r = reference ?? Reference.Null;
             var t = typeof(TState);
@@ -408,7 +409,7 @@ namespace Scaffold.States
                 return true;
             }
 
-            slice = null;
+            slice = default!;
             return false;
         }
         #endregion
@@ -475,12 +476,12 @@ namespace Scaffold.States
                 return Get<TState>(Reference.Null);
             }
 
-            public TState Get<TState>(IReference reference) where TState : BaseState
+            public TState Get<TState>(IReference? reference) where TState : BaseState
             {
                 var r = reference ?? Reference.Null;
                 if (overlay.TryGetValue(r, typeof(TState), out var fromOverlay))
                 {
-                    return fromOverlay as TState;
+                    return (TState)(object)fromOverlay!;
                 }
 
                 if (owner.TryGetSlice(r, typeof(TState), out BaseSlice slice))
@@ -489,7 +490,7 @@ namespace Scaffold.States
                     {
                         return (TState)aSlice.BuildForScope(this);
                     }
-                    return slice.State as TState;
+                    return (TState)(object)slice.State!;
                 }
 
                 return owner.Get<TState>(r);

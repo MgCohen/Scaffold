@@ -7,11 +7,7 @@ namespace Scaffold.Entities.States
 {
     public static class EntityStateFactory
     {
-        public static StateEntity<TDefinition> Create<TDefinition>(
-            TDefinition definition,
-            Store store,
-            InstanceId instanceId)
-            where TDefinition : IEntityDefinition
+        public static StateEntity<TDefinition> Create<TDefinition>(TDefinition definition, Store store, InstanceId instanceId) where TDefinition : IEntityDefinition
         {
             if (definition == null)
             {
@@ -23,7 +19,7 @@ namespace Scaffold.Entities.States
                 throw new ArgumentNullException(nameof(store));
             }
 
-            var context = EntityBridgeContext.GetOrAttach(store);
+            var context = EntityBridgeContext.CreateForStore(store);
             store.RegisterSlice(instanceId, EntityVariableState.Empty);
             context.Bind(instanceId, definition);
 

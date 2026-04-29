@@ -13,18 +13,18 @@ MonoBehaviour:
   m_Name: SampleHealthBonusModifier
   m_EditorClassIdentifier: 
   entry:
+    variableAuthoring: {fileID: 11400000, guid: b203d4567890abcd1234567890abcdef, type: 2}
     key:
-      key: Health
+      key: MoveSpeed
       payloadTypeId: float
     variableLegacy: {fileID: 0}
     modifier:
-      rid: 4306785480214053163
-    variableAuthoring: {fileID: 11400000, guid: a103d4567890abcd1234567890abcdef, type: 2}
+      rid: 4306785503486935046
   references:
     version: 2
     RefIds:
-    - rid: 4306785480214053163
-      type: {class: FloatAddModifier, ns: Scaffold.Entities, asm: Scaffold.Entities}
+    - rid: 4306785503486935046
+      type: {class: FloatMultiplyModifier, ns: Scaffold.Entities, asm: Scaffold.Entities}
       data:
         order: 0
-        amount: 5
+        factor: 0

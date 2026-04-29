@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using UnityEngine;
 using UnityEngine.Serialization;
@@ -35,15 +36,15 @@ namespace Scaffold.Entities
             }
         }
 
-        internal VariableValue BaseValue => baseValue;
+        internal VariableValue? BaseValue => baseValue;
 
         [SerializeField] private Variable? key;
 
         [SerializeField]
         [FormerlySerializedAs("variable")]
-        private VariableSO variableLegacy;
+        private VariableSO? variableLegacy;
 
-        [SerializeReference][SerializeField] private VariableValue baseValue;
+        [SerializeReference][SerializeField] private VariableValue? baseValue;
 
         internal void RebaseSerializedPayloadIfMismatch()
         {

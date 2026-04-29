@@ -43,7 +43,7 @@ namespace Scaffold.Entities
 
         [SerializeField]
         [FormerlySerializedAs("variable")]
-        private VariableSO variableLegacy;
+        private VariableSO? variableLegacy;
 
         [SerializeReference]
         private VariableModifier? modifier;
@@ -66,7 +66,7 @@ namespace Scaffold.Entities
                 return;
             }
 
-            ApplyFirstCandidateOrWarn(expectedValueType, k, wrapperType);
+            ApplyFirstCandidateOrWarn(expectedValueType!, k, wrapperType);
         }
 
         private bool TryLoadExpectedValueType(Variable k, out Type? expectedValueType, out Type wrapperType)

@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 
 using UnityEngine;
@@ -13,7 +14,7 @@ namespace Scaffold.Entities
 
         public InstanceId Id => id;
 
-        [SerializeField] private InstanceId id;
+        [SerializeField] private InstanceId id = null!;
 
         internal TDefinition Definition => definition;
 

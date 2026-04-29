@@ -1,49 +1,36 @@
 #nullable enable
-using System.Collections.Immutable;
+using System.Collections.Generic;
 
 using Scaffold.Entities;
 using Scaffold.States;
 
 namespace Scaffold.Entities.States
 {
-    public sealed class AddModifierMutator : Mutator<EntityVariableState, AddModifierPayload>
+    internal sealed class AddModifierMutator : Mutator<EntityVariableState, AddModifierPayload>
     {
-        private readonly EntityBridgeContext context;
-
         public AddModifierMutator(EntityBridgeContext context)
         {
             this.context = context;
         }
 
-        public override EntityVariableState Change(
-            EntityVariableState state,
-            AddModifierPayload payload,
-            IStateScope scope)
+        private readonly EntityBridgeContext context;
+
+        public override EntityVariableState Change(EntityVariableState state, AddModifierPayload payload, IStateScope scope)
         {
-            if (!context.TryGetDefinition(payload.EntityId, out var definition))
-            {
-                return state;
-            }
+            if (!context.TryGetDefinition(payload.EntityId, out IEntityDefinition? definition)) return state;
 
-            var bucket = state.ModifierStacks.TryGetValue(payload.Variable, out var existing)
-                ? existing
-                : ImmutableList<ActiveModifier>.Empty;
-
+            var nextBases = EntityVariableState.CreateNewBaseDictionary(state.BaseValues);
+            var nextStacks = EntityVariableState.CreateNewModifierStacksDictionary(state.ModifierStacks);
+            List<ActiveModifier> bucket = nextStacks.TryGetValue(payload.Variable, out List<ActiveModifier>? oldBucket) ? new List<ActiveModifier>(oldBucket!) : new List<ActiveModifier>();
             int insertAt = 0;
             while (insertAt < bucket.Count && bucket[insertAt].Modifier.Order <= payload.Modifier.Order)
             {
                 insertAt++;
             }
 
-            var nextBucket = bucket.Insert(insertAt, new ActiveModifier(payload.ModifierId, payload.Modifier));
-            var nextStacks = state.ModifierStacks.SetItem(payload.Variable, nextBucket);
-            var nextEffective = EffectiveValueRecomputer.RecomputeFor(
-                state,
-                nextStacks,
-                payload.Variable,
-                definition);
-
-            return state with { ModifierStacks = nextStacks, EffectiveValues = nextEffective };
+            bucket.Insert(insertAt, new ActiveModifier(payload.ModifierId, payload.Modifier));
+            nextStacks[payload.Variable] = bucket;
+            return new EntityVariableState(nextBases, nextStacks, EffectiveValueRecomputer.RecomputeFor(nextBases, nextStacks, state.EffectiveValues, payload.Variable, definition));
         }
     }
 }

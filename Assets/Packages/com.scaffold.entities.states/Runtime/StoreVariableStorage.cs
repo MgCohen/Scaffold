@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
 
@@ -8,47 +9,12 @@ namespace Scaffold.Entities.States
 {
     public sealed class StoreVariableStorage : IEntityVariableStorage
     {
-        private readonly Store store;
-        private readonly InstanceId instanceId;
-        private readonly IEntityDefinition definition;
-
-        private readonly Dictionary<Variable, List<Action<VariableValue>>> perVariable = new();
-        private readonly List<Action<VariableStructuralChange, Variable, VariableValue?>> structural = new();
-
         public StoreVariableStorage(Store store, InstanceId instanceId, IEntityDefinition definition)
         {
             this.store = store ?? throw new ArgumentNullException(nameof(store));
             this.instanceId = instanceId;
             this.definition = definition ?? throw new ArgumentNullException(nameof(definition));
-
             store.Subscribe<EntityVariableState>(instanceId, OnSliceChanged);
-        }
-
-        public bool TryGetEffective(Variable key, out VariableValue value)
-        {
-            var state = store.Get<EntityVariableState>(instanceId);
-            if (state.EffectiveValues.TryGetValue(key, out value))
-            {
-                return true;
-            }
-
-            if (state.BaseValues.TryGetValue(key, out value))
-            {
-                return true;
-            }
-
-            return definition.TryGetDefaultValue(key, out value);
-        }
-
-        public bool TryGetBase(Variable key, out VariableValue value)
-        {
-            var state = store.Get<EntityVariableState>(instanceId);
-            if (state.BaseValues.TryGetValue(key, out value))
-            {
-                return true;
-            }
-
-            return definition.TryGetDefaultValue(key, out value);
         }
 
         public IEnumerable<Variable> Variables
@@ -69,6 +35,23 @@ namespace Scaffold.Entities.States
                     }
                 }
             }
+        }
+
+        private readonly Store store;
+        private readonly InstanceId instanceId;
+        private readonly IEntityDefinition definition;
+        private readonly Dictionary<Variable, List<Action<VariableValue>>> perVariable = new();
+        private readonly List<Action<VariableStructuralChange, Variable, VariableValue?>> structural = new();
+
+        public bool TryGetBase(Variable key, out VariableValue value)
+        {
+            var state = store.Get<EntityVariableState>(instanceId);
+            if (state.BaseValues.TryGetValue(key, out value))
+            {
+                return true;
+            }
+
+            return definition.TryGetDefaultValue(key, out value);
         }
 
         public IDisposable Subscribe(Variable key, Action<VariableValue> callback)
@@ -112,8 +95,7 @@ namespace Scaffold.Entities.States
             }
         }
 
-        public IDisposable SubscribeToVariableStructuralChanges(
-            Action<VariableStructuralChange, Variable, VariableValue?> handler)
+        public IDisposable SubscribeToVariableStructuralChanges(Action<VariableStructuralChange, Variable, VariableValue?> handler)
         {
             if (handler == null)
             {
@@ -138,12 +120,61 @@ namespace Scaffold.Entities.States
             }
         }
 
+        public bool TryGetEffective(Variable key, out VariableValue value)
+        {
+            var state = store.Get<EntityVariableState>(instanceId);
+            if (state.EffectiveValues.TryGetValue(key, out value))
+            {
+                return true;
+            }
+
+            if (state.BaseValues.TryGetValue(key, out value))
+            {
+                return true;
+            }
+
+            return definition.TryGetDefaultValue(key, out value);
+        }
+
+        private sealed class EmptyDisposable : IDisposable
+        {
+            private EmptyDisposable()
+            {
+            }
+
+            public static readonly EmptyDisposable Instance = new EmptyDisposable();
+
+            public void Dispose()
+            {
+            }
+        }
+
+        private sealed class StructuralSubscription : IDisposable
+        {
+            public StructuralSubscription(StoreVariableStorage o, Action<VariableStructuralChange, Variable, VariableValue?> h)
+            {
+                owner = o;
+                handler = h;
+            }
+
+            private StoreVariableStorage? owner;
+            private Action<VariableStructuralChange, Variable, VariableValue?>? handler;
+
+            public void Dispose()
+            {
+                if (owner == null || handler == null)
+                {
+                    return;
+                }
+
+                owner.structural.Remove(handler);
+                owner = null;
+                handler = null;
+            }
+        }
+
         private sealed class VariableSubscription : IDisposable
         {
-            private StoreVariableStorage owner;
-            private Variable key;
-            private Action<VariableValue> callback;
-
             public VariableSubscription(StoreVariableStorage o, Variable k, Action<VariableValue> c)
             {
                 owner = o;
@@ -151,51 +182,21 @@ namespace Scaffold.Entities.States
                 callback = c;
             }
 
+            private StoreVariableStorage? owner;
+            private Variable? key;
+            private Action<VariableValue>? callback;
+
             public void Dispose()
             {
-                if (owner == null)
+                if (owner == null || key == null || callback == null)
                 {
                     return;
                 }
 
                 owner.Unsubscribe(key, callback);
                 owner = null;
-                key = null!;
-                callback = null!;
-            }
-        }
-
-        private sealed class StructuralSubscription : IDisposable
-        {
-            private StoreVariableStorage owner;
-            private Action<VariableStructuralChange, Variable, VariableValue?> handler;
-
-            public StructuralSubscription(
-                StoreVariableStorage o,
-                Action<VariableStructuralChange, Variable, VariableValue?> h)
-            {
-                owner = o;
-                handler = h;
-            }
-
-            public void Dispose()
-            {
-                if (owner == null)
-                {
-                    return;
-                }
-
-                owner.structural.Remove(handler);
-                owner = null;
-                handler = null!;
-            }
-        }
-
-        private sealed class EmptyDisposable : IDisposable
-        {
-            public static readonly EmptyDisposable Instance = new EmptyDisposable();
-            public void Dispose()
-            {
+                key = null;
+                callback = null;
             }
         }
     }

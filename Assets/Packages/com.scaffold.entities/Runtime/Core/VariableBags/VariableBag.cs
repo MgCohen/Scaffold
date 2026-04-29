@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -7,8 +8,8 @@ namespace Scaffold.Entities
     [Serializable]
     public sealed partial class VariableBag : IVariableBag
     {
-        public IVariableBag Parent => parent;
-        [NonSerialized] private IVariableBag parent;
+        public IVariableBag? Parent => parent;
+        [NonSerialized] private IVariableBag? parent;
 
         internal IReadOnlyList<VariableEntry> Entries => entries;
         [SerializeField] private List<VariableEntry> entries = new List<VariableEntry>();
@@ -16,9 +17,9 @@ namespace Scaffold.Entities
         public IEnumerable<Variable> LocalKeys => localCache.Keys;
         [NonSerialized] private Dictionary<Variable, VariableValue> localCache = new Dictionary<Variable, VariableValue>();
 
-        public event Action<VariableStructuralChange, Variable, VariableValue?> OnVariableStructuralChange;
+        public event Action<VariableStructuralChange, Variable, VariableValue?>? OnVariableStructuralChange;
 
-        public void SetParent(IVariableBag newParent)
+        public void SetParent(IVariableBag? newParent)
         {
             parent = newParent;
         }
