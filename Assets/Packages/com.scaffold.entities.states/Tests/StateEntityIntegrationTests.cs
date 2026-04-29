@@ -102,6 +102,39 @@ namespace Scaffold.Entities.States.Tests
         }
 
         [Test]
+        public void DuplicateMutatorRegistration_AppliesPayloadTwice()
+        {
+            // Verifies the dispatch behavior the bridge is designed to avoid:
+            // registering AddModifierMutator twice for AddModifierPayload causes
+            // Store.Execute to run it twice on the same slice. This is exactly
+            // what the per-Create() registration in the original plan would have
+            // produced once two entities existed in one store.
+
+            var def = new EntityDefinition();
+            def.AddVariable(hp, new FloatVariableValue(10f));
+
+            var store = new StoreBuilder().Build();
+            var id = new InstanceId(99);
+            store.RegisterSlice(id, EntityVariableState.Empty);
+
+            // Bridge context wires up the definition lookup the mutator needs.
+            var ctx = EntityBridgeContext.CreateForStore(store);
+            ctx.Bind(id, def);
+
+            // Register the AddModifier mutator a SECOND time, on top of the one
+            // CreateForStore already registered. Now there are two bindings for
+            // AddModifierPayload — same shape as the original buggy design.
+            store.RegisterMutator(new AddModifierMutator(ctx));
+
+            store.Execute(id, new AddModifierPayload(id, hp, new FloatAddModifier(5f), ModifierId.New()));
+
+            var slice = store.Get<EntityVariableState>(id);
+            Assert.That(slice.ModifierStacks[hp].Count, Is.EqualTo(2), "Two registered mutators should produce two bucket entries.");
+            var effective = ((IVariableValue<float>)slice.EffectiveValues[hp]).Get();
+            Assert.That(effective, Is.EqualTo(20f), "Two registered mutators should apply +5 twice → 10 + 5 + 5 = 20.");
+        }
+
+        [Test]
         public void TwoEntities_ResolveTheirOwnDefaults()
         {
             var heroDef = new EntityDefinition();
