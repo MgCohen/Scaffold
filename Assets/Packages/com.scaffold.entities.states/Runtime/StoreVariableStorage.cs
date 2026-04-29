@@ -44,6 +44,8 @@ namespace Scaffold.Entities.States
         private IEntityDefinition definition = default!;
         private bool disposed;
 
+        internal event Action? OnCanonicalRemoved;
+
         public void Dispose()
         {
             if (disposed)
@@ -189,6 +191,7 @@ namespace Scaffold.Entities.States
 
         private void HandleCanonicalRemoved()
         {
+            OnCanonicalRemoved?.Invoke();
             NotifyStructuralRemovedAll();
             effectiveCache.Clear();
             lastKeySnapshot.Clear();

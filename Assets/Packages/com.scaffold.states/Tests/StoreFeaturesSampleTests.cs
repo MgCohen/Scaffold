@@ -242,6 +242,39 @@ namespace Scaffold.States.Tests
         }
 
         [Test]
+        public void LoadSnapshot_RestoresPreviouslyUnregisteredSlice()
+        {
+            var builder = new StoreBuilder();
+            Store store = builder.Build();
+            var someRef = new SampleKey("snap-restore");
+            store.RegisterSlice(someRef, new CounterState(7));
+
+            Snapshot snapshot = store.SaveSnapshot();
+
+            Assert.That(store.UnregisterSlice<CounterState>(someRef), Is.True);
+            Assert.Throws<KeyNotFoundException>(() => _ = store.Get<CounterState>(someRef));
+
+            store.LoadSnapshot(snapshot);
+
+            Assert.That(store.Get<CounterState>(someRef).Value, Is.EqualTo(7));
+        }
+
+        [Test]
+        public void EnumerateAll_KeyedCanonical_YieldsReferenceAndStatePairs()
+        {
+            var keyA = new SampleKey("A");
+            var keyB = new SampleKey("B");
+            var builder = new StoreBuilder();
+            builder.AddState(keyA, new CounterState(1));
+            builder.AddState(keyB, new CounterState(2));
+            Store store = builder.Build();
+
+            var pairs = store.EnumerateAll<CounterState>().ToList();
+            Assert.That(pairs.Count, Is.EqualTo(2));
+            Assert.That(pairs.Sum(p => p.State.Value), Is.EqualTo(3));
+        }
+
+        [Test]
         public void LoadSnapshot_Prune_RemainingCanonicalRowsMatchGetAll()
         {
             var keyA = new SampleKey("A");

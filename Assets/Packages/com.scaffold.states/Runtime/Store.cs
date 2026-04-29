@@ -101,8 +101,26 @@ namespace Scaffold.States
         {
             foreach (var entry in snapshot)
             {
-                Set(entry.Key.Primary, entry.Value);
+                IReference r = entry.Key.Primary;
+                Type t = entry.Key.Secondary;
+                State value = entry.Value;
+                if (TryGetSlice(r, t, out _))
+                {
+                    Set(r, value);
+                }
+                else
+                {
+                    ReregisterCanonicalSliceFromSnapshot(r, t, value);
+                }
             }
+        }
+
+        private void ReregisterCanonicalSliceFromSnapshot(IReference r, Type t, State value)
+        {
+            Slice slice = Slice.Create(r, value);
+            ThrowIfSliceConflict(r, t, map.Contains(r, t), aggregates.Contains(r, t));
+            map.Add(r, t, slice);
+            eventHandler.Notify(r, value, StateChangeEvent.Created);
         }
 
         private void PruneCanonicalSlicesNotInSnapshot(Snapshot snapshot)
@@ -383,6 +401,18 @@ namespace Scaffold.States
             Type stateType = typeof(TState);
             FillSlices(stateType, sliceBuffer);
             return EnumerateSliceStates<TState>();
+        }
+
+        public IEnumerable<(IReference Reference, TState State)> EnumerateAll<TState>() where TState : BaseState
+        {
+            FillSlices(typeof(TState), sliceBuffer);
+            for (int i = 0; i < sliceBuffer.Count; i++)
+            {
+                if (sliceBuffer[i].State is TState ts)
+                {
+                    yield return (sliceBuffer[i].Reference, ts);
+                }
+            }
         }
 
         private IEnumerable<TState> EnumerateSliceStates<TState>() where TState : BaseState

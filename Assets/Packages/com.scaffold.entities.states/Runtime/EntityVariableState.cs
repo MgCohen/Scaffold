@@ -150,6 +150,92 @@ namespace Scaffold.Entities.States
             };
         }
 
+        public EntityVariableState WithoutModifiersFromSource(ModifierSource source)
+        {
+            var nextStacks = CreateMutableStacks(ModifierStacks);
+            if (!BuildStrippedModifierStacks(nextStacks, source))
+            {
+                return this;
+            }
+
+            return this with { ModifierStacks = nextStacks };
+        }
+
+        private bool BuildStrippedModifierStacks(Dictionary<Variable, IReadOnlyList<ActiveModifier>> nextStacks, ModifierSource source)
+        {
+            bool changed = false;
+            var keysToCheck = new List<Variable>(nextStacks.Keys);
+            foreach (Variable v in keysToCheck)
+            {
+                if (TryRebuildStackWithoutSource(nextStacks, v, source))
+                {
+                    changed = true;
+                }
+            }
+
+            return changed;
+        }
+
+        private bool TryRebuildStackWithoutSource(Dictionary<Variable, IReadOnlyList<ActiveModifier>> nextStacks, Variable variable, ModifierSource source)
+        {
+            IReadOnlyList<ActiveModifier> bucket = nextStacks[variable];
+            if (!TryBuildBucketWithoutSource(bucket, source, out List<ActiveModifier>? rebuilt))
+            {
+                return false;
+            }
+
+            ApplyRebuiltBucket(nextStacks, variable, rebuilt);
+            return true;
+        }
+
+        private bool TryBuildBucketWithoutSource(IReadOnlyList<ActiveModifier> bucket, ModifierSource source, out List<ActiveModifier>? rebuilt)
+        {
+            rebuilt = null;
+            for (int i = 0; i < bucket.Count; i++)
+            {
+                ApplyBucketIndexForSourceStrip(bucket, i, source, ref rebuilt);
+            }
+
+            return rebuilt != null;
+        }
+
+        private void ApplyBucketIndexForSourceStrip(IReadOnlyList<ActiveModifier> bucket, int i, ModifierSource source, ref List<ActiveModifier>? rebuilt)
+        {
+            ActiveModifier am = bucket[i];
+            bool keep = !(am.Source.HasValue && am.Source.Value.Equals(source));
+            if (rebuilt == null && !keep)
+            {
+                rebuilt = new List<ActiveModifier>(bucket.Count);
+                CopyBucketPrefix(bucket, rebuilt, i);
+                return;
+            }
+
+            if (rebuilt != null && keep)
+            {
+                rebuilt.Add(am);
+            }
+        }
+
+        private void CopyBucketPrefix(IReadOnlyList<ActiveModifier> bucket, List<ActiveModifier> rebuilt, int exclusiveEnd)
+        {
+            for (int j = 0; j < exclusiveEnd; j++)
+            {
+                rebuilt.Add(bucket[j]);
+            }
+        }
+
+        private void ApplyRebuiltBucket(Dictionary<Variable, IReadOnlyList<ActiveModifier>> nextStacks, Variable variable, List<ActiveModifier> rebuilt)
+        {
+            if (rebuilt.Count == 0)
+            {
+                nextStacks.Remove(variable);
+            }
+            else
+            {
+                nextStacks[variable] = rebuilt;
+            }
+        }
+
         public IReadOnlyDictionary<Variable, VariableValue> ResolveEffectiveValues(IEntityDefinition definition)
         {
             if (definition == null)

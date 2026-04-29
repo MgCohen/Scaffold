@@ -9,7 +9,7 @@ namespace Scaffold.Entities.States
     {
         public override EntityVariableState Change(EntityVariableState state, AddModifierPayload payload, IStateScope scope)
         {
-            return state.WithModifier(payload.Variable, new ActiveModifier(payload.ModifierId, payload.Modifier));
+            return state.WithModifier(payload.Variable, new ActiveModifier(payload.ModifierId, payload.Modifier, payload.Source));
         }
     }
 }

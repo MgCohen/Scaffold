@@ -395,6 +395,166 @@ namespace Scaffold.Entities.States.Tests
         }
 
         [Test]
+        public void LoadSnapshot_RestoresUnregisteredCanonicalSlice_EntityReadsAgain()
+        {
+            var (store, _, entity, id) = CreateEntity();
+            Snapshot snapshot = store.SaveSnapshot();
+            Assert.That(store.UnregisterSlice<EntityVariableState>(id), Is.True);
+            Assert.Throws<KeyNotFoundException>(() => _ = store.Get<EntityVariableState>(id));
+            store.LoadSnapshot(snapshot);
+            Assert.That(entity.GetVariable<float>(hp), Is.EqualTo(10f));
+        }
+
+        [Test]
+        public void ClearModifiers_ExecuteBatch_RoutesEachPayloadByEntityId()
+        {
+            var (store, _, entity, id) = CreateEntity();
+            store.Execute(id, new AddModifierPayload(id, hp, new FloatAddModifier(4f), ModifierId.New()));
+            store.Execute(id, new AddModifierPayload(id, hp, new FloatAddModifier(3f), ModifierId.New()));
+            Assert.That(entity.GetVariable<float>(hp), Is.EqualTo(17f));
+            entity.ClearModifiers();
+            Assert.That(entity.GetVariable<float>(hp), Is.EqualTo(10f));
+        }
+
+        [Test]
+        public void AddModifierWithSource_StoresSourceInActiveModifier()
+        {
+            var (store, _, _, id) = CreateEntity();
+            var src = new ModifierSource(new InstanceId(99));
+            store.Execute(id, new AddModifierPayload(id, hp, new FloatAddModifier(5f), ModifierId.New(), src));
+            EntityVariableState state = store.Get<EntityVariableState>(id);
+            IReadOnlyList<ActiveModifier> stack = state.ModifierStacks[hp];
+            Assert.That(stack.Count, Is.EqualTo(1));
+            Assert.That(stack[0].Source, Is.EqualTo(src));
+        }
+
+        [Test]
+        public void RemoveModifiersBySource_OnEntity_ClearsOnlyMatchingSource()
+        {
+            var (store, _, entity, id) = CreateEntity();
+            var srcA = new ModifierSource(new InstanceId(101));
+            var srcB = new ModifierSource(new InstanceId(102));
+
+            store.Execute(id, new AddModifierPayload(id, hp, new FloatAddModifier(5f), ModifierId.New(), srcA));
+            store.Execute(id, new AddModifierPayload(id, hp, new FloatAddModifier(7f), ModifierId.New(), srcB));
+            store.Execute(id, new AddModifierPayload(id, hp, new FloatAddModifier(2f), ModifierId.New()));
+
+            Assert.That(entity.GetVariable<float>(hp), Is.EqualTo(10f + 5f + 7f + 2f));
+
+            store.Execute(id, new RemoveModifiersBySourcePayload(id, srcA));
+
+            Assert.That(entity.GetVariable<float>(hp), Is.EqualTo(10f + 7f + 2f));
+        }
+
+        [Test]
+        public void RemoveModifiersFromSource_GlobalSweep_ClearsAcrossEveryEntity()
+        {
+            var heroDef = new EntityDefinition();
+            heroDef.AddVariable(hp, new FloatVariableValue(10f));
+            var goblinDef = new EntityDefinition();
+            goblinDef.AddVariable(hp, new FloatVariableValue(30f));
+
+            var store = new StoreBuilder().Build();
+            EntityBridgeContext.RegisterMutators(store);
+
+            var heroId = new InstanceId(1);
+            var goblinId = new InstanceId(2);
+            StateEntity<EntityDefinition> hero = EntityStateFactory.Create(heroDef, store, heroId);
+            StateEntity<EntityDefinition> goblin = EntityStateFactory.Create(goblinDef, store, goblinId);
+
+            var auraSource = new ModifierSource(new InstanceId(999));
+            store.Execute(heroId, new AddModifierPayload(heroId, hp, new FloatAddModifier(5f), ModifierId.New(), auraSource));
+            store.Execute(goblinId, new AddModifierPayload(goblinId, hp, new FloatAddModifier(3f), ModifierId.New(), auraSource));
+            store.Execute(heroId, new AddModifierPayload(heroId, hp, new FloatAddModifier(2f), ModifierId.New()));
+
+            Assert.That(hero.GetVariable<float>(hp), Is.EqualTo(17f));
+            Assert.That(goblin.GetVariable<float>(hp), Is.EqualTo(33f));
+
+            StateEntityOps.RemoveModifiersFromSource(store, auraSource);
+
+            Assert.That(hero.GetVariable<float>(hp), Is.EqualTo(12f));
+            Assert.That(goblin.GetVariable<float>(hp), Is.EqualTo(30f));
+        }
+
+        [Test]
+        public void RemoveModifiersFromSource_GlobalSweep_FiresOneUpdatedPerAffectedEntity()
+        {
+            var heroDef = new EntityDefinition();
+            heroDef.AddVariable(hp, new FloatVariableValue(10f));
+            var goblinDef = new EntityDefinition();
+            goblinDef.AddVariable(hp, new FloatVariableValue(30f));
+            var elfDef = new EntityDefinition();
+            elfDef.AddVariable(hp, new FloatVariableValue(50f));
+
+            var store = new StoreBuilder().Build();
+            EntityBridgeContext.RegisterMutators(store);
+
+            var heroId = new InstanceId(1);
+            var goblinId = new InstanceId(2);
+            var elfId = new InstanceId(3);
+            EntityStateFactory.Create(heroDef, store, heroId);
+            EntityStateFactory.Create(goblinDef, store, goblinId);
+            EntityStateFactory.Create(elfDef, store, elfId);
+
+            var auraSource = new ModifierSource(new InstanceId(999));
+            store.Execute(heroId, new AddModifierPayload(heroId, hp, new FloatAddModifier(5f), ModifierId.New(), auraSource));
+            store.Execute(goblinId, new AddModifierPayload(goblinId, hp, new FloatAddModifier(3f), ModifierId.New(), auraSource));
+
+            int heroUpdates = 0;
+            int goblinUpdates = 0;
+            int elfUpdates = 0;
+            store.Subscribe<EntityVariableState>(heroId, (_, _, ev) => { if (ev == StateChangeEvent.Updated) { heroUpdates++; } });
+            store.Subscribe<EntityVariableState>(goblinId, (_, _, ev) => { if (ev == StateChangeEvent.Updated) { goblinUpdates++; } });
+            store.Subscribe<EntityVariableState>(elfId, (_, _, ev) => { if (ev == StateChangeEvent.Updated) { elfUpdates++; } });
+
+            StateEntityOps.RemoveModifiersFromSource(store, auraSource);
+
+            Assert.That(heroUpdates, Is.EqualTo(1));
+            Assert.That(goblinUpdates, Is.EqualTo(1));
+            Assert.That(elfUpdates, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void ExistingRemoveModifierPayload_IsAdditive_NotBroken()
+        {
+            var (store, _, entity, id) = CreateEntity();
+            ModifierId modId = ModifierId.New();
+            store.Execute(id, new AddModifierPayload(id, hp, new FloatAddModifier(5f), modId, new ModifierSource(new InstanceId(50))));
+            Assert.That(entity.GetVariable<float>(hp), Is.EqualTo(15f));
+            store.Execute(id, new RemoveModifierPayload(id, hp, modId));
+            Assert.That(entity.GetVariable<float>(hp), Is.EqualTo(10f));
+        }
+
+        [Test]
+        public void OnEntityRemoved_FiresWhenCanonicalSliceIsUnregistered()
+        {
+            var (store, _, entity, id) = CreateEntity();
+            bool fired = false;
+            entity.OnEntityRemoved += () => fired = true;
+            Assert.That(store.UnregisterSlice<EntityVariableState>(id), Is.True);
+            Assert.That(fired, Is.True);
+        }
+
+        [Test]
+        public void OnEntityRemoved_FiresExactlyOnceWhenLoadSnapshot_PrunesEntity()
+        {
+            var (store, _, _, _) = CreateEntity();
+            Snapshot snap = store.SaveSnapshot();
+
+            var goblinDef = new EntityDefinition();
+            goblinDef.AddVariable(hp, new FloatVariableValue(30f));
+            var goblinId = new InstanceId(2);
+            StateEntity<EntityDefinition> goblin = EntityStateFactory.Create(goblinDef, store, goblinId);
+
+            int goblinFireCount = 0;
+            goblin.OnEntityRemoved += () => goblinFireCount++;
+
+            store.LoadSnapshot(snap);
+
+            Assert.That(goblinFireCount, Is.EqualTo(1));
+        }
+
+        [Test]
         public void SnapshotRoundTrip_EntityMutation_RevertsEffectiveValue()
         {
             var (store, _, entity, id) = CreateEntity();

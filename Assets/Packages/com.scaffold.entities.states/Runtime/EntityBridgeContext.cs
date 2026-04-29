@@ -16,6 +16,7 @@ namespace Scaffold.Entities.States
             store.RegisterMutator(new SetBaseValueMutator());
             store.RegisterMutator(new AddEntityVariableMutator());
             store.RegisterMutator(new RemoveEntityVariableMutator());
+            store.RegisterMutator(new RemoveModifiersBySourceMutator());
         }
     }
 }

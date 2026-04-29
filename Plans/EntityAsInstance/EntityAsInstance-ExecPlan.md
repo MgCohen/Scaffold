@@ -43,6 +43,9 @@ Neither core package gains new dependencies. The bridge package's runtime asmdef
 - [x] Milestone 1 — `StoreVariableStorage` + new `StateEntity<TDef>` class. Replace the aggregate-record approach with an `IEntityVariableStorage` implementation that reads from `EntityVariableState`, plus a `BaseEntityInstance<TDef>` subclass that owns a mutation API translating to `store.Execute(...)`. Existing tests are migrated to assert through the entity API. After this milestone, every existing integration test passes against the new shape and the parallel record/provider types are deleted.
 - [x] Milestone 2 — Variable removal (P0.1). Add `RemoveEntityVariablePayload`, `RemoveEntityVariableMutator`, an `EntityVariableState.WithoutVariable(Variable)` method that clears the variable's base value and any pending modifier stack atomically, and the `IMutableEntity.RemoveVariable` translation on `StateEntity<TDef>`. Add a regression test asserting that after `RemoveVariable(hp)`, `entity.TryGetVariable<float>(hp, out _)` falls back to the definition default (or returns false if the definition does not declare it).
 - [x] Milestone 3 — Documentation pass. Update the package `README.md` (or create one) explaining that `StateEntity<TDef>` is an `IReadOnlyEntity<TDef>` and `IMutableEntity<TDef>`, that `Store.ExecuteBatch` is the supported atomic-multi-payload primitive (P0.3), that effective values are cached on canonical change inside the storage, and the recommended subscription patterns (per-variable on the entity vs. whole-aggregate on the store).
+- [x] Milestone 4 — `LoadSnapshot` re-registers pruned slices (G3). Fix the pre-existing bug in `Scaffold.States.Store.ApplySnapshot` where snapshots containing slices that have since been unregistered cause an NRE. Re-register the slice from the snapshot value when the canonical map has no entry. Add a regression test in `Scaffold.States.Tests` that creates a slice, snapshots, unregisters, then `LoadSnapshot` and reads — must succeed. This unblocks rollback-after-destroy, which is load-bearing for replacement effects and replay (Card-Framework's stated need).
+- [x] Milestone 5 — Modifier source attribution (P0.2 / G1). Add `ModifierSource` value type to `com.scaffold.entities`, extend `ActiveModifier` with `ModifierSource? Source`, extend `AddModifierPayload` with optional `Source`, add `EntityVariableState.WithoutModifiersFromSource(ModifierSource)`, ship the scoped-per-entity payload `RemoveModifiersBySourcePayload(InstanceId EntityId, ModifierSource Source)` plus its mutator, and the global sweep helper `StateEntityOps.RemoveModifiersFromSource(Store, ModifierSource)` that uses `Store.ExecuteBatch` for atomic cross-entity commit. Tests cover: AddModifier with source threads through; scoped sweep clears only matching entries; global sweep clears across multiple entities in a single batch (single `Updated` per affected entity); existing `RemoveModifierPayload(id, var, modifierId)` continues to work unchanged.
+- [x] Milestone 6 — Verifications + small adds (G2, G4, G5, G6, minor). Document G2 (definition transformation = swap definition on a new handle for the same `InstanceId`); add the regression test for G4 (mutator throws mid-batch, then clean batch on the same store, asserts state matches expectation); add `StateEntity.OnEntityRemoved` event for G5 (fires when canonical slice is removed); document G6 (one `Updated` per affected entity per `ExecuteBatch`, regardless of payload count); document `Variables` ordering (sorted by `key.Key` ordinal); bump `package.json` to `0.2.0`.
 
 
 ## Surprises & Discoveries
@@ -116,10 +119,26 @@ Neither core package gains new dependencies. The bridge package's runtime asmdef
 
   Author: Consumer Q&A, 2026-04-29.
 
+- **Decision:** Re-verify the consumer's six concerns (G1–G6) against the implementation at commit `fa56c92` and add three more milestones to close the remaining gaps. Verifications: G2 (definition transformation = handle-level swap, supported as the canonical pattern); G4 (`MutatorRunner` pool reset is correct — `IPoolable.OnReturnedToPool → scratchpad.Reset()` runs in the throw-path `finally`); G6 (one `Updated` notification per affected slice per `ExecuteBatch`, regardless of payload count, via single-overlay-single-`Set`). Real bugs/gaps: G1 (modifier source attribution unimplemented — Milestone 5); G3 (`Store.ApplySnapshot` NREs on slices that were unregistered after the snapshot was taken — Milestone 4); G5 (no entity-removed hook — Milestone 6 adds `StateEntity.OnEntityRemoved`).
+
+  Rationale: keeps the verification record alongside the work that closes each item, and surfaces G3 as a `Scaffold.States` correctness fix that affects every consumer of the snapshot system, not just the bridge.
+
+  Author: Consumer Q&A, 2026-04-29 (post-`fa56c92`).
+
+- **Decision:** Ship the global `RemoveModifiersFromSource` sweep as a static helper (`StateEntityOps.RemoveModifiersFromSource(Store, ModifierSource)`) that fans out through `Store.ExecuteBatch`, rather than as a single multi-slice payload + custom mutator binding. Per-entity scoped removal stays as a regular payload + `Mutator<TState, TPayload>` (`RemoveModifiersBySourcePayload`).
+
+  Rationale: `Scaffold.States`'s `Mutator<TState, TPayload>` is single-slice by contract (`RegisteredMutator.Apply` reads one `IReference`'s state and writes back to one); a multi-slice primitive would be a non-trivial framework addition for a bridge-only use case. `Store.ExecuteBatch` already provides atomic cross-entity commit and one-`Updated`-per-affected-entity coalescing (verified in G6), so the helper-via-batch approach gives identical observable semantics with no framework surface change. The only `Scaffold.States` addition required is `Store.EnumerateAll<TState>()` (yields `(IReference, TState)` pairs), which is straightforward and useful beyond this plan.
+
+  Tradeoff: consumers wanting "one payload, one Execute" symmetry for the global sweep don't get it through `store.Execute(...)`. They get the same atomicity through `StateEntityOps.RemoveModifiersFromSource(store, source)`, which is one method call and reads cleanly at the call site. Document this explicitly.
+
+  Author: Consumer Q&A, 2026-04-29.
+
 
 ## Outcomes & Retrospective
 
 Implementation completed 2026-04-29: **`StoreVariableStorage`**, **`StateEntity<TDef>`** as **`BaseEntityInstance` / `IMutableEntity`**, **`WithoutVariable`** + **`RemoveEntityVariablePayload`**, store **`Unsubscribe`** for disposal, package **`README`**, integration tests migrated (29 passing in **`Scaffold.Entities.States.Tests`**). Quality gate: **`validate-changes.ps1 -SkipTests`** reports **TOTAL:0**.
+
+Milestones 4–6 completed in the same window: **`Store.LoadSnapshot`** re-registration of pruned canonical slices, **`ModifierSource`** / **`RemoveModifiersBySource`**, **`Store.EnumerateAll`**, **`StateEntity.OnEntityRemoved`**, batch pool poison regression test, **`package.json`** **0.2.0**, README updates for G2/G6/snapshot/variables/bootstrap.
 
 
 ## Context and Orientation
@@ -533,6 +552,497 @@ Create `Assets/Packages/com.scaffold.entities.states/README.md`. It must cover:
 The README is consumer-facing documentation and should not exceed two screens of plain prose.
 
 **Acceptance for Milestone 3.** The README exists, the validation command reports `TOTAL:0`, and a fresh reader can follow the quickstart end-to-end without consulting any other file.
+
+### Milestone 4 — `LoadSnapshot` re-registers pruned slices (G3 fix)
+
+The goal is to fix a latent bug in `Scaffold.States.Store` exposed by the consumer's review: if a slice was registered, then unregistered (entity destroyed mid-game), then a snapshot taken before the destroy is loaded, the load throws a `NullReferenceException`. This is a hard prerequisite for rollback-after-destroy, which Card-Framework relies on for replacement effects and replay.
+
+**Step 4.1 — Reproduce the bug.** Add a failing regression test to `Assets/Packages/com.scaffold.states/Tests/StoreFeaturesSampleTests.cs` (or a new dedicated file `StoreLoadSnapshotPrunedSliceTests.cs`):
+
+    [Test]
+    public void LoadSnapshot_RestoresPreviouslyUnregisteredSlice()
+    {
+        var store = new StoreBuilder().Build();
+        var someRef = new SampleReference(42);
+        store.RegisterSlice(someRef, new SampleCounterState(7));
+
+        Snapshot snapshot = store.SaveSnapshot();
+
+        store.UnregisterSlice<SampleCounterState>(someRef);
+        Assert.Throws<KeyNotFoundException>(() => _ = store.Get<SampleCounterState>(someRef),
+            "Sanity: unregister removed the slice.");
+
+        store.LoadSnapshot(snapshot);
+
+        Assert.That(store.Get<SampleCounterState>(someRef).Count, Is.EqualTo(7),
+            "Loading a snapshot whose slice no longer exists in the store must re-register it.");
+    }
+
+Run the test; confirm it fails with `NullReferenceException` thrown from inside `Store.Set`.
+
+**Step 4.2 — Fix `Store.ApplySnapshot`.** Open `Assets/Packages/com.scaffold.states/Runtime/Store.cs`. The current implementation calls `Set(entry.Key.Primary, entry.Value)` for every snapshot entry; `Set → GetSlice` silently returns `default(BaseSlice)` (null) when the slice does not exist, and the next line `slice.Set(state)` throws. Replace `ApplySnapshot` with a version that branches on slice existence:
+
+    private void ApplySnapshot(Snapshot snapshot)
+    {
+        foreach (var entry in snapshot)
+        {
+            IReference r = entry.Key.Primary;
+            Type t = entry.Key.Secondary;
+            State value = entry.Value;
+            if (TryGetSlice(r, t, out _))
+            {
+                Set(r, value);
+            }
+            else
+            {
+                ReregisterCanonicalSliceFromSnapshot(r, t, value);
+            }
+        }
+    }
+
+    private void ReregisterCanonicalSliceFromSnapshot(IReference r, Type t, State value)
+    {
+        Slice slice = Slice.Create(r, value);
+        map.Add(r, t, slice);
+        eventHandler.Notify(r, value, StateChangeEvent.Created);
+    }
+
+The `Created` event (rather than `Updated`) is intentional: from the perspective of any active subscriber, the slice didn't exist a moment ago and now it does. `StoreVariableStorage` already handles `StateChangeEvent.Created` correctly through the same `ApplyCanonicalUpdate` path it uses for `Updated`. Confirm by reading `StoreVariableStorage.OnStateChanged` — only `Removed` is special-cased.
+
+**Step 4.3 — Verify the fix.** The test from Step 4.1 now passes. Add one additional case to lock the broader contract:
+
+    [Test]
+    public void LoadSnapshot_RestoresPrunedEntityAndReadsThroughStateEntityHandle()
+    {
+        var store = new StoreBuilder().Build();
+        EntityBridgeContext.RegisterMutators(store);
+        var def = new EntityDefinition();
+        def.AddVariable(new Variable("hp", "float"), new FloatVariableValue(10f));
+        var id = new InstanceId(1);
+        var entity = EntityStateFactory.Create(def, store, id);
+
+        Snapshot snapshot = store.SaveSnapshot();
+
+        // Destroy the entity mid-game (canonical slice unregistered).
+        store.UnregisterSlice<EntityVariableState>(id);
+
+        // Restore the world.
+        store.LoadSnapshot(snapshot);
+
+        // The held StateEntity handle continues to read through the restored slice.
+        Assert.That(entity.GetVariable<float>(new Variable("hp", "float")), Is.EqualTo(10f),
+            "After LoadSnapshot re-creates the previously-pruned slice, reads through the original handle resume.");
+    }
+
+This test lives in `Assets/Packages/com.scaffold.entities.states/Tests/StateEntityIntegrationTests.cs` and exercises the bridge-side observable behavior of the fix.
+
+**Acceptance for Milestone 4.** Both new tests pass. `validate-changes.cmd` reports `TOTAL:0`. No other test in `Scaffold.States.Tests` regresses (the existing `LoadSnapshot_PrunesEntitiesCreatedAfterSnapshot` test in the bridge continues to pass — it covers the orthogonal direction).
+
+### Milestone 5 — Modifier source attribution (P0.2 / G1)
+
+The goal is to give every applied modifier an optional source identity, and ship two removal primitives that use it: a per-entity scoped sweep (a payload + mutator) and a cross-entity global sweep (a static helper that batches scoped removes through `Store.ExecuteBatch`). This unblocks aura, equipment, and continuous-effect implementations: when source X leaves play, every modifier X contributed disappears in one atomic commit, without effect code maintaining its own source-to-modifier index.
+
+The design splits the work between two packages:
+
+- `com.scaffold.entities`: the `ModifierSource` value type and the `Source` field on `ActiveModifier`. These belong with the modifier model itself, not the bridge — pure-memory `EntityInstance` could carry source attribution too if desired (out of scope for this plan, but the type should not be bridge-only).
+- `com.scaffold.entities.states`: the new payloads, mutators, helpers, and `EntityVariableState` methods that consume `Source`.
+
+The plan does not extend `IMutableEntity.AddModifier` to take an explicit source. Source attribution is a state-store concern (where the consumer wants atomic cross-entity sweeps); the pure-memory path doesn't need it yet. Consumers who want to attach a source go through the payload directly: `store.Execute(id, new AddModifierPayload(id, var, mod, ModifierId.New(), source: new ModifierSource(srcId)))`.
+
+**Step 5.1 — Add `ModifierSource` to `com.scaffold.entities`.**
+
+Create `Assets/Packages/com.scaffold.entities/Runtime/Core/Modifiers/ModifierSource.cs`:
+
+    namespace Scaffold.Entities
+    {
+        public readonly record struct ModifierSource(InstanceId Source, int Tag = 0);
+    }
+
+`Tag` is the optional discriminator the consumer's spec named for cases where one source applies multiple distinct effect "kinds" (e.g., a card whose ability adds three different modifier groups, where only one group should be cleared by a sub-effect). Default `0` is "no tag." Match the consumer's signature exactly so their existing handler code compiles unchanged.
+
+**Step 5.2 — Extend `ActiveModifier` with optional `Source`.**
+
+Open `Assets/Packages/com.scaffold.entities/Runtime/Core/Instance/ActiveModifier.cs`. Add a `ModifierSource?` field and a constructor overload while preserving the existing two-arg constructor:
+
+    public readonly struct ActiveModifier
+    {
+        public ActiveModifier(ModifierId id, VariableModifier modifier)
+            : this(id, modifier, null) { }
+
+        public ActiveModifier(ModifierId id, VariableModifier modifier, ModifierSource? source)
+        {
+            Id = id;
+            Modifier = modifier;
+            Source = source;
+        }
+
+        public readonly ModifierId Id;
+        public readonly VariableModifier Modifier;
+        public readonly ModifierSource? Source;
+    }
+
+This is purely additive; existing `new ActiveModifier(id, modifier)` call sites compile unchanged.
+
+**Step 5.3 — Extend `AddModifierPayload` with optional `Source`.**
+
+Open `Assets/Packages/com.scaffold.entities.states/Runtime/Payloads/AddModifierPayload.cs`. Add a fifth positional argument with a default value:
+
+    public sealed record AddModifierPayload(
+        InstanceId EntityId,
+        Variable Variable,
+        VariableModifier Modifier,
+        ModifierId ModifierId,
+        ModifierSource? Source = null);
+
+C# positional records support default values on positional parameters. Existing four-argument constructions (`new AddModifierPayload(id, var, mod, modId)`) compile unchanged because the default fills `Source = null`. Verify by attempting the build before proceeding to Step 5.4.
+
+**Step 5.4 — Update `AddModifierMutator` to thread `Source` into `ActiveModifier`.**
+
+Open `Assets/Packages/com.scaffold.entities.states/Runtime/Mutators/AddModifierMutator.cs`:
+
+    public override EntityVariableState Change(EntityVariableState state, AddModifierPayload payload, IStateScope scope)
+    {
+        return state.WithModifier(payload.Variable, new ActiveModifier(payload.ModifierId, payload.Modifier, payload.Source));
+    }
+
+`EntityVariableState.WithModifier` ([EntityVariableState.cs:37](Assets/Packages/com.scaffold.entities.states/Runtime/EntityVariableState.cs:37)) already takes an `ActiveModifier`; the only behavior change is that the active modifier now carries its source on through the modifier stack.
+
+**Step 5.5 — Add `EntityVariableState.WithoutModifiersFromSource(ModifierSource)`.**
+
+Append to `Assets/Packages/com.scaffold.entities.states/Runtime/EntityVariableState.cs`:
+
+    public EntityVariableState WithoutModifiersFromSource(ModifierSource source)
+    {
+        var nextStacks = CreateMutableStacks(ModifierStacks);
+        bool changed = false;
+        var keysToCheck = new List<Variable>(nextStacks.Keys);
+        foreach (Variable v in keysToCheck)
+        {
+            IReadOnlyList<ActiveModifier> bucket = nextStacks[v];
+            List<ActiveModifier>? rebuilt = null;
+            for (int i = 0; i < bucket.Count; i++)
+            {
+                ActiveModifier am = bucket[i];
+                bool keep = !(am.Source.HasValue && am.Source.Value.Equals(source));
+                if (rebuilt == null && !keep)
+                {
+                    rebuilt = new List<ActiveModifier>(bucket.Count);
+                    for (int j = 0; j < i; j++) rebuilt.Add(bucket[j]);
+                }
+                else if (rebuilt != null && keep)
+                {
+                    rebuilt.Add(am);
+                }
+            }
+
+            if (rebuilt != null)
+            {
+                changed = true;
+                if (rebuilt.Count == 0) nextStacks.Remove(v);
+                else nextStacks[v] = rebuilt;
+            }
+        }
+
+        return changed ? this with { ModifierStacks = nextStacks } : this;
+    }
+
+The early-allocate-on-first-mismatch pattern avoids copying buckets when no entries match; identity-return when no bucket changed avoids spurious record allocations. The `changed` flag plus the structural identity-return means subscribers see no `Updated` notification when the sweep is a no-op.
+
+**Step 5.6 — Add `RemoveModifiersBySourcePayload` (per-entity scoped) + mutator.**
+
+Create `Assets/Packages/com.scaffold.entities.states/Runtime/Payloads/RemoveModifiersBySourcePayload.cs`:
+
+    using Scaffold.Entities;
+
+    namespace Scaffold.Entities.States
+    {
+        public sealed record RemoveModifiersBySourcePayload(InstanceId EntityId, ModifierSource Source);
+    }
+
+Create `Assets/Packages/com.scaffold.entities.states/Runtime/Mutators/RemoveModifiersBySourceMutator.cs`:
+
+    #nullable enable
+
+    using Scaffold.States;
+
+    namespace Scaffold.Entities.States
+    {
+        internal sealed class RemoveModifiersBySourceMutator : Mutator<EntityVariableState, RemoveModifiersBySourcePayload>
+        {
+            public override EntityVariableState Change(EntityVariableState state, RemoveModifiersBySourcePayload payload, IStateScope scope)
+            {
+                return state.WithoutModifiersFromSource(payload.Source);
+            }
+        }
+    }
+
+Register it in `EntityBridgeContext.RegisterMutators`:
+
+    store.RegisterMutator(new RemoveModifiersBySourceMutator());
+
+**Naming note.** The consumer's spec used `RemoveModifiersBySourcePayload` (no entity) for the global sweep and `RemoveModifiersBySourceOnEntityPayload` for the scoped variant. We invert the naming: the per-entity scoped variant is `RemoveModifiersBySourcePayload`, because it follows the existing `RemoveModifierPayload(InstanceId, Variable, ModifierId)` shape (an entity-scoped payload routed through `store.Execute(entityId, payload)`). The global sweep is exposed as a static helper rather than a payload (rationale below). Document this naming in the README; if Card-Framework strongly prefers the original naming, rename — it's a one-edit change.
+
+**Step 5.7 — Add the global sweep helper.**
+
+The global sweep (one call, zero entity ids, removes matching modifiers across every entity in the store) cannot be a single registered `Mutator<TState, TPayload>`: the mutator framework binds one payload to one slice via `RegisteredMutator<TState, TPayload>.Apply` ([RegisteredMutator.cs:18](Assets/Packages/com.scaffold.states/Runtime/Pipeline/RegisteredMutator.cs:18)), which calls `runner.Get<TState>(r)` and `runner.SetPending(r, stateOut)` for exactly one reference `r`. Adding a multi-slice mutator primitive to `Scaffold.States` is possible but adds framework surface for a bridge-only use case.
+
+The simpler path: a static helper in the bridge that enumerates `EntityVariableState` slices, filters modifiers by source, and dispatches scoped per-entity payloads through `Store.ExecuteBatch`. `ExecuteBatch` is atomic (single overlay, single commit) and produces exactly one `Updated` event per affected entity (verified in G6) — the consumer-visible semantics are identical to a hypothetical single-payload sweep.
+
+This requires `Scaffold.States.Store` to expose slice enumeration with references. Today, `Store.GetAll<TState>()` yields states only. Add a parallel method in `Assets/Packages/com.scaffold.states/Runtime/Store.cs`:
+
+    public IEnumerable<(IReference Reference, TState State)> EnumerateAll<TState>() where TState : BaseState
+    {
+        FillSlices(typeof(TState), sliceBuffer);
+        for (int i = 0; i < sliceBuffer.Count; i++)
+        {
+            if (sliceBuffer[i].State is TState ts)
+            {
+                yield return (sliceBuffer[i].Reference, ts);
+            }
+        }
+    }
+
+This returns canonical and aggregate slices alike (matching `GetAll`'s shape), keyed by their `IReference`. Add a regression test in `Scaffold.States.Tests` confirming that registering two slices and enumerating yields both with their references.
+
+Then create the bridge helper `Assets/Packages/com.scaffold.entities.states/Runtime/StateEntityOps.cs`:
+
+    using System.Collections.Generic;
+    using Scaffold.Entities;
+    using Scaffold.States;
+
+    namespace Scaffold.Entities.States
+    {
+        public static class StateEntityOps
+        {
+            public static void RemoveModifiersFromSource(Store store, ModifierSource source)
+            {
+                if (store == null) throw new System.ArgumentNullException(nameof(store));
+
+                var payloads = new List<object>();
+                foreach (var (reference, state) in store.EnumerateAll<EntityVariableState>())
+                {
+                    if (!(reference is InstanceId entityId)) continue;
+                    if (!HasAnyModifierFromSource(state, source)) continue;
+                    payloads.Add(new RemoveModifiersBySourcePayload(entityId, source));
+                }
+
+                if (payloads.Count > 0)
+                {
+                    store.ExecuteBatch(payloads);
+                }
+            }
+
+            private static bool HasAnyModifierFromSource(EntityVariableState state, ModifierSource source)
+            {
+                foreach (var bucket in state.ModifierStacks.Values)
+                {
+                    for (int i = 0; i < bucket.Count; i++)
+                    {
+                        var am = bucket[i];
+                        if (am.Source.HasValue && am.Source.Value.Equals(source)) return true;
+                    }
+                }
+                return false;
+            }
+        }
+    }
+
+The early-skip `HasAnyModifierFromSource` filter avoids dispatching no-op payloads to entities with nothing matching — small overhead saver and keeps subscriber-side traffic lower (entities with no matches receive no `Updated` event, which is the correct semantics).
+
+**Step 5.8 — Tests.**
+
+Append to `StateEntityIntegrationTests.cs`:
+
+    [Test]
+    public void AddModifierWithSource_StoresSourceInActiveModifier()
+    {
+        var (store, _, _, id) = CreateEntity();
+        var src = new ModifierSource(new InstanceId(99));
+        store.Execute(id, new AddModifierPayload(id, hp, new FloatAddModifier(5f), ModifierId.New(), src));
+
+        var state = store.Get<EntityVariableState>(id);
+        var stack = state.ModifierStacks[hp];
+        Assert.That(stack.Count, Is.EqualTo(1));
+        Assert.That(stack[0].Source, Is.EqualTo(src));
+    }
+
+    [Test]
+    public void RemoveModifiersBySource_OnEntity_ClearsOnlyMatchingSource()
+    {
+        var (store, _, entity, id) = CreateEntity();
+        var srcA = new ModifierSource(new InstanceId(101));
+        var srcB = new ModifierSource(new InstanceId(102));
+
+        store.Execute(id, new AddModifierPayload(id, hp, new FloatAddModifier(5f), ModifierId.New(), srcA));
+        store.Execute(id, new AddModifierPayload(id, hp, new FloatAddModifier(7f), ModifierId.New(), srcB));
+        store.Execute(id, new AddModifierPayload(id, hp, new FloatAddModifier(2f), ModifierId.New(), null));
+
+        Assert.That(entity.GetVariable<float>(hp), Is.EqualTo(10f + 5f + 7f + 2f));
+
+        store.Execute(id, new RemoveModifiersBySourcePayload(id, srcA));
+
+        Assert.That(entity.GetVariable<float>(hp), Is.EqualTo(10f + 7f + 2f),
+            "Only srcA's modifier should be removed; srcB and source-less modifiers persist.");
+    }
+
+    [Test]
+    public void RemoveModifiersFromSource_GlobalSweep_ClearsAcrossEveryEntity()
+    {
+        var heroDef = new EntityDefinition();
+        heroDef.AddVariable(hp, new FloatVariableValue(10f));
+        var goblinDef = new EntityDefinition();
+        goblinDef.AddVariable(hp, new FloatVariableValue(30f));
+
+        var store = new StoreBuilder().Build();
+        EntityBridgeContext.RegisterMutators(store);
+
+        var heroId = new InstanceId(1);
+        var goblinId = new InstanceId(2);
+        var hero = EntityStateFactory.Create(heroDef, store, heroId);
+        var goblin = EntityStateFactory.Create(goblinDef, store, goblinId);
+
+        var auraSource = new ModifierSource(new InstanceId(999));
+        store.Execute(heroId, new AddModifierPayload(heroId, hp, new FloatAddModifier(5f), ModifierId.New(), auraSource));
+        store.Execute(goblinId, new AddModifierPayload(goblinId, hp, new FloatAddModifier(3f), ModifierId.New(), auraSource));
+        store.Execute(heroId, new AddModifierPayload(heroId, hp, new FloatAddModifier(2f), ModifierId.New(), null));
+
+        Assert.That(hero.GetVariable<float>(hp), Is.EqualTo(17f));
+        Assert.That(goblin.GetVariable<float>(hp), Is.EqualTo(33f));
+
+        StateEntityOps.RemoveModifiersFromSource(store, auraSource);
+
+        Assert.That(hero.GetVariable<float>(hp), Is.EqualTo(12f), "Hero loses aura's +5; the +2 source-less modifier remains.");
+        Assert.That(goblin.GetVariable<float>(hp), Is.EqualTo(30f), "Goblin loses aura's +3 entirely.");
+    }
+
+    [Test]
+    public void RemoveModifiersFromSource_GlobalSweep_FiresOneUpdatedPerAffectedEntity()
+    {
+        // Sets up two affected entities and one untouched entity, subscribes Updated counters,
+        // calls RemoveModifiersFromSource(store, src), asserts each affected entity received
+        // exactly one Updated and the untouched entity received zero.
+        // (Verifies the G6 coalescing claim end-to-end through the helper.)
+        // Implementation follows the same setup pattern as RemoveModifiersFromSource_GlobalSweep_ClearsAcrossEveryEntity
+        // plus three store.Subscribe<EntityVariableState>(id, ...) handlers that increment counters.
+    }
+
+    [Test]
+    public void ExistingRemoveModifierPayload_IsAdditive_NotBroken()
+    {
+        var (store, _, entity, id) = CreateEntity();
+        var modId = ModifierId.New();
+        store.Execute(id, new AddModifierPayload(id, hp, new FloatAddModifier(5f), modId, new ModifierSource(new InstanceId(50))));
+        Assert.That(entity.GetVariable<float>(hp), Is.EqualTo(15f));
+
+        // The original RemoveModifierPayload(id, var, modifierId) shape continues to work
+        // even when the modifier carries a source.
+        store.Execute(id, new RemoveModifierPayload(id, hp, modId));
+        Assert.That(entity.GetVariable<float>(hp), Is.EqualTo(10f));
+    }
+
+**Acceptance for Milestone 5.** All five new tests pass. `validate-changes.cmd` reports `TOTAL:0`. The existing 22+ integration tests continue to pass without modification, since `Source` defaulting to `null` preserves all prior behavior.
+
+### Milestone 6 — Verifications + small adds (G2, G4, G5, G6, minor)
+
+The goal is to close out the consumer's verification list and ship two small additions called out in the review: the `OnEntityRemoved` hook (G5) and a couple of doc clarifications.
+
+**Step 6.1 — `StateEntity.OnEntityRemoved` event (G5).**
+
+Open `Assets/Packages/com.scaffold.entities.states/Runtime/StateEntity.cs`. Add a public event:
+
+    public event System.Action? OnEntityRemoved;
+
+Open `Assets/Packages/com.scaffold.entities.states/Runtime/StoreVariableStorage.cs`. Add an internal hook the entity wires up:
+
+    internal event System.Action? OnCanonicalRemoved;
+
+In `HandleCanonicalRemoved` (currently at [StoreVariableStorage.cs:190](Assets/Packages/com.scaffold.entities.states/Runtime/StoreVariableStorage.cs:190)), invoke the hook **before** clearing caches (so any handler that wants to read final state can):
+
+    private void HandleCanonicalRemoved()
+    {
+        OnCanonicalRemoved?.Invoke();
+        NotifyStructuralRemovedAll();
+        effectiveCache.Clear();
+        lastKeySnapshot.Clear();
+    }
+
+In `StateEntity.InitializeStateBacked`, subscribe to the storage event and re-fire as the public `OnEntityRemoved`:
+
+    storage.OnCanonicalRemoved += HandleStorageCanonicalRemoved;
+
+    private void HandleStorageCanonicalRemoved()
+    {
+        OnEntityRemoved?.Invoke();
+    }
+
+In `StateEntity.Dispose`, unsubscribe before nulling `storeStorage`. Add a regression test:
+
+    [Test]
+    public void OnEntityRemoved_FiresWhenCanonicalSliceIsUnregistered()
+    {
+        var (store, _, entity, id) = CreateEntity();
+        bool fired = false;
+        entity.OnEntityRemoved += () => fired = true;
+
+        store.UnregisterSlice<EntityVariableState>(id);
+
+        Assert.That(fired, Is.True, "Removing the canonical slice must surface as OnEntityRemoved on a held StateEntity handle.");
+    }
+
+    [Test]
+    public void OnEntityRemoved_FiresExactlyOncePerLoadSnapshot_ThatPrunesTheEntity()
+    {
+        var (store, _, _, _) = CreateEntity();
+        Snapshot snap = store.SaveSnapshot();
+
+        var goblinDef = new EntityDefinition();
+        goblinDef.AddVariable(hp, new FloatVariableValue(30f));
+        var goblinId = new InstanceId(2);
+        var goblin = EntityStateFactory.Create(goblinDef, store, goblinId);
+
+        int goblinFireCount = 0;
+        goblin.OnEntityRemoved += () => goblinFireCount++;
+
+        store.LoadSnapshot(snap); // prunes goblin
+
+        Assert.That(goblinFireCount, Is.EqualTo(1), "LoadSnapshot pruning must fire OnEntityRemoved exactly once.");
+    }
+
+**Step 6.2 — Pool reset regression test (G4).**
+
+Add a test in `Assets/Packages/com.scaffold.states/Tests/` that confirms a throwing batch does not poison the runner pool:
+
+    [Test]
+    public void ExecuteBatch_AfterMidBatchThrow_LeavesPoolCleanForNextBatch()
+    {
+        var store = new StoreBuilder().Build();
+        // Register a counter slice and two mutators: one normal, one that throws on a poison payload.
+        // Run an ExecuteBatch where payload index 1 of 3 throws; assert state is unchanged (no commit).
+        // Then run a clean ExecuteBatch with three normal payloads on the same store; assert state matches expectation.
+        // The runner reused for the second batch must not carry overlay residue from the first.
+    }
+
+Implementation sketch: a `CounterPayload(int delta)` and a `PoisonPayload` plus their mutators (the poison mutator throws unconditionally). The exact slice/state types can be the existing `SampleCounterState` from `Scaffold.States.Samples`. Assert: after the throwing batch, `store.Get<SampleCounterState>().Count` matches the pre-batch value; after the clean batch, it matches the cumulative sum of the clean batch only.
+
+**Step 6.3 — `package.json` bump.**
+
+Open `Assets/Packages/com.scaffold.entities.states/package.json`. Bump `"version": "0.1.0"` to `"version": "0.2.0"`. Substantive surface changes (the `BaseEntityInstance<TDef>` shape, `OnEntityRemoved`, `ModifierSource`) warrant a minor bump. Downstream consumers can pin `0.2.0` instead of tracking branch HEAD.
+
+**Step 6.4 — README amendments.**
+
+Edit `Assets/Packages/com.scaffold.entities.states/README.md` (created in Milestone 3). Add or clarify these sections:
+
+- **Definition transformation (G2).** `StateEntity<TDef>` carries `Definition` per-handle, not per-slice. `EntityVariableState` does not reference the definition at all. The supported pattern for "transform an entity into a different kind" — e.g., Polymorph, level-up — is to construct a new `StateEntity<TNewDef>` for the same `InstanceId` with the new definition; reads through the new handle resolve effective values using the new definition's defaults while preserving the canonical slice's base overrides and modifier stack. The previous handle, if still held, continues to read through the old definition. There is no `SetDefinitionPayload` and none is planned: definition swap is handle-level, not state-level.
+
+- **Batch event coalescing (G6).** A single `Store.ExecuteBatch(payloads)` call commits exactly once per affected slice via `Set(ref, finalState)`, which fires exactly one `Updated` notification per affected `(reference, state-type)` pair regardless of how many payloads in the batch mutated that slice. Subscribers to `EntityVariableState` see the post-batch state, never any intermediate. This is by design and is what makes `ExecuteBatch` the supported atomic-multi-payload primitive.
+
+- **`Variables` ordering.** `entity.Storage.Variables` (and the `Variables` enumeration on `StoreVariableStorage`) is sorted by the variable's `Key` string using ordinal comparison. The order is deterministic across runs and across snapshot round-trips, which is desirable for replay.
+
+- **Snapshot resilience (G3).** Loading a snapshot that contains a slice the store has since unregistered (entity destroyed mid-game) re-creates the slice. Held `StateEntity` handles for that id resume reading correctly. This is a property of `Scaffold.States.Store.LoadSnapshot` after the Milestone 4 fix; it is documented here because the bridge relies on it for rollback-after-destroy.
+
+- **Bootstrap idempotency (P2.8).** `EntityBridgeContext.RegisterMutators(store)` throws `Scaffold.States.DuplicateMutatorRegistrationException` if called twice on the same `Store`. Setup code should call it exactly once per store.
+
+**Acceptance for Milestone 6.** All Milestone 5 tests still pass; new `OnEntityRemoved` and pool-reset tests pass; README contains the four added sections; `package.json` reads `"version": "0.2.0"`.
 
 
 ## Concrete Steps

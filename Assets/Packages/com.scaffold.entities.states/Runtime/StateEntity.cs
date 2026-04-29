@@ -13,17 +13,30 @@ namespace Scaffold.Entities.States
         private Store store = default!;
         private StoreVariableStorage storeStorage = default!;
 
+        public event Action? OnEntityRemoved;
+
         internal void InitializeStateBacked(InstanceId id, TDefinition definition, Store store, StoreVariableStorage storage)
         {
             this.store = store ?? throw new ArgumentNullException(nameof(store));
             storeStorage = storage ?? throw new ArgumentNullException(nameof(storage));
+            storage.OnCanonicalRemoved += HandleStorageCanonicalRemoved;
             Initialize(id, definition, storage);
+        }
+
+        private void HandleStorageCanonicalRemoved()
+        {
+            OnEntityRemoved?.Invoke();
         }
 
         public void Dispose()
         {
-            storeStorage?.Dispose();
-            storeStorage = null!;
+            if (storeStorage != null)
+            {
+                storeStorage.OnCanonicalRemoved -= HandleStorageCanonicalRemoved;
+                storeStorage.Dispose();
+                storeStorage = null!;
+            }
+
             store = null!;
         }
 

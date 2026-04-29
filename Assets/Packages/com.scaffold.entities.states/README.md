@@ -7,7 +7,9 @@ Bridge package: **state-backed** entity variables live in **`Scaffold.States.Sto
 - **`EntityVariableState`** — canonical slice; methods **`WithModifier`**, **`WithoutModifier`**, **`WithBaseValue`**, **`WithVariable`**, **`WithoutVariable`**, **`ResolveEffectiveValues`** return new records.
 - **`StateEntity<TDefinition>`** — **`IMutableEntity<TDefinition>`**; mutations call **`store.Execute`** / **`store.ExecuteBatch`** on the same payloads external code would use.
 - **`StoreVariableStorage`** (internal) — **`IEntityVariableStorage`** implementation; subscribes to **`EntityVariableState`** for this **`InstanceId`**, caches effective values per rebuild, and fans out **per-variable** subscriptions (value notifications only when the effective value changes).
-- Payloads: **`AddModifierPayload`**, **`RemoveModifierPayload`**, **`SetBaseValuePayload`**, **`AddEntityVariablePayload`**, **`RemoveEntityVariablePayload`**.
+- Payloads: **`AddModifierPayload`** (optional **`ModifierSource`** for attribution), **`RemoveModifierPayload`**, **`RemoveModifiersBySourcePayload`**, **`SetBaseValuePayload`**, **`AddEntityVariablePayload`**, **`RemoveEntityVariablePayload`**.
+- **`StateEntityOps.RemoveModifiersFromSource(Store, ModifierSource)`** — atomic cross-entity sweep; builds a single **`ExecuteBatch`** of per-entity **`RemoveModifiersBySourcePayload`** entries (requires **`Store.EnumerateAll<EntityVariableState>()`**).
+- **`StateEntity.OnEntityRemoved`** — fires when this entity’s canonical **`EntityVariableState`** slice is removed (unregister or snapshot prune).
 - **`EntityBridgeContext.RegisterMutators(Store)`** — register **once** per store; duplicate registration throws **`DuplicateMutatorRegistrationException`**.
 - **`EntityStateFactory.Create`** — registers empty **`EntityVariableState`**, constructs **`StoreVariableStorage`** and **`StateEntity<TDefinition>`**. Hold the returned **`StateEntity`** reference for **`GetVariable`** / **`Subscribe`**; it is **not** a **`State`** type and does not appear in **`SaveSnapshot()`** output.
 
@@ -36,6 +38,16 @@ store.LoadSnapshot(snapshot);
 
 Use **`Store.ExecuteBatch(IReadOnlyList<object> payloads)`** for all-or-nothing commits. All payloads share one **`MutatorRunner`** overlay; if any mutator throws, the overlay is discarded and **no partial state** is committed.
 
+**Batch coalescing:** One **`ExecuteBatch`** commits once per affected slice. Subscribers see **one `Updated`** per **`(reference, state type)`** pair for that commit, with no intermediate states from other payloads in the same batch.
+
+## Modifier source attribution (P0.2)
+
+**`ModifierSource`** (in **`Scaffold.Entities`**) tags modifiers when applying **`AddModifierPayload`** (optional fifth argument). Clear all modifiers from a given source on one entity with **`RemoveModifiersBySourcePayload`** and **`store.Execute`**, or clear across every **`EntityVariableState`** slice atomically with **`StateEntityOps.RemoveModifiersFromSource(store, source)`** (one **`ExecuteBatch`**). Use payloads for attribution; **`IMutableEntity.AddModifier`** does not take a source.
+
+## Definition swap (G2)
+
+**`StateEntity`** carries **`Definition`** on the handle, not in **`EntityVariableState`**. To “transform” an entity (e.g. polymorph), create a **`StateEntity<TNewDef>`** for the **same `InstanceId`** with the new definition. The new handle resolves defaults from the new definition; an old handle still uses the old definition if retained. There is no state-level **`SetDefinitionPayload`**.
+
 ## Subscription patterns
 
 | Pattern | API |
@@ -56,18 +68,24 @@ Stacks are per-**`Variable`**, ordered by **`Modifier.Order`** ascending with **
 
 ## Bootstrap
 
-1. **`EntityBridgeContext.RegisterMutators(store)`** once.
+1. **`EntityBridgeContext.RegisterMutators(store)`** once per **`Store`** (a second call throws **`DuplicateMutatorRegistrationException`** — P2.8).
 2. **`EntityStateFactory.Create`** per **`InstanceId`** (registers the empty **`EntityVariableState`** slice).
 
 ## Snapshot semantics
 
 **`EntityVariableState`** slices round-trip. **`StateEntity<TDefinition>`** instances are **not** in snapshots: keep them as **`(store, id, definition)`** handles. **`LoadSnapshot`** restores slices referenced by **`InstanceIds`** verbatim; entity references created for those ids continue to work.
 
-Pruned entities (ids not present in the snapshot and removed from the store) yield **`KeyNotFoundException`** on **`Store.Get<EntityVariableState>(id)`** and therefore on reads through a stale **`StateEntity`** handle.
+**Re-register after unregister:** If a slice was removed from the store but appears in the snapshot being loaded (e.g. entity destroyed, then rolling back to an older snapshot that still contains it), **`LoadSnapshot`** re-creates that canonical row. A kept **`StateEntity`** handle for that id can read again after load.
+
+Pruned entities (present in the store but **not** in the snapshot) are removed; reads through a stale **`StateEntity`** handle **`KeyNotFoundException`**, and **`OnEntityRemoved`** runs if subscribed.
 
 ## Disposal
 
 **`StateEntity<TDefinition>.Dispose()`** disposes **`StoreVariableStorage`**, which **unsubscribes** the **`EntityVariableState`** listener on the store. Call **`Dispose`** when discarding short-lived entities so handlers are not retained.
+
+## `Variables` enumeration order
+
+**`IEntityVariableStorage.Variables`** on **`StoreVariableStorage`** is ordered by **`Variable.Key`** using **ordinal** string comparison (deterministic for replay/UI).
 
 ---
 
