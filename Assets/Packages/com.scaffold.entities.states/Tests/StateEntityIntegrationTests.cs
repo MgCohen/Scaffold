@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 using NUnit.Framework;
 
 using Scaffold.Entities;
@@ -72,11 +74,94 @@ namespace Scaffold.Entities.States.Tests
         }
 
         [Test]
-        public void StateEntity_DoesNotImplement_IMutableEntity()
+        public void StateEntity_IsImmutableRecord_NotAssignableToMutableEntity()
         {
             var (_, _, entity, _) = CreateEntity();
-            var entityType = entity.GetType();
-            Assert.That(typeof(IMutableEntity<EntityDefinition>).IsAssignableFrom(entityType), Is.False);
+            var t = entity.GetType();
+            Assert.That(t.IsClass, Is.True, "Records compile to classes.");
+            Assert.That(typeof(IMutableEntity<EntityDefinition>).IsAssignableFrom(t), Is.False, "StateEntity must not be assignable to IMutableEntity — writes go through the store.");
+            Assert.That(typeof(AggregateState).IsAssignableFrom(t), Is.True, "StateEntity must extend AggregateState so it participates in the aggregate-slice rebuild path.");
+        }
+
+        [Test]
+        public void SetBaseValue_UpdatesBaseAndRebuildsEffective()
+        {
+            var (store, _, _, id) = CreateEntity();
+
+            store.Execute(id, new SetBaseValuePayload(id, hp, new FloatVariableValue(20f)));
+            Assert.That(store.Get<StateEntity<EntityDefinition>>(id).GetVariable<float>(hp), Is.EqualTo(20f));
+
+            store.Execute(id, new AddModifierPayload(id, hp, new FloatAddModifier(5f), ModifierId.New()));
+            Assert.That(store.Get<StateEntity<EntityDefinition>>(id).GetVariable<float>(hp), Is.EqualTo(25f),
+                "Modifier should fold over the new base value, not the original definition default.");
+        }
+
+        [Test]
+        public void AddEntityVariable_AddsRuntimeVariableThatWasNotInDefinition()
+        {
+            var (store, _, _, id) = CreateEntity();
+            var armor = new Variable("armor", "float");
+
+            store.Execute(id, new AddEntityVariablePayload(id, armor, new FloatVariableValue(7f)));
+            Assert.That(store.Get<StateEntity<EntityDefinition>>(id).GetVariable<float>(armor), Is.EqualTo(7f));
+
+            store.Execute(id, new AddEntityVariablePayload(id, armor, new FloatVariableValue(99f)));
+            Assert.That(store.Get<StateEntity<EntityDefinition>>(id).GetVariable<float>(armor), Is.EqualTo(7f),
+                "WithVariable must not overwrite an existing base value.");
+        }
+
+        [Test]
+        public void AggregateSubscription_FiresOnRebuild_WithFreshRecord()
+        {
+            var (store, _, _, id) = CreateEntity();
+            var captured = new List<float>();
+            store.Subscribe<StateEntity<EntityDefinition>>(id, (_, e, _) => captured.Add(e.GetVariable<float>(hp)));
+
+            store.Execute(id, new AddModifierPayload(id, hp, new FloatAddModifier(5f), ModifierId.New()));
+            store.Execute(id, new AddModifierPayload(id, hp, new FloatAddModifier(2f), ModifierId.New()));
+
+            Assert.That(captured.Count, Is.GreaterThanOrEqualTo(2), "Subscription should fire at least once per Execute that mutates the source slice.");
+            Assert.That(captured[captured.Count - 1], Is.EqualTo(17f), "Final callback should observe the fully-rebuilt aggregate (10 + 5 + 2).");
+        }
+
+        [Test]
+        public void Snapshot_DoesNotIncludeAggregateState()
+        {
+            var (store, _, _, id) = CreateEntity();
+            store.Execute(id, new AddModifierPayload(id, hp, new FloatAddModifier(5f), ModifierId.New()));
+
+            var snapshot = store.SaveSnapshot();
+
+            Assert.That(snapshot.Contains(id, typeof(EntityVariableState)), Is.True, "Authored canonical state must be in the snapshot.");
+            Assert.That(snapshot.Contains(id, typeof(StateEntity<EntityDefinition>)), Is.False, "Aggregate state must not be in the snapshot — it is rebuilt on load.");
+        }
+
+        [Test]
+        public void TwoEntities_SnapshotRoundTrip_RebuildsBothAggregates()
+        {
+            var heroDef = new EntityDefinition();
+            heroDef.AddVariable(hp, new FloatVariableValue(10f));
+            var goblinDef = new EntityDefinition();
+            goblinDef.AddVariable(hp, new FloatVariableValue(30f));
+
+            var store = new StoreBuilder().Build();
+            EntityBridgeContext.RegisterMutators(store);
+
+            var heroId = new InstanceId(1);
+            var goblinId = new InstanceId(2);
+            EntityStateFactory.Create(heroDef, store, heroId);
+            EntityStateFactory.Create(goblinDef, store, goblinId);
+
+            var snapshot = store.SaveSnapshot();
+            store.Execute(heroId, new AddModifierPayload(heroId, hp, new FloatAddModifier(5f), ModifierId.New()));
+            store.Execute(goblinId, new AddModifierPayload(goblinId, hp, new FloatAddModifier(3f), ModifierId.New()));
+            Assert.That(store.Get<StateEntity<EntityDefinition>>(heroId).GetVariable<float>(hp), Is.EqualTo(15f));
+            Assert.That(store.Get<StateEntity<EntityDefinition>>(goblinId).GetVariable<float>(hp), Is.EqualTo(33f));
+
+            store.LoadSnapshot(snapshot);
+
+            Assert.That(store.Get<StateEntity<EntityDefinition>>(heroId).GetVariable<float>(hp), Is.EqualTo(10f));
+            Assert.That(store.Get<StateEntity<EntityDefinition>>(goblinId).GetVariable<float>(hp), Is.EqualTo(30f));
         }
 
         [Test]

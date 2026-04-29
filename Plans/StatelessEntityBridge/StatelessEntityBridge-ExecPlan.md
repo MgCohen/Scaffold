@@ -1,4 +1,6 @@
-# Stateless entity-state bridge: definition-as-state plus registry safety
+# SUPERSEDED — Stateless entity-state bridge: definition-as-state plus registry safety
+
+> **This plan was superseded by [`Plans/EntityAsAggregate/EntityAsAggregate-ExecPlan.md`](../EntityAsAggregate/EntityAsAggregate-ExecPlan.md) and was never implemented.** The follow-up plan delivers the same outcome (entity owns its definition, no bridge bookkeeping) using the framework's existing `AggregateSlice` primitive, which removes more code than the design captured below. Kept here as a reference for the design conversation that led to the chosen approach. Do not implement this plan.
 
 This ExecPlan is a living document. The sections `Progress`, `Surprises & Discoveries`, `Decision Log`, and `Outcomes & Retrospective` must be kept up to date as work proceeds. Repository policy for ExecPlans is defined in `PLANS.md` at the repository root; this document is maintained in accordance with that file.
 

@@ -213,7 +213,7 @@ namespace Scaffold.Entities.States
             return -1;
         }
 
-        private List<ActiveModifier> BuildModifierBucketCopy(Dictionary<Variable, IReadOnlyList<ActiveModifier>> stacks, Variable variable)
+        private static List<ActiveModifier> BuildModifierBucketCopy(Dictionary<Variable, IReadOnlyList<ActiveModifier>> stacks, Variable variable)
         {
             if (stacks.TryGetValue(variable, out IReadOnlyList<ActiveModifier>? existing) && existing != null)
             {
