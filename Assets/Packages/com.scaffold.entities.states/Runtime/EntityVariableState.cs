@@ -5,26 +5,27 @@ using Scaffold.States;
 
 namespace Scaffold.Entities.States
 {
-    public sealed record EntityVariableState(Dictionary<Variable, VariableValue> BaseValues, Dictionary<Variable, List<ActiveModifier>> ModifierStacks, Dictionary<Variable, VariableValue> EffectiveValues) : State
+    public sealed record EntityVariableState(IReadOnlyDictionary<Variable, VariableValue> BaseValues, IReadOnlyDictionary<Variable, IReadOnlyList<ActiveModifier>> ModifierStacks, IReadOnlyDictionary<Variable, VariableValue> EffectiveValues) : State
     {
-        public static EntityVariableState Empty { get; } = new EntityVariableState(new Dictionary<Variable, VariableValue>(), new Dictionary<Variable, List<ActiveModifier>>(), new Dictionary<Variable, VariableValue>());
+        public static EntityVariableState Empty { get; } = new EntityVariableState(new Dictionary<Variable, VariableValue>(), new Dictionary<Variable, IReadOnlyList<ActiveModifier>>(), new Dictionary<Variable, VariableValue>());
 
-        internal static Dictionary<Variable, VariableValue> CreateNewBaseDictionary(Dictionary<Variable, VariableValue> source)
+        internal static Dictionary<Variable, VariableValue> CreateMutableValues(IReadOnlyDictionary<Variable, VariableValue> source)
         {
-            return new Dictionary<Variable, VariableValue>(source);
-        }
-
-        internal static Dictionary<Variable, VariableValue> CreateNewEffectiveDictionary(Dictionary<Variable, VariableValue> source)
-        {
-            return new Dictionary<Variable, VariableValue>(source);
-        }
-
-        internal static Dictionary<Variable, List<ActiveModifier>> CreateNewModifierStacksDictionary(Dictionary<Variable, List<ActiveModifier>> source)
-        {
-            var copy = new Dictionary<Variable, List<ActiveModifier>>(source.Count);
-            foreach (KeyValuePair<Variable, List<ActiveModifier>> kv in source)
+            var copy = new Dictionary<Variable, VariableValue>(source.Count);
+            foreach (var kv in source)
             {
-                copy[kv.Key] = new List<ActiveModifier>(kv.Value);
+                copy[kv.Key] = kv.Value;
+            }
+
+            return copy;
+        }
+
+        internal static Dictionary<Variable, IReadOnlyList<ActiveModifier>> CreateMutableStacks(IReadOnlyDictionary<Variable, IReadOnlyList<ActiveModifier>> source)
+        {
+            var copy = new Dictionary<Variable, IReadOnlyList<ActiveModifier>>(source.Count);
+            foreach (var kv in source)
+            {
+                copy[kv.Key] = kv.Value;
             }
 
             return copy;

@@ -19,18 +19,30 @@ namespace Scaffold.Entities.States
         {
             if (!context.TryGetDefinition(payload.EntityId, out IEntityDefinition? definition)) return state;
 
-            var nextBases = EntityVariableState.CreateNewBaseDictionary(state.BaseValues);
-            var nextStacks = EntityVariableState.CreateNewModifierStacksDictionary(state.ModifierStacks);
-            List<ActiveModifier> bucket = nextStacks.TryGetValue(payload.Variable, out List<ActiveModifier>? oldBucket) ? new List<ActiveModifier>(oldBucket!) : new List<ActiveModifier>();
+            var nextStacks = EntityVariableState.CreateMutableStacks(state.ModifierStacks);
+            var nextBucket = CreateBucketCopy(nextStacks, payload.Variable);
+            int insertAt = FindInsertIndex(nextBucket, payload.Modifier.Order);
+            nextBucket.Insert(insertAt, new ActiveModifier(payload.ModifierId, payload.Modifier));
+            nextStacks[payload.Variable] = nextBucket;
+
+            var nextEffective = EffectiveValueRecomputer.RecomputeFor(state.BaseValues, nextStacks, state.EffectiveValues, payload.Variable, definition);
+            return state with { ModifierStacks = nextStacks, EffectiveValues = nextEffective };
+        }
+
+        private int FindInsertIndex(List<ActiveModifier> bucket, int order)
+        {
             int insertAt = 0;
-            while (insertAt < bucket.Count && bucket[insertAt].Modifier.Order <= payload.Modifier.Order)
+            while (insertAt < bucket.Count && bucket[insertAt].Modifier.Order <= order)
             {
                 insertAt++;
             }
 
-            bucket.Insert(insertAt, new ActiveModifier(payload.ModifierId, payload.Modifier));
-            nextStacks[payload.Variable] = bucket;
-            return new EntityVariableState(nextBases, nextStacks, EffectiveValueRecomputer.RecomputeFor(nextBases, nextStacks, state.EffectiveValues, payload.Variable, definition));
+            return insertAt;
+        }
+
+        private static List<ActiveModifier> CreateBucketCopy(Dictionary<Variable, IReadOnlyList<ActiveModifier>> stacks, Variable variable)
+        {
+            return stacks.TryGetValue(variable, out IReadOnlyList<ActiveModifier>? existing) && existing != null ? new List<ActiveModifier>(existing) : new List<ActiveModifier>();
         }
     }
 }

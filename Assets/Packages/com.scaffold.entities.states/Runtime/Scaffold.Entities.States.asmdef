@@ -3,6 +3,7 @@
     "rootNamespace": "Scaffold.Entities.States",
     "references": [
         "Scaffold.Entities",
+        "Scaffold.Records",
         "Scaffold.States"
     ],
     "includePlatforms": [],

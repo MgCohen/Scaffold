@@ -1,6 +1,4 @@
 #nullable enable
-using System.Collections.Generic;
-
 using Scaffold.Entities;
 using Scaffold.States;
 
@@ -21,9 +19,9 @@ namespace Scaffold.Entities.States
             if (state.BaseValues.ContainsKey(payload.Variable)) return state;
             if (definition.TryGetDefaultValue(payload.Variable, out _)) return state;
 
-            var nextBases = EntityVariableState.CreateNewBaseDictionary(state.BaseValues);
+            var nextBases = EntityVariableState.CreateMutableValues(state.BaseValues);
             nextBases.Add(payload.Variable, payload.InitialValue);
-            return new EntityVariableState(nextBases, EntityVariableState.CreateNewModifierStacksDictionary(state.ModifierStacks), EntityVariableState.CreateNewEffectiveDictionary(state.EffectiveValues));
+            return state with { BaseValues = nextBases };
         }
     }
 }

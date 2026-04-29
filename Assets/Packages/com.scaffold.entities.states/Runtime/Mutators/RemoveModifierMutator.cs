@@ -18,22 +18,31 @@ namespace Scaffold.Entities.States
         public override EntityVariableState Change(EntityVariableState state, RemoveModifierPayload payload, IStateScope scope)
         {
             if (!context.TryGetDefinition(payload.EntityId, out IEntityDefinition? definition)) return state;
-            if (!state.ModifierStacks.TryGetValue(payload.Variable, out List<ActiveModifier>? bucket) || bucket == null) return state;
+            if (!state.ModifierStacks.TryGetValue(payload.Variable, out IReadOnlyList<ActiveModifier>? existing) || existing == null) return state;
 
-            int idx = bucket.FindIndex(m => m.Id.Equals(payload.ModifierId));
+            int idx = FindModifierIndex(existing, payload.ModifierId);
             if (idx < 0) return state;
 
-            var nextBases = EntityVariableState.CreateNewBaseDictionary(state.BaseValues);
-            var nextStacks = EntityVariableState.CreateNewModifierStacksDictionary(state.ModifierStacks);
-            var nextBucket = new List<ActiveModifier>(nextStacks[payload.Variable]);
-            nextBucket.RemoveAt(idx);
-            ReplaceOrClear(nextStacks, payload.Variable, nextBucket);
-
-            return new EntityVariableState(nextBases, nextStacks, EffectiveValueRecomputer.RecomputeFor(nextBases, nextStacks, state.EffectiveValues, payload.Variable, definition));
+            var nextStacks = BuildStacksWithRemoval(state.ModifierStacks, payload.Variable, existing, idx);
+            var nextEffective = EffectiveValueRecomputer.RecomputeFor(state.BaseValues, nextStacks, state.EffectiveValues, payload.Variable, definition);
+            return state with { ModifierStacks = nextStacks, EffectiveValues = nextEffective };
         }
 
-        private void ReplaceOrClear(Dictionary<Variable, List<ActiveModifier>> nextStacks, Variable variable, List<ActiveModifier> nextBucket)
+        private int FindModifierIndex(IReadOnlyList<ActiveModifier> bucket, ModifierId id)
         {
+            for (int i = 0; i < bucket.Count; i++)
+            {
+                if (bucket[i].Id.Equals(id)) return i;
+            }
+
+            return -1;
+        }
+
+        private static Dictionary<Variable, IReadOnlyList<ActiveModifier>> BuildStacksWithRemoval(IReadOnlyDictionary<Variable, IReadOnlyList<ActiveModifier>> source, Variable variable, IReadOnlyList<ActiveModifier> bucket, int idx)
+        {
+            var nextStacks = EntityVariableState.CreateMutableStacks(source);
+            var nextBucket = new List<ActiveModifier>(bucket);
+            nextBucket.RemoveAt(idx);
             if (nextBucket.Count == 0)
             {
                 nextStacks.Remove(variable);
@@ -42,6 +51,8 @@ namespace Scaffold.Entities.States
             {
                 nextStacks[variable] = nextBucket;
             }
+
+            return nextStacks;
         }
     }
 }
