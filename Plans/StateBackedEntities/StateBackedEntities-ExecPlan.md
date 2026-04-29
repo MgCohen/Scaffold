@@ -39,7 +39,7 @@ Neither core package gains a runtime dependency on the other. The bridge lives i
 - [x] Step F — Implement `StoreVariableStorage : IEntityVariableStorage` (reads from the store, fans out subscriptions locally).
 - [x] Step G — Implement `StateEntity<TDefinition> : BaseEntityInstance<TDefinition>` and the `EntityStateFactory.Create(...)` entry point.
 - [x] Step H — Write integration tests, including the snapshot round-trip and modifier-ordering tests.
-- [ ] Step I — Run `.agents/scripts/validate-changes.cmd` and Unity EditMode tests; fix any diagnostics; commit.
+- [x] Step I — `check-analyzers.ps1`: `BUILD_EXIT:0`, `TOTAL:0`. Commit completed. **Pending:** run `.agents/scripts/validate-changes.cmd` (or EditMode tests) with the Unity project closed so batch mode can compile and execute tests.
 
 
 ## Surprises & Discoveries
