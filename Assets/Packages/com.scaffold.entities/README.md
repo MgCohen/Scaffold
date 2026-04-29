@@ -75,6 +75,12 @@ Authoritative module pointer: [`Docs/Core/Entities.md`](../../../Docs/Core/Entit
 2. It appears in **`ModifierTypeIndex`** automatically (closed **`VariableModifier<T>`** subclasses).
 3. Default **`Order`**: use **`0`** for additive-style ops and **`100`** for multiplicative-style ops when you want multiply-after-add unless reordered.
 
+## Breaking changes (state bridge dependency)
+
+- **`ActiveModifier`** is now **public** so external mutators can hold ordered modifier stacks (for example `com.scaffold.entities.states`).
+- **`VariableValue.ApplyModifiers(IReadOnlyList<ActiveModifier>)`** is now **public** for the same reason.
+- **`InstanceId`** implements **`Scaffold.States.IReference`**. The **`Scaffold.Entities`** assembly references **`Scaffold.States`** for that marker interface only — do not add further `Scaffold.States` types inside `Scaffold.Entities`; use **`com.scaffold.entities.states`** for store integration.
+
 ## Breaking changes (serialization)
 
 - **`VariableSO`** now serializes **`payloadTypeId`** as a **string** (e.g. `float`). Older assets that used **`valueType`** as an enum ordinal **will not deserialize correctly** — re-author those assets.

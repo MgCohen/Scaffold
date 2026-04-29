@@ -1,0 +1,7 @@
+{
+    "name": "com.scaffold.entities.states",
+    "version": "0.1.0",
+    "displayName": "Scaffold Entities ↔ States Bridge",
+    "description": "State-backed entity instances. Modifier and variable writes flow through Scaffold.States.Store; snapshots round-trip the entity's full variable state.",
+    "unity": "2022.3"
+}

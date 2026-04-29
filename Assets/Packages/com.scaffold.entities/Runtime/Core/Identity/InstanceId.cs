@@ -1,9 +1,10 @@
 using System;
-using System.Threading;
+
+using Scaffold.States;
 
 namespace Scaffold.Entities
 {
-    public record InstanceId(int Id)
+    public record InstanceId(int Id) : IReference
     {
         public override string ToString()
         {

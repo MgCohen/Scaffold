@@ -31,20 +31,22 @@ Neither core package gains a runtime dependency on the other. The bridge lives i
 
 ## Progress
 
-- [ ] Step A — Promote three internals to public in `com.scaffold.entities` (prerequisite for the bridge to fold modifiers in a mutator).
-- [ ] Step B — Make `Scaffold.Entities.InstanceId` implement `Scaffold.States.IReference` so the store can key slices by entity id.
-- [ ] Step C — Scaffold the new package `com.scaffold.entities.states` (`package.json`, runtime asmdef, tests asmdef).
-- [ ] Step D — Define the store slice `EntityVariableState` (immutable record holding base values, ordered modifier stacks, and cached effective values).
-- [ ] Step E — Define the four payload records (`AddModifierPayload`, `RemoveModifierPayload`, `SetBaseValuePayload`, `AddEntityVariablePayload`) and the four mutators that consume them.
-- [ ] Step F — Implement `StoreVariableStorage : IEntityVariableStorage` (reads from the store, fans out subscriptions locally).
-- [ ] Step G — Implement `StateEntity<TDefinition> : BaseEntityInstance<TDefinition>` and the `EntityStateFactory.Create(...)` entry point.
-- [ ] Step H — Write integration tests, including the snapshot round-trip and modifier-ordering tests.
+- [x] Step A — Promote three internals to public in `com.scaffold.entities` (prerequisite for the bridge to fold modifiers in a mutator).
+- [x] Step B — Make `Scaffold.Entities.InstanceId` implement `Scaffold.States.IReference` so the store can key slices by entity id.
+- [x] Step C — Scaffold the new package `com.scaffold.entities.states` (`package.json`, runtime asmdef, tests asmdef).
+- [x] Step D — Define the store slice `EntityVariableState` (immutable record holding base values, ordered modifier stacks, and cached effective values).
+- [x] Step E — Define the four payload records (`AddModifierPayload`, `RemoveModifierPayload`, `SetBaseValuePayload`, `AddEntityVariablePayload`) and the four mutators that consume them.
+- [x] Step F — Implement `StoreVariableStorage : IEntityVariableStorage` (reads from the store, fans out subscriptions locally).
+- [x] Step G — Implement `StateEntity<TDefinition> : BaseEntityInstance<TDefinition>` and the `EntityStateFactory.Create(...)` entry point.
+- [x] Step H — Write integration tests, including the snapshot round-trip and modifier-ordering tests.
 - [ ] Step I — Run `.agents/scripts/validate-changes.cmd` and Unity EditMode tests; fix any diagnostics; commit.
 
 
 ## Surprises & Discoveries
 
-- (To be filled in during implementation. Record observations with short evidence — test output, compile errors, diagnostic messages.)
+- **Per-payload mutators must register once per `Store`.** Registering a new `AddModifierMutator` per `EntityStateFactory.Create` would stack multiple bindings for `AddModifierPayload`; each `Execute` would run every binding sequentially on the same scratchpad slice, applying the same payload more than once. Implemented **`EntityBridgeContext`** (`ConditionalWeakTable<Store, …>` + `Bind(InstanceId, IEntityDefinition)`) so the four mutators are registered on first use of a store and resolve the definition by `payload.EntityId`.
+- **`Scaffold.Entities.csproj` analyzer build:** the Unity-generated VS/CLI project did not pick up the new `Scaffold.States` asmdef reference until **`ProjectReference` to `Scaffold.States.csproj`** was added to `Scaffold.Entities.csproj` (same pattern as `Scaffold.Records`). Re-sync projects from Unity if the file is regenerated without that reference.
+- **`validate-changes.cmd`** EditMode/PlayMode and batch compilation exit early if another Unity instance has the project open; **`check-analyzers.ps1`** still reported `BUILD_EXIT:0`, `TOTAL:0` after the csproj fix.
 
 
 ## Decision Log
@@ -56,6 +58,7 @@ Neither core package gains a runtime dependency on the other. The bridge lives i
 - Decision: The caller pre-generates the `ModifierId` and includes it in `AddModifierPayload`. Rationale: mutators in `Scaffold.States` return only the next state; they cannot return a secondary value. Pre-generating the id keeps the mutator pure and gives the caller a stable handle for later removal. Author: Design session, 2026-04-28 (carried over from the parent plan).
 - Decision: `IEntityVariableStorage` remains read-only. `StateEntity` does not implement `IMutableEntity<TDefinition>`. Writes go through the store via `Execute`. Rationale: the type system enforces the right pattern — code with a `StateEntity` cannot accidentally bypass the store; code that needs to mutate must hold a `Store` reference. Author: Design session, 2026-04-28 (carried over from the parent plan).
 - Decision: `StoreVariableStorage` maintains its own per-variable callback registry rather than calling `Store.Subscribe` once per `IEntityVariableStorage.Subscribe`. Rationale: `Scaffold.States.Store.Subscribe(...)` returns `void` and exposes no `Unsubscribe` — a naive 1:1 mapping would leak callbacks. Instead, the storage subscribes to the store *once* per entity and fans out to local handlers it owns and can remove. Author: Design session, 2026-04-28.
+- Decision: Register bridge mutators **once per `Store`** via `EntityBridgeContext` and resolve `IEntityDefinition` by `InstanceId`, instead of registering new mutator instances per `Create`. Rationale: the registry appends bindings per payload type; duplicate mutators would run multiple times per `Execute`. Author: implementation, 2026-04-28.
 
 
 ## Outcomes & Retrospective

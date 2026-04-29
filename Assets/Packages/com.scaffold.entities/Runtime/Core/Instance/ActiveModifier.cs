@@ -1,6 +1,6 @@
 namespace Scaffold.Entities
 {
-    internal readonly struct ActiveModifier
+    public readonly struct ActiveModifier
     {
         public ActiveModifier(ModifierId id, VariableModifier modifier)
         {
