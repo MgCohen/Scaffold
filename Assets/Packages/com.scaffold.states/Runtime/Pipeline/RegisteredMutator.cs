@@ -1,5 +1,7 @@
 #nullable enable
 
+using System;
+
 namespace Scaffold.States
 {
     internal sealed class RegisteredMutator<TState, TPayload> : IPayloadMutatorBinding where TState : State
@@ -8,6 +10,8 @@ namespace Scaffold.States
         {
             this.mutator = mutator;
         }
+
+        internal Type MutatorType => mutator.GetType();
 
         private readonly Mutator<TState, TPayload> mutator;
 

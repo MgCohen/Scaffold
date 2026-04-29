@@ -273,21 +273,6 @@ namespace Scaffold.States
             eventHandler.Notify(r, state, StateChangeEvent.Created);
         }
 
-        private void ThrowIfSliceConflict(IReference r, Type t, bool hasCanonical, bool hasAggregate)
-        {
-            if (hasCanonical)
-            {
-                throw new InvalidOperationException(
-                    $"A canonical slice for state type {t.Name} is already registered at this reference.");
-            }
-
-            if (hasAggregate)
-            {
-                throw new InvalidOperationException(
-                    $"An aggregate slice for state type {t.Name} is already registered at this reference.");
-            }
-        }
-
         public bool UnregisterSlice<TState>(IReference? reference) where TState : State
         {
             return UnregisterSlice(reference, typeof(TState));
@@ -323,6 +308,41 @@ namespace Scaffold.States
 
             eventHandler.Notify(r, lastState, StateChangeEvent.Removed);
             return true;
+        }
+
+        #endregion
+
+        #region Aggregate registration
+
+        public void RegisterAggregate(IReference? reference, IAggregateProvider provider)
+        {
+            if (provider is null)
+            {
+                throw new ArgumentNullException(nameof(provider));
+            }
+
+            var r = reference ?? Reference.Null;
+            var aSlice = new AggregateSlice(r, provider);
+            Type t = aSlice.StateType;
+            ThrowIfSliceConflict(r, t, map.Contains(r, t), aggregates.Contains(r, t));
+            aggregates.Add(r, t, aSlice);
+            aSlice.OnAttachedToStore(this);
+            eventHandler.Notify(r, aSlice.State, StateChangeEvent.Created);
+        }
+
+        private void ThrowIfSliceConflict(IReference r, Type t, bool hasCanonical, bool hasAggregate)
+        {
+            if (hasCanonical)
+            {
+                throw new InvalidOperationException(
+                    $"A canonical slice for state type {t.Name} is already registered at this reference.");
+            }
+
+            if (hasAggregate)
+            {
+                throw new InvalidOperationException(
+                    $"An aggregate slice for state type {t.Name} is already registered at this reference.");
+            }
         }
 
         #endregion

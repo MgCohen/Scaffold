@@ -10,13 +10,19 @@ namespace Scaffold.States
 
         public void Register<TState, TPayload>(Mutator<TState, TPayload> mutator) where TState : State
         {
+            if (mutator is null)
+            {
+                throw new ArgumentNullException(nameof(mutator));
+            }
+
             var key = typeof(TPayload);
-            if (!registrations.TryGetValue(key, out var list))
+            if (!registrations.TryGetValue(key, out List<IPayloadMutatorBinding>? list))
             {
                 list = new List<IPayloadMutatorBinding>();
                 registrations[key] = list;
             }
 
+            ThrowIfDuplicateConcreteMutatorRegistered(list, mutator);
             list.Add(new RegisteredMutator<TState, TPayload>(mutator));
         }
 
@@ -30,6 +36,19 @@ namespace Scaffold.States
 
             bindings = null;
             return false;
+        }
+
+        private void ThrowIfDuplicateConcreteMutatorRegistered<TState, TPayload>(List<IPayloadMutatorBinding> list, Mutator<TState, TPayload> mutator) where TState : State
+        {
+            Type mutatorType = mutator.GetType();
+            for (int i = 0; i < list.Count; i++)
+            {
+                if (list[i] is RegisteredMutator<TState, TPayload> rm && rm.MutatorType == mutatorType)
+                {
+                    throw new DuplicateMutatorRegistrationException(
+                        $"A mutator of type {mutatorType.FullName} is already registered for payload {typeof(TPayload).FullName}.");
+                }
+            }
         }
     }
 }
