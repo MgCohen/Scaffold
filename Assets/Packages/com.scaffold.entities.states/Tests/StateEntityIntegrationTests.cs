@@ -79,6 +79,45 @@ namespace Scaffold.Entities.States.Tests
             Assert.That(typeof(IMutableEntity<EntityDefinition>).IsAssignableFrom(entityType), Is.False);
         }
 
+        [Test]
+        public void TwoEntities_AddModifierAppliesOnceToTargetOnly()
+        {
+            var heroDef = new EntityDefinition();
+            heroDef.AddVariable(hp, new FloatVariableValue(10f));
+
+            var goblinDef = new EntityDefinition();
+            goblinDef.AddVariable(hp, new FloatVariableValue(30f));
+
+            var store = new StoreBuilder().Build();
+            var heroId = new InstanceId(1);
+            var goblinId = new InstanceId(2);
+
+            var hero = EntityStateFactory.Create(heroDef, store, heroId);
+            var goblin = EntityStateFactory.Create(goblinDef, store, goblinId);
+
+            store.Execute(heroId, new AddModifierPayload(heroId, hp, new FloatAddModifier(5f), ModifierId.New()));
+
+            Assert.That(hero.GetVariable<float>(hp), Is.EqualTo(15f), "Hero should be base 10 + modifier 5 applied exactly once.");
+            Assert.That(goblin.GetVariable<float>(hp), Is.EqualTo(30f), "Goblin should be untouched by a modifier targeted at hero.");
+        }
+
+        [Test]
+        public void TwoEntities_ResolveTheirOwnDefaults()
+        {
+            var heroDef = new EntityDefinition();
+            heroDef.AddVariable(hp, new FloatVariableValue(10f));
+
+            var goblinDef = new EntityDefinition();
+            goblinDef.AddVariable(hp, new FloatVariableValue(30f));
+
+            var store = new StoreBuilder().Build();
+            var hero = EntityStateFactory.Create(heroDef, store, new InstanceId(1));
+            var goblin = EntityStateFactory.Create(goblinDef, store, new InstanceId(2));
+
+            Assert.That(hero.GetVariable<float>(hp), Is.EqualTo(10f));
+            Assert.That(goblin.GetVariable<float>(hp), Is.EqualTo(30f));
+        }
+
         private static (Store store, EntityDefinition def, StateEntity<EntityDefinition> entity, InstanceId id) CreateEntity()
         {
             var def = new EntityDefinition();
