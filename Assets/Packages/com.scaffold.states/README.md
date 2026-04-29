@@ -21,7 +21,7 @@ Runtime slice/store pattern for immutable-ish game state: **`Store`** composes *
 - **`LoadSnapshot(snapshot)`** performs a **full restore** for canonical rows: it applies every snapshot entry, then **removes** any canonical slice whose `(reference, state type)` is **not** in the snapshot. That is how runtime **`RegisterSlice`** rows disappear when you roll back to an earlier snapshot (for example entities A and B only).
 - Mutator commits (`Execute`, batch payloads) use an **internal merge-only** path: they apply pending changes to existing slices **without** pruning missing rows—so a single mutation cannot strip unrelated slices.
 
-**Subscriptions:** `Subscribe`, `SubscribeAllReferences`, and `SubscribeAny` take **`Action<..., StateChangeEvent>`** so you can distinguish **Created** (for example `RegisterSlice`), **Updated** (mutators and snapshot apply), and **Removed** (`UnregisterSlice`, snapshot prune).
+**Subscriptions:** `Subscribe`, `SubscribeAllReferences`, and `SubscribeAny` take **`Action<..., StateChangeEvent>`** so you can distinguish **Created** (for example `RegisterSlice`), **Updated** (mutators and snapshot apply), and **Removed** (`UnregisterSlice`, snapshot prune). For keyed subscriptions, **`Unsubscribe<TState>(IReference, Action<...>)`** removes the same delegate instance that was passed to **`Subscribe`**.
 
 ## Deferred event dispatch
 

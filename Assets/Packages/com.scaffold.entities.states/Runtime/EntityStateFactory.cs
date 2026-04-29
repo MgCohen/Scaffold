@@ -11,9 +11,10 @@ namespace Scaffold.Entities.States
         {
             ValidateCreateArgs(definition, store, instanceId);
             store.RegisterSlice(instanceId, EntityVariableState.Empty);
-            var provider = new EntityStateProvider<TDefinition>(instanceId, definition);
-            store.RegisterAggregate(instanceId, provider);
-            return store.Get<StateEntity<TDefinition>>(instanceId);
+            var storage = new StoreVariableStorage(store, instanceId, definition);
+            var entity = new StateEntity<TDefinition>();
+            entity.InitializeStateBacked(instanceId, definition, store, storage);
+            return entity;
         }
 
         private static void ValidateCreateArgs<TDefinition>(TDefinition definition, Store store, InstanceId instanceId) where TDefinition : IEntityDefinition

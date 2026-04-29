@@ -109,6 +109,47 @@ namespace Scaffold.Entities.States
             return this with { BaseValues = nextBases };
         }
 
+        public EntityVariableState WithoutVariable(Variable variable)
+        {
+            if (variable == null)
+            {
+                throw new ArgumentNullException(nameof(variable));
+            }
+
+            if (!VariableHasRuntimeData(variable))
+            {
+                return this;
+            }
+
+            return BuildWithoutVariable(variable);
+        }
+
+        private bool VariableHasRuntimeData(Variable variable)
+        {
+            return BaseValues.ContainsKey(variable) || ModifierStacks.ContainsKey(variable);
+        }
+
+        private EntityVariableState BuildWithoutVariable(Variable variable)
+        {
+            Dictionary<Variable, VariableValue>? nextBases = BaseValues.ContainsKey(variable) ? CreateMutableValues(BaseValues) : null;
+            if (nextBases != null)
+            {
+                nextBases.Remove(variable);
+            }
+
+            Dictionary<Variable, IReadOnlyList<ActiveModifier>>? nextStacks = ModifierStacks.ContainsKey(variable) ? CreateMutableStacks(ModifierStacks) : null;
+            if (nextStacks != null)
+            {
+                nextStacks.Remove(variable);
+            }
+
+            return this with
+            {
+                BaseValues = nextBases ?? BaseValues,
+                ModifierStacks = nextStacks ?? ModifierStacks
+            };
+        }
+
         public IReadOnlyDictionary<Variable, VariableValue> ResolveEffectiveValues(IEntityDefinition definition)
         {
             if (definition == null)

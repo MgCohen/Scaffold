@@ -285,5 +285,20 @@ namespace Scaffold.States.Tests
 
             Assert.That(events, Is.EqualTo(new[] { StateChangeEvent.Created, StateChangeEvent.Removed }));
         }
+
+        [Test]
+        public void Subscribe_Unsubscribe_KeyedSlice_StopsCallbacks()
+        {
+            Store store = SampleStoreFactory.CreateKeyedCounterDemo();
+            var keyA = new SampleKey("A");
+            int count = 0;
+            Action<IReference, CounterState, StateChangeEvent> handler = (_, _, _) => count++;
+            store.Subscribe<CounterState>(keyA, handler);
+            store.Execute(new RoutedCounterPayload(keyA, 1));
+            Assert.That(count, Is.EqualTo(1));
+            store.Unsubscribe<CounterState>(keyA, handler);
+            store.Execute(new RoutedCounterPayload(keyA, 2));
+            Assert.That(count, Is.EqualTo(1));
+        }
     }
 }

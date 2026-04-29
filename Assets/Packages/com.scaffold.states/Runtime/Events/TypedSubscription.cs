@@ -13,6 +13,11 @@ namespace Scaffold.States
 
         private readonly Action<IReference, TState, StateChangeEvent> action;
 
+        internal bool Matches(Action<IReference, TState, StateChangeEvent> other)
+        {
+            return ReferenceEquals(action, other);
+        }
+
         public Type GetSubscriptionType()
         {
             return typeof(TState);

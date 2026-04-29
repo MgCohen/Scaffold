@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 using NUnit.Framework;
@@ -14,12 +15,11 @@ namespace Scaffold.Entities.States.Tests
         [Test]
         public void AddModifier_ChangesEffectiveValue()
         {
-            var (store, _, _, id) = CreateEntity();
+            var (store, _, entity, id) = CreateEntity();
             var addMod = new FloatAddModifier(5f);
             var modId = ModifierId.New();
-            var payload = new AddModifierPayload(id, hp, addMod, modId);
-            store.Execute(id, payload);
-            Assert.That(store.Get<StateEntity<EntityDefinition>>(id).GetVariable<float>(hp), Is.EqualTo(15f));
+            store.Execute(id, new AddModifierPayload(id, hp, addMod, modId));
+            Assert.That(entity.GetVariable<float>(hp), Is.EqualTo(15f));
         }
 
         [Test]
@@ -32,136 +32,132 @@ namespace Scaffold.Entities.States.Tests
         [Test]
         public void Modifier_OrderIsRespected_AddBeforeMultiply()
         {
-            var (store, _, _, id) = CreateEntity();
-            var add = new FloatAddModifier(3f);
-            var mul = new FloatMultiplyModifier(4f);
-            var idA = ModifierId.New();
-            var idB = ModifierId.New();
-            var addPayload = new AddModifierPayload(id, hp, add, idA);
-            var mulPayload = new AddModifierPayload(id, hp, mul, idB);
-            store.Execute(id, addPayload);
-            store.Execute(id, mulPayload);
-            Assert.That(store.Get<StateEntity<EntityDefinition>>(id).GetVariable<float>(hp), Is.EqualTo(52f));
+            var (store, _, entity, id) = CreateEntity();
+            store.Execute(id, new AddModifierPayload(id, hp, new FloatAddModifier(3f), ModifierId.New()));
+            store.Execute(id, new AddModifierPayload(id, hp, new FloatMultiplyModifier(4f), ModifierId.New()));
+            Assert.That(entity.GetVariable<float>(hp), Is.EqualTo(52f));
         }
 
         [Test]
         public void RemoveModifier_ByModifierId_RestoresPriorValue()
         {
-            var (store, _, _, id) = CreateEntity();
-            var addMod = new FloatAddModifier(5f);
+            var (store, _, entity, id) = CreateEntity();
             var modId = ModifierId.New();
-            var addPayload = new AddModifierPayload(id, hp, addMod, modId);
-            store.Execute(id, addPayload);
-            var removePayload = new RemoveModifierPayload(id, hp, modId);
-            store.Execute(id, removePayload);
-            Assert.That(store.Get<StateEntity<EntityDefinition>>(id).GetVariable<float>(hp), Is.EqualTo(10f));
+            store.Execute(id, new AddModifierPayload(id, hp, new FloatAddModifier(5f), modId));
+            store.Execute(id, new RemoveModifierPayload(id, hp, modId));
+            Assert.That(entity.GetVariable<float>(hp), Is.EqualTo(10f));
         }
 
         [Test]
         public void Snapshot_RoundTripsModifierStack()
         {
-            var (store, _, _, id) = CreateEntity();
-            var snapshot = store.SaveSnapshot();
-
-            var addMod = new FloatAddModifier(5f);
-            var modId = ModifierId.New();
-            var payload = new AddModifierPayload(id, hp, addMod, modId);
-            store.Execute(id, payload);
-            Assert.That(store.Get<StateEntity<EntityDefinition>>(id).GetVariable<float>(hp), Is.EqualTo(15f));
-
+            var (store, _, entity, id) = CreateEntity();
+            Snapshot snapshot = store.SaveSnapshot();
+            store.Execute(id, new AddModifierPayload(id, hp, new FloatAddModifier(5f), ModifierId.New()));
+            Assert.That(entity.GetVariable<float>(hp), Is.EqualTo(15f));
             store.LoadSnapshot(snapshot);
-            Assert.That(store.Get<StateEntity<EntityDefinition>>(id).GetVariable<float>(hp), Is.EqualTo(10f));
+            Assert.That(entity.GetVariable<float>(hp), Is.EqualTo(10f));
         }
 
         [Test]
-        public void StateEntity_IsImmutableRecord_NotAssignableToMutableEntity()
+        public void StateEntity_IsAssignableToReadAndMutableEntity()
         {
-            var (_, _, entity, _) = CreateEntity();
-            var t = entity.GetType();
-            Assert.That(t.IsClass, Is.True, "Records compile to classes.");
-            Assert.That(typeof(IMutableEntity<EntityDefinition>).IsAssignableFrom(t), Is.False, "StateEntity must not be assignable to IMutableEntity — writes go through the store.");
-            Assert.That(typeof(AggregateState).IsAssignableFrom(t), Is.True, "StateEntity must extend AggregateState so it participates in the aggregate-slice rebuild path.");
+            Assert.That(typeof(IReadOnlyEntity<EntityDefinition>).IsAssignableFrom(typeof(StateEntity<EntityDefinition>)), Is.True);
+            Assert.That(typeof(IMutableEntity<EntityDefinition>).IsAssignableFrom(typeof(StateEntity<EntityDefinition>)), Is.True);
+        }
+
+        [Test]
+        public void EntityStateFactory_AssignsToReadAndMutableHandles()
+        {
+            var store = new StoreBuilder().Build();
+            EntityBridgeContext.RegisterMutators(store);
+            var def = new EntityDefinition();
+            def.AddVariable(hp, new FloatVariableValue(0f));
+            StateEntity<EntityDefinition> entity = EntityStateFactory.Create(def, store, new InstanceId(1));
+            IReadOnlyEntity<EntityDefinition> readHandle = entity;
+            IMutableEntity<EntityDefinition> mutableHandle = entity;
+            Assert.That(readHandle.Id, Is.EqualTo(mutableHandle.Id));
+        }
+
+        [Test]
+        public void EntityMutation_RoutesThroughStore_AndProducesSameStateAsDirectExecute()
+        {
+            var (storeA, _, entityA, idA) = CreateEntity();
+            var (storeB, _, _, idB) = CreateEntity();
+            entityA.AddModifier(new EntityModifierEntry(hp, new FloatAddModifier(5f)));
+            storeB.Execute(idB, new AddModifierPayload(idB, hp, new FloatAddModifier(5f), ModifierId.New()));
+            EntityVariableState stateA = storeA.Get<EntityVariableState>(idA);
+            EntityVariableState stateB = storeB.Get<EntityVariableState>(idB);
+            Assert.That(stateA.ModifierStacks.ContainsKey(hp), Is.True);
+            Assert.That(stateB.ModifierStacks.ContainsKey(hp), Is.True);
+            Assert.That(stateA.ModifierStacks[hp].Count, Is.EqualTo(stateB.ModifierStacks[hp].Count));
+            Assert.That(entityA.GetVariable<float>(hp), Is.EqualTo(15f));
         }
 
         [Test]
         public void SetBaseValue_UpdatesBaseAndRebuildsEffective()
         {
-            var (store, _, _, id) = CreateEntity();
-
+            var (store, _, entity, id) = CreateEntity();
             store.Execute(id, new SetBaseValuePayload(id, hp, new FloatVariableValue(20f)));
-            Assert.That(store.Get<StateEntity<EntityDefinition>>(id).GetVariable<float>(hp), Is.EqualTo(20f));
-
+            Assert.That(entity.GetVariable<float>(hp), Is.EqualTo(20f));
             store.Execute(id, new AddModifierPayload(id, hp, new FloatAddModifier(5f), ModifierId.New()));
-            Assert.That(store.Get<StateEntity<EntityDefinition>>(id).GetVariable<float>(hp), Is.EqualTo(25f),
-                "Modifier should fold over the new base value, not the original definition default.");
+            Assert.That(entity.GetVariable<float>(hp), Is.EqualTo(25f));
         }
 
         [Test]
         public void AddEntityVariable_AddsRuntimeVariableThatWasNotInDefinition()
         {
-            var (store, _, _, id) = CreateEntity();
+            var (store, _, entity, id) = CreateEntity();
             var armor = new Variable("armor", "float");
-
             store.Execute(id, new AddEntityVariablePayload(id, armor, new FloatVariableValue(7f)));
-            Assert.That(store.Get<StateEntity<EntityDefinition>>(id).GetVariable<float>(armor), Is.EqualTo(7f));
-
+            Assert.That(entity.GetVariable<float>(armor), Is.EqualTo(7f));
             store.Execute(id, new AddEntityVariablePayload(id, armor, new FloatVariableValue(99f)));
-            Assert.That(store.Get<StateEntity<EntityDefinition>>(id).GetVariable<float>(armor), Is.EqualTo(7f),
-                "WithVariable must not overwrite an existing base value.");
+            Assert.That(entity.GetVariable<float>(armor), Is.EqualTo(7f));
         }
 
         [Test]
-        public void AggregateSubscription_FiresOnRebuild_WithFreshRecord()
+        public void EntitySubscription_FiresOnEffectiveChange()
         {
-            var (store, _, _, id) = CreateEntity();
+            var (store, _, entity, id) = CreateEntity();
             var captured = new List<float>();
-            store.Subscribe<StateEntity<EntityDefinition>>(id, (_, e, _) => captured.Add(e.GetVariable<float>(hp)));
-
+            entity.Subscribe(hp, value => captured.Add(((IVariableValue<float>)value).Get()));
             store.Execute(id, new AddModifierPayload(id, hp, new FloatAddModifier(5f), ModifierId.New()));
             store.Execute(id, new AddModifierPayload(id, hp, new FloatAddModifier(2f), ModifierId.New()));
-
-            Assert.That(captured.Count, Is.GreaterThanOrEqualTo(2), "Subscription should fire at least once per Execute that mutates the source slice.");
-            Assert.That(captured[captured.Count - 1], Is.EqualTo(17f), "Final callback should observe the fully-rebuilt aggregate (10 + 5 + 2).");
+            Assert.That(captured.Count, Is.GreaterThanOrEqualTo(3));
+            Assert.That(captured[captured.Count - 1], Is.EqualTo(17f));
         }
 
         [Test]
-        public void Snapshot_DoesNotIncludeAggregateState()
+        public void Snapshot_ContainsOnlyCanonicalEntityVariableState()
         {
-            var (store, _, _, id) = CreateEntity();
+            var (store, _, entity, id) = CreateEntity();
             store.Execute(id, new AddModifierPayload(id, hp, new FloatAddModifier(5f), ModifierId.New()));
-
-            var snapshot = store.SaveSnapshot();
-
-            Assert.That(snapshot.Contains(id, typeof(EntityVariableState)), Is.True, "Authored canonical state must be in the snapshot.");
-            Assert.That(snapshot.Contains(id, typeof(StateEntity<EntityDefinition>)), Is.False, "Aggregate state must not be in the snapshot — it is rebuilt on load.");
+            Snapshot snapshot = store.SaveSnapshot();
+            Assert.That(snapshot.Contains(id, typeof(EntityVariableState)), Is.True);
+            Assert.That(snapshot.Count, Is.EqualTo(1));
         }
 
         [Test]
-        public void TwoEntities_SnapshotRoundTrip_RebuildsBothAggregates()
+        public void TwoEntities_SnapshotRoundTrip_RestoresBothEntities()
         {
             var heroDef = new EntityDefinition();
             heroDef.AddVariable(hp, new FloatVariableValue(10f));
             var goblinDef = new EntityDefinition();
             goblinDef.AddVariable(hp, new FloatVariableValue(30f));
-
             var store = new StoreBuilder().Build();
             EntityBridgeContext.RegisterMutators(store);
-
             var heroId = new InstanceId(1);
             var goblinId = new InstanceId(2);
-            EntityStateFactory.Create(heroDef, store, heroId);
-            EntityStateFactory.Create(goblinDef, store, goblinId);
-
-            var snapshot = store.SaveSnapshot();
+            StateEntity<EntityDefinition> hero = EntityStateFactory.Create(heroDef, store, heroId);
+            StateEntity<EntityDefinition> goblin = EntityStateFactory.Create(goblinDef, store, goblinId);
+            Snapshot snapshot = store.SaveSnapshot();
             store.Execute(heroId, new AddModifierPayload(heroId, hp, new FloatAddModifier(5f), ModifierId.New()));
             store.Execute(goblinId, new AddModifierPayload(goblinId, hp, new FloatAddModifier(3f), ModifierId.New()));
-            Assert.That(store.Get<StateEntity<EntityDefinition>>(heroId).GetVariable<float>(hp), Is.EqualTo(15f));
-            Assert.That(store.Get<StateEntity<EntityDefinition>>(goblinId).GetVariable<float>(hp), Is.EqualTo(33f));
-
+            Assert.That(hero.GetVariable<float>(hp), Is.EqualTo(15f));
+            Assert.That(goblin.GetVariable<float>(hp), Is.EqualTo(33f));
             store.LoadSnapshot(snapshot);
-
-            Assert.That(store.Get<StateEntity<EntityDefinition>>(heroId).GetVariable<float>(hp), Is.EqualTo(10f));
-            Assert.That(store.Get<StateEntity<EntityDefinition>>(goblinId).GetVariable<float>(hp), Is.EqualTo(30f));
+            Assert.That(hero.GetVariable<float>(hp), Is.EqualTo(10f));
+            Assert.That(goblin.GetVariable<float>(hp), Is.EqualTo(30f));
         }
 
         [Test]
@@ -169,39 +165,184 @@ namespace Scaffold.Entities.States.Tests
         {
             var heroDef = new EntityDefinition();
             heroDef.AddVariable(hp, new FloatVariableValue(10f));
-
             var goblinDef = new EntityDefinition();
             goblinDef.AddVariable(hp, new FloatVariableValue(30f));
-
             var store = new StoreBuilder().Build();
             EntityBridgeContext.RegisterMutators(store);
-
             var heroId = new InstanceId(1);
             var goblinId = new InstanceId(2);
-
-            EntityStateFactory.Create(heroDef, store, heroId);
-            EntityStateFactory.Create(goblinDef, store, goblinId);
-
+            StateEntity<EntityDefinition> hero = EntityStateFactory.Create(heroDef, store, heroId);
+            StateEntity<EntityDefinition> goblin = EntityStateFactory.Create(goblinDef, store, goblinId);
             store.Execute(heroId, new AddModifierPayload(heroId, hp, new FloatAddModifier(5f), ModifierId.New()));
-
-            Assert.That(store.Get<StateEntity<EntityDefinition>>(heroId).GetVariable<float>(hp), Is.EqualTo(15f),
-                "Hero should be base 10 + modifier 5 applied exactly once.");
-            Assert.That(store.Get<StateEntity<EntityDefinition>>(goblinId).GetVariable<float>(hp), Is.EqualTo(30f),
-                "Goblin should be untouched by a modifier targeted at hero.");
+            Assert.That(hero.GetVariable<float>(hp), Is.EqualTo(15f));
+            Assert.That(goblin.GetVariable<float>(hp), Is.EqualTo(30f));
         }
 
         [Test]
-        public void Aggregate_RebuildsAfterLoadSnapshot()
+        public void EntityReads_RevertAfterLoadSnapshot()
         {
-            var (store, _, _, id) = CreateEntity();
-            var snapshot = store.SaveSnapshot();
-
+            var (store, _, entity, id) = CreateEntity();
+            Snapshot snapshot = store.SaveSnapshot();
             store.Execute(id, new AddModifierPayload(id, hp, new FloatAddModifier(5f), ModifierId.New()));
-            Assert.That(store.Get<StateEntity<EntityDefinition>>(id).GetVariable<float>(hp), Is.EqualTo(15f));
-
+            Assert.That(entity.GetVariable<float>(hp), Is.EqualTo(15f));
             store.LoadSnapshot(snapshot);
-            Assert.That(store.Get<StateEntity<EntityDefinition>>(id).GetVariable<float>(hp), Is.EqualTo(10f),
-                "After LoadSnapshot the source slice is restored and the aggregate must rebuild to the original effective value.");
+            Assert.That(entity.GetVariable<float>(hp), Is.EqualTo(10f));
+        }
+
+        [Test]
+        public void Snapshots_BackAndForth_RestoreExpectedValues()
+        {
+            var (store, _, entity, id) = CreateEntity();
+            Snapshot snapA = store.SaveSnapshot();
+            store.Execute(id, new AddModifierPayload(id, hp, new FloatAddModifier(5f), ModifierId.New()));
+            Snapshot snapB = store.SaveSnapshot();
+            store.Execute(id, new AddModifierPayload(id, hp, new FloatMultiplyModifier(2f), ModifierId.New()));
+            Snapshot snapC = store.SaveSnapshot();
+            Assert.That(entity.GetVariable<float>(hp), Is.EqualTo(30f));
+            store.LoadSnapshot(snapA);
+            Assert.That(entity.GetVariable<float>(hp), Is.EqualTo(10f));
+            store.LoadSnapshot(snapC);
+            Assert.That(entity.GetVariable<float>(hp), Is.EqualTo(30f));
+            store.LoadSnapshot(snapB);
+            Assert.That(entity.GetVariable<float>(hp), Is.EqualTo(15f));
+            store.LoadSnapshot(snapA);
+            Assert.That(entity.GetVariable<float>(hp), Is.EqualTo(10f));
+            store.Execute(id, new AddModifierPayload(id, hp, new FloatAddModifier(3f), ModifierId.New()));
+            Assert.That(entity.GetVariable<float>(hp), Is.EqualTo(13f));
+        }
+
+        [Test]
+        public void ModifierId_SurvivesSnapshotLoadCycle()
+        {
+            var (store, _, entity, id) = CreateEntity();
+            ModifierId modId = ModifierId.New();
+            store.Execute(id, new AddModifierPayload(id, hp, new FloatAddModifier(5f), modId));
+            Snapshot snapshot = store.SaveSnapshot();
+            store.Execute(id, new AddModifierPayload(id, hp, new FloatAddModifier(2f), ModifierId.New()));
+            store.LoadSnapshot(snapshot);
+            store.Execute(id, new RemoveModifierPayload(id, hp, modId));
+            Assert.That(entity.GetVariable<float>(hp), Is.EqualTo(10f));
+        }
+
+        [Test]
+        public void LoadingSameSnapshotTwice_ProducesSameResult()
+        {
+            var (store, _, entity, id) = CreateEntity();
+            Snapshot snapshotAtBase = store.SaveSnapshot();
+            store.Execute(id, new AddModifierPayload(id, hp, new FloatAddModifier(5f), ModifierId.New()));
+            store.LoadSnapshot(snapshotAtBase);
+            Assert.That(entity.GetVariable<float>(hp), Is.EqualTo(10f));
+            store.Execute(id, new AddModifierPayload(id, hp, new FloatAddModifier(7f), ModifierId.New()));
+            _ = store.SaveSnapshot();
+            store.Execute(id, new AddModifierPayload(id, hp, new FloatAddModifier(99f), ModifierId.New()));
+            store.LoadSnapshot(snapshotAtBase);
+            Assert.That(entity.GetVariable<float>(hp), Is.EqualTo(10f));
+        }
+
+        [Test]
+        public void TwoEntities_DistinctMidSnapshotStates_RestoreIndependently()
+        {
+            var heroDef = new EntityDefinition();
+            heroDef.AddVariable(hp, new FloatVariableValue(10f));
+            var goblinDef = new EntityDefinition();
+            goblinDef.AddVariable(hp, new FloatVariableValue(30f));
+            var store = new StoreBuilder().Build();
+            EntityBridgeContext.RegisterMutators(store);
+            var heroId = new InstanceId(1);
+            var goblinId = new InstanceId(2);
+            StateEntity<EntityDefinition> hero = EntityStateFactory.Create(heroDef, store, heroId);
+            StateEntity<EntityDefinition> goblin = EntityStateFactory.Create(goblinDef, store, goblinId);
+            store.Execute(heroId, new AddModifierPayload(heroId, hp, new FloatAddModifier(5f), ModifierId.New()));
+            store.Execute(goblinId, new AddModifierPayload(goblinId, hp, new FloatAddModifier(3f), ModifierId.New()));
+            Snapshot snapshot = store.SaveSnapshot();
+            store.Execute(heroId, new AddModifierPayload(heroId, hp, new FloatMultiplyModifier(2f), ModifierId.New()));
+            store.Execute(goblinId, new AddModifierPayload(goblinId, hp, new FloatAddModifier(10f), ModifierId.New()));
+            store.LoadSnapshot(snapshot);
+            Assert.That(hero.GetVariable<float>(hp), Is.EqualTo(15f));
+            Assert.That(goblin.GetVariable<float>(hp), Is.EqualTo(33f));
+        }
+
+        [Test]
+        public void LoadSnapshot_PrunesEntitiesCreatedAfterSnapshot()
+        {
+            var (store, _, heroEntity, heroId) = CreateEntity();
+            Snapshot snapshot = store.SaveSnapshot();
+            var goblinDef = new EntityDefinition();
+            goblinDef.AddVariable(hp, new FloatVariableValue(30f));
+            var goblinId = new InstanceId(2);
+            StateEntity<EntityDefinition> goblinEntity = EntityStateFactory.Create(goblinDef, store, goblinId);
+            Assert.That(goblinEntity.GetVariable<float>(hp), Is.EqualTo(30f));
+            store.LoadSnapshot(snapshot);
+            Assert.That(heroEntity.GetVariable<float>(hp), Is.EqualTo(10f));
+            Assert.Throws<KeyNotFoundException>(() => _ = store.Get<EntityVariableState>(goblinId));
+            Assert.Throws<KeyNotFoundException>(() => _ = goblinEntity.GetVariable<float>(hp));
+        }
+
+        [Test]
+        public void EntitySubscription_FiresAfterLoadSnapshot()
+        {
+            var (store, _, entity, id) = CreateEntity();
+            store.Execute(id, new AddModifierPayload(id, hp, new FloatAddModifier(5f), ModifierId.New()));
+            Snapshot snapshot = store.SaveSnapshot();
+            var captured = new List<float>();
+            entity.Subscribe(hp, value => captured.Add(((IVariableValue<float>)value).Get()));
+            store.Execute(id, new AddModifierPayload(id, hp, new FloatAddModifier(2f), ModifierId.New()));
+            int captureCountAfterMutation = captured.Count;
+            store.LoadSnapshot(snapshot);
+            Assert.That(captured.Count, Is.GreaterThan(captureCountAfterMutation));
+            Assert.That(captured[captured.Count - 1], Is.EqualTo(15f));
+        }
+
+        [Test]
+        public void MixedPayloads_SurviveSnapshotRoundTrip()
+        {
+            var (store, _, entity, id) = CreateEntity();
+            var armor = new Variable("armor", "float");
+            store.Execute(id, new SetBaseValuePayload(id, hp, new FloatVariableValue(20f)));
+            ModifierId hpModId = ModifierId.New();
+            store.Execute(id, new AddModifierPayload(id, hp, new FloatAddModifier(5f), hpModId));
+            store.Execute(id, new AddEntityVariablePayload(id, armor, new FloatVariableValue(7f)));
+            Snapshot snapshot = store.SaveSnapshot();
+            store.Execute(id, new SetBaseValuePayload(id, hp, new FloatVariableValue(99f)));
+            store.Execute(id, new RemoveModifierPayload(id, hp, hpModId));
+            store.Execute(id, new SetBaseValuePayload(id, armor, new FloatVariableValue(99f)));
+            float preLoadArmor = entity.GetVariable<float>(armor);
+            Assert.That(preLoadArmor, Is.EqualTo(99f));
+            store.LoadSnapshot(snapshot);
+            Assert.That(entity.GetVariable<float>(hp), Is.EqualTo(25f));
+            Assert.That(entity.GetVariable<float>(armor), Is.EqualTo(7f));
+        }
+
+        [Test]
+        public void StaleEntityReference_AfterPruneCanonical_ThrowsOnRead()
+        {
+            var (store, _, _, _) = CreateEntity();
+            Snapshot snapshot = store.SaveSnapshot();
+            var goblinDef = new EntityDefinition();
+            goblinDef.AddVariable(hp, new FloatVariableValue(30f));
+            var goblinId = new InstanceId(2);
+            StateEntity<EntityDefinition> goblinEntity = EntityStateFactory.Create(goblinDef, store, goblinId);
+            store.Execute(goblinId, new AddModifierPayload(goblinId, hp, new FloatAddModifier(5f), ModifierId.New()));
+            Assert.That(goblinEntity.GetVariable<float>(hp), Is.EqualTo(35f));
+            store.LoadSnapshot(snapshot);
+            Assert.Throws<KeyNotFoundException>(() => _ = store.Get<EntityVariableState>(goblinId));
+            Assert.Throws<KeyNotFoundException>(() => _ = goblinEntity.GetVariable<float>(hp));
+        }
+
+        [Test]
+        public void ExecuteOnPrunedEntity_Throws()
+        {
+            var (store, _, _, _) = CreateEntity();
+            Snapshot snapshot = store.SaveSnapshot();
+            var goblinDef = new EntityDefinition();
+            goblinDef.AddVariable(hp, new FloatVariableValue(30f));
+            var goblinId = new InstanceId(2);
+            EntityStateFactory.Create(goblinDef, store, goblinId);
+            store.LoadSnapshot(snapshot);
+            Assert.Throws<KeyNotFoundException>(
+                () => store.Execute(
+                    goblinId,
+                    new AddModifierPayload(goblinId, hp, new FloatAddModifier(5f), ModifierId.New())));
         }
 
         [Test]
@@ -209,31 +350,70 @@ namespace Scaffold.Entities.States.Tests
         {
             var heroDef = new EntityDefinition();
             heroDef.AddVariable(hp, new FloatVariableValue(10f));
-
             var goblinDef = new EntityDefinition();
             goblinDef.AddVariable(hp, new FloatVariableValue(30f));
-
             var store = new StoreBuilder().Build();
             EntityBridgeContext.RegisterMutators(store);
-
-            var hero = EntityStateFactory.Create(heroDef, store, new InstanceId(1));
-            var goblin = EntityStateFactory.Create(goblinDef, store, new InstanceId(2));
-
+            StateEntity<EntityDefinition> hero = EntityStateFactory.Create(heroDef, store, new InstanceId(1));
+            StateEntity<EntityDefinition> goblin = EntityStateFactory.Create(goblinDef, store, new InstanceId(2));
             Assert.That(hero.GetVariable<float>(hp), Is.EqualTo(10f));
             Assert.That(goblin.GetVariable<float>(hp), Is.EqualTo(30f));
+        }
+
+        [Test]
+        public void RemoveVariable_ClearsBaseAndModifiers_AndFallsBackToDefinitionDefault()
+        {
+            var (store, _, entity, id) = CreateEntity();
+            var armor = new Variable("armor", "float");
+            store.Execute(id, new AddEntityVariablePayload(id, armor, new FloatVariableValue(7f)));
+            store.Execute(id, new AddModifierPayload(id, armor, new FloatAddModifier(3f), ModifierId.New()));
+            Assert.That(entity.GetVariable<float>(armor), Is.EqualTo(10f));
+            bool removed = entity.RemoveVariable(armor);
+            Assert.That(removed, Is.True);
+            Assert.That(entity.TryGetVariable<float>(armor, out _), Is.False);
+            Assert.That(entity.GetVariable<float>(hp), Is.EqualTo(10f));
+        }
+
+        [Test]
+        public void RemoveVariable_OnDefinitionVariable_ClearsRuntimeOverridesButLeavesDefinitionDefault()
+        {
+            var (store, _, entity, id) = CreateEntity();
+            store.Execute(id, new SetBaseValuePayload(id, hp, new FloatVariableValue(20f)));
+            store.Execute(id, new AddModifierPayload(id, hp, new FloatAddModifier(5f), ModifierId.New()));
+            Assert.That(entity.GetVariable<float>(hp), Is.EqualTo(25f));
+            bool removed = entity.RemoveVariable(hp);
+            Assert.That(removed, Is.True);
+            Assert.That(entity.GetVariable<float>(hp), Is.EqualTo(10f));
+        }
+
+        [Test]
+        public void RemoveVariable_OnUnknownVariable_ReturnsFalse()
+        {
+            var (_, _, entity, _) = CreateEntity();
+            var unknown = new Variable("unknown", "float");
+            Assert.That(entity.RemoveVariable(unknown), Is.False);
+        }
+
+        [Test]
+        public void SnapshotRoundTrip_EntityMutation_RevertsEffectiveValue()
+        {
+            var (store, _, entity, id) = CreateEntity();
+            Snapshot snapshot = store.SaveSnapshot();
+            entity.AddModifier(new EntityModifierEntry(hp, new FloatAddModifier(5f)));
+            Assert.That(entity.GetVariable<float>(hp), Is.EqualTo(15f));
+            store.LoadSnapshot(snapshot);
+            Assert.That(entity.GetVariable<float>(hp), Is.EqualTo(10f));
         }
 
         private static (Store store, EntityDefinition def, StateEntity<EntityDefinition> entity, InstanceId id) CreateEntity()
         {
             var def = new EntityDefinition();
             def.AddVariable(hp, new FloatVariableValue(10f));
-
             var builder = new StoreBuilder();
-            var store = builder.Build();
+            Store store = builder.Build();
             EntityBridgeContext.RegisterMutators(store);
-
             var id = new InstanceId(1);
-            var entity = EntityStateFactory.Create(def, store, id);
+            StateEntity<EntityDefinition> entity = EntityStateFactory.Create(def, store, id);
             return (store, def, entity, id);
         }
     }

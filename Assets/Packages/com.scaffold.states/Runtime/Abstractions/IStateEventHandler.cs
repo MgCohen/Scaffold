@@ -14,6 +14,8 @@ namespace Scaffold.States
 
         void Subscribe<TState>(IReference reference, Action<IReference, TState, StateChangeEvent> action) where TState : BaseState;
 
+        void Unsubscribe<TState>(IReference reference, Action<IReference, TState, StateChangeEvent> action) where TState : BaseState;
+
         void SubscribeAllReferences<TState>(Action<IReference, TState, StateChangeEvent> action) where TState : BaseState;
 
         void SubscribeAny(Action<IReference, BaseState, StateChangeEvent> action);

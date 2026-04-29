@@ -58,6 +58,11 @@ namespace Scaffold.States
             eventHandler.Subscribe(reference, action);
         }
 
+        public void Unsubscribe<TState>(IReference reference, Action<IReference, TState, StateChangeEvent> action) where TState : BaseState
+        {
+            eventHandler.Unsubscribe(reference, action);
+        }
+
         public void SubscribeAllReferences<TState>(Action<IReference, TState, StateChangeEvent> action) where TState : BaseState
         {
             eventHandler.SubscribeAllReferences(action);

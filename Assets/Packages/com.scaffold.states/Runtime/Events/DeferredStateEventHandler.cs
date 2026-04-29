@@ -47,6 +47,11 @@ namespace Scaffold.States
             inner.Subscribe(reference, action);
         }
 
+        public void Unsubscribe<TState>(IReference reference, Action<IReference, TState, StateChangeEvent> action) where TState : BaseState
+        {
+            inner.Unsubscribe(reference, action);
+        }
+
         public void SubscribeAllReferences<TState>(Action<IReference, TState, StateChangeEvent> action) where TState : BaseState
         {
             inner.SubscribeAllReferences(action);
