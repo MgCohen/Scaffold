@@ -1,29 +1,32 @@
 ---
+
 name: VariableValue type identity refactor (stable-ID + cleanup)
 overview: Replace VariableValueType enum with a stable string ID per VariableValue subclass (declared via attribute), drive authoring UI via TypeCache in the Editor, and bundle the dead Min/Max/Clamped removal. No migration code — existing assets break and are re-authored. Combine-on-modifier is explicitly deferred to a follow-up.
 todos:
-  - id: stable-id-attribute
-    content: Add [VariableValueId("...")] attribute, decorate the four concrete VariableValue subclasses, build a startup registry mapping ID <-> Type with duplicate detection
-    status: completed
-  - id: variablevalue-shape
-    content: Drop VariableValueType enum + VariableValue.Type override; remove Min/Max/Clamped from FloatVariableValue and IntVariableValue (Combine retained, deferred to follow-up plan)
-    status: completed
-  - id: serialize-id-on-keys
-    content: Add private serialized payloadTypeId string on VariableSO; keep Variable as a record; equality on Variable uses (Key, payloadTypeId) strings
-    status: completed
-  - id: factory-and-rebase
-    content: Refactor VariableValueFactory.CreateDefault to take Type or payload ID; validate via VariableValueRegistry membership (not IsAssignableFrom); update VariableEntry/EntityModifierEntry rebase to compare GetType() against expected Type from registry; loud failure on unknown ID
-    status: completed
-  - id: editor-typecache
-    content: New CustomEditor for VariableSO with TypeCache.GetTypesDerivedFrom<VariableValue>() filtered to !IsAbstract && !IsGenericTypeDefinition; popup writes ID string; refactor VariableKeySoField to assign ID string and rebase managed reference via Type from registry
-    status: completed
-  - id: il2cpp-preserve
-    content: Add link.xml + [Preserve] on VariableValue/VariableValueIdAttribute so the registry's reflection scan survives IL2CPP managed-code stripping at High; smoke-test with an IL2CPP build
-    status: completed
-  - id: tests-samples-docs
-    content: Update runtime/editor tests to use SetPayloadType(Type) helper; re-author sample .asset files to new shape; update package README; run validate-changes.ps1 + Unity EditMode tests
-    status: completed
+
+- id: stable-id-attribute
+content: Add [VariableValueId("...")] attribute, decorate the four concrete VariableValue subclasses, build a startup registry mapping ID <-> Type with duplicate detection
+status: completed
+- id: variablevalue-shape
+content: Drop VariableValueType enum + VariableValue.Type override; remove Min/Max/Clamped from FloatVariableValue and IntVariableValue (Combine retained, deferred to follow-up plan)
+status: completed
+- id: serialize-id-on-keys
+content: Add private serialized payloadTypeId string on VariableSO; keep Variable as a record; equality on Variable uses (Key, payloadTypeId) strings
+status: completed
+- id: factory-and-rebase
+content: Refactor VariableValueFactory.CreateDefault to take Type or payload ID; validate via VariableValueRegistry membership (not IsAssignableFrom); update VariableEntry/EntityModifierEntry rebase to compare GetType() against expected Type from registry; loud failure on unknown ID
+status: completed
+- id: editor-typecache
+content: New CustomEditor for VariableSO with TypeCache.GetTypesDerivedFrom() filtered to !IsAbstract && !IsGenericTypeDefinition; popup writes ID string; refactor VariableKeySoField to assign ID string and rebase managed reference via Type from registry
+status: completed
+- id: il2cpp-preserve
+content: Add link.xml + [Preserve] on VariableValue/VariableValueIdAttribute so the registry's reflection scan survives IL2CPP managed-code stripping at High; smoke-test with an IL2CPP build
+status: completed
+- id: tests-samples-docs
+content: Update runtime/editor tests to use SetPayloadType(Type) helper; re-author sample .asset files to new shape; update package README; run validate-changes.ps1 + Unity EditMode tests
+status: completed
 isProject: false
+
 ---
 
 # Refactor: enum → stable-ID `VariableValue` type identity + value-type cleanup
@@ -85,6 +88,8 @@ flowchart LR
   Editor --> Registry
 ```
 
+
+
 Concrete `VariableValue` instances match via `GetType()`; rebase compares against `Registry.TryResolve(payloadTypeId)`.
 
 ## 1. `VariableValueRegistry` (new)
@@ -112,13 +117,13 @@ internal static class VariableValueRegistry
 
 The registry relies on `AppDomain.GetAssemblies()` + `Attribute.GetCustomAttributes`. Unity's managed code stripping cannot statically detect reflection-only references, so concrete `VariableValue` subclasses can be stripped at Medium/High stripping levels in IL2CPP players. Two-part mitigation, both required:
 
-1. **`[Preserve]` on the base class and the attribute** — `[assembly: AlwaysLinkAssembly]` on the package's runtime asmdef, plus `[Preserve]` (`UnityEngine.Scripting.PreserveAttribute`) on `VariableValue` and `VariableValueIdAttribute`.
-2. **`link.xml`** under `Assets/Packages/com.scaffold.entities/Runtime/` preserving the runtime assembly fully. Pattern:
-   ```xml
+1. `**[Preserve]` on the base class and the attribute** — `[assembly: AlwaysLinkAssembly]` on the package's runtime asmdef, plus `[Preserve]` (`UnityEngine.Scripting.PreserveAttribute`) on `VariableValue` and `VariableValueIdAttribute`.
+2. `**link.xml`** under `Assets/Packages/com.scaffold.entities/Runtime/` preserving the runtime assembly fully. Pattern:
+  ```xml
    <linker>
      <assembly fullname="Scaffold.Entities" preserve="all"/>
    </linker>
-   ```
+  ```
    This is the simplest robust answer — the package is small, full-preserve is fine. Optimizing later (per-type `[Preserve]` codegen) can replace this if/when stripping savings matter.
 
 Validation: build an IL2CPP player with stripping level **High**, run a smoke test that resolves each registered ID via the registry. Add to the package's manual QA checklist.

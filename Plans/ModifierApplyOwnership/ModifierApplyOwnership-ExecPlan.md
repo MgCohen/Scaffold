@@ -262,11 +262,12 @@ public sealed class EntityModifierEntry
 }
 ```
 
-`RebaseSerializedModifierPayloadIfMismatch` resolves the variable's expected scalar `T` from its `IVariableValue<T>` implementation (via `VariableValueRegistry.TryResolve` on the key's `PayloadTypeId` → wrapper type → `IVariableValue<T>` introspection), reads the modifier's scalar `T` from its closed `VariableModifier<T>` base via `ModifierTypeIndex.TryGetScalarType`, and compares:
+`RebaseSerializedModifierPayloadIfMismatch` resolves the variable's expected wrapper `Type` via the existing `VariablePayloadTypeHelpers.TryResolvePayload` (matching the layering used by `VariableEntry` and the current `EntityModifierEntry`), then introspects `IVariableValue<T>` on the wrapper to recover the scalar `T`. It reads the modifier's scalar `T` from its closed `VariableModifier<T>` base via `ModifierTypeIndex.TryGetScalarType`, and compares:
 
 ```csharp
-if (!VariableValueRegistry.TryResolve(key.PayloadTypeId, out Type wrapperType)) return; // unknown payload
-Type expectedScalarType = ExtractScalarType(wrapperType); // walks IVariableValue<T> implementation
+if (!VariablePayloadTypeHelpers.TryResolvePayload(key, nameof(EntityModifierEntry), out Type wrapperType))
+    return; // unknown payload — helper already logged
+Type expectedScalarType = VariablePayloadTypeHelpers.ExtractScalarType(wrapperType);
 
 if (modifier == null
     || !ModifierTypeIndex.TryGetScalarType(modifier.GetType(), out Type modScalarType)
@@ -278,7 +279,7 @@ if (modifier == null
 }
 ```
 
-`ExtractScalarType` is a small reflection helper that walks a `VariableValue` type's interface list for `IVariableValue<>` and returns the closed `T`. Cached.
+`ExtractScalarType` is a small reflection helper added next to `TryResolvePayload` in `VariablePayloadTypeHelpers` — walks a `VariableValue` type's interface list for `IVariableValue<>` and returns the closed `T`. Cached.
 
 ## 6. `VariableModifierHandler` — ordered scalar fold
 
@@ -333,6 +334,8 @@ private static VariableValue Fold<T>(T value, List<ActiveModifier> list, Variabl
 
 The `(VariableModifier<T>)` cast is the one runtime check at fold time. Modifier-payload pairing is enforced at insertion (see §5 rebase) so the cast doesn't fail in practice; if it does, fail loud.
 
+`DispatchFold`'s explicit branches cover the four scalar types shipped today (`float`/`int`/`bool`/`string`). Adding a new scalar type means adding a branch. A future generalization (reflection on `IVariableValue<>` to pick the closed `T`, dispatched via a cached delegate per scalar) is straightforward but out of scope here — keep the branches obvious until a fifth scalar lands.
+
 `EntityVariableComputer` is **deleted**.
 
 ## 7. Effective-value storage and notifier currency — settle during implementation
@@ -365,7 +368,7 @@ Document the call once made — README "Folder layout" + "Public API" sections n
 
 Update `Editor/EntityModifierEntryDrawer.cs`:
 
-- Resolve the variable's expected scalar `Type` from `entry.Key.PayloadTypeId` via `VariableValueRegistry.TryResolve` → wrapper type → `IVariableValue<T>` introspection (helper shared with §5).
+- Resolve the variable's expected scalar `Type` via `VariablePayloadTypeHelpers.TryResolvePayload` → wrapper type → `VariablePayloadTypeHelpers.ExtractScalarType` (the helper added in §5).
 - Picker candidates: `ModifierTypeIndex.ModifiersFor(scalarType)`, optionally cross-referenced with `TypeCache.GetTypesDerivedFrom<VariableModifier>()` for editor liveness.
 - Selection writes a default-constructed instance into the `[SerializeReference] modifier` field. The drawer expands the modifier's serialized fields inline below the picker (`amount`, `factor`, `Order`, etc.) — same pattern as the existing payload drawer.
 - The `Order` field is surfaced as a small int field next to the picker.
@@ -415,7 +418,7 @@ Update `Assets/Packages/com.scaffold.entities/README.md`:
 
 - `validate-changes.ps1` per `AGENTS.md`.
 - Unity EditMode tests: `com.scaffold.entities` package — full pass.
-- Manual: re-author the sample modifier asset(s) using the new picker; confirm YAML now contains `modifier: !u!114 ...` with the new field name and a `[SerializeReference]` to a concrete modifier class; confirm `valueType` and `modifierValue` are absent.
+- Manual: re-author `Assets/Packages/com.scaffold.entities/Samples/Assets/Data/Authoring/SampleHealthBonusModifier.asset` (and any other sample modifier assets) using the new picker; confirm YAML now contains `modifier:` as a `[SerializeReference]` to a concrete modifier class; confirm `valueType` and `modifierValue` are absent.
 - IL2CPP-High smoke build: dispatch fold succeeds for all six concrete modifier types on a representative entity.
 
 ## Risks and decisions

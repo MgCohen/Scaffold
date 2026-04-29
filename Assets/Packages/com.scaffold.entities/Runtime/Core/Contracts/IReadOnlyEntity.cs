@@ -6,13 +6,9 @@ namespace Scaffold.Entities
     {
         InstanceId Id { get; }
 
-        T GetValue<T>(Variable key);
+        T GetVariable<T>(Variable key);
 
-        bool TryGetValue<T>(Variable key, out T value);
-
-        TVar GetVariable<TVar>(Variable key) where TVar : VariableValue;
-
-        bool TryGetVariable<TVar>(Variable key, out TVar value) where TVar : VariableValue;
+        bool TryGetVariable<T>(Variable key, out T value);
 
         IDisposable Subscribe(Variable key, Action<VariableValue> onChange);
 

@@ -1,13 +1,21 @@
 using System;
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace Scaffold.Entities
 {
     [Serializable]
     [VariableValueId("string")]
-    public sealed class StringVariableValue : VariableValue, IVariableValue<string>
+    public sealed class StringVariableValue : VariableValue<string>
     {
+        public StringVariableValue()
+        {
+        }
+
+        public StringVariableValue(string initial)
+        {
+            value = initial ?? string.Empty;
+        }
+
         public string Value
         {
             get => value;
@@ -17,23 +25,14 @@ namespace Scaffold.Entities
         [SerializeField]
         private string value = string.Empty;
 
-        public string Get()
+        public override string Get()
         {
-            return Value;
+            return value;
         }
 
-        public override VariableValue Combine(IReadOnlyList<VariableValue> contributions)
+        protected override VariableValue<string> WithValue(string next)
         {
-            string result = Value;
-            for (int i = 0; i < contributions.Count; i++)
-            {
-                if (contributions[i] is StringVariableValue s)
-                {
-                    result += s.Value;
-                }
-            }
-
-            return new StringVariableValue { Value = result };
+            return new StringVariableValue(next);
         }
     }
 }

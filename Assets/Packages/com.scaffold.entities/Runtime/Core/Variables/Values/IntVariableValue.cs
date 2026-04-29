@@ -1,13 +1,21 @@
 using System;
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace Scaffold.Entities
 {
     [Serializable]
     [VariableValueId("int")]
-    public sealed class IntVariableValue : VariableValue, IVariableValue<int>
+    public sealed class IntVariableValue : VariableValue<int>
     {
+        public IntVariableValue()
+        {
+        }
+
+        public IntVariableValue(int initial)
+        {
+            value = initial;
+        }
+
         public int Value
         {
             get => value;
@@ -17,23 +25,14 @@ namespace Scaffold.Entities
         [SerializeField]
         private int value;
 
-        public int Get()
+        public override int Get()
         {
-            return Value;
+            return value;
         }
 
-        public override VariableValue Combine(IReadOnlyList<VariableValue> contributions)
+        protected override VariableValue<int> WithValue(int next)
         {
-            int sum = Value;
-            for (int i = 0; i < contributions.Count; i++)
-            {
-                if (contributions[i] is IntVariableValue n)
-                {
-                    sum += n.Value;
-                }
-            }
-
-            return new IntVariableValue { Value = sum };
+            return new IntVariableValue(next);
         }
     }
 }

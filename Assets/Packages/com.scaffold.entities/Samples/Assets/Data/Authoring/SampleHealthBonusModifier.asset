@@ -17,13 +17,14 @@ MonoBehaviour:
       key: Health
       payloadTypeId: float
     variableLegacy: {fileID: 0}
-    modifierValue:
+    modifier:
       rid: 4306785480214053163
     variableAuthoring: {fileID: 11400000, guid: a103d4567890abcd1234567890abcdef, type: 2}
   references:
     version: 2
     RefIds:
     - rid: 4306785480214053163
-      type: {class: FloatVariableValue, ns: Scaffold.Entities, asm: Scaffold.Entities}
+      type: {class: FloatAddModifier, ns: Scaffold.Entities, asm: Scaffold.Entities}
       data:
-        value: 0
+        order: 0
+        amount: 5

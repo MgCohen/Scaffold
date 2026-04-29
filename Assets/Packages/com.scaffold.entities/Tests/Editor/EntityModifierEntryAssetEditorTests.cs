@@ -24,17 +24,17 @@ namespace Scaffold.Entities.Editor.Tests
                 Assert.IsNotNull(entry);
                 entry.FindPropertyRelative("variableLegacy").objectReferenceValue = healthVariable;
 
-                SerializedProperty modifierValue = entry.FindPropertyRelative("modifierValue");
-                Assert.IsNotNull(modifierValue);
-                modifierValue.managedReferenceValue = new FloatVariableValue { Value = 25f };
+                SerializedProperty modifier = entry.FindPropertyRelative("modifier");
+                Assert.IsNotNull(modifier);
+                modifier.managedReferenceValue = new FloatAddModifier(25f);
                 soAsset.ApplyModifiedPropertiesWithoutUndo();
             }
 
             var runtime = (EntityModifierEntry)asset;
             Assert.IsNotNull(runtime);
             Assert.AreEqual((Variable)healthVariable, runtime.Key);
-            Assert.IsInstanceOf<FloatVariableValue>(runtime.ModifierValue);
-            Assert.AreEqual(25f, ((FloatVariableValue)runtime.ModifierValue).Value, 0.0001f);
+            Assert.IsInstanceOf<FloatAddModifier>(runtime.Modifier);
+            Assert.AreEqual(25f, ((FloatAddModifier)runtime.Modifier).Apply(0f), 0.0001f);
         }
     }
 }

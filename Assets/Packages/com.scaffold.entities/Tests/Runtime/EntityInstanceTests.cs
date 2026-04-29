@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using NUnit.Framework;
 using Scaffold.Entities;
 using UnityEngine;
@@ -23,41 +24,38 @@ namespace Scaffold.Entities.Tests
             EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 100f }));
             EntityInstance<EntityDefinition> state = creator.Create(def);
 
-            Assert.That(state.TryGetVariable(hp, out VariableValue v), Is.True);
-            Assert.That(v, Is.TypeOf<FloatVariableValue>());
-            Assert.That(((FloatVariableValue)v).Value, Is.EqualTo(100f));
-            Assert.That(state.GetValue<float>(hp), Is.EqualTo(100f));
+            Assert.That(state.GetVariable<float>(hp), Is.EqualTo(100f));
         }
 
         [Test]
-        public void TryGetValue_WhenPresent_ReturnsTypedValue()
+        public void TryGetVariable_WhenPresent_ReturnsTypedValue()
         {
             VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
             EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 42f }));
             EntityInstance<EntityDefinition> state = creator.Create(def);
 
-            Assert.That(state.TryGetValue(hp, out float value), Is.True);
+            Assert.That(state.TryGetVariable(hp, out float value), Is.True);
             Assert.That(value, Is.EqualTo(42f));
         }
 
         [Test]
-        public void TryGetValue_WhenMissing_ReturnsFalse()
+        public void TryGetVariable_WhenMissing_ReturnsFalse()
         {
             VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
             EntityDefinition def = CreateDefinition();
             EntityInstance<EntityDefinition> state = creator.Create(def);
 
-            Assert.That(state.TryGetValue(hp, out float _), Is.False);
+            Assert.That(state.TryGetVariable(hp, out float _), Is.False);
         }
 
         [Test]
-        public void TryGetValue_WhenTypeMismatch_ReturnsFalse()
+        public void TryGetVariable_WhenTypeMismatch_ReturnsFalse()
         {
             VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
             EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 10f }));
             EntityInstance<EntityDefinition> state = creator.Create(def);
 
-            Assert.That(state.TryGetValue(hp, out int _), Is.False);
+            Assert.That(state.TryGetVariable(hp, out int _), Is.False);
         }
 
         [Test]
@@ -66,11 +64,10 @@ namespace Scaffold.Entities.Tests
             VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
             EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 10f }));
             EntityInstance<EntityDefinition> state = creator.Create(def);
-            var delta = new FloatVariableValue { Value = 5f };
-            var mod = new EntityModifierEntry(hp, delta);
+            var mod = new EntityModifierEntry(hp, new FloatAddModifier(5f));
             state.AddModifier(mod);
 
-            Assert.That(state.GetValue<float>(hp), Is.EqualTo(15f));
+            Assert.That(state.GetVariable<float>(hp), Is.EqualTo(15f));
         }
 
         [Test]
@@ -79,8 +76,7 @@ namespace Scaffold.Entities.Tests
             VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
             EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 10f }));
             EntityInstance<EntityDefinition> state = creator.Create(def);
-            var delta = new FloatVariableValue { Value = 5f };
-            state.AddModifier(new EntityModifierEntry(hp, delta));
+            state.AddModifier(new EntityModifierEntry(hp, new FloatAddModifier(5f)));
 
             Assert.That(def.TryGetDefaultValue((Variable)hp, out VariableValue baseV), Is.True);
             Assert.That(((FloatVariableValue)baseV).Value, Is.EqualTo(10f));
@@ -102,14 +98,13 @@ namespace Scaffold.Entities.Tests
             VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
             EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 10f }));
             EntityInstance<EntityDefinition> state = creator.Create(def);
-            var delta = new FloatVariableValue { Value = 5f };
-            var mod = new EntityModifierEntry(hp, delta);
+            var mod = new EntityModifierEntry(hp, new FloatAddModifier(5f));
             ModifierId modId = state.AddModifier(mod);
 
-            Assert.That(state.GetValue<float>(hp), Is.EqualTo(15f));
+            Assert.That(state.GetVariable<float>(hp), Is.EqualTo(15f));
 
             Assert.That(state.RemoveModifier((Variable)hp, modId), Is.True);
-            Assert.That(state.GetValue<float>(hp), Is.EqualTo(10f));
+            Assert.That(state.GetVariable<float>(hp), Is.EqualTo(10f));
         }
 
         [Test]
@@ -118,15 +113,13 @@ namespace Scaffold.Entities.Tests
             VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
             EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 10f }));
             EntityInstance<EntityDefinition> state = creator.Create(def);
-            var d1 = new FloatVariableValue { Value = 4f };
-            var d2 = new FloatVariableValue { Value = 1f };
-            state.AddModifier(new EntityModifierEntry(hp, d1));
-            state.AddModifier(new EntityModifierEntry(hp, d2));
+            state.AddModifier(new EntityModifierEntry(hp, new FloatAddModifier(4f)));
+            state.AddModifier(new EntityModifierEntry(hp, new FloatAddModifier(1f)));
 
-            Assert.That(state.GetValue<float>(hp), Is.EqualTo(15f));
+            Assert.That(state.GetVariable<float>(hp), Is.EqualTo(15f));
 
             state.ClearModifiers();
-            Assert.That(state.GetValue<float>(hp), Is.EqualTo(10f));
+            Assert.That(state.GetVariable<float>(hp), Is.EqualTo(10f));
         }
 
         [Test]
@@ -163,7 +156,7 @@ namespace Scaffold.Entities.Tests
             VariableValue received = null!;
             state.Subscribe(hp, v => received = v);
 
-            state.AddModifier(new EntityModifierEntry(hp, new FloatVariableValue { Value = 5f }));
+            state.AddModifier(new EntityModifierEntry(hp, new FloatAddModifier(5f)));
 
             Assert.That(received, Is.Not.Null);
             Assert.That(((FloatVariableValue)received).Value, Is.EqualTo(15f));
@@ -175,7 +168,7 @@ namespace Scaffold.Entities.Tests
             VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
             EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 10f }));
             EntityInstance<EntityDefinition> state = creator.Create(def);
-            var mod = new EntityModifierEntry(hp, new FloatVariableValue { Value = 5f });
+            var mod = new EntityModifierEntry(hp, new FloatAddModifier(5f));
             ModifierId modId = state.AddModifier(mod);
 
             VariableValue received = null!;
@@ -201,7 +194,7 @@ namespace Scaffold.Entities.Tests
             Assert.That(callCount, Is.EqualTo(1));
 
             state.Unsubscribe(hp, OnChange);
-            state.AddModifier(new EntityModifierEntry(hp, new FloatVariableValue { Value = 5f }));
+            state.AddModifier(new EntityModifierEntry(hp, new FloatAddModifier(5f)));
 
             Assert.That(callCount, Is.EqualTo(1));
         }
@@ -230,7 +223,7 @@ namespace Scaffold.Entities.Tests
             float received = 0f;
             using (state.Subscribe(hp, (float v) => received = v))
             {
-                state.AddModifier(new EntityModifierEntry(hp, new FloatVariableValue { Value = 5f }));
+                state.AddModifier(new EntityModifierEntry(hp, new FloatAddModifier(5f)));
                 Assert.That(received, Is.EqualTo(15f));
             }
         }
@@ -262,7 +255,7 @@ namespace Scaffold.Entities.Tests
             Assert.That(callCount, Is.EqualTo(1));
 
             sub.Dispose();
-            state.AddModifier(new EntityModifierEntry(hp, new FloatVariableValue { Value = 5f }));
+            state.AddModifier(new EntityModifierEntry(hp, new FloatAddModifier(5f)));
 
             Assert.That(callCount, Is.EqualTo(1));
         }
@@ -279,7 +272,7 @@ namespace Scaffold.Entities.Tests
             Assert.That(callCount, Is.EqualTo(1));
 
             sub.Dispose();
-            state.AddModifier(new EntityModifierEntry(hp, new FloatVariableValue { Value = 5f }));
+            state.AddModifier(new EntityModifierEntry(hp, new FloatAddModifier(5f)));
 
             Assert.That(callCount, Is.EqualTo(1));
         }
@@ -293,7 +286,7 @@ namespace Scaffold.Entities.Tests
 
             Assert.That(state.ContainsModifiedValueCache(hp), Is.False);
             Assert.That(state.InstanceBagHasLocalKey(hp), Is.False);
-            Assert.That(state.GetValue<float>(hp), Is.EqualTo(10f));
+            Assert.That(state.GetVariable<float>(hp), Is.EqualTo(10f));
         }
 
         [Test]
@@ -305,11 +298,11 @@ namespace Scaffold.Entities.Tests
             EntityInstance<EntityDefinition> state = creator.Create(def);
 
             Assert.That(state.AddVariable(poison, new FloatVariableValue { Value = 5f }), Is.True);
-            Assert.That(state.GetValue<float>(poison), Is.EqualTo(5f));
+            Assert.That(state.GetVariable<float>(poison), Is.EqualTo(5f));
             Assert.That(state.InstanceBagHasLocalKey(poison), Is.True);
 
-            state.AddModifier(new EntityModifierEntry(poison, new FloatVariableValue { Value = 2f }));
-            Assert.That(state.GetValue<float>(poison), Is.EqualTo(7f));
+            state.AddModifier(new EntityModifierEntry(poison, new FloatAddModifier(2f)));
+            Assert.That(state.GetVariable<float>(poison), Is.EqualTo(7f));
             Assert.That(state.ContainsModifiedValueCache(poison), Is.True);
         }
 
@@ -320,12 +313,12 @@ namespace Scaffold.Entities.Tests
             EntityDefinition def = CreateDefinition();
             EntityInstance<EntityDefinition> state = creator.Create(def);
             state.AddVariable(poison, new FloatVariableValue { Value = 5f });
-            var mod = new EntityModifierEntry(poison, new FloatVariableValue { Value = 2f });
+            var mod = new EntityModifierEntry(poison, new FloatAddModifier(2f));
             ModifierId modId = state.AddModifier(mod);
-            Assert.That(state.GetValue<float>(poison), Is.EqualTo(7f));
+            Assert.That(state.GetVariable<float>(poison), Is.EqualTo(7f));
 
             Assert.That(state.RemoveModifier((Variable)poison, modId), Is.True);
-            Assert.That(state.GetValue<float>(poison), Is.EqualTo(5f));
+            Assert.That(state.GetVariable<float>(poison), Is.EqualTo(5f));
             Assert.That(state.ContainsModifiedValueCache(poison), Is.False);
             Assert.That(state.InstanceBagHasLocalKey(poison), Is.True);
         }
@@ -337,7 +330,7 @@ namespace Scaffold.Entities.Tests
             EntityDefinition def = CreateDefinition();
             EntityInstance<EntityDefinition> state = creator.Create(def);
             state.AddVariable(poison, new FloatVariableValue { Value = 5f });
-            state.AddModifier(new EntityModifierEntry(poison, new FloatVariableValue { Value = 1f }));
+            state.AddModifier(new EntityModifierEntry(poison, new FloatAddModifier(1f)));
 
             var removed = new List<Variable>();
             using (state.SubscribeToVariableStructuralChanges((kind, k, _) =>
@@ -385,7 +378,7 @@ namespace Scaffold.Entities.Tests
             EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 10f }));
             EntityInstance<EntityDefinition> state = creator.Create(def);
             state.AddModifier(hp, 5f);
-            Assert.That(state.GetValue<float>(hp), Is.EqualTo(15f));
+            Assert.That(state.GetVariable<float>(hp), Is.EqualTo(15f));
         }
 
         [Test]
@@ -395,7 +388,7 @@ namespace Scaffold.Entities.Tests
             EntityDefinition def = CreateDefinition((n, new IntVariableValue { Value = 10 }));
             EntityInstance<EntityDefinition> state = creator.Create(def);
             state.AddModifier(n, 3);
-            Assert.That(state.GetValue<int>(n), Is.EqualTo(13));
+            Assert.That(state.GetVariable<int>(n), Is.EqualTo(13));
         }
 
         [Test]
@@ -405,7 +398,7 @@ namespace Scaffold.Entities.Tests
             EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 10f }));
             EntityInstance<EntityDefinition> state = creator.Create(def);
             state.AddModifier("HP", "float", 4f);
-            Assert.That(state.GetValue<float>(hp), Is.EqualTo(14f));
+            Assert.That(state.GetVariable<float>(hp), Is.EqualTo(14f));
         }
 
         [Test]
@@ -416,7 +409,7 @@ namespace Scaffold.Entities.Tests
             EntityInstance<EntityDefinition> state = creator.Create(def);
             Assert.DoesNotThrow(() => state.AddModifier("Missing", "float", 1f));
             var orphanKey = new Variable("Missing", "float");
-            Assert.Throws<InvalidOperationException>(() => state.GetValue<float>(orphanKey));
+            Assert.Throws<InvalidOperationException>(() => state.GetVariable<float>(orphanKey));
         }
 
         [Test]
@@ -426,7 +419,7 @@ namespace Scaffold.Entities.Tests
             EntityDefinition def = CreateDefinition();
             EntityInstance<EntityDefinition> state = creator.Create(def);
             Assert.That(state.AddVariable(poison, 2.5f), Is.True);
-            Assert.That(state.GetValue<float>(poison), Is.EqualTo(2.5f));
+            Assert.That(state.GetVariable<float>(poison), Is.EqualTo(2.5f));
         }
 
         [Test]
@@ -462,7 +455,7 @@ namespace Scaffold.Entities.Tests
             VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
             EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 10f }));
             EntityInstance<EntityDefinition> state = creator.Create(def);
-            state.AddModifier(new EntityModifierEntry(hp, new FloatVariableValue { Value = 2f }));
+            state.AddModifier(new EntityModifierEntry(hp, new FloatAddModifier(2f)));
 
             int calls = 0;
             state.Subscribe(hp, _ => calls++);
@@ -482,19 +475,73 @@ namespace Scaffold.Entities.Tests
         }
 
         [Test]
+        public void Modifiers_Order_AddThenMultiply_AppliesMultiplyAfterAdd()
+        {
+            VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
+            EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 2f }));
+            EntityInstance<EntityDefinition> state = creator.Create(def);
+            var add = new FloatAddModifier(3f);
+            var mul = new FloatMultiplyModifier(4f);
+            SetModifierOrder(mul, 100);
+            state.AddModifier(new EntityModifierEntry(hp, add));
+            state.AddModifier(new EntityModifierEntry(hp, mul));
+            Assert.That(state.GetVariable<float>(hp), Is.EqualTo(20f));
+        }
+
+        [Test]
+        public void Modifiers_Order_MultiplyThenAdd_AppliesAddAfterMultiply()
+        {
+            VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
+            EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 2f }));
+            EntityInstance<EntityDefinition> state = creator.Create(def);
+            var mul = new FloatMultiplyModifier(4f);
+            var add = new FloatAddModifier(3f);
+            SetModifierOrder(add, 100);
+            state.AddModifier(new EntityModifierEntry(hp, mul));
+            state.AddModifier(new EntityModifierEntry(hp, add));
+            Assert.That(state.GetVariable<float>(hp), Is.EqualTo(11f));
+        }
+
+        [Test]
+        public void Modifiers_StableTie_InsertionOrder_StringAppend()
+        {
+            VariableSO s = CreateVariableSo("S", typeof(StringVariableValue));
+            EntityDefinition def = CreateDefinition((s, new StringVariableValue("a")));
+            EntityInstance<EntityDefinition> state = creator.Create(def);
+            state.AddModifier(new EntityModifierEntry(s, new StringAppendModifier("b")));
+            state.AddModifier(new EntityModifierEntry(s, new StringAppendModifier("c")));
+            Assert.That(state.GetVariable<string>(s), Is.EqualTo("abc"));
+        }
+
+        [Test]
+        public void EntityModifierEntry_Rebase_ReplacesMismatchedValueTypeModifier()
+        {
+            VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
+            var entry = new EntityModifierEntry((Variable)hp, new BoolOverrideModifier(true));
+            entry.RebaseSerializedModifierPayloadIfMismatch();
+            Assert.That(entry.Modifier, Is.TypeOf<FloatAddModifier>());
+        }
+
+        [Test]
         public void EntityInstance_Subclass_InheritsFullBehavior()
         {
             VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
             EntityDefinition def = CreateDefinition((hp, new FloatVariableValue { Value = 3f }));
             var state = new TestEntityInstance();
             state.Initialize(new InstanceId(1), def);
-            Assert.That(state.GetValue<float>(hp), Is.EqualTo(3f));
+            Assert.That(state.GetVariable<float>(hp), Is.EqualTo(3f));
             state.AddModifier(hp, 2f);
-            Assert.That(state.GetValue<float>(hp), Is.EqualTo(5f));
+            Assert.That(state.GetVariable<float>(hp), Is.EqualTo(5f));
         }
 
         private sealed class TestEntityInstance : EntityInstance<EntityDefinition>
         {
+        }
+
+        private static void SetModifierOrder(VariableModifier modifier, int order)
+        {
+            FieldInfo? field = typeof(VariableModifier).GetField("order", BindingFlags.Instance | BindingFlags.NonPublic);
+            field!.SetValue(modifier, order);
         }
 
         private VariableSO CreateVariableSo(string assetName, Type payloadType)

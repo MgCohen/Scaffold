@@ -8,6 +8,6 @@ namespace Scaffold.Entities
     [Serializable]
     public abstract class VariableValue
     {
-        public abstract VariableValue Combine(IReadOnlyList<VariableValue> contributions);
+        internal abstract VariableValue ApplyModifiers(IReadOnlyList<ActiveModifier> modifiers);
     }
 }

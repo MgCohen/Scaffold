@@ -23,22 +23,12 @@ namespace Scaffold.Entities
             this.instance = instance;
         }
 
-        public T GetValue<T>(Variable key)
+        public T GetVariable<T>(Variable key)
         {
-            return Instance.GetValue<T>(key);
+            return Instance.GetVariable<T>(key);
         }
 
-        public bool TryGetValue<T>(Variable key, out T value)
-        {
-            return Instance.TryGetValue(key, out value);
-        }
-
-        public TVar GetVariable<TVar>(Variable key) where TVar : VariableValue
-        {
-            return Instance.GetVariable<TVar>(key);
-        }
-
-        public bool TryGetVariable<TVar>(Variable key, out TVar value) where TVar : VariableValue
+        public bool TryGetVariable<T>(Variable key, out T value)
         {
             return Instance.TryGetVariable(key, out value);
         }

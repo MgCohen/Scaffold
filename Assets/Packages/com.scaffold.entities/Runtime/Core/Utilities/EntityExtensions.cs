@@ -21,9 +21,8 @@ namespace Scaffold.Entities
 
         internal static void AddModifier<TDef, T>(this IMutableEntity<TDef> entity, Variable key, T value) where TDef : IEntityDefinition
         {
-            VariableValue modifierPayload = VariableValueFactory.From(value);
-            var entry = new EntityModifierEntry(key, modifierPayload);
-            entity.AddModifier(entry);
+            VariableModifier modifier = CreateModifierFromPrimitive(value);
+            entity.AddModifier(new EntityModifierEntry(key, modifier));
         }
 
         internal static void AddModifier<TDef, T>(this IMutableEntity<TDef> entity, string name, string payloadTypeId, T value) where TDef : IEntityDefinition
@@ -45,6 +44,20 @@ namespace Scaffold.Entities
             {
                 onChange(typed);
             }
+        }
+
+        private static VariableModifier CreateModifierFromPrimitive<T>(T value)
+        {
+            object boxed = value!;
+            return boxed switch
+            {
+                float f => new FloatAddModifier(f),
+                int n => new IntAddModifier(n),
+                bool b => new BoolOverrideModifier(b),
+                string s => new StringAppendModifier(s),
+                _ => throw new NotSupportedException(
+                    $"No VariableModifier mapping for type {typeof(T).Name}.")
+            };
         }
     }
 }

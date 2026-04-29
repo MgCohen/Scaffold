@@ -1,13 +1,21 @@
 using System;
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace Scaffold.Entities
 {
     [Serializable]
     [VariableValueId("float")]
-    public sealed class FloatVariableValue : VariableValue, IVariableValue<float>
+    public sealed class FloatVariableValue : VariableValue<float>
     {
+        public FloatVariableValue()
+        {
+        }
+
+        public FloatVariableValue(float initial)
+        {
+            value = initial;
+        }
+
         public float Value
         {
             get => value;
@@ -17,23 +25,14 @@ namespace Scaffold.Entities
         [SerializeField]
         private float value;
 
-        public float Get()
+        public override float Get()
         {
-            return Value;
+            return value;
         }
 
-        public override VariableValue Combine(IReadOnlyList<VariableValue> contributions)
+        protected override VariableValue<float> WithValue(float next)
         {
-            float sum = Value;
-            for (int i = 0; i < contributions.Count; i++)
-            {
-                if (contributions[i] is FloatVariableValue f)
-                {
-                    sum += f.Value;
-                }
-            }
-
-            return new FloatVariableValue { Value = sum };
+            return new FloatVariableValue(next);
         }
     }
 }

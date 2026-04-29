@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 using Scaffold.Entities;
@@ -62,10 +64,8 @@ namespace Scaffold.Entities.Editor
 
         internal static void RebaseManagedReferencePayloadForVariableSo(SerializedProperty entryProperty, string valueRelativePath, VariableSO? selectedSo)
         {
-            string expectedId = selectedSo == null ? "string" : selectedSo.PayloadTypeId;
-            if (!VariableValueRegistry.TryResolve(expectedId, out System.Type expected))
+            if (!TryResolveWrapper(selectedSo, out Type wrapperType))
             {
-                Debug.LogWarning($"Unknown VariableSO payload id '{expectedId}'. Skipping managed-reference rebase.");
                 return;
             }
 
@@ -74,7 +74,63 @@ namespace Scaffold.Entities.Editor
                 return;
             }
 
-            ApplyPayloadDefault(payload, expected);
+            RebasePayloadForPath(valueRelativePath, payload, wrapperType);
+        }
+
+        private static bool TryResolveWrapper(VariableSO? selectedSo, out Type wrapperType)
+        {
+            string expectedId = selectedSo == null ? "string" : selectedSo.PayloadTypeId;
+            if (VariableValueRegistry.TryResolve(expectedId, out wrapperType!))
+            {
+                return true;
+            }
+
+            Debug.LogWarning($"Unknown VariableSO payload id '{expectedId}'. Skipping managed-reference rebase.");
+            wrapperType = null!;
+            return false;
+        }
+
+        private static void RebasePayloadForPath(string valueRelativePath, SerializedProperty payload, Type wrapperType)
+        {
+            if (string.Equals(valueRelativePath, "modifier", StringComparison.Ordinal))
+            {
+                ApplyModifierPayloadDefault(payload, wrapperType);
+            }
+            else
+            {
+                ApplyPayloadDefault(payload, wrapperType);
+            }
+        }
+
+        private static void ApplyModifierPayloadDefault(SerializedProperty payload, Type wrapperType)
+        {
+            Type? expectedValueType = VariablePayloadTypeHelpers.ExtractValueType(wrapperType);
+            if (expectedValueType == null || IsModifierPayloadCompatible(payload, expectedValueType))
+            {
+                return;
+            }
+
+            TryAssignDefaultModifierPayload(payload, expectedValueType);
+        }
+
+        private static bool IsModifierPayloadCompatible(SerializedProperty payload, Type expectedValueType)
+        {
+            VariableModifier? current = payload.managedReferenceValue as VariableModifier;
+            return current != null
+                && ModifierTypeIndex.TryGetValueType(current.GetType(), out Type modifierValueType)
+                && modifierValueType == expectedValueType;
+        }
+
+        private static void TryAssignDefaultModifierPayload(SerializedProperty payload, Type expectedValueType)
+        {
+            IReadOnlyList<Type> candidates = ModifierTypeIndex.ModifiersFor(expectedValueType);
+            if (candidates.Count == 0)
+            {
+                Debug.LogWarning($"No modifier types for value type '{expectedValueType.Name}'. Skipping modifier rebase.");
+                return;
+            }
+
+            payload.managedReferenceValue = Activator.CreateInstance(candidates[0]);
         }
 
         private static bool TryGetManagedPayload(SerializedProperty entryProperty, string valueRelativePath, out SerializedProperty payload)

@@ -1,13 +1,21 @@
 using System;
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace Scaffold.Entities
 {
     [Serializable]
     [VariableValueId("bool")]
-    public sealed class BoolVariableValue : VariableValue, IVariableValue<bool>
+    public sealed class BoolVariableValue : VariableValue<bool>
     {
+        public BoolVariableValue()
+        {
+        }
+
+        public BoolVariableValue(bool initial)
+        {
+            value = initial;
+        }
+
         public bool Value
         {
             get => value;
@@ -17,23 +25,14 @@ namespace Scaffold.Entities
         [SerializeField]
         private bool value;
 
-        public bool Get()
+        public override bool Get()
         {
-            return Value;
+            return value;
         }
 
-        public override VariableValue Combine(IReadOnlyList<VariableValue> contributions)
+        protected override VariableValue<bool> WithValue(bool next)
         {
-            bool current = Value;
-            for (int i = 0; i < contributions.Count; i++)
-            {
-                if (contributions[i] is BoolVariableValue b)
-                {
-                    current = b.Value;
-                }
-            }
-
-            return new BoolVariableValue { Value = current };
+            return new BoolVariableValue(next);
         }
     }
 }

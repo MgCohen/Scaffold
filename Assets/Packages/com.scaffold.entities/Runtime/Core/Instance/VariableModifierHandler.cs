@@ -4,33 +4,28 @@ namespace Scaffold.Entities
 {
     internal sealed class VariableModifierHandler
     {
-        internal VariableModifierHandler()
-        {
-            modifiersByVariable = new Dictionary<Variable, List<(ModifierId Id, EntityModifierEntry Entry)>>();
-            scratch = new List<VariableValue>();
-        }
-
         internal IEnumerable<Variable> ModifiedVariables => modifiersByVariable.Keys;
 
-        private readonly Dictionary<Variable, List<(ModifierId Id, EntityModifierEntry Entry)>> modifiersByVariable;
-        private readonly List<VariableValue> scratch;
+        private readonly Dictionary<Variable, List<ActiveModifier>> modifiersByVariable = new();
 
         internal ModifierId AddModifier(EntityModifierEntry entry)
         {
-            if (entry == null || entry.ModifierValue == null)
+            if (entry?.Modifier == null)
             {
                 return default;
             }
 
             ModifierId modifierId = ModifierId.New();
             Variable key = entry.Key;
-            if (!modifiersByVariable.TryGetValue(key, out List<(ModifierId Id, EntityModifierEntry Entry)> bucket))
+            if (!modifiersByVariable.TryGetValue(key, out List<ActiveModifier>? bucket))
             {
-                bucket = new List<(ModifierId Id, EntityModifierEntry Entry)>();
+                bucket = new List<ActiveModifier>();
                 modifiersByVariable[key] = bucket;
             }
 
-            bucket.Add((modifierId, entry));
+            ActiveModifier slot = new ActiveModifier(modifierId, entry.Modifier);
+            int insertAt = ComputeInsertIndex(bucket, slot.Modifier.Order);
+            bucket.Insert(insertAt, slot);
             return modifierId;
         }
 
@@ -41,31 +36,12 @@ namespace Scaffold.Entities
                 return false;
             }
 
-            if (!modifiersByVariable.TryGetValue(key, out List<(ModifierId Id, EntityModifierEntry Entry)> bucket))
+            if (!modifiersByVariable.TryGetValue(key, out List<ActiveModifier>? bucket))
             {
                 return false;
             }
 
             return TryRemoveModifierSlot(bucket, key, id);
-        }
-
-        private bool TryRemoveModifierSlot(List<(ModifierId Id, EntityModifierEntry Entry)> bucket, Variable key, ModifierId id)
-        {
-            for (int i = 0; i < bucket.Count; i++)
-            {
-                if (bucket[i].Id.Equals(id))
-                {
-                    bucket.RemoveAt(i);
-                    if (bucket.Count == 0)
-                    {
-                        modifiersByVariable.Remove(key);
-                    }
-
-                    return true;
-                }
-            }
-
-            return false;
         }
 
         internal void ClearModifiers()
@@ -87,30 +63,45 @@ namespace Scaffold.Entities
         {
             if (baseValue == null)
             {
-                return null;
+                return null!;
             }
 
-            if (!modifiersByVariable.TryGetValue(key, out List<(ModifierId Id, EntityModifierEntry Entry)> bucket) ||
-                bucket.Count == 0)
+            if (!modifiersByVariable.TryGetValue(key, out List<ActiveModifier>? list) || list.Count == 0)
             {
                 return baseValue;
             }
 
-            FillScratch(bucket);
-            return EntityVariableComputer.ComputeEffective(baseValue, scratch);
+            return baseValue.ApplyModifiers(list);
         }
 
-        private void FillScratch(List<(ModifierId Id, EntityModifierEntry Entry)> bucket)
+        private bool TryRemoveModifierSlot(List<ActiveModifier> bucket, Variable key, ModifierId id)
         {
-            scratch.Clear();
             for (int i = 0; i < bucket.Count; i++)
             {
-                EntityModifierEntry mod = bucket[i].Entry;
-                if (mod?.ModifierValue != null)
+                if (bucket[i].Id.Equals(id))
                 {
-                    scratch.Add(mod.ModifierValue);
+                    bucket.RemoveAt(i);
+                    if (bucket.Count == 0)
+                    {
+                        modifiersByVariable.Remove(key);
+                    }
+
+                    return true;
                 }
             }
+
+            return false;
+        }
+
+        private int ComputeInsertIndex(List<ActiveModifier> bucket, int order)
+        {
+            int i = 0;
+            while (i < bucket.Count && bucket[i].Modifier.Order <= order)
+            {
+                i++;
+            }
+
+            return i;
         }
     }
 }

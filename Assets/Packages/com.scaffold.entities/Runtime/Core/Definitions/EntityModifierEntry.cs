@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Serialization;
 
@@ -8,10 +9,10 @@ namespace Scaffold.Entities
     [Serializable]
     public sealed partial class EntityModifierEntry
     {
-        public EntityModifierEntry(Variable key, VariableValue modifierValue)
+        public EntityModifierEntry(Variable key, VariableModifier modifier)
         {
             this.key = key;
-            this.modifierValue = modifierValue;
+            this.modifier = modifier;
         }
 
         public EntityModifierEntry()
@@ -36,7 +37,7 @@ namespace Scaffold.Entities
             }
         }
 
-        public VariableValue ModifierValue => modifierValue;
+        public VariableModifier? Modifier => modifier;
 
         [SerializeField] private Variable? key;
 
@@ -45,7 +46,7 @@ namespace Scaffold.Entities
         private VariableSO variableLegacy;
 
         [SerializeReference]
-        private VariableValue modifierValue;
+        private VariableModifier? modifier;
 
         internal void RebaseSerializedModifierPayloadIfMismatch()
         {
@@ -55,17 +56,58 @@ namespace Scaffold.Entities
                 return;
             }
 
-            if (!VariablePayloadTypeHelpers.TryResolvePayload(k, nameof(EntityModifierEntry), out Type expected))
+            if (!TryLoadExpectedValueType(k, out Type? expectedValueType, out Type wrapperType))
             {
                 return;
             }
 
-            if (modifierValue != null && modifierValue.GetType() == expected)
+            if (IsModifierCompatible(expectedValueType))
             {
                 return;
             }
 
-            modifierValue = VariableValueFactory.CreateDefault(expected);
+            ApplyFirstCandidateOrWarn(expectedValueType, k, wrapperType);
+        }
+
+        private bool TryLoadExpectedValueType(Variable k, out Type? expectedValueType, out Type wrapperType)
+        {
+            expectedValueType = null;
+            wrapperType = null!;
+            if (!VariablePayloadTypeHelpers.TryResolvePayload(k, nameof(EntityModifierEntry), out Type wt))
+            {
+                return false;
+            }
+
+            wrapperType = wt;
+            expectedValueType = VariablePayloadTypeHelpers.ExtractValueType(wrapperType);
+            if (expectedValueType != null)
+            {
+                return true;
+            }
+
+            Debug.LogError(
+                $"{nameof(EntityModifierEntry)}: wrapper type '{wrapperType.Name}' has no IVariableValue<T> for key '{k.Key}'. Skipping modifier rebase.");
+            return false;
+        }
+
+        private bool IsModifierCompatible(Type? expectedValueType)
+        {
+            return modifier != null
+                && ModifierTypeIndex.TryGetValueType(modifier.GetType(), out Type modifierValueType)
+                && modifierValueType == expectedValueType;
+        }
+
+        private void ApplyFirstCandidateOrWarn(Type expectedValueType, Variable k, Type wrapperType)
+        {
+            IReadOnlyList<Type> candidates = ModifierTypeIndex.ModifiersFor(expectedValueType);
+            if (candidates.Count == 0)
+            {
+                Debug.LogWarning(
+                    $"{nameof(EntityModifierEntry)}: no VariableModifier types for value type '{expectedValueType.Name}' (key '{k.Key}', wrapper '{wrapperType.Name}').");
+                return;
+            }
+
+            modifier = (VariableModifier)Activator.CreateInstance(candidates[0])!;
         }
     }
 }
