@@ -79,7 +79,7 @@ Authoritative module pointer: [`Docs/Core/Entities.md`](../../../Docs/Core/Entit
 
 - **`ActiveModifier`** is now **public** so external mutators can hold ordered modifier stacks (for example `com.scaffold.entities.states`).
 - **`VariableValue.ApplyModifiers(IReadOnlyList<ActiveModifier>)`** is now **public** for the same reason.
-- **`InstanceId`** implements **`Scaffold.States.IReference`**. The **`Scaffold.Entities`** assembly references **`Scaffold.States`** for that marker interface only — do not add further `Scaffold.States` types inside `Scaffold.Entities`; use **`com.scaffold.entities.states`** for store integration.
+- **`InstanceId`** does **not** implement **`Scaffold.States.IReference`** — **`Scaffold.Entities`** does not reference **`Scaffold.States`**. Use **`com.scaffold.entities.states`** (`EntityStateReference`, **`StoreInstanceIdExtensions`**) for store keys and **`Store`** calls keyed by **`InstanceId`**.
 
 ## Breaking changes (serialization)
 

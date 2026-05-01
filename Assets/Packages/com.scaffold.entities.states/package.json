@@ -1,7 +1,18 @@
 {
     "name": "com.scaffold.entities.states",
     "version": "0.2.0",
-    "displayName": "Scaffold Entities ↔ States Bridge",
+    "displayName": "Scaffold Entities States",
     "description": "State-backed entity instances. Modifier and variable writes flow through Scaffold.States.Store; snapshots round-trip the entity's full variable state.",
-    "unity": "2022.3"
+    "unity": "6000.0",
+    "author": {
+        "name": "Matheus Gandolf Cohen",
+        "email": "matheus@duckduckweasel.com",
+        "url": "https://github.com/MgCohen/Scaffold"
+    },
+    "dependencies": {
+        "com.scaffold.entities": "0.1.0",
+        "com.scaffold.records": "0.1.0",
+        "com.scaffold.states": "0.1.0"
+    },
+    "path": "https://github.com/MgCohen/Scaffold.git?path=/Assets/Packages/com.scaffold.entities.states#main"
 }

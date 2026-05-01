@@ -7,7 +7,7 @@ namespace Scaffold.Entities.States
     {
         public IReference GetReference()
         {
-            return EntityId;
+            return EntityStateReference.From(EntityId);
         }
     }
 }

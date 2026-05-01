@@ -4,8 +4,8 @@
     "references": [
         "Scaffold.Entities.States",
         "Scaffold.Entities",
-        "Scaffold.States",
-        "Scaffold.Maps"
+        "Scaffold.Maps",
+        "Scaffold.States"
     ],
     "optionalUnityReferences": [
         "TestAssemblies"

@@ -36,10 +36,12 @@ namespace Scaffold.Entities.States
 
         private static void TryAppendPayloadForSlice(IReference reference, EntityVariableState state, ModifierSource source, List<object> payloads)
         {
-            if (reference is not InstanceId entityId)
+            if (reference is not EntityStateReference entityRef)
             {
                 return;
             }
+
+            InstanceId entityId = entityRef.EntityId;
 
             if (!HasAnyModifierFromSource(state, source))
             {

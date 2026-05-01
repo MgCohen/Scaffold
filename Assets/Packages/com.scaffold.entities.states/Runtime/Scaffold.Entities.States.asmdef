@@ -2,8 +2,8 @@
     "name": "Scaffold.Entities.States",
     "rootNamespace": "Scaffold.Entities.States",
     "references": [
+        "GUID:b967d18ed9aae19488f12b55c25800dd",
         "Scaffold.Entities",
-        "Scaffold.Records",
         "Scaffold.States"
     ],
     "includePlatforms": [],

@@ -1,10 +1,8 @@
 using System;
 
-using Scaffold.States;
-
 namespace Scaffold.Entities
 {
-    public record InstanceId(int Id) : IReference
+    public record InstanceId(int Id)
     {
         public override string ToString()
         {

@@ -9,9 +9,9 @@
                    "email":  "matheus@duckduckweasel.com",
                    "url":  "https://github.com/MgCohen/Scaffold"
                },
-    "dependencies":  {
-
-                     },
+    "dependencies": {
+        "com.scaffold.records": "0.1.0"
+    },
     "samples":  [
                     {
                         "displayName":  "Example",

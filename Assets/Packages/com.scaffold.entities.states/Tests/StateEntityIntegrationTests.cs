@@ -133,7 +133,7 @@ namespace Scaffold.Entities.States.Tests
             var (store, _, entity, id) = CreateEntity();
             store.Execute(id, new AddModifierPayload(id, hp, new FloatAddModifier(5f), ModifierId.New()));
             Snapshot snapshot = store.SaveSnapshot();
-            Assert.That(snapshot.Contains(id, typeof(EntityVariableState)), Is.True);
+            Assert.That(snapshot.Contains(EntityStateReference.From(id), typeof(EntityVariableState)), Is.True);
             Assert.That(snapshot.Count, Is.EqualTo(1));
         }
 
