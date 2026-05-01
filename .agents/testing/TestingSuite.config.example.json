@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "coverage": {
+    "defaultAssemblyFilters": "+Scaffold.*,+NewGameProject.*"
+  },
+  "asmdefReferences": {
+    "excludedAssemblyNames": [
+      "Scaffold.Schemas",
+      "LiveOps.DTO.dll",
+      "LiveOps.Modules.DTO.dll"
+    ],
+    "excludedGuidReferences": [
+      "GUID:00000000000000000000000000000000"
+    ],
+    "firstPartyAssemblyNamePatterns": [
+      "Scaffold.*",
+      "NewGameProject.*"
+    ]
+  }
+}

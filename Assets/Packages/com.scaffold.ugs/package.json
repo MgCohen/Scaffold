@@ -1,0 +1,15 @@
+{
+    "name":  "com.scaffold.ugs",
+    "version":  "0.1.0",
+    "displayName":  "Scaffold UGS",
+    "description":  "Unity Gaming Services integration.",
+    "unity":  "6000.0",
+    "author":  {
+                   "name":  "Matheus Gandolf Cohen",
+                   "email":  "matheus@duckduckweasel.com",
+                   "url":  "https://github.com/MgCohen/Scaffold"
+               },
+    "dependencies":  {
+                         "com.scaffold.appflow":  "0.1.0"
+                     }
+}

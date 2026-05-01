@@ -1,0 +1,14 @@
+{
+    "name": "com.scaffold.ads",
+    "version": "0.1.0",
+    "displayName": "Scaffold Ads",
+    "description": "Scaffold Ads abstraction and core logic.",
+    "unity": "6000.0",
+    "author": {
+        "url": "https://github.com/MgCohen/Scaffold"
+    },
+    "dependencies": {
+        "jp.hadashikick.vcontainer": "1.17.0"
+    },
+    "path": "https://github.com/MgCohen/Scaffold.git?path=/Assets/Packages/com.scaffold.ads#main"
+}

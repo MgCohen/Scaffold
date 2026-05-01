@@ -1,0 +1,15 @@
+{
+    "name": "com.scaffold.ads.levelplay",
+    "version": "0.1.0",
+    "displayName": "Scaffold Ads LevelPlay",
+    "description": "LevelPlay implementation for Scaffold Ads.",
+    "unity": "6000.0",
+    "author": {
+        "url": "https://github.com/MgCohen/Scaffold"
+    },
+    "dependencies": {
+        "com.scaffold.ads": "0.1.0",
+        "com.unity.services.levelplay": "9.3.0"
+    },
+    "path": "https://github.com/MgCohen/Scaffold.git?path=/Assets/Packages/com.scaffold.ads.levelplay#main"
+}

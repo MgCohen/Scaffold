@@ -1,0 +1,23 @@
+{
+    "name": "Scaffold.LiveOps",
+    "rootNamespace": "Scaffold.LiveOps",
+    "references": [
+        "Scaffold.AppFlow",
+        "Scaffold.CloudCode",
+        "VContainer"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [
+        "Newtonsoft.Json.dll",
+        "LiveOps.DTO.dll",
+        "Scaffold.LiveOps.Ads.DTO.dll",
+        "Scaffold.LiveOps.DirectPush.DTO.dll"
+    ],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

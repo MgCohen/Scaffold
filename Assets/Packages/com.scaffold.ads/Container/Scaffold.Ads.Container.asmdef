@@ -1,0 +1,17 @@
+{
+    "name": "Scaffold.Ads.Container",
+    "rootNamespace": "Scaffold.Ads.Container",
+    "references": [
+        "Scaffold.Ads.Runtime",
+        "VContainer"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

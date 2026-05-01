@@ -1,0 +1,21 @@
+{
+    "name": "Scaffold.SceneFlow.Tests",
+    "rootNamespace": "Scaffold.SceneFlow.Tests",
+    "references": [
+        "Scaffold.SceneFlow"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false,
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
+}

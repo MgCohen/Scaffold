@@ -1,0 +1,18 @@
+{
+  "name": "Scaffold.LiveOps.Editor",
+  "rootNamespace": "Scaffold.LiveOps.Editor",
+  "references": [
+    "GUID:8528abb32e2825f489462c60d9d82450",
+    "Unity.Services.Core.Environments.Editor",
+    "Unity.Services.DeploymentApi"
+  ],
+  "includePlatforms": [ "Editor" ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

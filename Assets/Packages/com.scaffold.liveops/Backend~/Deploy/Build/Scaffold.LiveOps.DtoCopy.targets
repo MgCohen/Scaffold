@@ -1,0 +1,10 @@
+<Project>
+  <Target Name="CopyDtoToUnityPlugins" AfterTargets="Build" Condition="'$(CopyDtoToUnityPlugins)' == 'true'">
+    <PropertyGroup>
+      <_UnityDtoDir>$(RepositoryRoot)Assets\Plugins\Scaffold.LiveOps.DTO\</_UnityDtoDir>
+    </PropertyGroup>
+    <MakeDir Directories="$(_UnityDtoDir)" Condition="!Exists('$(_UnityDtoDir)')" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFiles="$(_UnityDtoDir)$(TargetFileName)" SkipUnchangedFiles="false" />
+    <Copy SourceFiles="$(TargetDir)$(TargetName).pdb" DestinationFiles="$(_UnityDtoDir)$(TargetName).pdb" Condition="Exists('$(TargetDir)$(TargetName).pdb')" SkipUnchangedFiles="true" />
+  </Target>
+</Project>

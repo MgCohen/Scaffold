@@ -1,0 +1,28 @@
+{
+    "name":  "Scaffold.Events.Container",
+    "rootNamespace":  "Scaffold.Events.Container",
+    "references":  [
+                       "Scaffold.Events",
+                       "VContainer"
+                   ],
+    "includePlatforms":  [
+
+                         ],
+    "excludePlatforms":  [
+
+                         ],
+    "allowUnsafeCode":  false,
+    "overrideReferences":  false,
+    "precompiledReferences":  [
+
+                              ],
+    "autoReferenced":  true,
+    "defineConstraints":  [
+
+                          ],
+    "versionDefines":  [
+
+                       ],
+    "noEngineReferences":  false
+}
+

@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <IsRoslynComponent>true</IsRoslynComponent>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <RootNamespace>Scaffold.LiveOps.Bootstrap.Generators</RootNamespace>
+    <AssemblyName>Scaffold.LiveOps.Bootstrap.Generators</AssemblyName>
+    <RunAnalyzersDuringBuild>false</RunAnalyzersDuringBuild>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.11.0" PrivateAssets="all" />
+  </ItemGroup>
+  <Target Name="CopyToLiveOpsDeployTools" AfterTargets="Build">
+    <MakeDir Directories="$(MSBuildThisFileDirectory)..\..\LiveOps\Deploy\Tools\Generators" />
+    <Copy
+      SourceFiles="$(OutputPath)Scaffold.LiveOps.Bootstrap.Generators.dll"
+      DestinationFiles="$(MSBuildThisFileDirectory)..\..\LiveOps\Deploy\Tools\Generators\Scaffold.LiveOps.Bootstrap.Generators.dll"
+      SkipUnchangedFiles="true" />
+  </Target>
+
+  <Import Project="..\..\.agents\msbuild\Scaffold.LiveOps.TemplateSync.targets" />
+</Project>

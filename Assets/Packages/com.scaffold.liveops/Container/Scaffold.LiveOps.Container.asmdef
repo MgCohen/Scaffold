@@ -1,0 +1,20 @@
+{
+    "name": "Scaffold.LiveOps.Container",
+    "rootNamespace": "Scaffold.LiveOps.Container",
+    "references": [
+        "Scaffold.AppFlow",
+        "Scaffold.CloudCode",
+        "Scaffold.LiveOps",
+        "VContainer",
+        "VContainer.Unity"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

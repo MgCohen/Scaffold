@@ -1,0 +1,23 @@
+{
+    "name":  "com.scaffold.types",
+    "version":  "0.1.0",
+    "displayName":  "Scaffold Types",
+    "description":  "Type reference utilities and editor UI for Scaffold projects.",
+    "unity":  "6000.0",
+    "author":  {
+                   "name":  "Matheus Gandolf Cohen",
+                   "email":  "matheus@duckduckweasel.com",
+                   "url":  "https://github.com/MgCohen/Scaffold"
+               },
+    "dependencies":  {
+
+                     },
+    "samples":  [
+                    {
+                        "displayName":  "Types use cases",
+                        "description":  "Sample usage of Scaffold.Types.",
+                        "path":  "Samples"
+                    }
+                ],
+    "path":  "https://github.com/MgCohen/Scaffold.git?path=/Assets/Packages/com.scaffold.types#main"
+}

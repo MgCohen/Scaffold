@@ -1,0 +1,24 @@
+{
+    "name": "Scaffold.Addressables.Tests",
+    "rootNamespace": "Scaffold.Addressables.Tests",
+    "references": [
+        "Scaffold.Addressables",
+        "Scaffold.Addressables.Container",
+        "Scaffold.AppFlow",
+        "VContainer"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false,
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
+}

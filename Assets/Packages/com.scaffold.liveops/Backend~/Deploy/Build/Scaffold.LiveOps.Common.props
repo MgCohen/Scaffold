@@ -1,0 +1,22 @@
+<Project>
+  <PropertyGroup>
+    <_ScaffoldGenProj>$(RepositoryRoot)Generators\Scaffold.LiveOps.Bootstrap.Generators\Scaffold.LiveOps.Bootstrap.Generators.csproj</_ScaffoldGenProj>
+    <_ScaffoldGenDll>$(LiveOpsRoot)Deploy\Tools\Generators\Scaffold.LiveOps.Bootstrap.Generators.dll</_ScaffoldGenDll>
+  </PropertyGroup>
+
+  <!-- Mark LiveOps runtime/DTO modules for generator discovery. Skip test and tooling-only projects. -->
+  <ItemGroup Condition="'$(ScaffoldLiveOpsTestProject)' != 'true' and '$(ScaffoldLiveOpsSkipMetadata)' != 'true'">
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>ScaffoldLiveOpsAssembly</_Parameter1>
+      <_Parameter2>true</_Parameter2>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <!-- Roslyn: prefer building the generator from source; consumer installs use the prebuilt Deploy/Tools copy. -->
+  <ItemGroup Condition="'$(ScaffoldLiveOpsTestProject)' != 'true' and '$(ScaffoldLiveOpsNoAnalyzer)' != 'true' and Exists('$(_ScaffoldGenProj)')">
+    <ProjectReference Include="$(_ScaffoldGenProj)" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(ScaffoldLiveOpsTestProject)' != 'true' and '$(ScaffoldLiveOpsNoAnalyzer)' != 'true' and !Exists('$(_ScaffoldGenProj)') and Exists('$(_ScaffoldGenDll)')">
+    <Analyzer Include="$(_ScaffoldGenDll)" />
+  </ItemGroup>
+</Project>

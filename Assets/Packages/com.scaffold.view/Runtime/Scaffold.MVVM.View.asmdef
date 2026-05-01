@@ -1,0 +1,30 @@
+{
+    "name":  "Scaffold.MVVM.View",
+    "rootNamespace":  "Scaffold.MVVM",
+    "references":  [
+                       "Scaffold.MVVM.ViewModel",
+                       "Scaffold.MVVM",
+                       "Scaffold.Navigation",
+                       "Scaffold.Types"
+                   ],
+    "includePlatforms":  [
+
+                         ],
+    "excludePlatforms":  [
+
+                         ],
+    "allowUnsafeCode":  false,
+    "overrideReferences":  false,
+    "precompiledReferences":  [
+
+                              ],
+    "autoReferenced":  true,
+    "defineConstraints":  [
+
+                          ],
+    "versionDefines":  [
+
+                       ],
+    "noEngineReferences":  false
+}
+

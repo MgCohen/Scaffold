@@ -1,0 +1,26 @@
+{
+    "name": "Scaffold.Entities.States.Tests",
+    "rootNamespace": "Scaffold.Entities.States.Tests",
+    "references": [
+        "Scaffold.Entities.States",
+        "Scaffold.Entities",
+        "Scaffold.Maps",
+        "Scaffold.States"
+    ],
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

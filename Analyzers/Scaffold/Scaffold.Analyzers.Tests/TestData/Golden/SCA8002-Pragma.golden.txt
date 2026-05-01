@@ -1,0 +1,1 @@
+SCA8002|1|1|info|SCA8002: Runtime code must not use '#pragma warning disable'. Fix the code path first. Use suppression only with explicit approval and documented justification.

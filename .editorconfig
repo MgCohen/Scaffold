@@ -1,20 +1,131 @@
 root = true
 
+# Table of contents (file order)
+# 1. [*.cs] — active rules by category (SCA 1,2,3,6,8; then SCM)
+# 2. [*.cs] — disabled / archived rules (severity none + legacy keys)
+# 3. Path overrides — SCA3005 / SCA3006 (namespaces / layout)
+# 4. Path overrides — SCA2003 (hot-spot files)
+# 5. Path overrides — third-party AAGen (vendor package under Assets/Packages/AAGen-0.3.0)
+
 [*.cs]
 # Scaffold Analyzer Severity Configuration
 # Values: error | warning | suggestion | none
 # Set to "none" to disable a rule entirely.
 # Set to "error" to make a rule block compilation.
 
-dotnet_diagnostic.SCA0001.severity = warning   # No comments on methods
-dotnet_diagnostic.SCA0002.severity = warning   # Methods in order of usage
-dotnet_diagnostic.SCA0003.severity = warning   # No nested function calls
-dotnet_diagnostic.SCA0004.severity = warning   # Use curly brackets for methods
-dotnet_diagnostic.SCA0005.severity = warning   # Avoid line breaks in signatures
-dotnet_diagnostic.SCA0006.severity = warning   # Methods should be small
-scaffold.SCA0006.max_lines = 8                 # Max lines per method body (default: 8)
-dotnet_diagnostic.SCA0009.severity = warning   # Namespace matches folder structure
-dotnet_diagnostic.SCA0010.severity = warning   # No _ or m_ prefixes on private fields
-dotnet_diagnostic.SCA0011.severity = warning   # Private fields must be camelCase
-dotnet_diagnostic.SCA0012.severity = warning   # Public members must be PascalCase
-dotnet_diagnostic.SCA0013.severity = warning   # Prefer Unity's Awaitable over Task/ValueTask
+# --- Category 1 (surface / style): SCA1001–SCA1007 ---
+dotnet_diagnostic.SCA1001.severity = warning   # No comments on methods
+dotnet_diagnostic.SCA1002.severity = warning   # Use curly brackets for methods
+dotnet_diagnostic.SCA1003.severity = warning   # Avoid line breaks in signatures
+dotnet_diagnostic.SCA1004.severity = warning   # Private fields camelCase (prefix + leading-upper); merged former SCA0009
+dotnet_diagnostic.SCA1005.severity = warning   # Public members must be PascalCase
+dotnet_diagnostic.SCA1006.severity = warning   # Loop bodies require braces and next-line formatting
+dotnet_diagnostic.SCA1007.severity = warning   # Conditionals require braces except inline single-statement if
+
+# --- Category 2 (structure): SCA2001–SCA2004 ---
+dotnet_diagnostic.SCA2001.severity = warning   # Methods in order of usage
+dotnet_diagnostic.SCA2002.severity = warning   # No nested function calls
+scaffold.SCA2002.max_nesting_depth = 2        # 1 = no nesting (default); 2 = allow one constructor/call in arguments
+dotnet_diagnostic.SCA2003.severity = warning   # Methods should be small
+# File override for hot spots — see § Path overrides — SCA2003 (end of file).
+scaffold.SCA2003.max_lines = 15                # Matches analyzer default (SmallFunctionAnalyzer); see Plans/SCA-Analyzer-Revamp/SCA2003.md
+dotnet_diagnostic.SCA2004.severity = warning   # Restrict static methods in non-static classes
+
+# --- Category 3 (organization): SCA3005–SCA3006, SCA3002–SCA3003 ---
+dotnet_diagnostic.SCA3005.severity = warning   # Namespace first segment must be allowed (root + allowed_roots)
+dotnet_diagnostic.SCA3006.severity = warning   # Full namespace must match folder-derived path under content roots
+scaffold.SCA3005.root = Scaffold
+scaffold.SCA3005.allowed_roots = LiveOps;LiveOps.DTO;LiveOps.Modules;LiveOps.Modules.DTO;Scaffold;Game;CleanupProject
+scaffold.SCA3006.content_roots = Assets/Scripts;LiveOps/Deploy/Core/LiveOps.Core;LiveOps/Deploy/Core/LiveOps.DTO;LiveOps/Deploy/LiveOps;LiveOps/Scaffold;LiveOps/Game
+dotnet_diagnostic.SCA3002.severity = warning   # Extra types: own file if shared/public, else place after primary type
+dotnet_diagnostic.SCA3003.severity = warning   # Class member order
+
+# --- Category 6 (Unity / UI): SCA6001–SCA6002 ---
+dotnet_diagnostic.SCA6001.severity = warning   # Serializable Unity models should use [SerializeField] backing fields
+dotnet_diagnostic.SCA6002.severity = warning   # Use TextMeshProUGUI instead of UnityEngine.UI.Text
+
+# --- Category 8 (dead code / pragmas): SCA8001–SCA8002 ---
+dotnet_diagnostic.SCA8001.severity = suggestion   # Runtime dead code — disposition category 8; elevate in CI if needed
+dotnet_diagnostic.SCA8002.severity = suggestion   # Pragma disable in runtime — same
+
+# --- MVVM analyzers (SCM001–SCM003) ---
+dotnet_diagnostic.SCM001.severity = warning   # MVVM classes should use module base types
+dotnet_diagnostic.SCM002.severity = warning   # MVVM generator attributes require references
+dotnet_diagnostic.SCM003.severity = warning   # MVVM descendants must use bind APIs
+
+# --- Disabled / archived rules (see Docs/Analyzers/Analyzers.md, Plans/SCA-Analyzer-Revamp/, Analyzers/Scaffold/_Archive/) ---
+dotnet_diagnostic.SCA2006.severity = none      # removed — same-layer init analyzer (see Plans/SCA-Analyzer-Revamp/SCA2006.md)
+dotnet_diagnostic.SCA4001.severity = none      # disabled — boundary replan (see Plans/SCA-Analyzer-Revamp/SCA4001.md)
+dotnet_diagnostic.SCA4002.severity = none      # disabled — folder layout replan (see Plans/SCA-Analyzer-Revamp/SCA4002.md)
+# Legacy keys — no effect while SCA4002 analyzer is archived:
+# scaffold.SCA4002.required_folders = Runtime,Tests
+# scaffold.SCA4002.exempt_module_roots = Scaffold.Maps|Scaffold.Records|Scaffold.Types
+# scaffold.SCA4002.exempt_requirements = Scaffold.Records=Tests
+dotnet_diagnostic.SCA4003.severity = none      # disabled — asmdef layout replan (see Plans/SCA-Analyzer-Revamp/SCA4003.md)
+# Legacy keys — no effect while SCA4003 analyzer is archived:
+# scaffold.SCA4003.suffix_folder_map = .Runtime=Runtime,.Tests=Tests,.PlayModeTests=Tests/PlayMode,.Samples=Samples,.Container=Container,.Editor=Editor,.Authoring=Authoring
+# scaffold.SCA4003.disallow_module_root_asmdef = true
+# scaffold.SCA4003.allow_unknown_suffix_in_any_subfolder = false
+dotnet_diagnostic.SCA5001.severity = none      # Disabled — replan/refactor (see Plans/SCA-Analyzer-Revamp/SCA5001.md)
+dotnet_diagnostic.SCA5002.severity = none      # disabled — replan with SCA5001 (see Plans/SCA-Analyzer-Revamp/SCA5002.md)
+
+# --- Path overrides — SCA3005 / SCA3006 (legacy namespaces / layout) ---
+
+[Assets/Scripts/Infra/Model/**/*.cs]
+# MVVM split modules keep legacy public namespaces under Scaffold.MVVM.
+dotnet_diagnostic.SCA3005.severity = none
+dotnet_diagnostic.SCA3006.severity = none
+
+[Assets/Scripts/Infra/MVVM/**/*.cs]
+# MVVM split modules keep legacy public namespaces under Scaffold.MVVM.
+dotnet_diagnostic.SCA3005.severity = none
+dotnet_diagnostic.SCA3006.severity = none
+
+[Assets/Scripts/Core/ViewModel/**/*.cs]
+# MVVM split modules keep legacy public namespaces under Scaffold.MVVM.
+dotnet_diagnostic.SCA3005.severity = none
+dotnet_diagnostic.SCA3006.severity = none
+
+[Assets/Scripts/App/View/**/*.cs]
+# MVVM split modules keep legacy public namespaces under Scaffold.MVVM.
+dotnet_diagnostic.SCA3005.severity = none
+dotnet_diagnostic.SCA3006.severity = none
+
+[LiveOps/Deploy/LiveOps/Initialize/ModuleConfig.cs]
+# Cloud Code entry: ICloudCodeSetup must remain in the default global namespace for discovery.
+dotnet_diagnostic.SCA3005.severity = none
+dotnet_diagnostic.SCA3006.severity = none
+
+[LiveOps/**/*.cs]
+# Cloud Code backend: LiveOps.* namespaces are validated by SCA3005; folder layout under Core/Modules projects does not match the strict path-derived suffix rule.
+dotnet_diagnostic.SCA3006.severity = none
+
+[Assets/Scripts/Meta/Levels/LiveOps/**/*.cs]
+# LiveOps level module keeps assembly identity Madbox.Level (distinct from Madbox.Levels); lives under Meta/Levels for discoverability.
+dotnet_diagnostic.SCA3005.severity = none
+dotnet_diagnostic.SCA3006.severity = none
+
+# Third-party AAGen — vendor code; same path may compile in Tests or other projects (see Directory.Build.props for AAGen.Editor).
+[Assets/Packages/AAGen-0.3.0/**]
+dotnet_diagnostic.SCA1001.severity = none
+dotnet_diagnostic.SCA1002.severity = none
+dotnet_diagnostic.SCA1003.severity = none
+dotnet_diagnostic.SCA1004.severity = none
+dotnet_diagnostic.SCA1005.severity = none
+dotnet_diagnostic.SCA1006.severity = none
+dotnet_diagnostic.SCA1007.severity = none
+dotnet_diagnostic.SCA2001.severity = none
+dotnet_diagnostic.SCA2002.severity = none
+dotnet_diagnostic.SCA2003.severity = none
+dotnet_diagnostic.SCA2004.severity = none
+dotnet_diagnostic.SCA3002.severity = none
+dotnet_diagnostic.SCA3003.severity = none
+dotnet_diagnostic.SCA3005.severity = none
+dotnet_diagnostic.SCA3006.severity = none
+dotnet_diagnostic.SCA6001.severity = none
+dotnet_diagnostic.SCA6002.severity = none
+dotnet_diagnostic.SCA8001.severity = none
+dotnet_diagnostic.SCA8002.severity = none
+dotnet_diagnostic.SCM001.severity = none
+dotnet_diagnostic.SCM002.severity = none
+dotnet_diagnostic.SCM003.severity = none

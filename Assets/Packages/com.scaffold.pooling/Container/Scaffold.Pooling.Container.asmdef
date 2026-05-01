@@ -1,0 +1,17 @@
+{
+    "name": "Scaffold.Pooling.Container",
+    "rootNamespace": "Scaffold.Pooling.Container",
+    "references": [
+        "Scaffold.Pooling",
+        "VContainer"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -1,0 +1,32 @@
+{
+    "name":  "Scaffold.MVVM.Samples",
+    "rootNamespace":  "Scaffold.MVVM.Samples",
+    "references":  [
+                       "Scaffold.MVVM.Model",
+                       "Scaffold.MVVM",
+                       "Scaffold.MVVM.View",
+                       "Scaffold.MVVM.ViewModel",
+                       "Scaffold.Navigation"
+                   ],
+    "includePlatforms":  [
+
+                         ],
+    "excludePlatforms":  [
+
+                         ],
+    "allowUnsafeCode":  false,
+    "overrideReferences":  true,
+    "precompiledReferences":  [
+        "CommunityToolkit.Mvvm.dll",
+        "System.Runtime.CompilerServices.Unsafe.dll"
+                              ],
+    "autoReferenced":  true,
+    "defineConstraints":  [
+
+                          ],
+    "versionDefines":  [
+
+                       ],
+    "noEngineReferences":  false
+}
+

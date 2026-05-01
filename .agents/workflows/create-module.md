@@ -2,26 +2,35 @@
 description: Scaffolds a new module following the project's structure guidelines.
 ---
 
-1.  **Determine Module Path**: Ask the user where the module should be created (e.g., `Assets/Scripts/Infra/[ModuleName]`).
+1.  **Determine Module Path**: Ask the user where the module should be created. For publishable first-party modules, default to **`Assets/Packages/com.scaffold.<short-name>/`** (UPM layout with `package.json` at the package root). Legacy examples under `Assets/Scripts/` are no longer the default in this repository.
 2.  **Verify GUID Preservation**: Remind the agent/user that `.meta` files are critical for GUID preservation if moving folders.
 3.  **Create Top-Level Folders**: Create the following directory structure:
     - `[ModulePath]/Runtime`
-    - `[ModulePath]/Runtime/Contracts`
-    - `[ModulePath]/Runtime/Implementation`
     - `[ModulePath]/Container`
     - `[ModulePath]/Tests`
     - `[ModulePath]/Editor` (Optional)
     - `[ModulePath]/Assets` (Optional)
     - `[ModulePath]/Samples` (Optional)
-4.  **Generate Assembly Definitions**: Create `.asmdef` files:
-    - `[ModulePath]/Runtime/Scaffold.[ModuleName].asmdef`
-    - `[ModulePath]/Container/Scaffold.[ModuleName].Container.asmdef` (Reference Runtime)
-    - `[ModulePath]/Tests/Scaffold.[ModuleName].Tests.asmdef` (Reference Runtime, Container, and Test Framework)
-5.  **Generate Initial Contracts**:
-    - Create a template interface in `Runtime/Contracts/I[ModuleName].cs`.
+4.  **Resolve Project Prefix (Deterministic Rule)**:
+    - Use `scaffold.SCA3001.root_namespace` from `.editorconfig` if present.
+    - Else use the repository's `RootNamespace`/project naming conventions.
+    - Else fallback to the current assembly prefix pattern already used in this repository.
+5.  **Generate Assembly Definitions**: Create `.asmdef` files:
+    - `[ModulePath]/Runtime/[ProjectPrefix].[ModuleName].asmdef`
+    - `[ModulePath]/Container/[ProjectPrefix].[ModuleName].Container.asmdef` (Reference Runtime module as needed)
+    - `[ModulePath]/Tests/[ProjectPrefix].[ModuleName].Tests.asmdef` (Reference Runtime, Container, and Test Framework as needed)
+    - Never place the main module asmdef at `[ModulePath]/`; it must live under `[ModulePath]/Runtime/`.
+6.  **Generate Initial Boundary API**:
+    - Create a template interface in `Runtime/Contracts/I[ModuleName].cs` when the module exposes cross-module boundary types.
     - Create a template installer in `Container/[ModuleName]Installer.cs` (Inheriting from `Installer` and public).
-6.  **Create Container**:
+7.  **Create Container**:
     - Create `Container/[ModuleName]Container.cs` (Inheriting from `Container`).
-7.  **Documentation Update**:
-    - Remind the user to update `Assets/Scripts/Infra/infra-module-analysis.md` (or the correct path once verified) with the new module details.
+8.  **Documentation Update**:
+    - Add authoritative module documentation to `Assets/Packages/<packageId>/README.md` and a short pointer under `Docs/` that links to it, following repository module-doc conventions.
     - Check for circular dependencies.
+9.  **Optional Cloud Code backend (`Backend~/`)**:
+    - If the module includes a `**Scaffold.LiveOps.<Feature>**` host slice, add `**[ModulePath]/Backend~/Scaffold/<Feature>/**` and `**<Feature.DTO>/**` (see `**Tools/BackendTemplate/com.scaffold.example**` and `**Assets/Packages/com.scaffold.liveops/README.md**`) and add the projects to `**LiveOps/LiveOps.Deploy.sln**`.
+10.  **Boundary Hygiene (Best Practice)**:
+    - Keep cross-module API types in `Runtime/Contracts` and concrete logic in `Runtime`.
+    - Default non-boundary classes to `internal`.
+    - Default external dependencies to `<Module>`; reserve foreign runtime-only dependencies for composition roots (your application startup / `AppFlowRoot` subclass) and module-local wiring.

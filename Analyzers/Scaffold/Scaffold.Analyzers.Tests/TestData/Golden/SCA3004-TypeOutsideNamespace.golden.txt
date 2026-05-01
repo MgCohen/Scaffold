@@ -1,0 +1,1 @@
+SCA3004|6|14|warning|Error SCA3004: 'Stray' is declared at file scope outside the namespace block; move it inside the namespace

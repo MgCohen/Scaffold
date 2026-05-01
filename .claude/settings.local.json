@@ -1,35 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python3 -c \"import sys,json; data=json.load\\(sys.stdin\\); print\\(data[0][''text'']\\)\")",
-      "Bash(python3 -c \":*)",
-      "Bash(node -e \":*)",
-      "Bash(ls -la \"c:\\\\Users\\\\user\\\\Documents\\\\Unity\\\\Scaffold\\\\Analyzers\\\\Scaffold\\\\Scaffold.Analyzers\\\\bin\\\\Release\"\" 2>/dev/null || echo \"Release folder not found \")",
-      "Bash(grep -r \"Analyzer\" \"c:\\\\Users\\\\user\\\\Documents\\\\Unity\\\\Scaffold\"/*.csproj)",
-      "Bash(grep -l \"Analyzer\" \"c:\\\\Users\\\\user\\\\Documents\\\\Unity\\\\Scaffold\"/*.csproj)",
-      "Bash(grep -B2 -A2 \"<Analyzer\" \"c:\\\\Users\\\\user\\\\Documents\\\\Unity\\\\Scaffold\"/*.csproj)",
-      "Bash(grep \"Scaffold\\\\.Analyzers\\\\.dll\" \"c:\\\\Users\\\\user\\\\Documents\\\\Unity\\\\Scaffold\"/*.csproj)",
-      "Bash(dotnet build -c Release)",
-      "Bash(dotnet build -v minimal)",
-      "Bash(dotnet build -v diagnostic)",
-      "Bash(dotnet build /p:UseSharedCompilation=false)",
-      "Bash(powershell -Command \":*)",
-      "Bash(powershell -File:*)",
-      "Bash(dotnet build -v normal)",
-      "Bash(\"c:/Users/user/Documents/Unity/Scaffold/TestAnalyzer/TestAnalyzer.csproj\":*)",
-      "Bash(cmd /c \"rmdir /s /q C:\\\\Users\\\\user\\\\Documents\\\\Unity\\\\Scaffold\\\\TestAnalyzer\")",
-      "Bash(dotnet build \"C:/Users/user/Documents/Unity/Scaffold/Scaffold.sln\"*)",
-      "Bash(dotnet build -c Release \"C:/Users/user/Documents/Unity/Scaffold/Analyzers/Scaffold/Scaffold.Analyzers/Scaffold.Analyzers.csproj\"*)",
-      "Bash(rm -f \"C:/Users/user/Documents/Unity/Scaffold/msbuild.binlog\")",
-      "Bash(dotnet build \"C:/Users/user/Documents/Unity/Scaffold/Scaffold.sln\")",
-      "Bash(grep -n \"Assets\\\\\\\\Analyzers\\\\\\\\Scaffold.Analyzers.dll\" \"C:/Users/user/Documents/Unity/Scaffold/Scaffold.Maps.csproj\" \"C:/Users/user/Documents/Unity/Scaffold/Scaffold.Types.Editor.csproj\" \"C:/Users/user/Documents/Unity/Scaffold/Scaffold.NetworkMessages.Samples.csproj\" \"C:/Users/user/Documents/Unity/Scaffold/Scaffold.Events.csproj\")",
-      "Bash(grep -rl \"Assets\\\\\\\\Analyzers\\\\\\\\Scaffold.Analyzers.dll\" \"C:/Users/user/Documents/Unity/Scaffold/\" --include=\"*.csproj\")",
-      "Bash(tee /tmp/scaffold_build.txt)",
-      "Bash(dotnet build \"C:/Users/user/Documents/Unity/Scaffold/Scaffold.sln\" --no-incremental)",
-      "Bash(echo \"Exit: $?\")",
-      "Bash(bash \"C:/Users/user/Documents/Unity/Scaffold/.agents/scripts/check-analyzers.sh\")",
-      "Bash(dotnet build \"Scaffold.sln\" --no-incremental)",
-      "Bash(gh pr view 7 --json url)"
+      "Bash(.agents/scripts/validate-changes.sh)",
+      "PowerShell(pwsh -NoProfile -File .agents\\\\scripts\\\\check-analyzers.ps1)",
+      "Bash(pwsh -NoProfile -File .agents/scripts/check-unity-compilation.ps1)",
+      "Bash(xargs grep *)",
+      "Bash(pwsh -NoProfile -File .agents/scripts/check-analyzers.ps1)",
+      "Bash(Select-Object -Last 12)"
     ]
   }
 }

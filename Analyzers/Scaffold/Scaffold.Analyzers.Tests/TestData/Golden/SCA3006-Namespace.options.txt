@@ -1,0 +1,4 @@
+# Match repo defaults for namespace layout (legacy first-segment skip when first_segment_ignore is omitted)
+scaffold.SCA3005.root=Scaffold
+scaffold.SCA3005.allowed_roots=GameModule;GameModuleDTO;Scaffold
+scaffold.SCA3006.content_roots=Assets/Scripts;LiveOps/Deploy/Core/LiveOps.Core;LiveOps/Deploy/Core/LiveOps.DTO;LiveOps/Deploy/LiveOps;LiveOps/Scaffold;LiveOps/Game

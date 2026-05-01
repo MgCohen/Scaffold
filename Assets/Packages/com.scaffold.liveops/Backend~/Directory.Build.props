@@ -1,0 +1,54 @@
+<Project>
+  <!--
+    Shipped via com.scaffold.liveops/Backend~. The LiveOps backend installer
+    merges Backend~ contents into <repo>/LiveOps/, so this file lands at
+    <repo>/LiveOps/Directory.Build.props and is auto-inherited by every
+    csproj under LiveOps/ (Deploy/**, Scaffold/**, Game/**).
+
+    It defines the MSBuild properties the deploy build expects
+    ($(LiveOpsRoot), $(RepositoryRoot)) and wires Common.props so the
+    Scaffold.LiveOps.Bootstrap source generator runs and every assembly is
+    tagged with [AssemblyMetadata("ScaffoldLiveOpsAssembly","true")] for
+    discovery. Without this, fresh installs hit MSB4019 (missing
+    Scaffold.LiveOps.Deploy.targets via empty $(LiveOpsRoot)) and CS0103 on
+    the generated LiveOpsManifest. See Plans/scaffold-liveops-backend-install-fix.md
+    in Gear-Engine for the failure history.
+  -->
+  <PropertyGroup>
+    <LiveOpsRoot Condition="'$(LiveOpsRoot)' == ''">$(MSBuildThisFileDirectory)</LiveOpsRoot>
+    <RepositoryRoot Condition="'$(RepositoryRoot)' == ''">$([MSBuild]::NormalizeDirectory('$(LiveOpsRoot)..'))</RepositoryRoot>
+  </PropertyGroup>
+
+  <!-- Centralize per-project bin/obj output under LiveOps/.artifacts/ instead of next to the source. -->
+  <PropertyGroup>
+    <LiveOpsArtifactsRoot>$(LiveOpsRoot).artifacts\</LiveOpsArtifactsRoot>
+    <BaseOutputPath>$(LiveOpsArtifactsRoot)bin\$(MSBuildProjectName)\</BaseOutputPath>
+    <BaseIntermediateOutputPath>$(LiveOpsArtifactsRoot)obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+    <MSBuildProjectExtensionsPath>$(BaseIntermediateOutputPath)</MSBuildProjectExtensionsPath>
+  </PropertyGroup>
+
+  <!--
+    SDK DefaultItemExcludes only covers $(BaseOutputPath)/** and $(BaseIntermediateOutputPath)/**.
+    After relocating output to LiveOps/.artifacts/, legacy ./obj and ./bin next to each csproj
+    are no longer excluded from the default **/*.cs glob. Stale generated files there
+    (AssemblyInfo.cs, target-framework AssemblyAttributes.cs) compile with real outputs under
+    .artifacts and produce CS0579 duplicate assembly attributes. See dotnet/sdk#3485.
+  -->
+  <PropertyGroup>
+    <DefaultItemExcludes>$(DefaultItemExcludes);$(MSBuildProjectDirectory)\obj\**</DefaultItemExcludes>
+    <DefaultItemExcludes>$(DefaultItemExcludes);$(MSBuildProjectDirectory)\bin\**</DefaultItemExcludes>
+  </PropertyGroup>
+
+  <Import Project="$(LiveOpsRoot)Deploy\Build\Scaffold.LiveOps.Common.props"
+          Condition="Exists('$(LiveOpsRoot)Deploy\Build\Scaffold.LiveOps.Common.props')" />
+  <Import Project="$(LiveOpsRoot)Deploy\Build\Scaffold.LiveOps.DtoCopy.targets"
+          Condition="Exists('$(LiveOpsRoot)Deploy\Build\Scaffold.LiveOps.DtoCopy.targets')" />
+
+  <!--
+    Dev-only template sync. Lives at <repo>/.agents/msbuild/ in the Scaffold dev repo
+    and is absent in consumer installs (consumers don't ship .agents/), so the Exists()
+    guard makes this a no-op everywhere except Scaffold itself.
+  -->
+  <Import Project="$(RepositoryRoot).agents\msbuild\Scaffold.LiveOps.TemplateSync.targets"
+          Condition="Exists('$(RepositoryRoot).agents\msbuild\Scaffold.LiveOps.TemplateSync.targets')" />
+</Project>

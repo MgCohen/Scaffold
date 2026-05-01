@@ -1,0 +1,15 @@
+{
+  "name": "com.scaffold.appflow",
+  "version": "0.1.0",
+  "displayName": "Scaffold App Flow",
+  "description": "Stacked VContainer LifetimeScope layers with async initialization, teardown, central error reporting, and load progress tracking.",
+  "unity": "6000.0",
+  "author": {
+    "name": "Matheus Gandolf Cohen",
+    "email": "matheus@duckduckweasel.com",
+    "url": "https://github.com/MgCohen/Scaffold"
+  },
+  "dependencies": {
+    "jp.hadashikick.vcontainer": "https://github.com/hadashiA/VContainer.git?path=VContainer/Assets/VContainer#1.17.0"
+  }
+}

@@ -1,0 +1,1 @@
+SCA6002|13|17|warning|Error SCA6002: 'UnityEngine.UI.Text' is forbidden. Use 'TMPro.TextMeshProUGUI' instead and add an assembly reference to 'Unity.TextMeshPro' when using TMPro.

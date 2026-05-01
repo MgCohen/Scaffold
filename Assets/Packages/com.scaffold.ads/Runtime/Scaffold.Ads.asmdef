@@ -1,0 +1,21 @@
+{
+    "name": "Scaffold.Ads.Runtime",
+    "rootNamespace": "Scaffold.Ads",
+    "references": [
+        "VContainer",
+        "Scaffold.LiveOps"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [
+        "LiveOps.DTO.dll",
+        "Scaffold.LiveOps.Ads.DTO.dll",
+        "Scaffold.LiveOps.DirectPush.DTO.dll"
+    ],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

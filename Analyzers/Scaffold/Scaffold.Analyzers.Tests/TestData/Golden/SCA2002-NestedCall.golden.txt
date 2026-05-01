@@ -1,0 +1,1 @@
+SCA2002|8|21|warning|Error SCA2002: Nested function call found. Extract the nested call or object creation to a separate variable on the line above, and pass the variable as the argument instead.

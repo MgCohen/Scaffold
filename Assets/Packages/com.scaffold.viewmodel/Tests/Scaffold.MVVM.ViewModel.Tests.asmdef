@@ -1,0 +1,26 @@
+{
+    "name": "Scaffold.MVVM.ViewModel.Tests",
+    "rootNamespace": "Scaffold.MVVM.VmComposition.Tests",
+    "references": [
+        "Scaffold.MVVM",
+        "Scaffold.MVVM.ViewModel",
+        "Scaffold.Navigation"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "CommunityToolkit.Mvvm.dll",
+        "System.Runtime.CompilerServices.Unsafe.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false,
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
+}

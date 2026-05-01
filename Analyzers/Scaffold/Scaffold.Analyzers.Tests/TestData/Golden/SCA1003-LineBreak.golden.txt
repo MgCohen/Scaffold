@@ -1,0 +1,1 @@
+SCA1003|6|21|warning|Error SCA1003: Line breaks found inside a single statement/signature. Collapse the statement back onto a single line without newlines.

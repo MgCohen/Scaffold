@@ -1,21 +1,12 @@
 # Codex Execution Plans (ExecPlans):
 
-This document describes the requirements for an execution plan ("ExecPlan"), a design document that a coding agent can follow to deliver a working feature or system change. Treat the reader as a complete beginner to this repository: they have only the current working tree and the single ExecPlan file you provide. There is no memory of prior plans and no external context.
+This document describes the requirements for an execution plan ("ExecPlan"), a design document that a coding agent can follow to deliver a working feature or system change. Treat the reader as a complete beginner to this repository: they have only the current working tree, the main ExecPlan file you provide, and any milestone detail files explicitly linked from it. There is no memory of prior plans and no external context.
 
 ## How to use ExecPlans and PLANS.md
 
 When authoring an executable specification (ExecPlan), follow PLANS.md _to the letter_. If it is not in your context, refresh your memory by reading the entire PLANS.md file. Be thorough in reading (and re-reading) source material to produce an accurate specification. When creating a spec, start from the skeleton and flesh it out as you do your research.
 
-When implementing an executable specification (ExecPlan), use this flow:
-
-1. Create a new git worktree and branch for the ExecPlan before implementation work starts. One ExecPlan should map to one worktree + one branch. Do not create a separate worktree per milestone.
-2. Create a feature-specific plan folder at `Plans/[FeatureName]/`.
-3. Create the main ExecPlan file at `Plans/[FeatureName]/ExecPlan.md`.
-4. If a milestone needs its own plan document, create it at `Plans/[FeatureName]/milestones/ExecPlan-Milestone-[x].md` (for example, `ExecPlan-Milestone-1.md`).
-5. Save the ExecPlan with the initial, self-contained milestones.
-6. Wait for explicit user input that identifies which module (or modules) to implement before executing plan milestones.
-
-After implementation starts, keep all sections up to date, add or split entries in the list at every stopping point to affirmatively state the progress made and next steps. Resolve ambiguities autonomously, and commit frequently.
+When implementing an executable specification (ExecPlan), unless explicitly told by the user not to, prompt for next steps. Keep all sections up to date, add or split entries in the list at every stopping point to affirmatively state the progress made and next steps. Resolve ambiguities autonomously, and commit frequently.
 
 When discussing an executable specification (ExecPlan), record decisions in a log in the spec for posterity; it should be unambiguously clear why any change to the specification was made. ExecPlans are living documents, and it should always be possible to restart from _only_ the ExecPlan and no other work.
 
@@ -34,9 +25,12 @@ NON-NEGOTIABLE REQUIREMENTS:
 
 Purpose and intent come first. Begin by explaining, in a few sentences, why the work matters from a user's perspective: what someone can do after this change that they could not do before, and how to see it working. Then guide the reader through the exact steps to achieve that outcome, including what to edit, what to run, and what they should observe.
 
-The agent executing your plan can list files, read files, search, run the project, and run tests. It does not know any prior context and cannot infer what you meant from earlier milestones. Repeat any assumption you rely on. Do not point to external blogs or docs; if knowledge is required, embed it in the plan itself in your own words. If an ExecPlan builds upon a prior ExecPlan and that file is checked in, incorporate it by reference. If it is not, you must include all relevant context from that plan.
+The agent executing your plan can list files, read files, search, run the project, and run tests. It does not know any prior context and cannot infer what you meant from earlier milestones. Repeat any assumption you rely on. Do not point to external references or external documentation; if knowledge is required, embed it in the plan itself in your own words. The only allowed cross-document references are optional local milestone detail files and the parent MasterPlan (when this ExecPlan is part of one). If an ExecPlan builds upon a prior ExecPlan and that file is checked in, incorporate it by reference. If it is not, you must include all relevant context from that plan.
 
-ExecPlan file location is mandatory in this repository: use `Plans/[FeatureName]/ExecPlan.md` for the main plan and `Plans/[FeatureName]/milestones/ExecPlan-Milestone-[x].md` for milestone-specific plan files when needed.
+Plan file locations are mandatory in this repository:
+
+* ExecPlan main file: `Plans/[FeatureName]/[FeatureName]-ExecPlan.md`
+* ExecPlan milestone detail file (optional): `Plans/[FeatureName]/milestones/ExecPlan-Milestone-[x].md`
 
 ## Formatting
 
@@ -48,7 +42,7 @@ Write in plain prose. Prefer sentences over lists. Avoid checklists, tables, and
 
 ## Guidelines
 
-Self-containment and plain language are paramount. If you introduce a phrase that is not ordinary English ("daemon", "middleware", "RPC gateway", "filter graph"), define it immediately and remind the reader how it manifests in this repository (for example, by naming the files or commands where it appears). Do not say "as defined previously" or "according to the architecture doc." Include the needed explanation here, even if you repeat yourself.
+Self-containment and plain language are paramount. If you introduce a phrase that is not ordinary English ("daemon", "middleware", "RPC gateway", "filter graph"), define it immediately and remind the reader how it manifests in this repository (for example, by naming the files or commands where it appears). Do not say "as defined previously" or refer the reader to external documentation. Include the needed explanation here, even if you repeat yourself. Exception: you may reference the local milestone detail file for the current milestone and the parent MasterPlan when applicable.
 
 Avoid common failure modes. Do not rely on undefined jargon. Do not describe "the letter of a feature" so narrowly that the resulting code compiles but does nothing meaningful. Do not outsource key decisions to the reader. When ambiguity exists, resolve it in the plan itself and explain why you chose that path. Err on the side of over-explaining user-visible effects and under-specifying incidental implementation details.
 
@@ -64,21 +58,35 @@ Capture evidence. When your steps produce terminal output, short diffs, or logs,
 
 ## Milestones
 
-Milestones are narrative, not bureaucracy. If you break the work into milestones, introduce each with a brief paragraph that describes the scope, what will exist at the end of the milestone that did not exist before, the commands to run, and the acceptance you expect to observe. Keep it readable as a story: goal, work, result, proof. Progress and milestones are distinct: milestones tell the story, progress tracks granular work. Both must exist. Never abbreviate a milestone merely for the sake of brevity, do not leave out details that could be crucial to a future implementation.
+Milestones are narrative, not bureaucracy. If you break the work into milestones, introduce each with a brief paragraph that describes the scope, what will exist at the end of the milestone that did not exist before, the commands to run, and the acceptance you expect to observe. Keep it readable as a story: goal, work, result, proof. Never abbreviate a milestone merely for the sake of brevity, and do not leave out details that could be crucial to a future implementation.
+
+All milestones must appear as `Progress` checklist items, but not all `Progress` checklist items are milestones.
+
+Milestone detail files are optional. Keep milestone guidance inline in the main ExecPlan by default.
+
+Create a milestone detail file only when at least one of these is true:
+* The milestone spans multiple sessions and needs handoff-safe instructions.
+* The milestone contains a prototype/spike with explicit promotion or discard criteria.
+* The milestone includes risky migration, destructive operations, or non-obvious recovery steps.
+* The milestone touches multiple subsystems where a short paragraph would be ambiguous.
+
+When a milestone detail file is created, it must be used operationally:
+* Add a `Progress` item in the main ExecPlan in this exact shape: `Execute Milestone [x] (Plans/[FeatureName]/milestones/ExecPlan-Milestone-[x].md): <outcome>`.
+* That item must represent actual execution work, not only "authored file".
+* The milestone detail file must include: goal, scope, concrete steps, validation commands, and acceptance criteria.
+* If scope becomes simple enough to keep inline, remove the milestone detail file and update `Progress` references in the same revision.
 
 Each milestone must be independently verifiable and incrementally implement the overall goal of the execution plan.
 
 For this repository, every milestone must follow this execution loop before it is marked complete:
 
-1. Check complexity first. If the milestone is complex (multiple modules, unknown API design, non-trivial refactor, or unclear acceptance), add a mini milestone plan with concrete steps, sample inputs/outputs, and acceptance notes.
+1. Implement the milestone scope.
 2. If the milestone includes a bug fix, add or update a regression test that reproduces the bug and confirm it fails before the fix.
-3. Implement the milestone scope.
-4. If you added a regression test, re-run it and confirm it passes after the fix.
-5. Run `.agents/scripts/run-editmode-tests.ps1`.
-6. Run `.agents/scripts/check-analyzers.ps1`.
-7. Fix all failures and analyzer diagnostics.
-8. Re-run both scripts until tests pass and analyzer diagnostics are zero.
-9. Commit the milestone changes.
+3. Re-run that same regression test and confirm it passes after the fix.
+4. Run `.agents/scripts/validate-changes.cmd`.
+5. If the gate fails, fix all reported failures and diagnostics.
+6. Re-run `.agents/scripts/validate-changes.cmd` until the gate is clean.
+7. Commit the milestone changes.
 
 ## Living plans and design decisions
 
@@ -90,7 +98,7 @@ For this repository, every milestone must follow this execution loop before it i
 
 # Prototyping milestones and parallel implementations
 
-It is acceptable—-and often encouraged—-to include explicit prototyping milestones when they de-risk a larger change. Examples: adding a low-level operator to a dependency to validate feasibility, or exploring two composition orders while measuring optimizer effects. Keep prototypes additive and testable. Clearly label the scope as “prototyping”; describe how to run and observe results; and state the criteria for promoting or discarding the prototype.
+It is acceptable—-and often encouraged—-to include explicit prototyping milestones when they de-risk a larger change. Examples: adding a low-level operator to a dependency to validate feasibility, or exploring two composition orders while measuring optimizer effects. Keep prototypes additive and testable. Clearly label the scope as "prototyping"; describe how to run and observe results; and state the criteria for promoting or discarding the prototype.
 
 Prefer additive code changes followed by subtractions that keep tests passing. Parallel implementations (e.g., keeping an adapter alongside an older path during migration) are fine when they reduce risk or enable tests to continue passing during a large migration. Describe how to validate both paths and how to retire one safely with tests. When working with multiple new libraries or feature areas, consider creating spikes that evaluate the feasibility of these features _independently_ of one another, proving that the external library performs as expected and implements the features we need in isolation.
 
@@ -110,11 +118,11 @@ Prefer additive code changes followed by subtractions that keep tests passing. P
 
     Use a list with checkboxes to summarize granular steps. Every stopping point must be documented here, even if it requires splitting a partially completed task into two (“done” vs. “remaining”). This section must always reflect the actual current state of the work.
 
-    - [x] (2025-10-01 13:00Z) Example completed step.
+    - [x] Example completed step.
     - [ ] Example incomplete step.
     - [ ] Example partially completed step (completed: X; remaining: Y).
 
-    Use timestamps to measure rates of progress.
+    Use the checklist to measure rates of progress.
 
     ## Surprises & Discoveries
 
@@ -129,7 +137,7 @@ Prefer additive code changes followed by subtractions that keep tests passing. P
 
     - Decision: …
       Rationale: …
-      Date/Author: …
+      Author: …
 
     ## Outcomes & Retrospective
 
@@ -172,3 +180,8 @@ Prefer additive code changes followed by subtractions that keep tests passing. P
 If you follow the guidance above, a single, stateless agent -- or a human novice -- can read your ExecPlan from top to bottom and produce a working, observable result. That is the bar: SELF-CONTAINED, SELF-SUFFICIENT, NOVICE-GUIDING, OUTCOME-FOCUSED.
 
 When you revise a plan, you must ensure your changes are comprehensively reflected across all sections, including the living document sections, and you must write a note at the bottom of the plan describing the change and the reason why. ExecPlans must describe not just the what but the why for almost everything.
+
+# Orchestration
+
+Some ExecPlans are part of a MasterPlan. When an ExecPlan belongs to a MasterPlan, include a clear link to the MasterPlan in the ExecPlan and, once the ExecPlan is finished, explicitly update the MasterPlan to reflect completion and any dependency changes.
+

@@ -1,0 +1,19 @@
+{
+    "name": "Scaffold.Navigation.Container",
+    "rootNamespace": "Scaffold.Navigation.Container",
+    "references": [
+        "Scaffold.Navigation",
+        "Scaffold.AppFlow",
+        "VContainer",
+        "VContainer.Unity"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

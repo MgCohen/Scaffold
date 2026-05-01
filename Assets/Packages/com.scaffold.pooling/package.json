@@ -1,0 +1,14 @@
+{
+    "name": "com.scaffold.pooling",
+    "version": "0.1.0",
+    "displayName": "Scaffold Pooling",
+    "description": "Generic object pool with optional IPoolable lifecycle hooks and self-return events.",
+    "unity": "6000.0",
+    "author": {
+        "name": "Matheus Gandolf Cohen",
+        "email": "matheus@duckduckweasel.com",
+        "url": "https://github.com/MgCohen/Scaffold"
+    },
+    "dependencies": {},
+    "path": "https://github.com/MgCohen/Scaffold.git?path=/Assets/Packages/com.scaffold.pooling#main"
+}

@@ -1,0 +1,1 @@
+SCA1002|6|28|warning|Error SCA1002: 'Count' uses a concise expression body `=>`. Convert it to a block body surrounded by curly brackets `{ }`.

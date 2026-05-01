@@ -1,0 +1,25 @@
+{
+    "name": "Scaffold.DirectPush",
+    "rootNamespace": "Scaffold.DirectPush",
+    "references": [
+        "Scaffold.LiveOps",
+        "Scaffold.CloudCode",
+        "Scaffold.AppFlow",
+        "Unity.Services.CloudCode",
+        "VContainer"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [
+        "Newtonsoft.Json.dll",
+        "LiveOps.DTO.dll",
+        "Scaffold.LiveOps.Ads.DTO.dll",
+        "Scaffold.LiveOps.DirectPush.DTO.dll"
+    ],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

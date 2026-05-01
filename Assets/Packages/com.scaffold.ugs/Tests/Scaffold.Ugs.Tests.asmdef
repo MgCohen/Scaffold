@@ -1,0 +1,21 @@
+{
+    "name": "Scaffold.Ugs.Tests",
+    "rootNamespace": "Scaffold.Ugs.Tests",
+    "references": [
+        "Scaffold.Ugs"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false,
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
+}

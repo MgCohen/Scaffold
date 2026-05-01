@@ -1,0 +1,17 @@
+{
+    "name":  "com.scaffold.viewmodel",
+    "version":  "0.1.0",
+    "displayName":  "Scaffold ViewModel",
+    "description":  "MVVM view model layer.",
+    "unity":  "6000.0",
+    "author":  {
+                   "name":  "Matheus Gandolf Cohen",
+                   "email":  "matheus@duckduckweasel.com",
+                   "url":  "https://github.com/MgCohen/Scaffold"
+               },
+    "dependencies":  {
+                         "com.scaffold.navigation":  "0.1.0",
+                         "com.scaffold.mvvm":  "0.1.0"
+                     },
+    "path":  "https://github.com/MgCohen/Scaffold.git?path=/Assets/Packages/com.scaffold.viewmodel#main"
+}

@@ -1,0 +1,19 @@
+{
+  "name": "Scaffold.Navigation.Editor",
+  "rootNamespace": "Scaffold.Navigation.Editor",
+  "references": [
+    "Scaffold.Navigation",
+    "Scaffold.Schemas.Editor"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

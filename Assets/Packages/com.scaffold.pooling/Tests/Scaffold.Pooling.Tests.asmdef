@@ -1,0 +1,21 @@
+{
+    "name": "Scaffold.Pooling.Tests",
+    "rootNamespace": "Scaffold.Pooling.Tests",
+    "references": [
+        "Scaffold.Pooling"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false,
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
+}

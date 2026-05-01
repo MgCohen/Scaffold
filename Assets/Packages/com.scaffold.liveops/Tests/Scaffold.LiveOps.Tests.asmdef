@@ -1,0 +1,32 @@
+{
+    "name": "Scaffold.LiveOps.Tests",
+    "rootNamespace": "Scaffold.LiveOps.Tests",
+    "references": [
+        "Scaffold.LiveOps",
+        "Scaffold.LiveOps.Container",
+        "Scaffold.AppFlow",
+        "Scaffold.CloudCode",
+        "VContainer",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner",
+        "Scaffold.Records"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll",
+        "LiveOps.DTO.dll",
+        "Scaffold.LiveOps.Ads.DTO.dll",
+        "Scaffold.LiveOps.DirectPush.DTO.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
