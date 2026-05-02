@@ -1,10 +1,10 @@
-# ExecPlan v2 — Effect Graph Tooling
+# ExecPlan v2 — Graph Tooling
 
 ## Context
 
 The previous attempt (`ExecPlan.md`, `Assets/GraphFlow/`) over-engineered a generic flow-graph engine that depended on a source generator that never landed. The result: per-type editor classes, per-type runtime definitions, per-type asset baker cases, hardcoded wiring seeds, half-implemented branching, dead-code services. Working tests, painful architecture.
 
-This plan defines a focused, source-generator-driven graph tool for authoring **game effects** — the visual scripting of card abilities. Built on Unity Graph Toolkit, designed to integrate with the Card Framework's command pipeline, but intended to be game-agnostic.
+This plan defines a focused, source-generator-driven, game-agnostic graph tool. The v1 driving use case is visual scripting of card abilities (the "Effect Graph") via Card Framework integration, but the package itself is generic — multiple `[GraphPackage]`-annotated runners (Effects, Dialogue, AI behavior, …) coexist in one project. Built on Unity Graph Toolkit.
 
 The reference for the **designer-facing surface** is the existing FlowCanvas-based EffectFlow system in the Overknights project. The reference for the **runtime semantics** is the Card Framework planning docs (`C:\Unity\Card Framework\Product\`).
 
@@ -18,7 +18,7 @@ The reference for the **designer-facing surface** is the existing FlowCanvas-bas
 4. `Validate` + `Run` dual flows on every entry node, native to the graph language.
 5. Trigger listeners can pass-through-with-modifications, cancel, or replace the in-flight command.
 6. Package is game-agnostic — works for Card Framework, FlowCanvas-shaped systems, or any custom convention via configuration.
-7. Zero runtime reflection on hot paths. All per-execution port reads/writes go through generated delegates.
+7. Zero runtime reflection on hot paths. Per-execution port reads/writes go through typed `Connection<T>` objects wired at hydration via generator-emitted `switch` jump tables — direct delegate invocation, no reflection, no string lookups.
 
 ## Non-goals (v1)
 
@@ -112,7 +112,7 @@ public sealed class Execute : IGraphEntry<MyRunner> { }
 public sealed class Attach  : IGraphEntry<MyRunner> { public Card target; }
 ```
 
-`**IGraphAction<TRunner>**` — pipelined through the framework. Any graph can listen via `On Before X` / `On After X`.
+`**IGraphAction<TRunner>**` — executed by their generated runtime node, either self-executing via `IExecutable<TRunner>` (Mode 1) or through a consumer-supplied `DispatcherBase` helper (Mode 2). When the consumer's `DispatcherBase` plugs into a domain pipeline (Card Framework's `IEffectScope.Dispatch`, etc.), other graphs can listen via `On Before X` / `On After X`. For Mode 1 packages with no pipeline, listener nodes simply aren't authored.
 
 The runner type parameter is the **package discriminator**: every payload declares which graph package it belongs to. The same project can have multiple `[GraphPackage]`-annotated runners (Effects, Dialogue, …) and the generator partitions payloads by their `IGraphEntry<R>` / `IGraphAction<R>` argument. No silent grouping, no missing-attribute footguns, no shared bucket.
 
@@ -368,6 +368,8 @@ The naming convention is mechanical: strip a trailing `Runner` suffix, prepend t
 
 ### Compile-time diagnostics (nice-to-have)
 
+(`EFG001` reserved — was "config required" in earlier drafts; now a missing `[GraphPackage]` is a silent no-op since the generator simply emits nothing.)
+
 - `EFG002` — `[In]` on a `readonly` field
 - `EFG003` — `[Out]` on a settable field (in `AttributedFields` mode)
 - `EFG004` — Field type not serializable
@@ -398,7 +400,7 @@ The editor graph never runs. The runtime asset is what game code references and 
 
 ### Asset lifecycle (single source file, dual representation)
 
-Following Unity's `VisualNovelDirector` sample: **one source file on disk** (with an extension the consumer picks — e.g. `.cardgraph` for the Card Framework integration) holds both the editor graph (hidden, for re-editing) and the imported runtime asset (the `SetMainObject`, what consumers reference). Designers drag the file into a `GraphAsset<TRunner>` field (or a consumer-defined concrete subclass like `CardEffectGraphAsset`) and get the runtime form directly.
+Following Unity's `VisualNovelDirector` sample: **one source file on disk** (with an extension the consumer picks via `[GraphPackage(Extension = "...")]` — e.g. `.cardgraph` for the Card Framework integration) holds both the editor graph (hidden, for re-editing) and the imported runtime asset (the `SetMainObject`, what consumers reference). Designers drag the file into a generator-emitted concrete `GraphAsset<TRunner>` subclass field (e.g. `CardEffectGraphAsset`) and get the runtime form directly.
 
 **Custom Graph subclass** — registers the file extension and is the Graph Toolkit edit-time asset type. **Auto-emitted by the source generator** from `[assembly: GraphPackage(Runner = typeof(...), Extension = "...")]`. The consumer doesn't write it. Generator output looks like:
 
@@ -482,7 +484,7 @@ If the consumer needs to bump `version: N` or add post-bake steps, they hand-wri
 `GraphBaker` is responsible for **everything that turns an editor graph into a runtime-compliant artifact**:
 
 1. **Node-id assignment (stable across re-bakes).** The baker reads the previous runtime asset at `ctx.assetPath` (if any) and walks its `nodes`, recovering an `editorGuid → nodeId` map from each runtime node's `editorGuid` field. Every editor node Graph Toolkit reports gets translated to a stable `int nodeId`: an existing editor guid keeps its previous id; a new editor node gets the next free monotonic int (highest seen + 1). Removed editor nodes' ids are retired. Each emitted runtime node carries both its new `nodeId` and the source `editorGuid` so the next re-import can recover the map. Runtime hydration ignores `editorGuid`.
-2. **Node translation.** Each editor node maps to one or more typed runtime node instances. The baker reads the registry to find the runtime class for a given editor node type, then `Activator.CreateInstance` (or a generated factory in the registry) constructs the runtime node, populates its inline-value fields from the editor node's port constants (`port.TryGetValue<T>`), and assigns the stable `nodeId` from step 1. Most editor nodes map 1:1 (`StrikeDispatcherNode` → `StrikeDispatcherRuntime`); some may be 1:N if a built-in node compiles to multiple runtime steps.
+2. **Node translation.** Each editor node maps to one or more typed runtime node instances. The baker reads the registry to find the **generator-emitted factory delegate** (`Func<RuntimeNode<TRunner>>`) for a given editor node type, invokes it to construct the runtime node, populates its inline-value fields from the editor node's port constants (via `port.TryGetValue<T>()` for unwired embedded values, or `port.firstConnectedPort` chasing for variable/constant nodes — same approach as VND's `GetInputPortValue`), and assigns the stable `nodeId` from step 1. No `Activator.CreateInstance`, no reflection — the factory delegate is one of the pieces the source generator emits per payload. Most editor nodes map 1:1 (`StrikeDispatcherNode` → `StrikeDispatcherRuntime`); some may be 1:N if a built-in node compiles to multiple runtime steps.
 3. **Connection resolution.** Editor port-to-port connections are translated into `ConnectionRecord`s of `(fromNodeId, fromPortId, toNodeId, toPortId)` — all four ints. The baker resolves each editor-port-name to its stable `portId` by looking up the registry's per-payload `editor-port-name → port-ID` table (emitted by the generator from the same `Ports` constants the runtime switches use). Connections involving editor-only helper nodes are inlined; the resulting `ConnectionRecord` binds directly to the upstream non-helper source.
 4. **Embedded value extraction.** Each unwired input port's constant value is read via `port.TryGetValue<T>()` and stored into the matching typed field on the runtime node instance.
 5. **Bake-time validation.** Errors that prevent runtime correctness are reported here, even if the editor accepted them:
@@ -504,7 +506,7 @@ The runtime asset is a real Unity `ScriptableObject` — added as a sub-asset an
 
 Serialization is **plain Unity ScriptableObject serialization** — we ride Unity's machinery, we do not layer a custom one on top.
 
-The package ships an **abstract, runner-typed base class**. The package is game-agnostic; it never names "effect" or anything domain-specific. Consumers (Card Framework, Overknights, anyone) subclass it concretely:
+The package ships abstract, runner-typed base classes (`RuntimeNode`, `RuntimeNode<TRunner>`, `GraphAsset<TRunner>`) plus the wiring object (`Connection`/`Connection<T>`) and serializable record types (`ConnectionRecord`, `EntryIndex`). The package is game-agnostic; it never names "effect" or anything domain-specific. The concrete `GraphAsset<TRunner>` subclass per package is **generator-emitted** from `[GraphPackage]` (see "Per-package emission" in the source generator section); the consumer doesn't write it:
 
 ```csharp
 // PACKAGE — game-agnostic
@@ -626,7 +628,7 @@ Hydration steps, in order:
    var conn = from.GetOutputConnection(c.fromPortId);  // virtual call → generated switch on portId
    to.BindInput(c.toPortId, conn);                     // virtual call → generated switch on portId
    ```
-   Two virtual calls per connection, each resolving to a compile-time `switch` the source generator wrote. No reflection, no string lookups. Mechanics in "Wiring mechanism" below.
+   Two virtual calls per connection, each resolving to a compile-time `switch` (hand-written in M0, generator-emitted from M1 onward — same shape either way). No reflection, no string lookups. Mechanics in "Wiring mechanism" below.
 
 3. **Build the entry index.** `var entryByType = new Dictionary<Type, RuntimeNode<TRunner>>();` Walk `asset.entries`, look up the payload `Type` for each `entryTypeId` in the registry, look up the root node in `byId` by `rootNodeId`, populate the dictionary. This is what `Run<TEntry>(payload)` and `Validate<TEntry>(payload)` look up at dispatch time.
 
@@ -640,17 +642,19 @@ Hydration steps, in order:
 
 The "lookup" in step 2 is **two virtual calls**, both resolving to switches the source generator wrote at compile time.
 
-For each generated runtime node, the generator emits:
+For each generated runtime node, the generator emits the wiring scaffolding (port IDs + slots + the two switch overrides) identically regardless of execution path. The `Execute` body is the only piece that varies per the decision tree (`IExecutable` vs `DispatcherBase` — see "Per-payload emission").
+
+Wiring scaffolding (every generated runtime node has exactly this shape):
 
 ```csharp
-// Generated, per payload — example: StrikeDispatcherRuntime
-public sealed class StrikeDispatcherRuntime : RuntimeNode<CardEffectRunner> {
-    // Generated stable port-ID constants (FNV-1a of field name, or [GraphPort(Id=N)] override).
+// Generated, per payload — example: StrikeDispatcherRuntime (Mode 2 / DispatcherBase path)
+public sealed class StrikeDispatcherRuntime : CardCommandDispatcher<Strike, StrikeResult> {
+    // Stable port-ID constants (FNV-1a of field name, or [GraphPort(Id=N)] override).
     // Same constants are used by the baker when translating editor port names to runtime IDs.
     public static class Ports {
-        public const int Magnitude    = 0x9F3A_C12B;   // input
-        public const int Target       = 0x4D81_77E0;   // input
-        public const int DamageDealt  = 0x2C5B_AA09;   // output
+        public const int Magnitude   = 0x9F3A_C12B;   // input
+        public const int Target      = 0x4D81_77E0;   // input
+        public const int DamageDealt = 0x2C5B_AA09;   // output
     }
 
     // Inline designer constants — serialized into the asset by Unity
@@ -677,12 +681,26 @@ public sealed class StrikeDispatcherRuntime : RuntimeNode<CardEffectRunner> {
         }
     }
 
-    public override async ValueTask Execute(CardEffectRunner runner) {
-        var mag = _in_Magnitude?.Read() ?? this.Magnitude;   // wired wins; otherwise inline constant
-        var tgt = _in_Target   ?.Read() ?? this.Target;
-        var result = await runner.EffectScope.Dispatch(new Strike { Magnitude = mag, Target = tgt });
+    // ── Execution path varies by [GraphPackage] decision tree ──
+
+    // Mode 2: inherits Execute from CardCommandDispatcher<Strike, StrikeResult>;
+    // generator only fills in BuildPayload / WriteOutputs:
+
+    protected override Strike BuildPayload() => new Strike {
+        Magnitude = _in_Magnitude != null ? _in_Magnitude.Read() : this.Magnitude,
+        Target    = _in_Target    != null ? _in_Target.Read()    : this.Target,
+    };
+
+    protected override void WriteOutputs(StrikeResult result) {
         _out_DamageDealt = result.DamageDealt;
     }
+
+    // Mode 1 (IExecutable on payload) alternative would replace the two methods above with:
+    //   public override ValueTask Execute(CardEffectRunner runner) {
+    //       var payload = BuildPayload();
+    //       return payload.Execute(runner);   // delegates to IExecutable<TRunner>
+    //   }
+    // and the class would inherit RuntimeNode<CardEffectRunner> directly, not CardCommandDispatcher.
 }
 ```
 
@@ -712,10 +730,8 @@ public abstract class GraphRunner {
 public abstract class Graph<TRunner> : GraphToolkit.Graph
     where TRunner : GraphRunner { }
 
-public abstract class RuntimeNode<TRunner> where TRunner : GraphRunner {
-    public virtual void Initialize(TRunner runner) { }     // optional init hook
-    public abstract ValueTask Execute(TRunner runner);
-}
+// RuntimeNode / RuntimeNode<TRunner> are defined in "Runtime asset format" above.
+// Initialization is opt-in via IInitializableNode<TRunner> — see "Lifecycle hooks".
 ```
 
 The package itself knows nothing about commands, dispatch, or any consumer domain. Hand-written generic helper nodes (Branch, Equals, etc.) are typed `RuntimeNode<TRunner>` and parameterized over the consumer's runner.
@@ -1181,7 +1197,7 @@ A full blackboard system (whether GT-native or rolled-our-own) is a v2 follow-up
 
 ### Edit-time
 
-Implemented via Graph Toolkit's `OnGraphChanged(GraphLogger)` hook on the consumer's `Graph<TRunner>` subclass. The package ships shared validation helpers the consumer's override can call, but the hook itself lives on the consumer-defined graph class. Each rule logs to the supplied logger:
+Implemented via Graph Toolkit's `OnGraphChanged(GraphLogger)` hook on the auto-emitted `<R>Graph : Graph<TRunner>` partial class. The package ships shared validation helpers, and the consumer can extend the partial class to add custom rules; the default-rules implementation lives in the generator-emitted half. Each rule logs to the supplied logger:
 
 - All entry/listener Run flows must end at a valid terminator
 - Validate flows must end at `[Return Bool]` (if connected at all)
@@ -1193,7 +1209,7 @@ Implemented via Graph Toolkit's `OnGraphChanged(GraphLogger)` hook on the consum
 
 - Detect cycles in flow paths (other than legitimate trigger registration cycles, which aren't graph-internal)
 - Validate type compatibility between connected ports
-- Emit the consumer's concrete `GraphAsset<TRunner>` subclass only if no errors; on error, log via `ctx.LogImportError` and skip emission
+- Emit the generator-produced concrete `GraphAsset<TRunner>` subclass instance only if no errors; on error, log via `ctx.LogImportError` and skip emission (no main object set, source file becomes "edits but doesn't build")
 
 ### Runtime
 
@@ -1262,7 +1278,7 @@ The hand-written code must be **representative**, not corner-cut. Validation hin
 ### Milestone 4 — Polish (1 week)
 
 - Remaining built-in conventions (`MutableInReadOnlyOut`, `AllFieldsIn`).
-- Diagnostics EFG002–EFG006.
+- Remaining diagnostics: `EFG002`, `EFG003`, `EFG004`, `EFG006` (EFG005/007/008 shipped in M1).
 - Per-type escape-hatch attribute handling.
 - Editor menu organization (`[GraphMenu]`).
 - Documentation: package README, conventions guide, "writing a payload" tutorial, "how to add a graph package" tutorial.
@@ -1323,10 +1339,11 @@ If the runtime walker proves too slow on real card games (it shouldn't — there
 Specific notes to keep v2 cheap:
 
 1. **Runtime tree walker is reentrant.** Already required for trigger listener fan-out; macros will reuse the same machinery.
-2. `**NodeRecord.typeId` is namespaced.** Reserve a prefix for macro references (e.g., `macro:guid:...`). Generator-emitted types use a different prefix.
-3. **Asset shape is generic over node payload.** No per-type asset records. New node categories (macro reference, sub-graph call) extend the registry, not the asset format.
+2. **Registry `entryTypeId` keys are namespaced strings.** Reserve a prefix for macro references (e.g., `macro:<guid>`). Generator-emitted payloads use the fully-qualified C# type name (default — no prefix). Lets macros and generated payloads coexist in the same lookup table without collision.
+3. **Asset shape is generic over node payload.** Nodes are `[SerializeReference] List<RuntimeNode<TRunner>>` of typed instances; new node categories (macro reference, sub-graph call) become new `RuntimeNode<TRunner>` subclasses, not new asset fields. Asset format stays stable across v1→v2.
 4. **Controller listener API uses an interface, not a concrete listener class.** Macro-as-listener (a macro that registers triggers) becomes a different `ICommandListener<TRunner>` implementation later.
 5. **Convention strategies are sealed but isolated.** Each strategy is its own class behind an internal interface; v2's pluggable extension just opens the interface.
+6. **`Connection<T>` carries `SourceNode` + `SourcePortId` back-references.** Already enables traversal at hydration time; macros and dead-port elimination (v2) walk the same back-pointers.
 
 ---
 
@@ -1335,16 +1352,16 @@ Specific notes to keep v2 cheap:
 
 | Anti-pattern from old `Assets/GraphFlow/`           | Why we're not repeating it                                                                                                             |
 | --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| Per-type editor `Node` classes hand-written         | Generator emits them; consumer writes payloads only                                                                                    |
+| Per-type editor `Node` classes hand-written         | Generator emits them from M1 onward; consumer writes payloads only (M0 hand-writes one of each shape as the deliberate validation slice) |
 | Per-type runtime definitions hand-written           | Same                                                                                                                                   |
-| Baker `switch (node)` pattern-matching              | Type-driven dispatch via registry                                                                                                      |
-| Hardcoded blackboard wiring seeds                   | No blackboard in v1; payload-port wiring via generated accessors, host references via consumer-authored runner-property accessor nodes |
+| Baker `switch (node)` pattern-matching              | Type-driven dispatch via registry; baker uses generated factory delegates to instantiate runtime nodes                                |
+| Hardcoded blackboard wiring seeds                   | No blackboard in v1; payload-port wiring via typed `Connection<T>`, host references via consumer-authored runner-property accessor nodes |
 | Reflection on field names per execution             | Typed `Connection<T>` slots wired at hydration via generated port-ID switches; hot path is a direct delegate invoke                     |
-| Entry type stored as `AssemblyQualifiedName` string | Stable type id from registry; bake-time validated                                                                                      |
+| Entry type stored as `AssemblyQualifiedName` string | Stable string `entryTypeId` from registry (`EntryIndex.entryTypeId`); bake-time validated                                              |
 | Linear-flow-only with no branching                  | `Branch` node and Validate flow are first-class                                                                                        |
 | Dead `IGraphTickService`                            | No tick service; consumer drives lifecycle                                                                                             |
 | Vague blackboard inheritance for sub-graphs         | No sub-graphs in v1; v2 design starts from explicit semantics                                                                          |
-| Source generator that doesn't ship                  | Generator is committed v1 scope; nothing depends on a future generator                                                                 |
+| Source generator that doesn't ship                  | M0 ships zero-generator hand-written slice; M1 ships the generator with M0 as the golden output                                       |
 
 
 ---
@@ -1359,7 +1376,7 @@ All previously-open architecture questions are resolved:
 | Topic                           | Resolution                                                                                                                                                                                                                                                                                                                                                     |
 | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Blackboard / variables          | **No blackboard in v1.** Designer constants as inline embedded port values. Host-injected references on the consumer's runner. Full blackboard deferred to v2.                                                                                                                                                                                                 |
-| Runtime context                 | `**GraphRunner` abstract base class, generic `RuntimeNode<TRunner>`.** Consumer subclasses `GraphRunner` with their own services. Package has no opinion on what's on the runner.                                                                                                                                                                              |
+| Runtime context                 | **`GraphRunner` abstract base class, generic `RuntimeNode<TRunner>`.** Consumer subclasses `GraphRunner` with their own services. Package has no opinion on what's on the runner.                                                                                                                                                                              |
 | Editor `Graph` subclass         | **Auto-emitted by the generator** as `<R>Graph : Graph<TRunner>` (`partial class` so the consumer can extend it). Same applies to `<R>GraphAsset` and `<R>GraphImporter`. Consumer can hand-write any of the three to override; generator skips emission for the overridden one.                                                                                |
 | Payload-to-package binding      | **Two modes per `[GraphPackage]`:** (1) marker interface `IGraphAction<TRunner>` / `IGraphEntry<TRunner>` for fresh code; (2) `CommandBase = typeof(...)` / `EntryBase = typeof(...)` config for wrapping existing domain hierarchies (Card Framework's `Command<>`). Generator unions both sources per runner.                                                  |
 | Per-payload execution           | **`IExecutable<TRunner>` on the payload wins**, otherwise generator emits a subclass of `[GraphPackage].DispatcherBase`. Mixed within one package is allowed. Missing both → `EFG007`.                                                                                                                                                                          |
@@ -1385,7 +1402,7 @@ The single-file dual-representation design was audited against Unity's `VisualNo
 
 **Implications for our plan:**
 
-1. Runtime nodes are stored as typed `[SerializeReference]` instances on the asset (`GraphAsset<TRunner>` abstract base, with consumer-defined concrete subclass). We do **not** store a `byte[] serializedConstants` blob — the source generator already produces a typed class per payload, so the asset can carry those instances directly and let Unity serialize their fields the normal way. This is what keeps Unity-object references (Cards, Sprites, AssetReferences, ScriptableObjects on the runner side) patch-correct through the build pipeline.
+1. Runtime nodes are stored as typed `[SerializeReference]` instances on the asset (`GraphAsset<TRunner>` abstract base, with generator-emitted concrete subclass per `[GraphPackage]`). We do **not** store a `byte[] serializedConstants` blob — the source generator already produces a typed class per payload, so the asset can carry those instances directly and let Unity serialize their fields the normal way. This is what keeps Unity-object references (Cards, Sprites, AssetReferences, ScriptableObjects on the runner side) patch-correct through the build pipeline.
 2. **VND only validates the asset-shipping story, not the connection model.** VND is a linear sequence (start node + `next` chain) baked into a flat list — it has no port-to-port wiring. Our connection model follows the FlowCanvas pattern instead: stable integer IDs (never indices) on both endpoints, `ConnectionRecord` carrying `(fromNodeId, fromPortId, toNodeId, toPortId)` as four ints, and load-time resolution that produces typed `Connection<T>` wiring objects via two virtual calls per edge — both resolving to compile-time switches the source generator wrote. See "Connection model", "Hydration", and "Wiring mechanism" sections for the explicit walkthrough.
 
 ---
