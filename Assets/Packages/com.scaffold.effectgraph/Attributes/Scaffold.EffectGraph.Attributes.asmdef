@@ -1,0 +1,14 @@
+{
+  "name": "Scaffold.EffectGraph.Attributes",
+  "rootNamespace": "Scaffold.EffectGraph",
+  "references": [],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": true
+}

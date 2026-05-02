@@ -1,0 +1,24 @@
+{
+  "name": "Scaffold.EffectGraph.Sample.Editor",
+  "rootNamespace": "Scaffold.EffectGraph.Sample.Editor",
+  "references": [
+    "Scaffold.EffectGraph.Attributes",
+    "Scaffold.EffectGraph.Runtime",
+    "Scaffold.EffectGraph.Editor",
+    "Unity.GraphToolkit.Common.Editor",
+    "Unity.GraphToolkit.Editor"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [
+    "Scaffold.EffectGraph.Generators.dll"
+  ],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}
