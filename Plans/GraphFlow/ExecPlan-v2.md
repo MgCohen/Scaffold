@@ -84,7 +84,7 @@ Three layers, three assemblies in the package, one generated assembly per consum
 
 ### Two payload hierarchies
 
-**`EntryPoint`** — object-specific, direct invocation. Only the graph that owns the entry node receives it.
+`**EntryPoint**` — object-specific, direct invocation. Only the graph that owns the entry node receives it.
 
 ```csharp
 public abstract class EntryPoint { }
@@ -95,7 +95,7 @@ public class Dispose : EntryPoint { }
 public class Attach  : EntryPoint { public Card target; }
 ```
 
-**`GameCommand<TResult>`** — pipelined through the framework. Any graph can listen via `On Before X` / `On After X`.
+`**GameCommand<TResult>**` — pipelined through the framework. Any graph can listen via `On Before X` / `On After X`.
 
 ```csharp
 public abstract class GameCommand<TResult> where TResult : CommandResult { }
@@ -752,7 +752,7 @@ If the runtime walker proves too slow on real card games (it shouldn't — there
 Specific notes to keep v2 cheap:
 
 1. **Runtime tree walker is reentrant.** Already required for trigger listener fan-out; macros will reuse the same machinery.
-2. **`NodeRecord.typeId` is namespaced.** Reserve a prefix for macro references (e.g., `macro:guid:...`). Generator-emitted types use a different prefix.
+2. `**NodeRecord.typeId` is namespaced.** Reserve a prefix for macro references (e.g., `macro:guid:...`). Generator-emitted types use a different prefix.
 3. **Asset shape is generic over node payload.** No per-type asset records. New node categories (macro reference, sub-graph call) extend the registry, not the asset format.
 4. **Controller listener API uses an interface, not a concrete listener class.** Macro-as-listener (a macro that registers triggers) becomes a different `ICommandListener<TRunner>` implementation later.
 5. **Convention strategies are sealed but isolated.** Each strategy is its own class behind an internal interface; v2's pluggable extension just opens the interface.
@@ -788,7 +788,7 @@ All previously-open architecture questions are resolved:
 | Topic                           | Resolution                                                                                                                                                                                                                                                                                                                                                     |
 | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Blackboard / variables          | **No blackboard in v1.** Designer constants as inline embedded port values. Host-injected references on the consumer's runner. Full blackboard deferred to v2.                                                                                                                                                                                                 |
-| Runtime context                 | **`GraphRunner` abstract base class, generic `RuntimeNode<TRunner>`.** Consumer subclasses `GraphRunner` with their own services. Package has no opinion on what's on the runner.                                                                                                                                                                              |
+| Runtime context                 | `**GraphRunner` abstract base class, generic `RuntimeNode<TRunner>`.** Consumer subclasses `GraphRunner` with their own services. Package has no opinion on what's on the runner.                                                                                                                                                                              |
 | Editor `Graph` subclass         | **Mandatory, hand-written by consumer (~5 lines).** Not auto-generated; preserves consumer freedom to extend.                                                                                                                                                                                                                                                  |
 | Host-injected references        | **Consumer concern.** Package defines no contract; consumer's runner exposes whatever properties it wants and writes whatever accessor nodes it needs.                                                                                                                                                                                                         |
 | Asset versioning                | **(d) Strict load + ScriptedImporter version bump.** No migration system. Bumping `[ScriptedImporter(version: N)]` triggers Unity to re-import all graphs from source. The consumer's source-graph files (whichever extension they pick) are the durable artifact; runtime assets are derived and rebakeable. Soft warning logged on `schemaVersion` mismatch. |
