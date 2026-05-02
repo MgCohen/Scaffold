@@ -7,6 +7,7 @@ param(
     [string]$ProjectPath = (Get-Location).Path,
     [string]$UnityPath,
     [string[]]$AssemblyNames,
+    [string]$PerformanceTestResultsPath,
     [switch]$EnableCoverage,
     [string]$CoverageResultsPath,
     [string]$CoverageOptions,
@@ -32,6 +33,7 @@ $resultsName = if ($TestPlatform -eq "EditMode") { "editmode-results.xml" } else
 $logPath = Join-Path $tempRoot $logName
 $resultsPath = Join-Path $tempRoot $resultsName
 $scriptExitCode = 1
+$resolvedPerfPath = $null
 
 try {
     if ($TimeoutMinutes -lt 1) {
@@ -53,6 +55,20 @@ try {
         -AllowHubVersionFallback $true `
         -ExampleScriptHint ".agents/scripts/run-unity-tests.ps1"
 
+    if (-not [string]::IsNullOrWhiteSpace($PerformanceTestResultsPath)) {
+        $candidatePath = if ([System.IO.Path]::IsPathRooted($PerformanceTestResultsPath)) {
+            $PerformanceTestResultsPath
+        } else {
+            Join-Path $resolvedProjectPath $PerformanceTestResultsPath
+        }
+
+        $resolvedPerfPath = [System.IO.Path]::GetFullPath($candidatePath)
+        $perfDir = Split-Path -Parent $resolvedPerfPath
+        if (-not [string]::IsNullOrWhiteSpace($perfDir) -and -not (Test-Path -LiteralPath $perfDir)) {
+            $null = New-Item -ItemType Directory -Path $perfDir -Force
+        }
+    }
+
     $unityArgs = @(
         "-batchmode"
         "-accept-apiupdate"
@@ -62,6 +78,10 @@ try {
         "-testResults", $resultsPath
         "-logFile", $logPath
     )
+
+    if ($resolvedPerfPath) {
+        $unityArgs += @("-perfTestResults", $resolvedPerfPath)
+    }
 
     if ($EnableCoverage) {
         $resolvedCoverageOptions = if ([string]::IsNullOrWhiteSpace($CoverageOptions)) {
@@ -114,11 +134,24 @@ try {
         Write-Host "-------"
         Write-Host ("Unity test run timed out after {0} minute(s)." -f $TimeoutMinutes)
         Write-Host $logTail
+        if ($resolvedPerfPath) {
+            Write-Host ""
+            Write-Host ("Performance JSON path (may be missing after timeout): {0}" -f $resolvedPerfPath)
+        }
         $scriptExitCode = 1
         return
     }
 
     $unityExitCode = [int]$unityProcess.ExitCode
+
+    if ($resolvedPerfPath) {
+        Write-Host ""
+        if (Test-Path -LiteralPath $resolvedPerfPath) {
+            Write-Host ("Performance JSON: {0}" -f $resolvedPerfPath)
+        } else {
+            Write-Host ("Warning: performance JSON was not created at {0}" -f $resolvedPerfPath)
+        }
+    }
 
     if (-not (Test-Path $resultsPath)) {
         $logTail = if (Test-Path $logPath) {
@@ -139,6 +172,10 @@ try {
         Write-Host "-------"
         Write-Host ("Unity exited with code {0} before producing test results." -f $unityExitCode)
         Write-Host $logTail
+        if ($resolvedPerfPath) {
+            Write-Host ""
+            Write-Host ("Performance JSON path (may be missing): {0}" -f $resolvedPerfPath)
+        }
         $scriptExitCode = 1
         return
     }

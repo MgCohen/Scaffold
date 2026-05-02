@@ -2,6 +2,7 @@ using System.Linq;
 using NUnit.Framework;
 using Scaffold.Maps;
 using Unity.PerformanceTesting;
+using UnityEngine.TestTools;
 
 namespace Scaffold.Maps.Tests.Performance
 {
@@ -10,7 +11,10 @@ namespace Scaffold.Maps.Tests.Performance
     /// </summary>
     public sealed class MapKeyEnumerationBench
     {
-        private static Map<int, int, string> BuildMap(int entries)
+        [SetUp]
+        public void SetUp() => LogAssert.ignoreFailingMessages = true;
+
+        internal static Map<int, int, string> BuildMap(int entries)
         {
             Map<int, int, string> map = new Map<int, int, string>();
             for (int i = 0; i < entries; i++)

@@ -33,6 +33,25 @@ pwsh -NoProfile -File .agents/scripts/validate-changes.ps1 -SkipTests
 pwsh -NoProfile -File .agents/scripts/run-unity-tests.ps1 -TestPlatform EditMode
 ```
 
+**Performance JSON** (`com.unity.test-framework.performance`): pass **`-PerformanceTestResultsPath`** (absolute path or repo-relative). Unity receives **`-perfTestResults`** and writes structured JSON suitable for tooling or [PerformanceBenchmarkReporter](https://github.com/Unity-Technologies/PerformanceBenchmarkReporter).
+
+Example — Maps perf assembly only, JSON next to the package:
+
+```powershell
+pwsh -NoProfile -File .agents/scripts/run-unity-tests.ps1 `
+  -TestPlatform EditMode `
+  -AssemblyNames Scaffold.Maps.Tests.Performance `
+  -PerformanceTestResultsPath "Assets/Packages/com.scaffold.maps/PerformanceTestResults.json"
+```
+
+Then generate a short **markdown report** (Time + **Allocated** + Gen0 medians, including Map vs Dict):
+
+```powershell
+pwsh -NoProfile -File .agents/scripts/summarize-unity-performance-json.ps1 `
+  -JsonPath "Assets/Packages/com.scaffold.maps/PerformanceTestResults.json" `
+  -OutputPath "Assets/Packages/com.scaffold.maps/Tests/Performance/PerformanceTestResults.report.md"
+```
+
 **macOS / Linux** (if `pwsh` is on `PATH`):
 
 ```bash

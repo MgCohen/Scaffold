@@ -9,9 +9,18 @@
 3. **Window → General → Test Runner** → **Edit Mode**.
 4. Assembly filter: **`Scaffold.Maps.Tests`** (characterization) and **`Scaffold.Maps.Tests.Performance`** (benchmarks).
 5. Run characterization tests (`MapIndexerCharacterizationTests`) — must be green.
-6. Run performance tests (category Performance / tests marked `[Performance]`).
-7. Export results JSON from the Test Runner (per `_benchmarking.md` Reporting section).
-8. Feed exported JSON through **[PerformanceBenchmarkReporter](https://github.com/Unity-Technologies/PerformanceBenchmarkReporter)** or merge medians into `Tests/Performance/baselines.json` using your repo’s baseline schema.
+6. Run performance tests (tests marked `[Performance]`, assembly **`Scaffold.Maps.Tests.Performance`**).
+7. **Machine-readable JSON** (for tools / baselines): from the repo root, run **`run-unity-tests.ps1`** with **`-PerformanceTestResultsPath`** (see `.agents/scripts/README.md`). Example:
+
+   ```powershell
+   pwsh -NoProfile -File .agents/scripts/run-unity-tests.ps1 `
+     -TestPlatform EditMode `
+     -AssemblyNames Scaffold.Maps.Tests.Performance `
+     -PerformanceTestResultsPath "Assets/Packages/com.scaffold.maps/PerformanceTestResults.json"
+   ```
+
+   Alternatively invoke Unity.exe yourself with **`-perfTestResults`** (see [Performance testing command-line arguments](https://docs.unity3d.com/Packages/com.unity.test-framework.performance@3.2/manual/cmd-line-args.html)). The Test Runner window often exposes **CSV** only for the results table — use CLI JSON for tooling or transcribe CSV medians into `baselines.json` manually.
+8. Optionally feed perf JSON through **[PerformanceBenchmarkReporter](https://github.com/Unity-Technologies/PerformanceBenchmarkReporter)** for HTML/history. Merge chosen medians into `Tests/Performance/baselines.json` **`editor_mono`** (schema still informal — see `$schema_note` and `editor_mono_row_shape_note` in that file).
 
 ### IL2CPP lane
 

@@ -29,73 +29,30 @@ Use a separate asmdef from the unit-test asmdef (or a define constraint such as 
 
 ## The helper (`Bench.Measure`)
 
-Drop this once into a shared `Tests/Performance/Bench.cs` (or a small dedicated package, e.g. `com.scaffold.testing.benchmarks`). Every test then becomes a one-liner.
+Canonical implementation lives in `Assets/Packages/com.scaffold.maps/Tests/Performance/Bench.cs`. Reuse it (or copy the same shape into other packages). The shipped version reports six sample groups per measurement:
+
+| Sample group   | Source                                                                            | Notes |
+|----------------|-----------------------------------------------------------------------------------|-------|
+| `Time`         | `Stopwatch`                                                                       | ns/op |
+| `Allocated`    | First counter that probes as working: `GC.GetAllocatedBytesForCurrentThread()` → `GC.GetTotalMemory(false)` delta | Bytes/op. Reads 0 on runtimes where neither advances. (`GC.GetTotalAllocatedBytes` would be ideal but is not exposed by Unity 6's Mono BCL.) |
+| `AllocCount`   | `UnityEngine.Profiling.Recorder.Get("GC.Alloc")` filtered to current thread       | Number of `GC.Alloc` events/op. Works in EditMode batchmode regardless of Mono's per-thread heap-counter quirks. |
+| `Gen0`/`Gen1`/`Gen2` | `GC.CollectionCount(gen)` deltas                                            | Collections per measurement window. |
+
+Why two byte-counter candidates and a marker-count fallback? `GC.GetAllocatedBytesForCurrentThread()` returns 0 on several Unity Editor / Mono configurations (notably batchmode), which silently zeroes the `Allocated` column for every test. The `GC.Alloc` Profiler-marker count is the always-available fallback signal — fewer details (no bytes), but it never lies about whether code allocated.
+
+Selection happens once in `Bench`'s static ctor and is exposed via `Bench.ByteSource` / `Bench.BytesCounterWorks` so verification tests can call `Assert.Ignore` instead of asserting against a known-broken counter.
 
 ```csharp
-using System;
-using Unity.PerformanceTesting;
-
-public static class Bench
+[Test, Performance]
+public void Foo()
 {
-    static readonly SampleGroup Time  = new("Time",      SampleUnit.Nanosecond);
-    static readonly SampleGroup Bytes = new("Allocated", SampleUnit.Byte);
-    static readonly SampleGroup Gen0  = new("Gen0",      SampleUnit.Undefined);
-    static readonly SampleGroup Gen1  = new("Gen1",      SampleUnit.Undefined);
-    static readonly SampleGroup Gen2  = new("Gen2",      SampleUnit.Undefined);
+    Bench.Measure(() => DoWork()); // 6 sample groups, names prefixed with the test method name
+}
 
-    /// <summary>
-    /// Per-op time and allocation profile. Reports five sample groups:
-    /// Time (ns/op), Allocated (bytes/op), Gen0/Gen1/Gen2 (collections per measurement window).
-    /// </summary>
-    public static void Measure(Action action,
-                               int warmup = 10,
-                               int measurements = 20,
-                               int iterationsPer = 1000)
-    {
-        for (int i = 0; i < warmup; i++) action();
-
-        for (int m = 0; m < measurements; m++)
-        {
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-            GC.Collect();
-
-            long b0  = GC.GetAllocatedBytesForCurrentThread();
-            int  g00 = GC.CollectionCount(0);
-            int  g10 = GC.CollectionCount(1);
-            int  g20 = GC.CollectionCount(2);
-
-            var sw = System.Diagnostics.Stopwatch.StartNew();
-            for (int i = 0; i < iterationsPer; i++) action();
-            sw.Stop();
-
-            long bytesPerOp = (GC.GetAllocatedBytesForCurrentThread() - b0) / iterationsPer;
-            double nsPerOp  = sw.Elapsed.TotalMilliseconds * 1_000_000.0 / iterationsPer;
-
-            Performance.Measure.Custom(Time,  nsPerOp);
-            Performance.Measure.Custom(Bytes, bytesPerOp);
-            Performance.Measure.Custom(Gen0,  GC.CollectionCount(0) - g00);
-            Performance.Measure.Custom(Gen1,  GC.CollectionCount(1) - g10);
-            Performance.Measure.Custom(Gen2,  GC.CollectionCount(2) - g20);
-        }
-    }
-
-    /// <summary>
-    /// Asserts a piece of code allocates zero bytes. Use inside `[Test]` (no `[Performance]` needed).
-    /// </summary>
-    public static void NoAllocations(Action action)
-    {
-        action(); // warm JIT, prime statics
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
-        GC.Collect();
-
-        long before = GC.GetAllocatedBytesForCurrentThread();
-        action();
-        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
-        if (allocated != 0)
-            throw new InvalidOperationException($"Allocated {allocated} bytes; expected 0.");
-    }
+[Test]
+public void Foo_HotPath_NoAlloc()
+{
+    Bench.NoAllocations(() => DoWork()); // bytes when available, else GC.Alloc count
 }
 ```
 
@@ -156,7 +113,9 @@ The benchmark plan entries in the package audits state per-test what "success" l
 
 ## Caveats
 
-- **`GC.GetAllocatedBytesForCurrentThread()` is per-thread.** If the operation under test schedules work on another thread (uncommon in `entities`/`states`), you'll under-count. Note this in the test if it applies.
+- **Byte-counter availability varies by runtime.** `Bench.ByteSource` records which counter the harness picked. If it resolves to `None`, `Allocated` will read 0 in the CSV — fall back to `AllocCount` and Gen0/1/2, or run the suite under PlayMode / IL2CPP. The first run of `Harness_ReportsByteCounterChoice` in `PerformanceAllocationVerificationTests` prints the choice so you can spot-check.
+- **`GC.GetTotalMemory(false)` fallback is heap-size, not cumulative.** When the harness lands on this counter, allocations larger than Gen0's threshold inside the measurement window will trigger a collection and produce a negative delta — clamped to 0. If this happens, `AllocCount` is the trustworthy signal.
+- **`AllocCount` is filtered to the current managed thread.** If the operation under test schedules work on another thread (uncommon in `entities`/`states`), you'll under-count. Same caveat applies to `GC.GetAllocatedBytesForCurrentThread`. Process-wide `GC.GetTotalAllocatedBytes` does not have this limitation.
 - **`Stopwatch` granularity in the Editor is ~50 ns.** Operations below that need higher `iterationsPer` to dilute the floor. For sub-50 ns ops, raise `iterationsPer` to 10 000 or 100 000.
 - **First measurement after `GC.Collect()` is the slowest.** That's intentional — we want a clean baseline. Outliers are tolerated by Unity.PerformanceTesting's median reporting.
 - **`Bench.Measure` does not box the lambda** — `Action` is captured once and reused. Verify with the `NoAllocations` companion if you suspect harness alloc bleeding into measurements.
@@ -182,6 +141,6 @@ The `entities`, `states`, and `entities.states` audit plans have been updated in
 
 ## Reporting & CI
 
-- **Local:** Test Runner → results pane → JSON export.
-- **CI:** `unity -batchmode -runTests -testCategory "Performance"` writes results JSON; feed to [PerformanceBenchmarkReporter](https://github.com/Unity-Technologies/PerformanceBenchmarkReporter) for the over-time HTML report.
+- **Local:** Test Runner → results pane — often **CSV** (or table) export for viewing. For **JSON**, use batchmode **`-perfTestResults <path>.json`** (see [Performance testing command-line arguments](https://docs.unity3d.com/Packages/com.unity.test-framework.performance@3.2/manual/cmd-line-args.html)).
+- **CI:** `unity -batchmode -runTests … -perfTestResults results.json` (and `-testResults` for NUnit XML). Optionally `-testCategory "Performance"`. Feed JSON to [PerformanceBenchmarkReporter](https://github.com/Unity-Technologies/PerformanceBenchmarkReporter) for over-time HTML reports.
 - **Baselines:** keep a checked-in `baselines.json` per package under `Tests/Performance/` and diff against it in CI. PR fails if any sample group exceeds the policy thresholds above.

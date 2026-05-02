@@ -1,6 +1,7 @@
 using NUnit.Framework;
 using Scaffold.Maps;
 using Unity.PerformanceTesting;
+using UnityEngine.TestTools;
 
 namespace Scaffold.Maps.Tests.Performance
 {
@@ -9,7 +10,10 @@ namespace Scaffold.Maps.Tests.Performance
     /// </summary>
     public sealed class MapIndexerValuesBench
     {
-        private static Map<int, int, string> BuildAllMatch(int entryCount)
+        [SetUp]
+        public void SetUp() => LogAssert.ignoreFailingMessages = true;
+
+        internal static Map<int, int, string> BuildAllMatch(int entryCount)
         {
             Map<int, int, string> map = new Map<int, int, string>();
             for (int i = 0; i < entryCount; i++)
@@ -57,7 +61,7 @@ namespace Scaffold.Maps.Tests.Performance
             }, iterationsPer: 10_000);
         }
 
-        private static Indexer<int, int, string> GetIndexer(Map<int, int, string> map)
+        internal static Indexer<int, int, string> GetIndexer(Map<int, int, string> map)
         {
             Assert.That(map.TryGetIndexer("all", out Indexer<int, int, string> indexer), Is.True);
             return indexer;

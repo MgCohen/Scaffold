@@ -1,8 +1,532 @@
 {
-  "$schema_note": "Populate via Unity Test Runner JSON export + PerformanceBenchmarkReporter after Phase 0 Editor run; IL2CPP lane optional.",
+  "$schema_note": "Unity does not write this file automatically. Machine-readable perf JSON comes from batchmode -perfTestResults (see Docs/Audits/Packages/Reports/com.scaffold.maps.baseline.md). Editor UI export is often CSV-only for the results table; use CLI JSON for tooling or transcribe CSV medians into editor_mono by hand until a converter exists. Sample groups use names like \"BulkAdd_AfterFiveIndexers_Count_10:Time\" (method name prefix). Optional: feed perf JSON through github.com/Unity-Technologies/PerformanceBenchmarkReporter for HTML/history.",
   "package": "com.scaffold.maps",
-  "generated": null,
-  "editor_mono": [],
+  "generated": "2026-05-02T22:43:34Z",
+  "editor_mono": [
+    {
+      "test": "Scaffold.Maps.Tests.Performance.MapIndexerBulkRebuildBench.BulkAdd_AfterFiveIndexers_Count_10",
+      "sample_groups": {
+        "BulkAdd_AfterFiveIndexers_Count_10:Time": {
+          "median": 19204.0,
+          "unit": "Nanosecond"
+        },
+        "BulkAdd_AfterFiveIndexers_Count_10:Allocated": {
+          "median": 0.0,
+          "unit": "Byte"
+        },
+        "BulkAdd_AfterFiveIndexers_Count_10:AllocCount": {
+          "median": 90.01,
+          "unit": "Undefined"
+        },
+        "BulkAdd_AfterFiveIndexers_Count_10:Gen0": {
+          "median": 0.0,
+          "unit": "Undefined"
+        },
+        "BulkAdd_AfterFiveIndexers_Count_10:Gen1": {
+          "median": 0.0,
+          "unit": "Undefined"
+        },
+        "BulkAdd_AfterFiveIndexers_Count_10:Gen2": {
+          "median": 0.0,
+          "unit": "Undefined"
+        }
+      }
+    },
+    {
+      "test": "Scaffold.Maps.Tests.Performance.MapIndexerBulkRebuildBench.BulkAdd_AfterFiveIndexers_Count_100",
+      "sample_groups": {
+        "BulkAdd_AfterFiveIndexers_Count_100:Time": {
+          "median": 184119.0,
+          "unit": "Nanosecond"
+        },
+        "BulkAdd_AfterFiveIndexers_Count_100:Allocated": {
+          "median": 0.0,
+          "unit": "Byte"
+        },
+        "BulkAdd_AfterFiveIndexers_Count_100:AllocCount": {
+          "median": 560.02,
+          "unit": "Undefined"
+        },
+        "BulkAdd_AfterFiveIndexers_Count_100:Gen0": {
+          "median": 0.0,
+          "unit": "Undefined"
+        },
+        "BulkAdd_AfterFiveIndexers_Count_100:Gen1": {
+          "median": 0.0,
+          "unit": "Undefined"
+        },
+        "BulkAdd_AfterFiveIndexers_Count_100:Gen2": {
+          "median": 0.0,
+          "unit": "Undefined"
+        }
+      }
+    },
+    {
+      "test": "Scaffold.Maps.Tests.Performance.MapIndexerBulkRebuildBench.BulkAdd_AfterFiveIndexers_Count_1000",
+      "sample_groups": {
+        "BulkAdd_AfterFiveIndexers_Count_1000:Time": {
+          "median": 6958660.0,
+          "unit": "Nanosecond"
+        },
+        "BulkAdd_AfterFiveIndexers_Count_1000:Allocated": {
+          "median": 0.0,
+          "unit": "Byte"
+        },
+        "BulkAdd_AfterFiveIndexers_Count_1000:AllocCount": {
+          "median": 5081.1,
+          "unit": "Undefined"
+        },
+        "BulkAdd_AfterFiveIndexers_Count_1000:Gen0": {
+          "median": 0.0,
+          "unit": "Undefined"
+        },
+        "BulkAdd_AfterFiveIndexers_Count_1000:Gen1": {
+          "median": 0.0,
+          "unit": "Undefined"
+        },
+        "BulkAdd_AfterFiveIndexers_Count_1000:Gen2": {
+          "median": 0.0,
+          "unit": "Undefined"
+        }
+      }
+    },
+    {
+      "test": "Scaffold.Maps.Tests.Performance.MapIndexerValuesBench.Indexer_Values_PerRead_Count10",
+      "sample_groups": {
+        "Indexer_Values_PerRead_Count10:Time": {
+          "median": 536.9200000000001,
+          "unit": "Nanosecond"
+        },
+        "Indexer_Values_PerRead_Count10:Allocated": {
+          "median": 0.0,
+          "unit": "Byte"
+        },
+        "Indexer_Values_PerRead_Count10:AllocCount": {
+          "median": 2.0001,
+          "unit": "Undefined"
+        },
+        "Indexer_Values_PerRead_Count10:Gen0": {
+          "median": 0.0,
+          "unit": "Undefined"
+        },
+        "Indexer_Values_PerRead_Count10:Gen1": {
+          "median": 0.0,
+          "unit": "Undefined"
+        },
+        "Indexer_Values_PerRead_Count10:Gen2": {
+          "median": 0.0,
+          "unit": "Undefined"
+        }
+      }
+    },
+    {
+      "test": "Scaffold.Maps.Tests.Performance.MapIndexerValuesBench.Indexer_Values_PerRead_Count100",
+      "sample_groups": {
+        "Indexer_Values_PerRead_Count100:Time": {
+          "median": 3434.145,
+          "unit": "Nanosecond"
+        },
+        "Indexer_Values_PerRead_Count100:Allocated": {
+          "median": 0.0,
+          "unit": "Byte"
+        },
+        "Indexer_Values_PerRead_Count100:AllocCount": {
+          "median": 2.0001,
+          "unit": "Undefined"
+        },
+        "Indexer_Values_PerRead_Count100:Gen0": {
+          "median": 0.0,
+          "unit": "Undefined"
+        },
+        "Indexer_Values_PerRead_Count100:Gen1": {
+          "median": 0.0,
+          "unit": "Undefined"
+        },
+        "Indexer_Values_PerRead_Count100:Gen2": {
+          "median": 0.0,
+          "unit": "Undefined"
+        }
+      }
+    },
+    {
+      "test": "Scaffold.Maps.Tests.Performance.MapIndexerValuesBench.Indexer_Values_PerRead_Count1000",
+      "sample_groups": {
+        "Indexer_Values_PerRead_Count1000:Time": {
+          "median": 31899.165,
+          "unit": "Nanosecond"
+        },
+        "Indexer_Values_PerRead_Count1000:Allocated": {
+          "median": 0.0,
+          "unit": "Byte"
+        },
+        "Indexer_Values_PerRead_Count1000:AllocCount": {
+          "median": 2.0001,
+          "unit": "Undefined"
+        },
+        "Indexer_Values_PerRead_Count1000:Gen0": {
+          "median": 0.0,
+          "unit": "Undefined"
+        },
+        "Indexer_Values_PerRead_Count1000:Gen1": {
+          "median": 0.0,
+          "unit": "Undefined"
+        },
+        "Indexer_Values_PerRead_Count1000:Gen2": {
+          "median": 0.0,
+          "unit": "Undefined"
+        }
+      }
+    },
+    {
+      "test": "Scaffold.Maps.Tests.Performance.MapKeyEnumerationBench.GetPrimaryKeys_1000Entries_10000Calls",
+      "sample_groups": {
+        "GetPrimaryKeys_1000Entries_10000Calls:Time": {
+          "median": 77180.68000000001,
+          "unit": "Nanosecond"
+        },
+        "GetPrimaryKeys_1000Entries_10000Calls:Allocated": {
+          "median": 0.0,
+          "unit": "Byte"
+        },
+        "GetPrimaryKeys_1000Entries_10000Calls:AllocCount": {
+          "median": 22.0001,
+          "unit": "Undefined"
+        },
+        "GetPrimaryKeys_1000Entries_10000Calls:Gen0": {
+          "median": 3.0,
+          "unit": "Undefined"
+        },
+        "GetPrimaryKeys_1000Entries_10000Calls:Gen1": {
+          "median": 3.0,
+          "unit": "Undefined"
+        },
+        "GetPrimaryKeys_1000Entries_10000Calls:Gen2": {
+          "median": 3.0,
+          "unit": "Undefined"
+        }
+      }
+    },
+    {
+      "test": "Scaffold.Maps.Tests.Performance.MapKeyEnumerationBench.GetSecondaryKeys_1000Entries_10000Calls",
+      "sample_groups": {
+        "GetSecondaryKeys_1000Entries_10000Calls:Time": {
+          "median": 77335.81,
+          "unit": "Nanosecond"
+        },
+        "GetSecondaryKeys_1000Entries_10000Calls:Allocated": {
+          "median": 0.0,
+          "unit": "Byte"
+        },
+        "GetSecondaryKeys_1000Entries_10000Calls:AllocCount": {
+          "median": 22.0001,
+          "unit": "Undefined"
+        },
+        "GetSecondaryKeys_1000Entries_10000Calls:Gen0": {
+          "median": 3.0,
+          "unit": "Undefined"
+        },
+        "GetSecondaryKeys_1000Entries_10000Calls:Gen1": {
+          "median": 3.0,
+          "unit": "Undefined"
+        },
+        "GetSecondaryKeys_1000Entries_10000Calls:Gen2": {
+          "median": 3.0,
+          "unit": "Undefined"
+        }
+      }
+    },
+    {
+      "test": "Scaffold.Maps.Tests.Performance.MapVsTupleDictBench.Dict_Add_FromEmpty_Count10",
+      "sample_groups": {
+        "Dict_Add_FromEmpty_Count10:Time": {
+          "median": 4801.1,
+          "unit": "Nanosecond"
+        },
+        "Dict_Add_FromEmpty_Count10:Allocated": {
+          "median": 0.0,
+          "unit": "Byte"
+        },
+        "Dict_Add_FromEmpty_Count10:AllocCount": {
+          "median": 29.002,
+          "unit": "Undefined"
+        },
+        "Dict_Add_FromEmpty_Count10:Gen0": {
+          "median": 0.0,
+          "unit": "Undefined"
+        },
+        "Dict_Add_FromEmpty_Count10:Gen1": {
+          "median": 0.0,
+          "unit": "Undefined"
+        },
+        "Dict_Add_FromEmpty_Count10:Gen2": {
+          "median": 0.0,
+          "unit": "Undefined"
+        }
+      }
+    },
+    {
+      "test": "Scaffold.Maps.Tests.Performance.MapVsTupleDictBench.Dict_Add_FromEmpty_Count100",
+      "sample_groups": {
+        "Dict_Add_FromEmpty_Count100:Time": {
+          "median": 39534.50000000001,
+          "unit": "Nanosecond"
+        },
+        "Dict_Add_FromEmpty_Count100:Allocated": {
+          "median": 0.0,
+          "unit": "Byte"
+        },
+        "Dict_Add_FromEmpty_Count100:AllocCount": {
+          "median": 218.01,
+          "unit": "Undefined"
+        },
+        "Dict_Add_FromEmpty_Count100:Gen0": {
+          "median": 0.0,
+          "unit": "Undefined"
+        },
+        "Dict_Add_FromEmpty_Count100:Gen1": {
+          "median": 0.0,
+          "unit": "Undefined"
+        },
+        "Dict_Add_FromEmpty_Count100:Gen2": {
+          "median": 0.0,
+          "unit": "Undefined"
+        }
+      }
+    },
+    {
+      "test": "Scaffold.Maps.Tests.Performance.MapVsTupleDictBench.Dict_Add_FromEmpty_Count1000",
+      "sample_groups": {
+        "Dict_Add_FromEmpty_Count1000:Time": {
+          "median": 366772.5,
+          "unit": "Nanosecond"
+        },
+        "Dict_Add_FromEmpty_Count1000:Allocated": {
+          "median": 0.0,
+          "unit": "Byte"
+        },
+        "Dict_Add_FromEmpty_Count1000:AllocCount": {
+          "median": 2027.05,
+          "unit": "Undefined"
+        },
+        "Dict_Add_FromEmpty_Count1000:Gen0": {
+          "median": 0.0,
+          "unit": "Undefined"
+        },
+        "Dict_Add_FromEmpty_Count1000:Gen1": {
+          "median": 0.0,
+          "unit": "Undefined"
+        },
+        "Dict_Add_FromEmpty_Count1000:Gen2": {
+          "median": 0.0,
+          "unit": "Undefined"
+        }
+      }
+    },
+    {
+      "test": "Scaffold.Maps.Tests.Performance.MapVsTupleDictBench.Dict_Foreach_Count1000",
+      "sample_groups": {
+        "Dict_Foreach_Count1000:Time": {
+          "median": 37731.0,
+          "unit": "Nanosecond"
+        },
+        "Dict_Foreach_Count1000:Allocated": {
+          "median": 0.0,
+          "unit": "Byte"
+        },
+        "Dict_Foreach_Count1000:AllocCount": {
+          "median": 0.002,
+          "unit": "Undefined"
+        },
+        "Dict_Foreach_Count1000:Gen0": {
+          "median": 0.0,
+          "unit": "Undefined"
+        },
+        "Dict_Foreach_Count1000:Gen1": {
+          "median": 0.0,
+          "unit": "Undefined"
+        },
+        "Dict_Foreach_Count1000:Gen2": {
+          "median": 0.0,
+          "unit": "Undefined"
+        }
+      }
+    },
+    {
+      "test": "Scaffold.Maps.Tests.Performance.MapVsTupleDictBench.Dict_TryGetValue_Hit_Count1000",
+      "sample_groups": {
+        "Dict_TryGetValue_Hit_Count1000:Time": {
+          "median": 91.09500000000001,
+          "unit": "Nanosecond"
+        },
+        "Dict_TryGetValue_Hit_Count1000:Allocated": {
+          "median": 0.0,
+          "unit": "Byte"
+        },
+        "Dict_TryGetValue_Hit_Count1000:AllocCount": {
+          "median": 0.0001,
+          "unit": "Undefined"
+        },
+        "Dict_TryGetValue_Hit_Count1000:Gen0": {
+          "median": 0.0,
+          "unit": "Undefined"
+        },
+        "Dict_TryGetValue_Hit_Count1000:Gen1": {
+          "median": 0.0,
+          "unit": "Undefined"
+        },
+        "Dict_TryGetValue_Hit_Count1000:Gen2": {
+          "median": 0.0,
+          "unit": "Undefined"
+        }
+      }
+    },
+    {
+      "test": "Scaffold.Maps.Tests.Performance.MapVsTupleDictBench.Map_Add_FromEmpty_Count10",
+      "sample_groups": {
+        "Map_Add_FromEmpty_Count10:Time": {
+          "median": 7897.5,
+          "unit": "Nanosecond"
+        },
+        "Map_Add_FromEmpty_Count10:Allocated": {
+          "median": 0.0,
+          "unit": "Byte"
+        },
+        "Map_Add_FromEmpty_Count10:AllocCount": {
+          "median": 62.002,
+          "unit": "Undefined"
+        },
+        "Map_Add_FromEmpty_Count10:Gen0": {
+          "median": 0.0,
+          "unit": "Undefined"
+        },
+        "Map_Add_FromEmpty_Count10:Gen1": {
+          "median": 0.0,
+          "unit": "Undefined"
+        },
+        "Map_Add_FromEmpty_Count10:Gen2": {
+          "median": 0.0,
+          "unit": "Undefined"
+        }
+      }
+    },
+    {
+      "test": "Scaffold.Maps.Tests.Performance.MapVsTupleDictBench.Map_Add_FromEmpty_Count100",
+      "sample_groups": {
+        "Map_Add_FromEmpty_Count100:Time": {
+          "median": 71280.0,
+          "unit": "Nanosecond"
+        },
+        "Map_Add_FromEmpty_Count100:Allocated": {
+          "median": 0.0,
+          "unit": "Byte"
+        },
+        "Map_Add_FromEmpty_Count100:AllocCount": {
+          "median": 521.01,
+          "unit": "Undefined"
+        },
+        "Map_Add_FromEmpty_Count100:Gen0": {
+          "median": 0.0,
+          "unit": "Undefined"
+        },
+        "Map_Add_FromEmpty_Count100:Gen1": {
+          "median": 0.0,
+          "unit": "Undefined"
+        },
+        "Map_Add_FromEmpty_Count100:Gen2": {
+          "median": 0.0,
+          "unit": "Undefined"
+        }
+      }
+    },
+    {
+      "test": "Scaffold.Maps.Tests.Performance.MapVsTupleDictBench.Map_Add_FromEmpty_Count1000",
+      "sample_groups": {
+        "Map_Add_FromEmpty_Count1000:Time": {
+          "median": 659457.5,
+          "unit": "Nanosecond"
+        },
+        "Map_Add_FromEmpty_Count1000:Allocated": {
+          "median": 0.0,
+          "unit": "Byte"
+        },
+        "Map_Add_FromEmpty_Count1000:AllocCount": {
+          "median": 5030.05,
+          "unit": "Undefined"
+        },
+        "Map_Add_FromEmpty_Count1000:Gen0": {
+          "median": 0.0,
+          "unit": "Undefined"
+        },
+        "Map_Add_FromEmpty_Count1000:Gen1": {
+          "median": 0.0,
+          "unit": "Undefined"
+        },
+        "Map_Add_FromEmpty_Count1000:Gen2": {
+          "median": 0.0,
+          "unit": "Undefined"
+        }
+      }
+    },
+    {
+      "test": "Scaffold.Maps.Tests.Performance.MapVsTupleDictBench.Map_Foreach_Count1000",
+      "sample_groups": {
+        "Map_Foreach_Count1000:Time": {
+          "median": 80327.9,
+          "unit": "Nanosecond"
+        },
+        "Map_Foreach_Count1000:Allocated": {
+          "median": 0.0,
+          "unit": "Byte"
+        },
+        "Map_Foreach_Count1000:AllocCount": {
+          "median": 1.002,
+          "unit": "Undefined"
+        },
+        "Map_Foreach_Count1000:Gen0": {
+          "median": 0.0,
+          "unit": "Undefined"
+        },
+        "Map_Foreach_Count1000:Gen1": {
+          "median": 0.0,
+          "unit": "Undefined"
+        },
+        "Map_Foreach_Count1000:Gen2": {
+          "median": 0.0,
+          "unit": "Undefined"
+        }
+      }
+    },
+    {
+      "test": "Scaffold.Maps.Tests.Performance.MapVsTupleDictBench.Map_TryGetValue_Hit_Count1000",
+      "sample_groups": {
+        "Map_TryGetValue_Hit_Count1000:Time": {
+          "median": 229.85000000000005,
+          "unit": "Nanosecond"
+        },
+        "Map_TryGetValue_Hit_Count1000:Allocated": {
+          "median": 0.0,
+          "unit": "Byte"
+        },
+        "Map_TryGetValue_Hit_Count1000:AllocCount": {
+          "median": 2.0001,
+          "unit": "Undefined"
+        },
+        "Map_TryGetValue_Hit_Count1000:Gen0": {
+          "median": 0.0,
+          "unit": "Undefined"
+        },
+        "Map_TryGetValue_Hit_Count1000:Gen1": {
+          "median": 0.0,
+          "unit": "Undefined"
+        },
+        "Map_TryGetValue_Hit_Count1000:Gen2": {
+          "median": 0.0,
+          "unit": "Undefined"
+        }
+      }
+    }
+  ],
+  "editor_mono_row_shape_note": "Future rows could hold median baselines per test + sample group, e.g. { \"test\": \"Class.Method\", \"sample_groups\": { \"Method:Time\": { \"median\": 12345.0, \"unit\": \"Nanosecond\" }, \"Method:Allocated\": { \"median\": 0, \"unit\": \"Byte\" } } }",
   "playmode_il2cpp": [],
   "benchmarks_expected": [
     "MapIndexerValuesBench.Indexer_Values_PerRead_Count10",
@@ -23,5 +547,12 @@
     "MapVsTupleDictBench.Dict_TryGetValue_Hit_Count1000",
     "MapVsTupleDictBench.Map_Foreach_Count1000",
     "MapVsTupleDictBench.Dict_Foreach_Count1000"
-  ]
+  ],
+  "editor_mono_meta": {
+    "unity_version": "6000.3.11f1",
+    "scripting_runtime": "Mono",
+    "platform": "Editor (batchmode)",
+    "byte_source": "None (GC.GetAllocatedBytesForCurrentThread and GC.GetTotalMemory delta both probe as 0; rely on AllocCount + Gen0/1/2)",
+    "note": "Phase 0 baseline. Allocated bytes read 0 in this lane; AllocCount (GC.Alloc Profiler-marker count) is the canonical signal."
+  }
 }

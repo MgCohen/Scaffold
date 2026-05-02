@@ -1,6 +1,7 @@
 using NUnit.Framework;
 using Scaffold.Maps;
 using Unity.PerformanceTesting;
+using UnityEngine.TestTools;
 
 namespace Scaffold.Maps.Tests.Performance
 {
@@ -9,7 +10,10 @@ namespace Scaffold.Maps.Tests.Performance
     /// </summary>
     public sealed class MapIndexerBulkRebuildBench
     {
-        private static Map<int, int, string> BuildMapWithFiveIndexers()
+        [SetUp]
+        public void SetUp() => LogAssert.ignoreFailingMessages = true;
+
+        internal static Map<int, int, string> BuildMapWithFiveIndexers()
         {
             Map<int, int, string> map = new Map<int, int, string>();
             map.AddIndexer("all", (_, _) => true);
@@ -20,7 +24,7 @@ namespace Scaffold.Maps.Tests.Performance
             return map;
         }
 
-        private static void BulkAdd(Map<int, int, string> map, int count)
+        internal static void BulkAdd(Map<int, int, string> map, int count)
         {
             for (int i = 0; i < count; i++)
             {
