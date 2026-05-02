@@ -71,7 +71,7 @@ The reference for the **designer-facing surface** is the existing FlowCanvas-bas
                   │                              │
                   │  • Per-payload editor nodes  │
                   │  • Per-payload runtime nodes │
-                  │  • Accessor delegates        │
+                  │  • Port-ID constants + switch│
                   │  • Registry partial extension│
                   └─────────────────────────────┘
 ```
@@ -235,16 +235,19 @@ The consumer declares a single assembly-level attribute:
 For a `GameCommand<TResult>` subclass with N input fields and M output fields:
 
 - 3 editor `Node` subclasses (Dispatcher, Listener, Return)
-- 3 runtime node classes (matching counterparts)
-- Accessor delegate table (one `Action<T, V>` setter and `Func<T, V>` getter per field)
-- One `EffectRegistry` partial-class entry
+- 3 runtime node classes (matching counterparts), each with:
+  - A nested `static class Ports` of `const int` IDs (one per port — stable hash of the field name; `[GraphPort(Id = N)]` overrides for rename-stability)
+  - Inline-value fields for designer constants (serialized into the asset by Unity)
+  - `[NonSerialized] Connection<T>` slots for inputs and `[NonSerialized] T` slots for outputs (runtime-only)
+  - Generated `BindInput(int portId, Connection)` and `GetOutputConnection(int portId)` overrides — `switch` jump tables keyed on the constants in `Ports`
+- One registry partial-class entry mapping the payload type id to the runtime node class plus an editor-port-name → port-ID lookup the baker uses when translating editor wires
 
-For an `EntryPoint` subclass with N fields:
+For an `EntryPoint` subclass with N fields: same shape, just 1 editor + 1 runtime node instead of 3.
 
-- 1 editor `Node` subclass (the entry node)
-- 1 runtime node class
-- Accessor delegate table
-- One registry entry
+The two key invariants the generator must hold:
+
+1. **Port IDs are stable across source-order changes.** Adding a new field reserves a fresh ID; removing one retires it; an existing field keeps its ID even if the field above it is deleted. Default derivation is FNV-1a of the field name. `[GraphPort(Id = N)]` lets the consumer freeze an ID across a rename.
+2. **The `Ports` constants are the single source of truth.** Both the runtime node's `BindInput`/`GetOutputConnection` switches and the registry's editor-port-name → port-ID lookup the baker reads come from the same generated constants. There's no second list to keep in sync.
 
 ### Resolved generator behavior
 
@@ -257,7 +260,8 @@ For an `EntryPoint` subclass with N fields:
 | Open generics               | Not supported in v1; emits warning if encountered   |
 | Registry shape              | `static partial class` so consumers can extend      |
 | Nullable types              | Pass through as-is                                  |
-| Field ordering              | Source order; override via `[GraphPort(Order = N)]` |
+| Field ordering              | Source order for editor display; **does NOT determine port ID** (port IDs are stable hashes) |
+| Port ID stability           | Stable int per field (default: FNV-1a of name); `[GraphPort(Id = N)]` to freeze across renames |
 | Multiple bases per category | Supported (list in config)                          |
 
 
@@ -360,18 +364,20 @@ internal sealed class CardEffectGraphImporter
 
 `GraphBaker` is responsible for **everything that turns an editor graph into a runtime-compliant artifact**:
 
-1. **Node translation.** Each editor node maps to one or more runtime node records by `typeId`. Most map 1:1 (`StrikeDispatcherNode` editor → runtime record). Some may be 1:N (a single editor node compiling to multiple runtime steps — VND-style — if a built-in node ever needs that).
-2. **Connection resolution.** Editor port-to-port connections (between editor node instances) are resolved into runtime `ConnectionRecord`s (between runtime node ids by stable port index). Connections involving editor-only helper nodes are inlined where appropriate, not preserved literally.
-3. **Embedded value extraction.** Each unwired input port's constant value is read via `port.TryGetValue<T>()` and packed into the runtime record's `serializedConstants` blob.
-4. **Bake-time validation.** Errors that prevent runtime correctness are reported here, even if the editor accepted them:
+1. **Node-id assignment (stable across re-bakes).** The baker reads the previous runtime asset at `ctx.assetPath` (if any) and walks its `nodes`, recovering an `editorGuid → nodeId` map from each runtime node's `editorGuid` field. Every editor node Graph Toolkit reports gets translated to a stable `int nodeId`: an existing editor guid keeps its previous id; a new editor node gets the next free monotonic int (highest seen + 1). Removed editor nodes' ids are retired. Each emitted runtime node carries both its new `nodeId` and the source `editorGuid` so the next re-import can recover the map. Runtime hydration ignores `editorGuid`.
+2. **Node translation.** Each editor node maps to one or more typed runtime node instances. The baker reads the registry to find the runtime class for a given editor node type, then `Activator.CreateInstance` (or a generated factory in the registry) constructs the runtime node, populates its inline-value fields from the editor node's port constants (`port.TryGetValue<T>`), and assigns the stable `nodeId` from step 1. Most editor nodes map 1:1 (`StrikeDispatcherNode` → `StrikeDispatcherRuntime`); some may be 1:N if a built-in node compiles to multiple runtime steps.
+3. **Connection resolution.** Editor port-to-port connections are translated into `ConnectionRecord`s of `(fromNodeId, fromPortId, toNodeId, toPortId)` — all four ints. The baker resolves each editor-port-name to its stable `portId` by looking up the registry's per-payload `editor-port-name → port-ID` table (emitted by the generator from the same `Ports` constants the runtime switches use). Connections involving editor-only helper nodes are inlined; the resulting `ConnectionRecord` binds directly to the upstream non-helper source.
+4. **Embedded value extraction.** Each unwired input port's constant value is read via `port.TryGetValue<T>()` and stored into the matching typed field on the runtime node instance.
+5. **Bake-time validation.** Errors that prevent runtime correctness are reported here, even if the editor accepted them:
   - Required ports unwired and lacking a constant
   - Type mismatches Graph Toolkit didn't catch
+  - **A connection's `fromPortId` or `toPortId` no longer exists on its node's runtime type** (catches generator-side breakage when a payload field is removed)
   - Missing terminators on non-void Run flows (`[Return X]` / `[Cancel]` / `[Replace]`)
   - Cycles in flow paths
   - Entry node referring to an `EntryPoint` type that no longer exists in the registry
   - Listener node referring to a `GameCommand` type that's been removed
-5. **Entry-point indexing.** Walks all entry/listener nodes, builds the `entryIndex` table mapping bound `Type` to the runtime root node id.
-6. **Schema version stamping.** The runtime asset records the current schema version (paired with the importer version — see asset versioning below).
+6. **Entry-point indexing.** Walks all entry/listener nodes, builds the `entries` list mapping bound `entryTypeId` (string registry key) to the runtime root `nodeId` (int).
+7. **Schema version stamping.** The runtime asset records the current schema version (paired with the importer version — see asset versioning below).
 
 A graph that passes `OnGraphChanged` validation can still **fail to bake**. That's fine and expected — `OnGraphChanged` runs on every keystroke and does cheap structural checks; the baker does deeper analysis (whole-graph cycles, registry lookups, type cross-validation). On bake failure, no runtime asset is emitted; the source file becomes "edits but doesn't build" and the Inspector / Console explains why.
 
@@ -385,25 +391,55 @@ The package ships an **abstract, runner-typed base class**. The package is game-
 
 ```csharp
 // PACKAGE — game-agnostic
-[Serializable]
-public abstract class RuntimeNode<TRunner> where TRunner : GraphRunner {
-    public string nodeId;             // stable guid, assigned at bake, persisted in the asset
-    // generator-emitted subclasses carry their typed inline-value fields directly
-    public abstract ValueTask Execute(TRunner runner);
+
+// Connection — the runtime wiring object. Built at hydration, never serialized.
+public abstract class Connection {
+    public abstract object SourceNodeBoxed   { get; }   // back-ref for traversal / diagnostics
+    public abstract int    SourcePortId      { get; }
+}
+
+public sealed class Connection<T> : Connection {
+    private readonly Func<T> _read;
+    public RuntimeNode  SourceNode    { get; }
+    public override object SourceNodeBoxed => SourceNode;
+    public override int    SourcePortId    { get; }
+
+    internal Connection(RuntimeNode source, int sourcePortId, Func<T> read) {
+        SourceNode = source; SourcePortId = sourcePortId; _read = read;
+    }
+
+    public T Read() => _read();
 }
 
 [Serializable]
+public abstract class RuntimeNode {
+    public int    nodeId;              // stable integer id, assigned at bake, persisted across re-bakes
+    public string editorGuid;          // GT's stable id for the source editor node — only used by the baker
+                                       // on re-import to recover the editorGuid → nodeId mapping. Runtime ignores it.
+
+    // Generated overrides on every concrete runtime node — see "Wiring mechanism" below
+    public abstract Connection GetOutputConnection(int portId);
+    public abstract void       BindInput(int portId, Connection connection);
+}
+
+[Serializable]
+public abstract class RuntimeNode<TRunner> : RuntimeNode where TRunner : GraphRunner {
+    public abstract ValueTask Execute(TRunner runner);
+}
+
+// All four fields are IDs — never list indices. Stable across re-bakes.
+[Serializable]
 public struct ConnectionRecord {
-    public string fromNodeId;
-    public int    fromPortIndex;       // resolved at bake time, not edit-time port name
-    public string toNodeId;
-    public int    toPortIndex;
+    public int fromNodeId;
+    public int fromPortId;
+    public int toNodeId;
+    public int toPortId;
 }
 
 [Serializable]
 public struct EntryIndex {
-    public string entryTypeId;         // payload type id from the registry
-    public string rootNodeId;          // the runtime root for that entry
+    public string entryTypeId;         // payload type id from the registry (string — registry-stable)
+    public int    rootNodeId;          // stable integer id of the runtime root for that entry
 }
 
 public abstract class GraphAsset<TRunner> : ScriptableObject where TRunner : GraphRunner {
@@ -434,20 +470,21 @@ Why typed `[SerializeReference]` nodes instead of an opaque `byte[] serializedCo
 
 No `variables` collection in v1 — the blackboard concept is deferred. Designer constants are baked into the corresponding fields on the typed runtime nodes; host-injected references come off the consumer's runner. When v2 adds a blackboard, we'll add a `variables` field and bump `schemaVersion` + the importer version.
 
-Two concrete differences from the editor connections:
+Two concrete properties of these records:
 
-- **Port references are integer indices**, not names. The baker maps editor port names (designer-visible labels) to integer indices (registry-stable, source-gen-determined). Faster lookup, immune to editor-side label rename if we ever support it.
-- **Connection records reference runtime node ids only.** Editor-only helper nodes that get inlined or dropped during bake do not appear.
+- **Every reference in a `ConnectionRecord` is an ID, never an index.** Both `nodeId` and `portId` are stable integers assigned at bake/generation. List positions in `asset.nodes` and physical port order in source code are explicitly NOT used as identity — any reorder during a re-bake or generator change must not break existing connections.
+- **Connection records reference runtime node ids only.** Editor-only helper nodes that get inlined or dropped during bake do not appear; the connection collapses to bind directly to the upstream non-helper source.
 
 #### Connection model — references survive via stable IDs, not pointers
 
-This is the core thing that has to work and the thing VND does **not** exercise (VND is a linear sequence with no port-to-port connections). The reference model is FlowCanvas-shaped:
+This is the core thing that has to work and the thing VND does **not** exercise (VND is a linear sequence with no port-to-port connections). The reference model is FlowCanvas-shaped — stable IDs at both endpoints, no C# pointers in the persisted form, references re-resolved fresh on every load:
 
-- Every runtime node carries a stable `nodeId` string (guid), assigned at first bake and persisted across re-imports — same id on the same node before and after a re-bake unless the node is destroyed and recreated by the designer.
-- Every wire becomes a `ConnectionRecord` containing **both endpoints' ids** plus the integer port indices on each side. There is no direct C# reference between nodes inside the asset — the asset only holds id strings + ints, which Unity serializes losslessly.
-- At load time the executor resolves `fromNodeId`/`toNodeId` against an in-memory `Dictionary<string, RuntimeNode<TRunner>>` to recover the live references, then wires the source's output port at `fromPortIndex` to the target's input port at `toPortIndex` using the source-generated accessor delegates.
+- **Stable `nodeId` (int).** Assigned at first bake and persisted across re-imports. The baker maintains an `editorGuid → nodeId` map (Graph Toolkit assigns each editor node a stable guid; the baker translates it to a monotonic int and remembers the mapping by reading the previous runtime asset on re-import). An unchanged editor node keeps its int id forever; a newly-created editor node gets the next free int. Destroying the editor node retires the id permanently.
+- **Stable `portId` (int).** Assigned by the source generator, derived deterministically from the C# field name (e.g. FNV-1a hash) so that source-order changes don't move IDs. An explicit `[GraphPort(Id = N)]` escape hatch lets a consumer freeze an ID across a rename. Adding a new field reserves a fresh ID; removing one retires it. The generator emits the IDs as `const int` constants on a per-payload static class, both for the runtime node's `BindInput`/`GetOutputConnection` switch labels and for the baker to read when translating editor port names to runtime port IDs.
+- **`ConnectionRecord` is four ints.** `(fromNodeId, fromPortId, toNodeId, toPortId)`. No strings, no indices. Unity serializes them as plain blittable ints inside the SO.
+- **Hydration recovers the references.** A `Dictionary<int, RuntimeNode<TRunner>>` indexes the asset's nodes by id; each connection looks up both endpoints by id and produces a typed `Connection<T>` wiring object. See the "Wiring mechanism" subsection under Hydration for the no-reflection mechanics.
 
-That's the durable artifact: the connection between A's port X and B's port Y is "two ids and two ints" in the SO. Unity's serializer handles it without any custom pipeline. References get re-resolved fresh on every load.
+That's the durable artifact: the connection between A's port X and B's port Y is **four ints** in the SO. Unity's serializer handles it without any custom pipeline. References get re-resolved fresh on every load.
 
 **Editor positions are not in the runtime asset** — they live in the editor graph (Graph Toolkit handles them). Round-trip editing works because reopening the file shows the editor graph, not the runtime asset.
 
@@ -458,31 +495,92 @@ This is the step the implementer needs to execute exactly right, because it's wh
 Pre-condition when `Initialize` is called: the consumer has loaded a `GraphAsset<TRunner>` (Resources, Addressables, direct reference — doesn't matter to the controller). Unity has already deserialized the asset, so:
 
 - `asset.nodes` is a `List<RuntimeNode<TRunner>>` of **live, typed instances** with their inline-value fields populated. No factory step needed.
-- `asset.connections` is a `List<ConnectionRecord>` of `(fromNodeId, fromPortIndex, toNodeId, toPortIndex)` tuples.
-- `asset.entries` is a `List<EntryIndex>` mapping payload type id → root `nodeId`.
+- `asset.connections` is a `List<ConnectionRecord>` of `(fromNodeId, fromPortId, toNodeId, toPortId)` int tuples.
+- `asset.entries` is a `List<EntryIndex>` mapping payload type id → root `nodeId` (int).
 
 Hydration steps, in order:
 
-1. **Index nodes by id.** Build `var byId = new Dictionary<string, RuntimeNode<TRunner>>(asset.nodes.Count);` then `foreach (var n in asset.nodes) byId.Add(n.nodeId, n);`. This is the dictionary used to resolve every connection's endpoints.
+1. **Index nodes by id.** Build `var byId = new Dictionary<int, RuntimeNode<TRunner>>(asset.nodes.Count);` then `foreach (var n in asset.nodes) byId.Add(n.nodeId, n);`. Int-keyed dictionary, fast hash, no string allocation.
 
 2. **Wire connections.** For each `ConnectionRecord c`:
-   - `var from = byId[c.fromNodeId]; var to = byId[c.toNodeId];`
-   - Look up the source-generated accessor table for the source node's runtime type to get the **getter delegate** for `fromPortIndex` (returns the typed output value).
-   - Look up the accessor table for the target node's type to get the **setter delegate** for `toPortIndex` (writes the typed input field).
-   - Compose them into a single port-binding delegate stored on the target node, keyed by input-port index, of shape "when this input is read, call source.GetOutput(fromPortIndex)" — or equivalently, push the source's output value into the target's input slot at flow time. Exact delegate shape lives in the runtime helper alongside the executor; the contract is "no reflection, no string lookup, no `port.TryGetValue` at game time."
-   - The accessor tables come from the generator's per-payload emission (one `Func<T, V>` getter and `Action<T, V>` setter per port). They're keyed by the runtime node's C# type, so no string ids cross into the hot path after this step.
+   ```csharp
+   var from = byId[c.fromNodeId];
+   var to   = byId[c.toNodeId];
+   var conn = from.GetOutputConnection(c.fromPortId);  // virtual call → generated switch on portId
+   to.BindInput(c.toPortId, conn);                     // virtual call → generated switch on portId
+   ```
+   Two virtual calls per connection, each resolving to a compile-time `switch` the source generator wrote. No reflection, no string lookups. Mechanics in "Wiring mechanism" below.
 
-3. **Build the entry index.** `var entryByType = new Dictionary<Type, RuntimeNode<TRunner>>();` Walk `asset.entries`, look up the payload `Type` for each `entryTypeId` in the registry, find the root node by id, populate the dictionary. This is what `Run<TEntry>(payload)` and `Validate<TEntry>(payload)` look up at dispatch time.
+3. **Build the entry index.** `var entryByType = new Dictionary<Type, RuntimeNode<TRunner>>();` Walk `asset.entries`, look up the payload `Type` for each `entryTypeId` in the registry, look up the root node in `byId` by `rootNodeId`, populate the dictionary. This is what `Run<TEntry>(payload)` and `Validate<TEntry>(payload)` look up at dispatch time.
 
 4. **Lifecycle pass.** Walk `asset.nodes` once and:
    - For any node implementing `IInitializableNode<TRunner>`, call `Initialize(runner)`. Nodes can cache typed services off the runner here.
    - For any node implementing `IListenerNode<TRunner>`, collect it into `CommandListeners` for the consumer to register with their pipeline.
 
-5. **Done.** The controller now holds: `byId` (id→node, retained only if needed for diagnostics/macros later), wired port delegates on every node, the entry-type dictionary, the listener list. After this point the executor walks live C# references and invokes delegates. Zero string-keyed lookups, zero reflection, zero `byId` dictionary access in the hot path.
+5. **Done.** The controller now holds: `byId` (retained for diagnostics / v2 macros — cheap), every input slot on every node populated with a typed `Connection<T>`, the entry-type dictionary, the listener list. After this point the executor walks live C# references and invokes typed delegates. Zero string-keyed lookups, zero reflection, zero dictionary access in the hot path.
 
-Hydration runs **once per controller**. If a consumer wants multiple independent runtime instances of the same asset (e.g. one per card in play), they construct one controller per instance. The asset itself is shared and immutable; the per-controller state lives in the wired delegates and any per-instance node fields the generator marks as runtime-only (none in v1 — designer constants are immutable).
+#### Wiring mechanism — no reflection
 
-Re-baking the asset (designer edits the source file) re-runs `OnImportAsset`, produces a fresh runtime SO with potentially different `nodeId`s for new nodes. Existing controllers holding the old asset keep working until disposed; new controllers built after the re-import use the new asset. There is no in-place mutation of an in-flight controller's tree.
+The "lookup" in step 2 is **two virtual calls**, both resolving to switches the source generator wrote at compile time.
+
+For each generated runtime node, the generator emits:
+
+```csharp
+// Generated, per payload — example: StrikeDispatcherRuntime
+public sealed class StrikeDispatcherRuntime : RuntimeNode<CardEffectRunner> {
+    // Generated stable port-ID constants (FNV-1a of field name, or [GraphPort(Id=N)] override).
+    // Same constants are used by the baker when translating editor port names to runtime IDs.
+    public static class Ports {
+        public const int Magnitude    = 0x9F3A_C12B;   // input
+        public const int Target       = 0x4D81_77E0;   // input
+        public const int DamageDealt  = 0x2C5B_AA09;   // output
+    }
+
+    // Inline designer constants — serialized into the asset by Unity
+    public int  Magnitude;
+    public Card Target;
+
+    // Runtime-only — populated at hydration / flow time, NOT serialized
+    [NonSerialized] public Connection<int>  _in_Magnitude;
+    [NonSerialized] public Connection<Card> _in_Target;
+    [NonSerialized] public int              _out_DamageDealt;
+
+    // Generated: produce a typed Connection<T> for an output port
+    public override Connection GetOutputConnection(int portId) => portId switch {
+        Ports.DamageDealt => new Connection<int>(this, Ports.DamageDealt, () => _out_DamageDealt),
+        _ => throw new ArgumentOutOfRangeException(nameof(portId)),
+    };
+
+    // Generated: store a typed Connection<T> in the right input slot
+    public override void BindInput(int portId, Connection connection) {
+        switch (portId) {
+            case Ports.Magnitude: _in_Magnitude = (Connection<int>)connection;  return;
+            case Ports.Target:    _in_Target    = (Connection<Card>)connection; return;
+            default: throw new ArgumentOutOfRangeException(nameof(portId));
+        }
+    }
+
+    public override async ValueTask Execute(CardEffectRunner runner) {
+        var mag = _in_Magnitude?.Read() ?? this.Magnitude;   // wired wins; otherwise inline constant
+        var tgt = _in_Target   ?.Read() ?? this.Target;
+        var result = await runner.EffectScope.Dispatch(new Strike { Magnitude = mag, Target = tgt });
+        _out_DamageDealt = result.DamageDealt;
+    }
+}
+```
+
+Why this works without reflection:
+
+- **`switch` on `int`** compiles to a jump table — O(1), no `Dictionary` lookup at hydration.
+- **`(Connection<T>)connection`** is a reference cast on a sealed generic class. For value-typed ports (`int`, `float`, struct), the typed value lives inside the closure captured by the `Connection<int>`'s `Func<T>`; the cast does not box the underlying value, and `Connection<T>.Read()` JIT-inlines to a direct delegate invoke that returns the typed `T`.
+- **Closure allocation** (`() => _out_DamageDealt`) is one heap allocation per output port per node, paid once at hydration. The hot path is `_in_Magnitude.Read()` — direct typed call.
+- **Stable port IDs in the switch labels** mean a generator change that adds or removes a port in the source order doesn't shift any other port's ID. Existing assets keep wiring correctly. Removed ports become bake-time errors with a clear "port `Magnitude` no longer exists on `Strike`" diagnostic.
+
+#### Re-bake stability
+
+Hydration runs **once per controller**. If a consumer wants multiple independent runtime instances of the same asset (one per card in play, etc.), they construct one controller per instance. The asset is shared and immutable; per-controller state lives in the runtime-only `Connection<T>` slots and any per-instance fields the generator marks `[NonSerialized]`.
+
+Re-baking the asset (designer edits the source file) re-runs `OnImportAsset` and produces a fresh runtime SO. The baker preserves `nodeId`s for unchanged editor nodes (via the `editorGuid → nodeId` map persisted on the previous runtime asset); new nodes get new ints, removed nodes' ints are retired. Port IDs are stable as long as the generator doesn't change a payload's field set. Existing controllers holding the *old* asset keep working until disposed; new controllers built after the re-import use the new asset. There is no in-place mutation of an in-flight controller's tree.
 
 ### Typed Runner — generic execution context
 
@@ -723,7 +821,7 @@ Implemented via Graph Toolkit's `OnGraphChanged(GraphLogger)` hook on the consum
 - `CommandResultPair` convention strategy
 - Per-payload emission: editor Dispatcher / Listener / Return nodes
 - Per-payload emission: runtime nodes
-- Accessor delegate table emission
+- Per-payload `Ports` constants + generated `BindInput` / `GetOutputConnection` switch overrides
 - Registry partial-class emission
 - Diagnostics: EFG001 (config required), EFG005 (missing result pair)
 - `AttributedFields` convention (validates the generator's strategy abstraction)
@@ -828,7 +926,7 @@ Specific notes to keep v2 cheap:
 | Per-type runtime definitions hand-written           | Same                                                                                                                                   |
 | Baker `switch (node)` pattern-matching              | Type-driven dispatch via registry                                                                                                      |
 | Hardcoded blackboard wiring seeds                   | No blackboard in v1; payload-port wiring via generated accessors, host references via consumer-authored runner-property accessor nodes |
-| Reflection on field names per execution             | Cached delegates from accessor table                                                                                                   |
+| Reflection on field names per execution             | Typed `Connection<T>` slots wired at hydration via generated port-ID switches; hot path is a direct delegate invoke                     |
 | Entry type stored as `AssemblyQualifiedName` string | Stable type id from registry; bake-time validated                                                                                      |
 | Linear-flow-only with no branching                  | `Branch` node and Validate flow are first-class                                                                                        |
 | Dead `IGraphTickService`                            | No tick service; consumer drives lifecycle                                                                                             |
@@ -873,7 +971,7 @@ The single-file dual-representation design was audited against Unity's `VisualNo
 **Implications for our plan:**
 
 1. Runtime nodes are stored as typed `[SerializeReference]` instances on the asset (`GraphAsset<TRunner>` abstract base, with consumer-defined concrete subclass). We do **not** store a `byte[] serializedConstants` blob — the source generator already produces a typed class per payload, so the asset can carry those instances directly and let Unity serialize their fields the normal way. This is what keeps Unity-object references (Cards, Sprites, AssetReferences, ScriptableObjects on the runner side) patch-correct through the build pipeline.
-2. **VND only validates the asset-shipping story, not the connection model.** VND is a linear sequence (start node + `next` chain) baked into a flat list — it has no port-to-port wiring. Our connection model follows the FlowCanvas pattern instead: stable `nodeId` strings on both endpoints, `ConnectionRecord` carrying `(fromNodeId, fromPortIndex, toNodeId, toPortIndex)`, and load-time resolution against an in-memory id→node dictionary that produces wired delegates. See "Connection model" and "Hydration" sections above for the explicit walkthrough.
+2. **VND only validates the asset-shipping story, not the connection model.** VND is a linear sequence (start node + `next` chain) baked into a flat list — it has no port-to-port wiring. Our connection model follows the FlowCanvas pattern instead: stable integer IDs (never indices) on both endpoints, `ConnectionRecord` carrying `(fromNodeId, fromPortId, toNodeId, toPortId)` as four ints, and load-time resolution that produces typed `Connection<T>` wiring objects via two virtual calls per edge — both resolving to compile-time switches the source generator wrote. See "Connection model", "Hydration", and "Wiring mechanism" sections for the explicit walkthrough.
 
 ---
 
