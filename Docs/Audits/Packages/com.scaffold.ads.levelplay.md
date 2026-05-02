@@ -271,3 +271,66 @@ Outside this package's scope but worth raising again: a fake provider in the abs
 - Unity 6 Awaitable + main-thread guarantees: https://docs.unity3d.com/6000.0/Documentation/ScriptReference/Awaitable.WaitForSecondsAsync.html
 - AppLovin MAX rewarded SSV pattern (the gold standard for "don't trust client tokens"): https://developers.applovin.com/en/max/unity/ad-formats/rewarded-ads/#server-side-callbacks
 - Google AdMob mediation reward verification: https://developers.google.com/admob/unity/ssv
+
+## Consumers
+A repo-wide `grep -r` for `Scaffold.Ads.LevelPlay`, `LevelPlayAdProvider`, `LevelPlayAdConfigurationSO`, `UnityAdsTester`, and `LevelPlayInstaller` across `/home/user/Scaffold/Assets/`, `/home/user/Scaffold/GameModule/`, and `/home/user/Scaffold/LiveOps/` returns hits **only inside this package**. No application code imports `Scaffold.Ads.Levelplay` directly — the abstraction's "no leak" rule passes by virtue of having no consumers at all.
+
+- **Init is owned by `UnityAdsTester.Start()`**: `/home/user/Scaffold/Assets/Packages/com.scaffold.ads.levelplay/Runtime/Test/UnityAdsTester.cs:22-25` calls `Initialize()` from `MonoBehaviour.Start()` and then `AdManager.InitializeAds(userId, CreateRewardEndpointClient())` (`:34`). This is the de-facto bootstrap — there is no AppFlow stage owning ads. The file is in a folder named `Test/`, in the runtime asmdef, and ships in player builds. Smell: the only production initialization path is camouflaged as a tester.
+- **AppFlow / SceneFlow integration is absent**: `grep -rn 'IAdProvider\|InitializeAds\|AdManager' /home/user/Scaffold/Assets/Packages/com.scaffold.appflow /home/user/Scaffold/Assets/Packages/com.scaffold.sceneflow` returns nothing. Ads init is not staged behind login/`ILiveOpsService` ready, not gated on consent, not retried on failure.
+- **Placement keys at call sites are bare strings**: `RewardedAdTester.cs:21,150` (`ClickShowAdReward(placement)`), `BannerAdTester.cs:45,54` (`ShowBanner(placement)`/`HideBanner(placement)`), `InterstitialAdTester.cs:46` (`ShowInterstitial(placement)`). `RewardedAdPlacementUI.Key` is typed `AdPlacementKeySO` but decays via implicit cast at every API call — typing erodes at the boundary.
+- **Reward callbacks**: no consumer outside this package subscribes to `IRewardedAdService.AdSuccessfullyCompletedWithToken`. The only listener is `RewardedAdManager` itself (`com.scaffold.ads/Runtime/Abstraction/Rewarded/RewardedAdManager.cs:32-33`), which then forwards to `IRewardEndpointClient`. The forged-token finding therefore has no production victim today, but the abstraction's `bool Success` collapse means a future consumer cannot distinguish "validation failed because token was forged" from "no network".
+- **`AdRewardUIController` not used here either**: `grep -rn AdRewardUIController` returns only its own definition — confirms it leaks across packages by zero, and is dead-on-arrival.
+- **Reward endpoint client construction is decided in this package**: `UnityAdsTester.cs:56-64` chooses `LiveOpsRewardEndpointClient` vs. `HttpRewardEndpointClient`. That decision should live in `LevelPlayInstaller` or a composition-root installer — picking implementations is a container responsibility, not a `MonoBehaviour`'s.
+- **No `Scaffold.Ads.LevelPlay` imports leak to consumers** — verified: zero matches across the repo outside this package. The factory pattern (`LevelPlayAdConfigurationSO.CreateProvider()`) is doing its job, but it isn't being put under load. The threading violation (`Task.Run.Delay.LoadAd`), `currentShowingPlacement` race, banner-never-loads, init race, and forgeable token are all latent — undiscovered because nothing is calling them in anger.
+
+## Alternatives & prior art
+- **Direct LevelPlay SDK usage (no wrapper)** — call `LevelPlay.OnInitSuccess` and `LevelPlayInterstitialAd`/`LevelPlayRewardedAd`/`LevelPlayBannerAd` from gameplay code directly. https://developers.is.com/ironsource-mobile/unity/unity-plugin/ — **Verdict: Build (current state) only if multi-provider is committed.** Direct usage is what most LevelPlay-only studios ship; the wrapper is justified only by an `IAdProvider` second tenant.
+- **AdMob mediation as alternate provider** — Google's mediation supports IronSource as an adapter, inverting the relationship: instead of LevelPlay-with-adapters, AdMob-with-LevelPlay-adapter. https://developers.google.com/admob/unity/mediation/ironsource — **Verdict: Adopt if AdMob is the eventual primary.** The `IAdProvider` shape would naturally support this, validating the abstraction's existence.
+- **Google's mediation SDK headless test fakes (`MobileAds.Initialize` test mode + `RewardedAd.Load` with test ad units)** — Google ships official test ad units that always fill, plus a "test mode" flag for development. https://developers.google.com/admob/unity/test-ads — **Verdict: Steal pattern.** Build a `HeadlessLevelPlayAdProvider` (or a `Scaffold.Ads.Headless` package) that mirrors the test-ads-always-fill behavior for CI and editor.
+- **AppLovin MAX SSV (Server-Side Reward Validation)** — signed, S2S reward verification; the SDK delivers a signed payload to the developer's server, which the client cannot forge. https://developers.applovin.com/en/max/unity/ad-formats/rewarded-ads/#server-side-callbacks — **Verdict: Adopt.** The forged-token finding maps directly onto SSV; the LiveOps backend should accept SSV-signed callbacks from the IronSource S2S endpoint, and the client should stop being trusted.
+- **IronSource / LevelPlay SSV documentation** — IronSource ships its own server-to-server validation pattern with HMAC signing. https://developers.is.com/ironsource-mobile/general/server-to-server-callback-setting/ — **Verdict: Adopt.** This is the native SSV path for the current SDK; integrate this with `LiveOpsRewardEndpointClient`.
+- **Unity Mediation (deprecated) / LevelPlay successor** — Unity has consolidated on LevelPlay; older `Unity.Services.Mediation` is gone. Worth knowing the lineage; not adoptable. https://docs.unity.com/ads/en/manual/MediationOverview
+
+## Benchmark plan
+- **Threading violation correctness test** — assert `Task.Run` + `Task.Delay` + `LoadAd` is not present on the retry path.
+  - **Tool**: EditMode static-analysis test (Roslyn syntax walker over `LevelPlayInterstitialAdService.cs` and `LevelPlayRewardedAdService.cs` looking for `Task.Run` references), or PlayMode test that sets `SynchronizationContext.Current = null` on a worker thread and asserts the ad's `LoadAd` call site captured the Unity main-thread context.
+  - **Test location**: `com.scaffold.ads.levelplay/Tests~/EditMode/MainThreadDispatchTests.cs`.
+  - **Scenario**: trigger `HandleAdLoadFailed` callback, await retry delay, assert load was scheduled via `Awaitable.WaitForSecondsAsync` (main-thread) not `Task.Run`.
+  - **Baseline expectation**: today the test fails — `LevelPlayInterstitialAdService.cs:184-191` and `LevelPlayRewardedAdService.cs:184-191` use `Task.Run` + `Task.Delay`.
+  - **Success criteria**: zero `Task.Run` references in the runtime asmdef (or all wrapped via a documented main-thread dispatcher).
+- **Per-impression race test** — assert reward attribution uses `LevelPlayAdInfo.Placement`, not `currentShowingPlacement`.
+  - **Tool**: EditMode test with a fake `LevelPlayRewardedAd` that fires `OnAdRewarded` for placement A after `ShowAd("B")` has been called.
+  - **Test location**: `com.scaffold.ads.levelplay/Tests~/EditMode/PlacementAttributionTests.cs`.
+  - **Scenario**: `Show("A")` → SDK delays callback → `Show("B")` → SDK fires A's `OnAdRewarded` with `LevelPlayAdInfo.Placement = "A"`.
+  - **Baseline expectation**: today `currentShowingPlacement = "B"`, so A's reward is attributed to B (`LevelPlayRewardedAdService.cs:24,195,201,215`).
+  - **Success criteria**: `RewardedAdCompleted.Placement == "A"`; `currentShowingPlacement` field is deleted.
+- **Init race test** — assert `InitializeAsync` does not return until `OnInitSuccess` fires.
+  - **Tool**: EditMode test that mocks `LevelPlay.OnInitSuccess` to fire on a delay; awaits `LevelPlayAdProvider.Initialize`; immediately asserts `RewardedAdService != null`.
+  - **Test location**: `com.scaffold.ads.levelplay/Tests~/EditMode/InitGatingTests.cs`.
+  - **Scenario**: kick init, advance fake clock 200 ms, fire `OnInitSuccess`, await returns; assert services are non-null.
+  - **Baseline expectation**: today `Initialize` does `await Task.Yield()` and returns immediately — services are null when the await unblocks (`LevelPlayAdProvider.cs:30-46`); `AdManager.InitializeRewardedAdManager` then silently no-ops.
+  - **Success criteria**: `Initialize` is gated on a `TaskCompletionSource<LevelPlayConfiguration>` set in the `OnInitSuccess` handler; assertion that `RewardedAdService`/`InterstitialAdService`/`BannerAdService` are non-null on return.
+- **Banner load test** — assert `RegisterBanner` actually loads, not just registers.
+  - **Tool**: PlayMode test with a stub `LevelPlayBannerAd` whose `LoadAd()` flips a tracked bool.
+  - **Test location**: `com.scaffold.ads.levelplay/Tests~/PlayMode/BannerAutoLoadTests.cs`.
+  - **Scenario**: register a banner placement; immediately call `ShowBanner`; assert the banner loaded before show.
+  - **Baseline expectation**: today `RegisterBannerPlacement` (`LevelPlayBannerAdService.cs:34-58`) constructs the wrapper but never calls `LoadAd()`. The first `ShowBanner` silently fails.
+  - **Success criteria**: `LoadAd()` was called exactly once during register; `ShowBanner` succeeds without an explicit `LoadBanner` first.
+- **Reward token forgery test** — assert SSV is in place server-side.
+  - **Tool**: integration test that submits a forged `WatchAdRequest` (handcrafted token string with current ticks + arbitrary instance ID) to the LiveOps Cloud Code endpoint.
+  - **Test location**: `com.scaffold.ads.levelplay/Tests~/Integration/RewardSsvTests.cs` (or `LiveOps/Tests/AdsServiceTests`).
+  - **Scenario**: build a token via `$"{DateTime.UtcNow.Ticks}_fake_{Guid.NewGuid()}_reward_100"` (mirroring `LevelPlayRewardedAdService.cs:217`); submit to `AdsService.WatchAd`; assert HTTP 4xx / `WatchAdResponse.Granted == false`.
+  - **Baseline expectation**: today the request succeeds because the backend does not validate token signature — only cooldown and watch counts (`Backend~/Scaffold/Ads/AdsService.cs:46`). The token string is decorative.
+  - **Success criteria**: server rejects unsigned/forged tokens; only IronSource S2S-signed callbacks (or AppLovin SSV equivalents) grant rewards.
+- **Editor-keys-in-production test** — assert `LevelPlayAdConfigurationSO.GetActiveConfiguration` does not return `EditorConfig` on a release build.
+  - **Tool**: EditMode test that sets a fake `Application.platform` (or runs under PlayMode with `BuildTarget` switched to Android/iOS), calls `GetActiveConfiguration` on an SO with empty `PlatformConfigs`.
+  - **Test location**: `com.scaffold.ads.levelplay/Tests~/EditMode/PlatformConfigTests.cs`.
+  - **Scenario**: SO has only `EditorConfig` populated; `Application.platform == RuntimePlatform.Android`.
+  - **Baseline expectation**: today returns `EditorConfig` with a `Debug.LogWarning` (`LevelPlayAdConfigurationSO.cs:54-56`); the editor app key would ship to the Play Store.
+  - **Success criteria**: throws `InvalidOperationException` naming the missing platform; CI build job fails before APK upload.
+- **Bootstrap relocation test** — assert no `MonoBehaviour` named `*Tester` calls `AdManager.InitializeAds` in player builds.
+  - **Tool**: EditMode static-analysis test or asmdef-level guard; or simply move `UnityAdsTester` under `Samples~/`.
+  - **Test location**: `com.scaffold.ads.levelplay/Tests~/EditMode/BootstrapShapeTests.cs`.
+  - **Scenario**: enumerate types in `Scaffold.Ads.LevelPlay.Runtime`; assert none call `InitializeAds`.
+  - **Baseline expectation**: today fails — `UnityAdsTester` does.
+  - **Success criteria**: bootstrap is a `LevelPlayBootstrap : IAsyncStartable` (or `IInitializable`) in the Container asmdef; testers live under `Samples~/`.

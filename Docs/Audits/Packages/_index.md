@@ -10,6 +10,11 @@ Audit of all `com.scaffold.*` packages under `Assets/Packages/`, run against the
 
 Each package has its own report in this folder. This index aggregates verdicts and the cross-cutting themes worth addressing project-wide.
 
+Every package report carries three companion sections appended after the audit body:
+- **Consumers** — every external call site under `Assets/`, `GameModule/`, `LiveOps/`, with usage smells visible only from the call side.
+- **Alternatives & prior art** — existing libraries / patterns with **Adopt / Wrap / Build / Steal pattern** verdicts.
+- **Benchmark plan** — what to measure, where the test should live, baseline expectation, success criteria. To be implemented later.
+
 ---
 
 ## Verdict matrix
@@ -40,6 +45,99 @@ Each package has its own report in this folder. This index aggregates verdicts a
 | `com.scaffold.ugs` | 2 | Light cleanup | Two files do the job. Awkward `Scaffold.Ugs.Ugs` namespace; under-declared `package.json` deps |
 | `com.scaffold.ads` | 30 | Refactor | `async void` entry points; placement keys still `string` despite `AdPlacementKeySO` existing; no headless provider |
 | `com.scaffold.ads.levelplay` | 12 | Refactor | **Threading violation** (LevelPlay calls off main thread); per-impression race on shared `currentShowingPlacement`; reward token forgeable client-side |
+
+---
+
+## Findings from the consumer pass
+
+Cross-package consumer analysis surfaced findings the per-package reading missed entirely. Surprising in aggregate: **most packages have far fewer real consumers than their public surface implies, and several have none.** That changes the calculus of every refactor — the blast radius is small *today* and closing fast.
+
+### Packages with zero or near-zero production consumers
+
+| Package | Real consumers | Implication |
+|---|---|---|
+| `com.scaffold.records` | 0. `IsExternalInit` is reimplemented twice inside `com.scaffold.states` (Tests + Samples) as `internal`. | **Delete.** Confirmed dead. |
+| `com.scaffold.model` | 0 production. One sample inheritor (`BuildSampleModel`) uses no Model-specific behavior. | **Delete or merge.** |
+| `com.scaffold.maps` | 6 instantiations (`Store` ×3, `Snapshot`, `BindRegistry`, `BindSets`, `AddressablesAssetReferenceHandler`). **None use predicates, indexers, `AddIndexer`, or any feature beyond a tuple-keyed dictionary.** | **Delete.** Replace with `Dictionary<(TP,TS),TV>` everywhere. The headline `Indexer<>` + `Holder<T>` machinery has zero callers. |
+| `com.scaffold.ads` | 0 production. The only `AdManager.InitializeAds` call is inside `com.scaffold.ads.levelplay/Runtime/Test/UnityAdsTester.cs`. | `IAdProvider` is single-tenant. **Either commit to a second provider (or a `HeadlessAdProvider` for CI) or collapse the abstraction.** |
+| `com.scaffold.appflow` | `IScopeLayer` has zero non-sample implementers. The real consumed surface is `IAsyncInitializable` (5 services). | **Rename / reshape.** It's not a flow — it's a dependency-ordered initializer. |
+| `com.scaffold.sceneflow` | 0 callers of `LoadAdditiveAsync` / `UnloadAsync`. | **Refactor freely** — no compat to break. |
+| `com.scaffold.navigation` | Zero `INavigation.Open<T>` call sites in production. Only `ViewModel.Close()`. Two of four `NavigationStackPolicy` enum values have zero callers. | **Over-engineered ~10×.** Cut to the path that's actually used. |
+| `com.scaffold.mvvm` / `view` / `viewmodel` | One `[NestedObservableObject]` (empty `Model.cs`). One `: ViewModel`, one `: View<T>` — both in samples. **Zero `ViewEvents.Raise<T>` / `EventLedger` / `BindedProperty` / `[RelayCommand]` callers.** | All flagged leaks (subscription, dead-transform, exception-swallow) are latent — no field repros. **Refactor blast radius is tiny today**; closing as soon as the game team starts shipping screens. |
+| `com.scaffold.ugs` | 0 typed consumers (only the installer). | Justifies the "barely a package" feel. |
+| `com.scaffold.cloudcode` | **`ICloudCodeService.CallEndpointAsync<T>(string, string, object)` has zero direct consumers.** Only caller is `LiveOpsService` itself. | Empirical proof the stringly-typed API is wrong: every potential consumer wrapped it instead of using it. |
+| `com.scaffold.liveops` | 2 production sites of `CallAsync<TResponse>`: `LiveOpsRewardEndpointClient` (ads) and `DirectPushClient` (3 send methods). 7 production `[LiveOpsKey]` DTOs. | Pattern is clean but unproven at scale. |
+| `com.scaffold.directpush` | 1 subscriber, which doesn't need the missing payload. | The "no payload / no unsubscribe / no replay" smells haven't bitten yet because demand is one. |
+| `com.scaffold.autopacker` | Zero `[AutoPack]` attributes outside the package's own tests. | **`Runtime/*.dll` are confirmed git-LFS pointer files (129/130 byte ASCII).** Without `git lfs pull` the package is non-functional. |
+| `com.scaffold.addressables` | Exactly one external consumer: `com.scaffold.navigation`. It calls the deferred-sync `Load<T>` overload at `AddressablesNavigationPointStrategy.cs:47` — **the exact path that triggers the audit-flagged race**. `IAssetGroupHandle<T>` half of the public surface has zero traffic. | The race is reachable in normal play. The group-handle API is dead until proven otherwise. |
+| `com.scaffold.pooling` | Exactly one consumer (`Store.cs`), which implements `IPoolable.ReturnRequested` as `add { } remove { }` empty accessors — **2 of 3 interface members unwanted by the only client**. | Trim the interface. |
+| `com.scaffold.schemas` | 7 attributes shipped, 6 have zero consumers. Only `[SchemaFilter]` is used (in `navigation/ViewConfig`). | Trim aggressively. |
+
+### Cross-package signals that change the plan
+
+1. **`entities.states` re-implements the patterns the `entities` audit flagged**, *internally and badly*. `StoreVariableStorage` rebuilds a `Dictionary<Variable, List<Action<VariableValue>>>` from scratch on every state change, ships a hand-rolled six-method per-type equality ladder (`MatchFloatEquals`/`MatchIntEquals`/...) because `Variable` can't carry `T`, and provides eight extension methods just to wrap `IReference` as `InstanceId`. Fixing `entities` typed `Variable<T>` and `VariableNotifier` deletes ~120 lines of duplication in `entities.states`.
+
+2. **Five services rebuild a deferred-`ILayerResolver` wrapper** because AppFlow's `ILayerResolver` is exposed as eager. Tests have a `DeferredLayerResolver` shim; `LiveOpsService` and `ModuleResponseDispatchService` reimplement the same pattern. **Fix at the source** — make `ILayerResolver` deferred — and a class of bugs disappears project-wide.
+
+3. **The aspirational `AppFlow → SceneFlow → Navigation` chain doesn't exist anywhere.** SceneFlow has no AppFlow dep, Navigation depends on AppFlow only for `ILayerResolver`, no `IScopeLayer` ever pushes a scene or screen. The architecture exists in three pieces; the wiring doesn't.
+
+4. **Boilerplate `using Scaffold.Events; using Scaffold.Types;` blocks copy-pasted into navigation files that don't use them.** Direct evidence that `autoReferenced: true` blast radius is real, not theoretical.
+
+5. **Empty / typo'd folders that should be deleted**: `Assets/Scaffold/Packages/com.scaffold.entities/` and `Assets/Packages/com.scaftold.entities/` (note typo) are `.meta`-only husks. `GameModule/` and `LiveOps/` at repo root contain no source.
+
+---
+
+## Findings from the alternatives pass
+
+Each package report carries 3-5 prior-art entries with verdicts. Aggregated headline picks:
+
+| Direction | Adopt | Steal pattern | Build (justified) |
+|---|---|---|---|
+| Event bus | **MessagePipe** (Cysharp) — typed pub/sub with VContainer integration | — | Hand-rolled `EventController` is not justified |
+| Observable property + INPC | **CommunityToolkit.Mvvm `[ObservableProperty]`** — already shipped in `GeneratorsMVVM/Community/`, currently unused | — | Hand-rolled `BindedProperty<T>` is not justified |
+| Typed RPC over Cloud Code | — | **MagicOnion / MemoryPack-RPC** (typed service-map source-gen) | LiveOps's `[LiveOpsKey] + KeyOf<T>` already implements this pattern correctly; spread it |
+| Reactive collections / live views | **DynamicData** if real demand emerges | — | Custom `Indexer<>` is unjustified — has zero callers |
+| State management | — | **Fluxor** (typed action/reducer pairing), **Reflex** (Unity DI + reactive state) | Current Store keeps; remove stringly-typed dispatch |
+| Scene loading | — | **Cysharp UniTask Addressables Scene API** | Wrap, don't reinvent |
+| Object pooling | **`UnityEngine.Pool.ObjectPool<T>`** | — | Current package is fine but interface is over-broad |
+| DTO mapping | — | **AutoMapper** patterns for projection / **MemoryPack** for shared-DTO assembly | `Backend~/.../*.DTO` shared-assembly pattern is the right call |
+
+**Don't-build-this list** (zero-justification builds the audit recommends collapsing into existing libs or deletion): hand-rolled `EventController`, `BindedProperty<T>`, `BindedCollection<T>`, custom `Map<,,>` with predicates, `Indexer<>` machinery, `Holder<T>`, custom `IsExternalInit` shim, `Records` package as a whole.
+
+---
+
+## Findings from the benchmark plan
+
+Every package report now carries a `## Benchmark plan` section listing the perf/correctness tests someone else will write before refactor. The cross-cutting list of high-value ones:
+
+**Correctness (proves a defect exists today):**
+- `AssetHandle<T>.Release()` race under contention — addressables.
+- Concurrent `AcquireAsync` for same key — addressables (asset leak).
+- `Store.EnumerateAll` reentrancy with shared scratch buffers — states.
+- `StateEventHandler.NotifyReferenceSubscriptions` no-snapshot — states.
+- LevelPlay retry path off main thread — ads.levelplay.
+- LevelPlay per-impression race on `currentShowingPlacement` — ads.levelplay.
+- `LevelPlayInit` returning before `OnInitSuccess` — ads.levelplay.
+- `ViewElement<T>.Bind` subscription leak — `WeakReference`-after-`Unbind` test, mvvm.
+- `EventLedger<T>` dead-transform accumulation across scene reloads — view.
+- `Maps.Indexer` predicate re-evaluation on value update (currently never happens; test fails on README claim) — maps.
+- DirectPush dropped messages on reconnect — directpush.
+
+**Allocation (informs refactor):**
+- `LocalVariableStorage.Subscribe` closure alloc per call — entities.
+- `Indexer.Values` per-read List allocation — maps (would-be hot path).
+- LiveOps triple `JObject.FromObject` per call — liveops/cloudcode.
+- `OrderBy` on every `Variables` read — states.
+- `BindedProperty<T>.Set` boxing — mvvm.
+- `Variable` Dictionary lookup vs typed registry — entities.
+
+**Cold start / throughput:**
+- `VariableValueRegistry` AppDomain scan — entities.
+- `ModifierTypeIndex` reflection — entities.
+- LiveOps `ModuleConfig` reflection — liveops.
+- `RunTransitions` queue throughput — navigation.
+
+The recommended tooling is `Unity.PerformanceTesting` (`Measure.Method().Definition(SampleGroup with AllocationCount)`) for runtime paths, BenchmarkDotNet for pure-C# bag operations, and EditMode tests for race/leak proofs. Each package report gives a proposed test path, scenario sizes, baseline expectation, and success criteria.
 
 ---
 

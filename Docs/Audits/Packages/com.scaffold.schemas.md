@@ -140,3 +140,90 @@ public IReadOnlyList<Schema> Collection => collection;
 - Asmdef `rootNamespace: ""` and `noEngineReferences: false` (correct, since `ScriptableObject`). But split the attributes into a `Scaffold.Schemas.Contracts` engine-free asmdef so consumers can declare `[RequireSchema(typeof(...))]` from non-Unity assemblies.
 - Naming: `SchemaCacheUtility` could be `SchemaTypeCache`; `SchemaDrawerContainer` → `SchemaDrawerCache`. The `Container` suffix collides with the `Container/` DI folder convention used elsewhere in the repo.
 - Reference: Unity's `[SerializeReference]` polymorphism is the foundation here; for a hardened pattern, look at `Unity.Entities` authoring components or `Odin Inspector`'s `[Polymorphic]` for design hints.
+
+## Consumers
+
+Single consumer in `Assets/`: `com.scaffold.navigation` (3 files). No other Scaffold package uses Schemas. (The `AAGen-0.3.0/Editor/AddressableGroupCommandQueue.cs:175` hit on the search is Unity Addressables' `SchemaObjects` — a totally unrelated type, false positive.)
+
+**`com.scaffold.navigation/Runtime/Implementation/ViewConfig.cs:11-12`** — the canonical use:
+```csharp
+[SchemaFilter(typeof(ViewSchema))]
+public class ViewConfig : SchemaObject
+```
+Smell: `SchemaFilter` accepts `typeof(...)` with no `: Schema` constraint at compile time. Audit flagged this on the package side; here we see the consumer paying the price — `[SchemaFilter(typeof(string))]` would compile and fail at runtime via the `Debug.Log` typo'd path (`Runtime/SchemaSet.cs:30-34`). Generic attributes (C# 11) or a Roslyn analyzer would cut this.
+
+**`com.scaffold.navigation/Runtime/Implementation/ViewSchema.cs:14`** — only `Schema` subclass in `Assets/`:
+```csharp
+public abstract class ViewSchema : Schema
+```
+The package ships a single concrete consumer, and that consumer wraps the base type with its own abstract — meaning the consumer didn't trust the empty `Schema` tag class. `ViewSchema.cs` itself adds no members (`{}`). All it does is narrow `[SchemaFilter(typeof(ViewSchema))]` to the navigation domain. If `Schema` had been `interface ISchema` the consumer wouldn't need this empty-shell intermediate.
+
+**`com.scaffold.navigation/Runtime/Implementation/ViewSchema.cs:1-10`** — dead `using`s confirmed:
+```csharp
+using UnityEngine; using Scaffold.Types; using Scaffold.Navigation.Contracts;
+using Scaffold.Events.Contracts; using Scaffold.Events;
+using System.Threading.Tasks; using System.Linq; using System.Collections.Generic;
+using System; using Scaffold.Schemas;
+```
+Five of nine imports are unused for an empty class body. Smells like a copy-paste template — and it's repeated across `AnimationViewSchema.cs:1-11`, `TransitionViewSchema.cs:1-10`. The `Scaffold.Schemas` import is the only one that's load-bearing in those two; the rest are ceremonial.
+
+**`com.scaffold.navigation/Editor/ViewConfigEditor.cs:9, 14`**:
+```csharp
+public class ViewConfigEditor : SchemaObjectEditor
+...
+private static readonly string[] ExcludingViewFields = { "m_Script", "schemas", "viewAssetSource", ... };
+```
+Smell: the consumer hardcodes `"schemas"` as a magic string to exclude the schemas list from `DrawPropertiesExcluding`. Audit flagged the same magic string inside the package (`SchemaObjectEditor.cs:54, 134, 142`). The leak now extends to consumers — anyone subclassing `SchemaObjectEditor` must know the internal field name. Either expose `SchemaObjectEditor.SchemasFieldName` as a constant, or expose a virtual `GetExcludedFieldNames()` template method.
+
+**`com.scaffold.navigation/Runtime/Implementation/AnimationViewSchema.cs:13`** — concrete schema:
+```csharp
+public class AnimationViewSchema : ViewSchema { ... }
+```
+Combined with `TransitionViewSchema`, the navigation package has 2 concrete schemas plus the `ViewSchema` abstract. Tiny consumer surface for a package this large (15+ files, 7 attributes, 4 editor utility classes).
+
+**Zero consumers** of: `[AllowDuplicateSchemasAttribute]`, `[SchemaCustomDrawerAttribute]`, `[SchemaDescriptionAttribute]`, `[SchemaMenuGroupAttribute]`, `[SchemaTemplateAttribute]`, `[RequireSchemaAttribute]`. **Six of seven attributes have no consumer in `Assets/`.** The package's main feature surface is dead weight today.
+
+**Zero consumers** of `SchemaSet` directly (it's wrapped inside `SchemaObject`). The audit's worry about `public List<Schema> Collection` mutability has no current breakage, but no test coverage either.
+
+## Alternatives & prior art
+
+- **Unity Addressables `AddressableAssetGroupSchema`** — Addressables already ships a near-identical "composable schema on a ScriptableObject" pattern (and the navigation package's only false-positive search hit was *that* type). `https://docs.unity3d.com/Packages/com.unity.addressables@1.21/api/UnityEditor.AddressableAssets.Settings.AddressableAssetGroupSchema.html`. **Steal pattern**: their `RequireSchema`/`AllowDuplicateSchemas` semantics, group-template flow, and editor UI are directly comparable. They also use `[SerializeReference]` polymorphism. Worth a head-to-head before keeping `com.scaffold.schemas`.
+- **Unity DOTS / `IComponentData` authoring** — composable component data on `MonoBehaviour`/`ScriptableObject` baked at conversion time. `https://docs.unity3d.com/Packages/com.unity.entities@1.0/manual/concepts-baking.html`. **Steal pattern**: the authoring → runtime split. `Schema` could be an authoring-only concept that bakes to plain data classes; would remove `[SerializeReference]` runtime fragility.
+- **Odin Inspector `[Polymorphic]` / `[ListDrawerSettings]`** — the standard third-party answer to polymorphic serialized lists in Unity. `https://odininspector.com/`. **Adopt** if budget allows; it would replace ~80% of `Editor/SchemaDrawer*.cs`. Not free.
+- **FluentValidation / DataAnnotations** — for the `[RequireSchema]`/`[AllowDuplicateSchemas]` rule layer specifically. `https://docs.fluentvalidation.net/`. **Build (current path)**: validation rules expressed as attributes are a reasonable Unity-friendly choice; FluentValidation is too heavy. Keep the attribute pattern, but make it generic-attribute-friendly when the project moves to C# 11.
+
+Verdict: **refactor**, but interrogate the duplication with Addressables' schema model first. If a Unity asset designer would intuitively reach for Addressables' grouping, this package is solving a parallel problem; consider whether a single schema concept can serve both.
+
+## Benchmark plan
+
+- **`SchemaObject.AddSchema<T>` / `RemoveSchema<T>` correctness + cost**
+  - What: time + alloc per add/remove cycle on a populated `SchemaObject`.
+  - Tool: `Unity.PerformanceTesting`, `SampleGroup(Time + AllocatedManagedMemory)`.
+  - Location: `Tests/Performance/SchemaSetBenchmarks.cs`.
+  - Scenario: 100 schemas, 10k add/remove cycles, 5 warmup. Both `<T>` and `Type` overloads.
+  - Baseline: today, `Activator.CreateInstance` per add (~150 ns + closure alloc); `LINQ.Any` + `IsAssignableFrom` per check (`SchemaObject.cs:48-51`, the bug).
+  - Success: 0 alloc on `RemoveSchema` (dictionary path); ≤ 1 µs/add; correctness asserted (audit's `IsAssignableFrom` direction bug must be fixed first or this benchmark passes while doing the wrong thing).
+
+- **`SchemaSet.Types` cache invalidation regression test**
+  - What: not perf — verify the lazy `Types` cache stays in sync after `Collection` mutation.
+  - Tool: NUnit (correctness benchmark).
+  - Location: `Tests/SchemaSetCacheTests.cs`.
+  - Scenario: read `Types` (materializes), mutate `Collection` directly, read `Types` again — assert it reflects the change.
+  - Baseline: today the cache lies (audit `SchemaSet.cs:13-21`).
+  - Success: either the cache is invalidated or `Collection` is read-only.
+
+- **Editor drawer dispatch cost (TypeCache + drawer factory)**
+  - What: time to resolve and instantiate the right drawer for a `Schema` instance.
+  - Tool: `Unity.PerformanceTesting` editor harness.
+  - Location: `Tests/Performance/Editor/SchemaDrawerBenchmarks.cs`.
+  - Scenario: 50 schema types, 1k drawer lookups per type, 5 warmup.
+  - Baseline: today, `SchemaDrawerFactory.GetDrawerType` walks `BaseType` chain (audit `:25-32`); cached via `SchemaCacheUtility`.
+  - Success: ≤ 1 µs/lookup steady-state, 0 alloc; first-call ≤ 10 ms.
+
+- **`SchemaValidator` over a fully populated project**
+  - What: time to validate every `SchemaObject` asset in a project against `[RequireSchema]` rules.
+  - Tool: `Unity.PerformanceTesting` editor harness.
+  - Location: `Tests/Performance/Editor/SchemaValidatorBenchmarks.cs`.
+  - Scenario: 200 `ViewConfig` assets × 5 schemas each, 1 iteration (validation runs on inspector enable).
+  - Baseline: today, `IEnumerable.Count() > 0` double-enumeration + `FirstOrDefault().AllowMultiple` NRE risk (audit `:35, 79-80`).
+  - Success: ≤ 50 ms total over 200 assets; no NRE on corrupt-attribute path; converted to `Any()` single-enumeration.

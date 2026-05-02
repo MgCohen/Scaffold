@@ -68,3 +68,58 @@ B) **…or merge into `com.scaffold.mvvm`** and delete this package. A six-line 
 - This is the canonical place for an analyzer rule under `Analyzers/Rules/` to enforce "models inherit `Model`". Worth a SCA diagnostic if you keep the package.
 - README at root: confirm it documents the source generator behavior contributed by `[NestedObservableObject]`, since users can't infer it from the 8-line file.
 - If you keep it as the "official" Model root, also add a `View` and `ViewModel` companion convention so MVVM is symmetrical at package granularity (and consider whether com.scaffold.viewmodel is doing exactly that already — cross-reference).
+
+## Consumers
+
+Single consumer in `Assets/`: one sample file. **Zero non-sample consumers.**
+
+**`com.scaffold.view/Samples/MVVMUseCases.cs:67`**:
+```csharp
+public partial class BuildSampleModel : Model
+{
+    [ObservableProperty]
+    private int value;
+}
+```
+This is the *only* `: Model` inheritance in `Assets/`. Smell: a sample, not a real consumer. The `BuildSampleModel` exists to demonstrate `Scaffold.View` MVVM, not to validate `com.scaffold.model`'s value as a separate package. Production code in this repo gets `INotifyPropertyChanged` via `ObservableObject` directly (or via `ViewModel`, which lives in `com.scaffold.viewmodel`).
+
+**Verification:** zero references to `Scaffold.MVVM.Model`, no `: Model` inheritance, no asmdef dependencies from any non-sample asmdef. The `Scaffold.MVVM` (binding) namespace is heavily used — but that's a different package.
+
+The audit's hypothesis ("the package's value is purely 'use this as the canonical project base class'") is contradicted by the consumer evidence: **the canonical project does not actually use it.** The sample alone justifies neither the package nor the asmdef.
+
+This package is a one-line type that has not earned a single production inheritance. Either:
+1. The audit's option B (merge into `com.scaffold.mvvm`, delete this package) is correct — there is nothing here to keep.
+2. There's a hidden expectation that future code will derive from `Model`, in which case the project lacks an analyzer rule to enforce it (audit also flagged this).
+
+The consumer side adds new evidence the audit didn't have: even the single sample doesn't depend on any `Model`-specific behavior. `BuildSampleModel : ObservableObject` would compile and behave identically. The package is invisible to its only consumer.
+
+## Alternatives & prior art
+
+- **`CommunityToolkit.Mvvm.ComponentModel.ObservableObject`** — already a dependency, ships `INotifyPropertyChanged` + source-gen `[ObservableProperty]`. `https://learn.microsoft.com/en-us/dotnet/communitytoolkit/mvvm/observableobject`. **Adopt directly**: the `Model` base adds zero behavior; consumers can derive from `ObservableObject` and stamp `[NestedObservableObject]` themselves (one attribute vs one base class — not a meaningful win).
+- **`Prism.Mvvm.BindableBase`** — Prism's equivalent. `https://github.com/PrismLibrary/Prism/blob/master/src/Prism.Core/Mvvm/BindableBase.cs`. **Build (rejected)**: not relevant; the project chose CommunityToolkit, don't mix.
+- **ReactiveUI `ReactiveObject`** — observable-driven. `https://www.reactiveui.net/docs/handbook/view-models/`. **Steal pattern** for the audit's option A "add behavior worth importing" — `ReactiveObject` has `WhenAnyValue` + `RaiseAndSetIfChanged` patterns that justify a base class. CommunityToolkit doesn't, so neither does `Model`.
+- **Roslyn analyzer enforcing inheritance** — the audit suggested a `SCA…` rule. `https://learn.microsoft.com/en-us/dotnet/csharp/roslyn-sdk/tutorials/how-to-write-csharp-analyzer-code-fix`. **Steal pattern**: even if the package is kept, the rule belongs in the project's analyzer asmdef, not in `com.scaffold.model`. Without the analyzer, the package is convention-only and consumers ignore it (proven above).
+
+Verdict: **delete or merge.** The "single named entry point for a Scaffold model" concept has zero adopters in `Assets/`. Carry-forward cost (asmdef compile, README, tests folder, package.json, Unity Package Manager surface) is the only measurable thing this package produces today.
+
+## Benchmark plan
+
+The class adds no measurable runtime behavior over `ObservableObject`. There is nothing to micro-benchmark in isolation. The relevant tests are correctness:
+
+- **`[NestedObservableObject]` propagation correctness**
+  - What: changing a property on a nested `Model` raises `PropertyChanged` on the parent.
+  - Tool: NUnit (`Tests/Scaffold.MVVM.Model.Tests.asmdef` already exists, no .cs).
+  - Location: `Tests/ModelNestedPropagationTests.cs`.
+  - Scenario: parent `Model` with a `Model` property; subscribe; mutate inner; assert outer fires.
+  - Baseline: without the attribute, only the inner fires. With it, both fire (or path-aware notification, depending on source-gen behavior).
+  - Success: deterministic propagation; one notification per change, no duplicates. Run as a regression guard if the package is kept.
+
+- **Source generator overhead at compile time**
+  - What: incremental compile time delta when a project uses `Model` vs `ObservableObject` directly.
+  - Tool: `dotnet build /bl` + `MSBuild Binary Log Viewer`, or `Time-Command` in Unity's compile pipeline.
+  - Location: not a test — a one-shot measurement, document in README.
+  - Scenario: 50 model classes, both shapes.
+  - Baseline: CommunityToolkit source-gen ≈ 50–200 ms per assembly cold; `[NestedObservableObject]` adds another generator pass.
+  - Success: ≤ 10% overhead vs plain `ObservableObject`. If higher, the package's "convenience base" is a compile-time tax with zero adopters.
+
+If the package is merged/deleted (recommended), neither of these benchmarks is needed.

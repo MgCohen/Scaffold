@@ -475,3 +475,165 @@ The tightest peer in C#-land is Entitas; its source-generator approach validates
 | Tests                             | B     | Good runtime coverage, weak editor + serialization coverage. |
 | Docs                              | A−    | README is exemplary. |
 | **Overall**                       | **B+** | Foundationally sound. The §8.1/§8.2/§8.3 refactors take it to A. |
+
+---
+
+## 10. Consumers
+
+Searched for `Scaffold.Entities` across `/home/user/Scaffold/Assets/`, `/home/user/Scaffold/GameModule/`, `/home/user/Scaffold/LiveOps/` (excluding the package itself). **Finding #1: there are essentially no first-party consumers outside the package and `entities.states`.** GameModule and LiveOps return zero matches for `Scaffold.Entities`, `EntityComponent`, `EntityInstance`, `GetVariable`, `VariableSO`, or `EntityDefinition`. The directories `Assets/Scaffold/Packages/com.scaffold.entities/` and `Assets/Packages/com.scaftold.entities/` (note typo) contain only `.meta` files — empty husks; recommend deletion as part of cleanup. **All real consumption is concentrated in two places: the in-package `Samples/` and `com.scaffold.entities.states`.** This dramatically lowers the cost of the §8.1 typed `Variable<T>` migration: the blast radius is tiny.
+
+### 10.1 `com.scaffold.entities.states` — the dominant consumer
+
+`entities.states` *reimplements* large parts of `LocalVariableStorage` against the `Store` slice model rather than reusing it. This is exactly the chain the prompt asked about: the typing pain shows up here.
+
+- **Reinvented subscriber map (`StoreVariableStorage.cs:37-38, 67-89, 250-276`).** It reproduces the `Dictionary<Variable, List<Action<VariableValue>>>` that §5.9 of this audit recommends for the package itself, plus a separate structural-change list. The package's own `VariableNotifier` was unsuitable to reuse, evidently because of the multicast-delegate churn flagged in §5.9. The consumer found the same smell and worked around it independently — strong evidence the §5.9 fix is correct.
+
+  ```csharp
+  // StoreVariableStorage.cs:37-38
+  private readonly Dictionary<Variable, List<Action<VariableValue>>> perVariableSubscribers = new();
+  private readonly List<Action<VariableStructuralChange, Variable, VariableValue?>> structuralSubscribers = new();
+  ```
+
+- **Hand-rolled typed-payload equality chain (`StoreVariableStorage.cs:382-420`).** `MatchKnownPayloadEquals` enumerates every concrete inner type (`float`, `int`, `double`, `long`, `bool`, `string`) with a six-method ladder. Every new `VariableValue<T>` requires editing this consumer too. This is the §5.1 stringly-typed problem expressed as a maintenance tax on a downstream package — the consumer cannot ask `prev.Equals(cur)` typedly because `Variable` does not carry `T`. A `Variable<T>`-aware `IEqualityComparer<VariableValue<T>>` would collapse this to one generic call.
+
+  ```csharp
+  // StoreVariableStorage.cs:392-395
+  private bool MatchFloatEquals(VariableValue prev, VariableValue cur)
+      => prev is IVariableValue<float> pf && cur is IVariableValue<float> cf && pf.Get().Equals(cf.Get());
+  ```
+
+- **Stringly-typed `Variable` literals at the call site (`StateEntityIntegrationTests.cs:13, 111, 300`).**
+
+  ```csharp
+  private static readonly Variable hp = new("hp", "float");
+  var armor = new Variable("armor", "float");
+  ```
+
+  Tests bypass `VariableSO` and hand-build `Variable` from raw strings; if the test typo'd `"flaot"` the failure surfaces only at `BaseEntityInstance.cs:50` as `InvalidCastException`. **`Variable<T>` would make this `Variable<float>("hp")` and the typo a compile error.** Note `entities.states` ships no typed authoring layer of its own.
+
+- **`GetVariable<T>` callers always pre-know `T` and pass it as an explicit type argument (`StateEntityIntegrationTests.cs:22, 29, 38, 48, 57-59, 94, 102-104, …40+ call sites`).**
+
+  ```csharp
+  Assert.That(entity.GetVariable<float>(hp), Is.EqualTo(15f));
+  ```
+
+  Every single call site duplicates the `<float>` annotation that should be inferable from `hp`. With `Variable<T>` this becomes `entity.GetVariable(hp)` and the redundancy disappears. The 40+ duplications are a direct consequence of §5.1.
+
+- **`Subscribe` callbacks unbox via cast inside the lambda (`StateEntityIntegrationTests.cs:123, 288`).**
+
+  ```csharp
+  entity.Subscribe(hp, value => captured.Add(((IVariableValue<float>)value).Get()));
+  ```
+
+  Every subscriber casts. With `Subscribe<T>(Variable<T>, Action<T>)` (proposed in §5.1) this is `entity.Subscribe(hp, v => captured.Add(v))`. The cast is a downstream tax for the package's untyped `Subscribe(Variable, Action<VariableValue>)` signature. `IReadOnlyEntity.Subscribe` (`Contracts/IReadOnlyEntity.cs`) is already flagged in §3 — the consumer evidence confirms it.
+
+- **Mutators serialize `Variable` straight into payloads (`Payloads/AddModifierPayload.cs:5`, `RemoveModifierPayload`, `SetBaseValuePayload`, `AddEntityVariablePayload`, `RemoveEntityVariablePayload`).** Each payload record carries a raw `Variable` and a raw `VariableValue` / `VariableModifier`. **None carry a `T`.** This means the entire Store mutation log is stringly-typed end-to-end; a wrong-typed `VariableValue` in `SetBaseValuePayload` is undetectable until the next `ApplyModifiers` runs. Strong argument for §8.1 plus a `SetBaseValuePayload<T>(Variable<T>, VariableValue<T>)` overload.
+
+- **`StoreVariableStorage` re-guards the same `key == null || onChange == null` (lines 67-72, 99-106, 118-125, 137-142) that §5.3 already calls out for the package.** Same pattern, copied. Confirms the entry-only rule is not actually being followed at the *consumer* boundary either — the rule needs a public-vs-internal split (`SubscribeInternal` etc.) that consumers can adopt.
+
+- **Definition consumers.** `EntityDefinition` (plain class) is instantiated directly in `EntityStateFactory.Create` and in tests (`StateEntityIntegrationTests.cs:74-76`); the `EntityDefinitionAsset` ScriptableObject path is **never used** outside the in-package sample. `IDefinitionVariableBagProvider` (flagged in §5.6 as 2-impl) has no third-party impl in the consumer code. Recommend deleting the interface as proposed in §8.5.
+
+- **Modifier registration sites.** Custom modifiers in consumers: **zero.** All six modifier types ship from the package; `entities.states` adds none, samples add none, and there are no `: VariableModifier<T>` subclasses elsewhere. The reflection-based `ModifierTypeIndex` (§5.4) walks AppDomain to find a closed set of six types that will not grow this milestone — pure cold-start tax for nothing. This sharpens the §8.2 source-generator argument.
+
+- **Entity hosting.** Two host shapes ship: `EntityComponent<TDefinition>` (MonoBehaviour) and `StateEntity<TDefinition>` (state-store-backed, `BaseEntityInstance<TDefinition>` subclass). Sample uses `EntityComponent`; tests for `entities.states` use `StateEntity`. **Game code uses neither yet.** The `BaseEntityInstance` extensibility surface earns its keep solely because of `StateEntity`; without that one consumer the class hierarchy could collapse.
+
+### 10.2 In-package samples
+
+- **`Samples/Scripts/EntitiesSampleDriver.cs:56-65`** — `entity.TryGetVariable(healthVariable, out VariableValue health)` then `FormatVariableText` switches on the concrete subclass. **Defensive null-checks downstream of nullable returns** show up as `slot != null && entity.TryGetVariable(...)` (`EntitiesSampleDriver.cs:88`) — exactly the pattern §5.2 predicts when `Variable` getters silently swallow null. The driver also reimplements `ToString` per concrete `VariableValue<T>` (lines 96-103), which §7.10 already calls out.
+
+- **`Samples/Scripts/SampleCharacterMoveBehavior.cs:22-26`** — `data.TryGetVariable(moveSpeedVariable, out FloatVariableValue floatSpeed)` then `floatSpeed.Value`. Pattern matching against the concrete *wrapper* (not `T`). With `Variable<float>` this would become `data.TryGetVariable(moveSpeedVariable, out float speed)`; one type-test removed per behavior.
+
+- **`Samples/Scripts/SampleCharacterEntity.cs`** is two lines: `sealed class SampleCharacterEntity : EntityComponent<SampleCharacterDefinition> {}`. Confirms §5.11: every consumer gets a one-line trampoline class because `EntityComponent<T>` cannot be added to a GameObject directly.
+
+### 10.3 Chain of pain
+
+`entities` → `entities.states` → (no further consumers yet). The pain is concentrated in `entities.states` and visible in three forms: redundant `<T>` arguments on every read, hand-rolled per-type equality, and stringly-built `Variable` literals in tests. **Fixing §5.1 (`Variable<T>`) and §5.9 (`VariableNotifier` rewrite) in the package would let `entities.states` drop ~120 lines** (the equality chain, the duplicated subscriber book-keeping where applicable, and the `<float>` clutter in tests). That is a much higher leverage refactor than the audit body alone implied — the consumer evidence makes §8.1 the clear top priority.
+
+---
+
+## 11. Alternatives & prior art
+
+Six libraries / patterns that solve "entity-with-typed-variable-bag" or "ScriptableObject-driven definitions." Verdict legend: **Adopt** = use it directly; **Wrap** = thin facade over it; **Build** = roll our own informed by it; **Steal pattern** = copy the design idea, not the code.
+
+1. **Unity DOTS / ECS** — typed `IComponentData` in archetypes; change-filter queries; unmanaged via Burst. [docs.unity3d.com/Packages/com.unity.entities](https://docs.unity3d.com/Packages/com.unity.entities@latest). **Verdict: Steal pattern.** DOTS proves typed-component-by-archetype scales; the authoring-baking split is exactly what `EntityDefinitionAsset → EntityDefinition` already does. We will not adopt DOTS proper (sample-scene + UI binding model is too far from chunk iteration), but `Variable<T>` is the small-scale equivalent of DOTS' compile-time component identity.
+
+2. **Entitas** — codegen ECS for Unity; generator emits `Entity.HasFoo()`/`AddFoo()` per component. [github.com/sschmid/Entitas](https://github.com/sschmid/Entitas). **Verdict: Steal pattern.** The validating peer for §8.2: a Roslyn generator over `[VariableValueId]` produces typed accessors and a static registry, replacing both `VariableValueRegistry` AppDomain scan and the per-call cast.
+
+3. **Unreal GAS — `FGameplayAttribute` / `UAttributeSet`** — typed attribute identifier struct; `GAMEPLAYATTRIBUTE_PROPERTY_GETTER` macro emits a static accessor per attribute; `FGameplayEffect` is the modifier analogue. [dev.epicgames.com/documentation/en-us/unreal-engine/API/Plugins/GameplayAbilities/FGameplayAttribute](https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Plugins/GameplayAbilities/FGameplayAttribute). **Verdict: Steal pattern.** GAS already solved the "typed identifier + base/current/effective" three-layer problem; `FGameplayAttribute` is morally `Variable<float>` plus a property-field reflection token. Borrow the macro idea (we have source generators instead) and the base/current value split it pairs with.
+
+4. **MemoryPack** — Cysharp serializer using an incremental source generator + `ModuleInitializer` to register formatters with zero reflection at startup; AOT-friendly. [github.com/Cysharp/MemoryPack](https://github.com/Cysharp/MemoryPack). **Verdict: Steal pattern.** The reflection-replacement template for §8.2: emit a generated registration call from `[ModuleInitializer]`, fall back to a manual `RegisterFormatter()` on Unity (Unity does not honour `[ModuleInitializer]` reliably) — same compromise we will need for `VariableValueRegistry.Generated.cs`.
+
+5. **Apple GameplayKit — `GKEntity` / `GKComponent` / `GKAttribute`** — three-layer entity-component-attribute with string keys and `NSObject`-typed values. [developer.apple.com/documentation/gameplaykit](https://developer.apple.com/documentation/gameplaykit). **Verdict: Build (informed-by, anti-pattern caution).** GameplayKit has the same stringly-typed weakness this package has — citing it as confirmation that string keys are a known sharp edge that several mature systems failed to remove. Do *not* mirror its API surface; do mirror its three-layer entity/component/attribute split, which we already have.
+
+6. **DDD `TypedId<T>` / strongly-typed wrappers (Vladimir Khorikov, Andrew Lock)** — pattern: `readonly struct OrderId(Guid value)` instead of raw `Guid`; same shape generalises to `Variable<T>`. [andrewlock.net/strongly-typed-id-updates](https://andrewlock.net/strongly-typed-id-updates/). **Verdict: Adopt.** The `Variable<T>` proposal in §5.1 / §8.1 is the canonical strongly-typed-id move applied to a value-bag key. Pair with a `[StronglyTypedKey]` source generator (Andrew Lock's `StronglyTypedId` package is the reference implementation) and we get equality, hashing, debugger display, and JSON converters for free.
+
+---
+
+## 12. Benchmark plan
+
+Each entry: what to measure, tool, test location, scenario, baseline expectation, success criteria for the proposed refactor. Tight bullets; no padding.
+
+### 12.1 `VariableValueRegistry` first-access AppDomain scan
+- **What:** wall-clock ms on first `VariableValueRegistry.GetType(...)`; bytes allocated; `ReflectionTypeLoadException` count (should be 0 in CI, may be >0 in player).
+- **Tool:** EditMode test with `System.Diagnostics.Stopwatch` + `GC.GetAllocatedBytesForCurrentThread`. Force fresh state by restarting the registry via reflection on its private static caches (or use a domain-reload-bracketed test).
+- **Location:** `Tests/Performance/VariableValueRegistryColdStartTests.cs`.
+- **Scenario:** project AppDomain as-is (currently ~120 assemblies); also a synthetic worst case with 500 dummy assemblies loaded.
+- **Baseline:** ~30-80 ms cold; ~50-200 KB allocated (assembly enumeration + `Type[]` arrays).
+- **Success criteria for §8.2 source-gen replacement:** **<2 ms first call, <4 KB allocated, zero `Type[]` enumeration, zero `lock` contention.**
+
+### 12.2 `ModifierTypeIndex` reflection
+- **What:** time + alloc on first `GetCompatibleModifiers(typeof(float))`.
+- **Tool:** Unity.PerformanceTesting `Measure.Method`.
+- **Location:** `Tests/Performance/ModifierTypeIndexBenchmarks.cs`.
+- **Scenario:** cold first call vs. 1000 warm calls.
+- **Baseline:** cold ~20-50 ms; warm <1 µs (cached).
+- **Success criteria:** cold path eliminated entirely (source-gen registration); warm path unchanged.
+
+### 12.3 `LocalVariableStorage.Subscribe` closure allocation
+- **What:** bytes allocated per call, total alloc count for 1000 sequential subscribes.
+- **Tool:** Unity.PerformanceTesting `Measure.GcAllocations`; cross-check with `Allocations` counter.
+- **Location:** `Tests/Performance/SubscribeBenchmarks.cs`.
+- **Scenario:** 1, 100, 1000 subscriptions on one entity; same on 100 entities each with 16 vars.
+- **Baseline:** today, two allocations per call (`CallbackDisposable` + the `Unsubscribe` closure capturing `key`+`onChange`); 64–96 bytes each on 64-bit. Consumer evidence: `StoreVariableStorage.cs:77` does the same allocation.
+- **Success criteria for §8.4 struct-handle refactor:** **0 allocations on hot path; subscription token <16 bytes (struct on stack); `Dispose` returns the slot to a pooled free-list.**
+
+### 12.4 `VariableNotifier` multicast-delegate churn
+- **What:** allocation count per `Add`/`Remove` cycle; dispatch time for N subscribers.
+- **Tool:** BenchmarkDotNet (pure-C# project under `Tests/Performance/Bdn/`) — `VariableNotifier` has no Unity surface.
+- **Location:** `Tests/Performance/Bdn/VariableNotifierBenchmarks.cs`.
+- **Scenario:** add 1/16/256 subscribers, then dispatch 10 000 times; remove 1 of N during dispatch.
+- **Baseline:** every add/remove re-allocates the multicast `Action<VariableValue>` (.NET combines delegates by allocating a new `MulticastDelegate` array). At 256 subscribers, add = ~1 KB each.
+- **Success criteria for §5.9 list-based refactor:** **add: ≤32 bytes amortised (list resize); remove: 0 bytes; dispatch unchanged within 5 %.**
+
+### 12.5 `ApplyModifiers` virtual dispatch — verify "no boxing"
+- **What:** allocations per `VariableValue<float>.ApplyModifiers(IReadOnlyList<ActiveModifier>)` with stack of 1/8/64 modifiers.
+- **Tool:** BenchmarkDotNet with `[MemoryDiagnoser]`.
+- **Location:** `Tests/Performance/Bdn/ApplyModifiersBenchmarks.cs`.
+- **Scenario:** float, int, bool inner type; modifier-stack depths 1, 8, 64.
+- **Baseline (audit's claim):** zero allocation; only virtual-call cost. **Verifying** because §4 asserts it without a measurement.
+- **Success criteria:** confirmed 0 B allocated at all depths; if any allocation appears, find the path (likely `IReadOnlyList<ActiveModifier>` enumerator boxing on a struct-enumerator-less collection).
+
+### 12.6 Three-layer guard chain on `EntityComponent → EntityInstance → LocalVariableStorage`
+- **What:** time per `Subscribe` and per `GetVariable<T>` through the three layers vs. a hypothetical direct call.
+- **Tool:** Unity.PerformanceTesting `Measure.Method` with 100 000 iterations.
+- **Location:** `Tests/Performance/GuardChainBenchmarks.cs`.
+- **Scenario:** repeat `GetVariable<float>(key)` 100 000× on a hot entity; same for `Subscribe`/`Unsubscribe` pairs.
+- **Baseline:** 3 redundant null-checks + virtual call + dictionary lookup; expect ~50-80 ns/call.
+- **Success criteria for §5.3 entry-only refactor:** **≥30 % reduction on `GetVariable` hot path; `Subscribe` reduction dominated by §12.3 fix.**
+
+### 12.7 Modifier add/remove on combat-tick loop
+- **What:** time + allocations for `AddModifier`/`RemoveModifier` cycles at combat-realistic rates.
+- **Tool:** Unity.PerformanceTesting.
+- **Location:** `Tests/Performance/ModifierChurnBenchmarks.cs`.
+- **Scenario:** 100 entities, each receives 4 modifiers added then removed every simulated tick for 600 ticks (10 s @ 60 Hz). Variants: ordered insert (current) vs. append-and-sort.
+- **Baseline:** `VariableModifierHandler.ComputeInsertIndex` is O(n) per insert; per-key bucket reallocation if `List<ActiveModifier>` grows; per add a `ModifierId` struct + `ActiveModifier` struct (no heap on those, but the bucket list resize is). The consumer-side equivalent in `EntityVariableState.WithModifier` (`entities.states`) **always** allocates a new dictionary + new bucket list (record-with semantics) — should be benchmarked separately as it is genuinely worse.
+- **Success criteria:** keep mutable path under 1 alloc per add (bucket grow only); document that `entities.states` immutable path is structurally per-mutation allocating and is the cost of the Store model.
+
+### 12.8 `Variable` key lookup — `Dictionary<Variable, …>` vs. typed
+- **What:** lookup time and `GetHashCode`/`Equals` calls per `GetVariable`.
+- **Tool:** BenchmarkDotNet.
+- **Location:** `Tests/Performance/Bdn/VariableLookupBenchmarks.cs`.
+- **Scenario:** bag with 4, 16, 64 variables; key is interned (typical `VariableSO`) vs. fresh `new Variable("hp","float")` (test pattern observed in `StateEntityIntegrationTests`).
+- **Baseline:** `Variable.GetHashCode` combines two `string.GetHashCode` calls; `Equals` is two `string.Equals`. Fresh-allocation pattern in tests adds an allocation per call.
+- **Success criteria for §8.1 `Variable<T>`:** equal or better lookup time; **fresh-Variable test pattern eliminated** (tests use a static `Variable<float> Hp = new("hp")` field, zero per-call alloc); compile-time T match removes the `BaseEntityInstance.cs:50` cast on read.
+

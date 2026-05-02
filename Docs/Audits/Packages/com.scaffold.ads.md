@@ -282,3 +282,59 @@ The five-layer "default" fallback (client `RewardedAdManager.cs:45, 170, 195`; b
 - Unity Awaitable best practices (Unity 6) — https://docs.unity3d.com/6000.0/Documentation/Manual/async-await-support.html
 - Google AdMob mediation — typical abstraction patterns separate `IAdLoader` / `IAdRenderer` per format and surface a `LoadAdResult`/`ShowAdResult`: https://developers.google.com/admob/unity/quick-start
 - AppLovin MAX abstraction guidance — single `IAdsManager` with format-specific events is the dominant industry pattern, and it's what this package effectively implements; the deltas above (result types, cancellation, typed keys) are what the mature SDKs (e.g. AppLovin's own MaxSdk) ship.
+
+## Consumers
+A repo-wide `grep -r` for `Scaffold.Ads`, `IAdProvider`, `RewardedAdManager`, `InterstitialAdManager`, `BannerAdManager`, `AdManager.InitializeAds`, and `AdPlacementKeySO` across `/home/user/Scaffold/Assets/`, `/home/user/Scaffold/GameModule/`, and `/home/user/Scaffold/LiveOps/` returns hits **only inside the two ad packages themselves**. There is no game code, no AppFlow stage, no SceneFlow bootstrap shell, no LiveOps consumer, and no prefab/scene asset that references the abstraction.
+
+- **`AdManager.InitializeAds` is called from exactly one place**: `/home/user/Scaffold/Assets/Packages/com.scaffold.ads.levelplay/Runtime/Test/UnityAdsTester.cs:34` — `AdManager.InitializeAds(userId, CreateRewardEndpointClient());`. Init is owned by a `MonoBehaviour.Start()` inside the LevelPlay package's `Test/` folder, not by `AppFlowHost` (`/home/user/Scaffold/Assets/Packages/com.scaffold.appflow/Runtime/AppFlowHost.cs`) or any composition root. `userId` defaults to `""`. Smell: bootstrap masquerades as a tester; AppFlow never owns ad initialization.
+- **Reward endpoint client construction also lives in the tester**: `UnityAdsTester.cs:56-64` decides between `LiveOpsRewardEndpointClient` and `HttpRewardEndpointClient` based on whether `[Inject] ILiveOpsService` resolved. That choice belongs in `AdsInstaller`/`LevelPlayInstaller`, not a `MonoBehaviour`.
+- **Placement keys at call sites are stringly-typed in every tester**: `RewardedAdTester.cs:21,150` calls `ShowRewardedAd(placement.Key)` and `AdManager.RewardedAds.ClickShowAdReward(placement)` with a raw `string`; `BannerAdTester.cs:40-54` and `InterstitialAdTester.cs:41-46` do the same. The `RewardedAdPlacementUI.Key` field is typed as `AdPlacementKeySO` (`RewardedAdTester.cs:62,166,173`) but immediately decays to `string` via the implicit operator at the API boundary — the typing exists in the inspector, vanishes at the call. Smell: the typed key never reaches the manager, so the five-layer `"default"` coalescing is exercised.
+- **`bool` reward result is barely "handled"**: no consumer outside the package subscribes to `IRewardedAdService.AdSuccessfullyCompleted` or `AdSuccessfullyCompletedWithToken`. The only client-side reaction to a reward is the `RewardedAdTester` polling `IsAdAvailable` and updating button state (`RewardedAdTester.cs:77-95`). There is no production code that grants currency, unlocks content, or reacts to the `bool` — so the failure-reason loss flagged in the audit has no current victim, but also nothing exercises the contract.
+- **`AdRewardUIController` is unused outside its package**: `grep -rn AdRewardUIController` returns only its own definition. No prefab, no scene, no script references it. It is dead-on-arrival in the runtime asmdef and contributes only to the README-violating MonoBehaviour-in-runtime smell.
+- **No `Scaffold.Ads.LevelPlay` symbol leaks into consumers** — because there are no consumers. The abstraction passes the "no leak" test trivially. The interesting question is whether it would still pass once a real consumer is wired; today this cannot be verified.
+- **Net finding for this package**: the abstraction has zero production callers. It is exercised only by in-package testers that re-import its types via the same assembly. Whether `IAdProvider` justifies its existence is unknowable from call sites; it must be justified by a roadmap commitment to a second provider.
+
+## Alternatives & prior art
+- **AppLovin MAX SDK direct usage** — single-vendor mediation SDK; many studios ship games coupled directly to `MaxSdk.*` calls with no internal abstraction. https://developers.applovin.com/en/max/unity/overview/ — **Verdict: Build (keep abstraction) only if a second provider is committed; otherwise direct-couple.** Most shops with one mediation partner do not pay the abstraction tax.
+- **Google AdMob (Unity Mediation Adapters)** — Google's first-party mediation; result types `AdValue`, `AdError`, `LoadAdError` are typed and rich, and SSV is documented end-to-end. https://developers.google.com/admob/unity/quick-start — **Verdict: Steal pattern.** Adopt their result-type shape (`LoadAdResult`/`ShowAdResult` with typed `AdError`) for `IRewardEndpointClient` and the manager events.
+- **Yodo1 MAS / Appodeal mediation wrappers** — third-party "wrappers around mediators" that sit one level above MAX/IronSource and present a unified API. https://www.yodo1.com/mas/ , https://docs.appodeal.com/unity/ — **Verdict: Steal pattern.** They prove the `IAdProvider` shape is industry-standard for studios that genuinely run multi-provider; mostly vindicates the existing design.
+- **Unity LevelPlay / IronSource** — the existing implementation; covered by the sibling package. https://developers.is.com/ironsource-mobile/unity/unity-plugin/ — **Verdict: Wrap (current state).**
+- **AppLovin MAX SSV (server-side reward validation)** — gold-standard pattern for stripping reward grant authority from the client; the parent package's `IRewardEndpointClient` is a reasonable approximation but is not currently fed signed SDK callbacks. https://developers.applovin.com/en/max/unity/ad-formats/rewarded-ads/#server-side-callbacks — **Verdict: Adopt.** This is the right direction for the LevelPlay implementation to feed `IRewardEndpointClient`.
+- **Buy-vs-build verdict**: `IAdProvider` is a one-tenant abstraction today (LevelPlay only) with zero production callers. It justifies itself **only** if (a) a second provider (AdMob mediation, MAX direct, or a headless QA fake) is on the near-term roadmap, or (b) the team commits to writing the headless fake to enable CI tests. Without one of those, direct-coupling to LevelPlay would shed roughly half the surface area (interfaces, configs, factory SO, installer split) for no functional loss.
+
+## Benchmark plan
+- **What to measure / verify**: `AdManager.InitializeAds` cold-start latency (entry → all three managers wired → first `CanShowAd` returns).
+  - **Tool**: PlayMode test with a stopwatch around `await AdManager.InitializeAds(...)`; counter-test with `HeadlessAdProvider` once it exists.
+  - **Test location**: `com.scaffold.ads/Tests~/PlayMode/InitLatencyTests.cs` (new asmdef).
+  - **Scenario**: cold app start with `LevelPlayAdProvider` (real SDK, dev key) and with `HeadlessAdProvider`; record p50/p95.
+  - **Baseline expectation**: today, `InitializeAds` returns before `OnInitSuccess` fires — measured "latency" is bogus because services are still null.
+  - **Success criteria**: TCS-gated init returns only after services are non-null; cold-start budget < 500 ms on `HeadlessAdProvider`, < 3 s p95 on LevelPlay device build.
+- **What to verify**: placement key resolution path is single-layer.
+  - **Tool**: EditMode unit test asserting `RewardedAdManager.ClickShowAdReward(null)` and `("")` throw `ArgumentNullException`/`ArgumentException`, not silently coalesce to `"default"`.
+  - **Test location**: `com.scaffold.ads/Tests~/EditMode/PlacementResolutionTests.cs`.
+  - **Scenario**: pass null key, empty `AdPlacementKeySO`, missing-from-config key.
+  - **Baseline expectation**: today all three flow to `"default"` placement (`RewardedAdManager.cs:45`, `AdsConfig.cs:18`, `AdData.cs:49`).
+  - **Success criteria**: each invalid input throws at the manager entry; backend never receives `"default"` unless the asset literally named `default` is requested.
+- **What to verify**: reward-callback reentrancy under fast double-show.
+  - **Tool**: EditMode test with a `FakeRewardedAdService` that fires `AdSuccessfullyCompletedWithToken` for placement A and B back-to-back.
+  - **Test location**: `com.scaffold.ads/Tests~/EditMode/RewardReentrancyTests.cs`.
+  - **Scenario**: invoke `ShowAd("A")` then `ShowAd("B")`, fire B's callback before A's `HandleAdSuccessfullyCompletedWithToken` completes its `await`.
+  - **Baseline expectation**: today `lastAdToken` (single field, `RewardedAdManager.cs:14`) is overwritten — A's reward is granted with B's token, server-side cooldown attribution drifts.
+  - **Success criteria**: token flows inside the event payload, not via instance state; assertion that the `IRewardEndpointClient` mock is called once per placement with that placement's own token.
+- **What to measure**: guard-clause smear cost.
+  - **Tool**: BenchmarkDotNet (or Unity PerformanceTesting package) micro-bench around `BannerAdManager.LoadBanner`/`ShowBanner`/`HideBanner` with the duplicate `if (!isInitialized || adService == null)` (`BannerAdManager.cs:29,40,50,60`).
+  - **Test location**: `com.scaffold.ads/Tests~/PerformanceTests/GuardClauseBench.cs`.
+  - **Scenario**: 10k calls hot-path, init/non-init mix.
+  - **Baseline expectation**: probably <10 ns per call — negligible. Document and delete the guards anyway.
+  - **Success criteria**: noise-level perf delta after centralizing on `Service()` accessor; correctness regression nets zero.
+- **What to verify**: `async void` paths can no longer swallow exceptions.
+  - **Tool**: EditMode test that throws inside `IRewardEndpointClient.CallRewardEndpointAsync` and asserts the exception propagates to the caller's `await`.
+  - **Test location**: `com.scaffold.ads/Tests~/EditMode/AsyncContractTests.cs`.
+  - **Scenario**: replace `async void InitializeAds`/`ClickShowAdReward`/`ShowInterstitial` with `async Awaitable`; mock client throws.
+  - **Baseline expectation**: today, exceptions reach Unity's sync context and are logged but not observable to the caller.
+  - **Success criteria**: caller's `try/catch await` catches the exception; no `LogException` fired by the runtime.
+- **What to verify**: headless provider exists and round-trips a full reward flow.
+  - **Tool**: EditMode test with `HeadlessAdProvider` + `FakeRewardEndpointClient` configured for success.
+  - **Test location**: `com.scaffold.ads/Tests~/EditMode/HeadlessProviderTests.cs`.
+  - **Baseline expectation**: today there is no headless provider; CI cannot run ad tests.
+  - **Success criteria**: full `Initialize → CanShowAd → ShowAd → AdCompleted → CallRewardEndpoint → granted` chain runs in <100 ms, no Unity Player required, no LevelPlay key required.

@@ -86,3 +86,78 @@ private void RegisterPoolableIfNeeded(T item)
 - README exists; confirm it documents the `IPoolable.ReturnRequested` ownership rule (handler is owned by the pool, fired once per Take).
 - Naming is consistent. Folder layout matches the project pattern (`Runtime/Contracts`, `Runtime/`, `Container/`, `Tests/`).
 - Reference: Unity's built-in `UnityEngine.Pool.ObjectPool<T>` (Unity 2021+). This impl is more featureful (self-return event, IPoolable hooks) — worth one line in README explaining why this exists alongside the built-in.
+
+## Consumers
+
+Single consumer in `Assets/`: `com.scaffold.states`. Two files. **One consumer total** for an entire pooling package.
+
+**`com.scaffold.states/Runtime/Store.cs:35, 44`** — the only `Pool<T>` instantiation in the project:
+```csharp
+mutatorRunnerPool = new Pool<MutatorRunner>(() => new MutatorRunner(new Scratchpad(this)), null, initialSize: 2);
+...
+private readonly Pool<MutatorRunner> mutatorRunnerPool;
+```
+Smell: `null` passed for the `onRelease` (or whichever positional param the second slot is). At the call site this reads like "I don't want this", which works because the package supports it — but the convention forces the consumer to know what `null` means in slot 2. Named-arg or builder API would self-document. `initialSize: 2` is the only named arg; either name them all or none.
+
+**`com.scaffold.states/Runtime/Pipeline/MutatorRunner.cs:8, 17-30`** — sole `IPoolable` implementation:
+```csharp
+internal sealed class MutatorRunner : IStateScope, IPoolable
+...
+event Action IPoolable.ReturnRequested
+{
+    add { }
+    remove { }
+}
+void IPoolable.OnTakenFromPool() { }
+void IPoolable.OnReturnedToPool() { scratchpad.Reset(); }
+```
+Smell: the `ReturnRequested` event is implemented as a pair of empty add/remove accessors — the consumer doesn't want self-return semantics, but `IPoolable` forces them to declare the event anyway. This is the strongest signal that `IPoolable` is over-specified: 2 of 3 members are no-ops, only `OnReturnedToPool` is real. Audit's recommendation to keep self-return as opt-in via a separate `ISelfReturning` interface (or function delegate) is vindicated by the only consumer.
+
+**`com.scaffold.pooling.Container/PoolingInstaller`** — zero references in `Assets/`. Audit-flagged empty installer is also unused. Strong delete signal.
+
+**Zero consumers** of `Pool.Active` (the allocating getter the audit flagged). The two-allocation-per-call cost is a foot-gun waiting for a future consumer; **this is the cheapest possible time to fix it** — no breakage radius.
+
+**Zero consumers** of `Pool.Clear()`, `Pool.Prefill`, the idle-cap parameter, or any `IPoolable.OnTakenFromPool`. The single consumer uses ~30% of the public surface. Either delete the unused features or accept the package is over-built for the one current need.
+
+## Alternatives & prior art
+
+- **`UnityEngine.Pool.ObjectPool<T>` / `ListPool<T>` / `HashSetPool<T>`** — built-in since Unity 2021, generic, with idle cap and lifecycle callbacks. `https://docs.unity3d.com/ScriptReference/Pool.ObjectPool_1.html`. **Adopt**: identical surface for the `MutatorRunner` use case. `Pool<T>` adds `IPoolable.ReturnRequested` (self-return) and a `IReadOnlyCollection<T> Active` getter — neither is used by the only consumer. Replacing one `new Pool<MutatorRunner>(...)` with one `new ObjectPool<MutatorRunner>(...)` deletes the entire package.
+- **Microsoft.Extensions.ObjectPool `ObjectPool<T>` + `IPooledObjectPolicy<T>`** — ASP.NET Core's pool. `https://learn.microsoft.com/en-us/dotnet/api/microsoft.extensions.objectpool.objectpool-1`. **Steal pattern**: the `IPooledObjectPolicy<T>.Create()`/`Return()` shape is what `IPoolable` should be — a separate policy object, not an interface the pooled type itself implements.
+- **`System.Buffers.ArrayPool<T>`** — for arrays specifically. `https://learn.microsoft.com/en-us/dotnet/api/system.buffers.arraypool-1`. **Build**: not applicable to `MutatorRunner`, but worth mentioning in README as the right answer for `byte[]`/`T[]` pooling so consumers don't reach for `Pool<byte[]>`.
+- **`System.Threading.ObjectPool` (CoreCLR internal)** — TLS-backed lock-free pool. Not public. **Steal pattern**: if this package ever needs concurrent access, this is the reference design.
+
+Honest verdict: `Pool<T>` is a 160-LOC reinvention of `UnityEngine.Pool.ObjectPool<T>` plus a self-return event no consumer uses. Either delete the package and migrate `Store.cs` to `ObjectPool<T>`, or document why `IPoolable.ReturnRequested` is worth the extra package.
+
+## Benchmark plan
+
+- **Take/Return throughput vs `UnityEngine.Pool.ObjectPool<T>`**
+  - What: ns/op and allocations for a take→use→return cycle, both libraries.
+  - Tool: `Unity.PerformanceTesting`, `SampleGroup(Time + AllocatedManagedMemory)`.
+  - Location: `Tests/Performance/PoolBenchmarks.cs`.
+  - Scenario: 100k cycles, pool initialSize=4, single thread, 5 warmup.
+  - Baseline: `Pool<MutatorRunner>` ≈ tens of ns/op steady-state, 0 alloc; `Active` getter excluded.
+  - Success: within 10% of `UnityEngine.Pool.ObjectPool<T>`; if more than 50% slower, justify the gap or migrate.
+
+- **`Active` getter allocation (regression guard)**
+  - What: bytes allocated per read of `Pool.Active`.
+  - Tool: `Unity.PerformanceTesting`.
+  - Location: `Tests/Performance/PoolBenchmarks.cs`.
+  - Scenario: 10k reads against a pool with 100 active items, 1 warmup.
+  - Baseline: today, ~2 allocs per read (`new List<T>(active)` + `new ReadOnlyCollection<T>(...)`).
+  - Success: 0 alloc after the audit's fix (return `HashSet<T>` cast directly).
+
+- **`IPoolable` lifecycle dispatch overhead**
+  - What: extra ns/op when `T : IPoolable` vs `T` non-poolable.
+  - Tool: `Unity.PerformanceTesting`.
+  - Location: `Tests/Performance/PoolBenchmarks.cs`.
+  - Scenario: two pools, 100k cycles each.
+  - Baseline: 1 interface check + 1 virtcall per Take and Return.
+  - Success: ≤ 30 ns overhead vs non-poolable; flag if higher.
+
+- **Self-return re-entry safety**
+  - What: not strictly perf — a stress test that 1000 items self-fire `ReturnRequested` during `OnTakenFromPool`.
+  - Tool: NUnit (correctness), not `Unity.PerformanceTesting`.
+  - Location: `Tests/PoolReentryTests.cs`.
+  - Scenario: malicious `IPoolable` that triggers `RequestReturn()` during `OnTakenFromPool`.
+  - Baseline: today probably throws or corrupts `active`/`poolableReturnHandlers`.
+  - Success: either deterministic throw or correct re-pooled state; document the contract.

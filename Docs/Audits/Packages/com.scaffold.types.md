@@ -128,3 +128,72 @@ public void OnAfterDeserialize()
 - `Container/` is missing — fine while there is nothing to register, but expose `IDependencyExtractor` registration here when consumers materialize.
 - Folder pattern `Runtime/Contracts/` + `Runtime/Implementation/` is good; apply the same to `TypeReference`/`TypeUtility` if they grow.
 - `autoReferenced: true` on the runtime asmdef is a wide blast radius — flip to `false` once consumers explicitly reference it.
+
+## Consumers
+
+Cross-package usage scoped to `Assets/`. Two consumers: `com.scaffold.navigation` (heavy) and `com.scaffold.view` (one file). Zero non-package consumers in `Assets/Scaffold/`.
+
+**`com.scaffold.navigation/Runtime/Implementation/ViewConfig.cs:23-27`** — primary `TypeReference` use site:
+```csharp
+public Type ViewType => viewType.Type;
+[SerializeField, TypeReferenceFilter(typeof(IView))] private TypeReference viewType;
+public Type ControllerType => controllerType.Type;
+[SerializeField, TypeReferenceFilter(typeof(IViewController))] private TypeReference controllerType;
+```
+Smell: every consumer rewrites the same `Type Foo => fooRef.Type;` unwrap pair. The sister property is the only public surface; `TypeReference` is internal plumbing. A `[SerializeField, TypeFilter(typeof(IView))] Type ViewType { get; }` macro (source-gen) or just exposing `Type` as the public field via a custom property drawer would remove this boilerplate at every call site.
+
+**`com.scaffold.navigation/Runtime/Implementation/AnimationViewSchema.cs:45`** — comparison through `.Type`:
+```csharp
+return viewTypes.Any(vt => vt.Type == targetPoint?.Config.ViewType || (targetPoint == null && vt.Type == typeof(NoView)));
+```
+Repeated in `TransitionViewSchema.cs:42`. `vt.Type` is a property call that goes through `Type` getter — not field access. If `OnAfterDeserialize` ever silently nulled (the bug flagged in `Runtime/TypeReference.cs:54-63`), every navigation predicate silently returns `false`. Consumers cannot tell broken-asset from no-match.
+
+**`com.scaffold.navigation/Runtime/Implementation/ViewConfig.cs:97-99`** — wrapping after compute:
+```csharp
+this.viewType = new TypeReference(viewType);
+controllerType = controller == null ? null : new TypeReference(controller);
+```
+Two `new TypeReference(...)` allocations per `OnValidate`. The package's implicit `Type → TypeReference` op (`Runtime/TypeReference.cs:65`, called out in audit) would let this read `this.viewType = viewType;` — but consumer didn't use it. Either implicit ops aren't discoverable, or the writer didn't trust them on `null`. Validate the null behavior of the implicit op and document.
+
+**`com.scaffold.navigation/Runtime/Implementation/ViewChangedEvent.cs:14-15, 24`** — same `[TypeReferenceFilter] TypeReference` + property unwrap pattern as `ViewConfig`. Third repeat. Boilerplate confirmed across the package.
+
+**`com.scaffold.view/Runtime/BaseEvents/NavigateViewEvent.cs:17-19`** — same pattern again, fourth repeat.
+
+**`com.scaffold.navigation/Runtime/Utility/NavigationExtensions.cs:1-9`** — `using Scaffold.Types;` is dead (no `TypeReference` used in the file). This is the `autoReferenced: true` blast radius the audit flagged: every navigation file `using`s the package whether it needs it or not.
+
+**`com.scaffold.navigation/Runtime/Implementation/ViewSchema.cs:1-10`** — also dead `using Scaffold.Types;`. Same story.
+
+No consumer of `IDependencyExtractor`, `TypeUtility`, or `TypeSelectionAttribute` found in `Assets/`. Three of the package's six exported APIs have zero consumer evidence — only `TypeReference` and `TypeReferenceFilterAttribute` are paying rent.
+
+## Alternatives & prior art
+
+- **Unity `[SerializeReference]` + plain `Type.AssemblyQualifiedName` string field** — Unity's own pattern for polymorphic serialization. Stable, no Newtonsoft. Reference: `https://docs.unity3d.com/ScriptReference/SerializeReference.html`. **Steal pattern**: drop Newtonsoft from `TypeReference.OnBeforeSerialize`, store AQN, deserialize via `Type.GetType(aqn, throwOnError: false)`. Same surface, no JSON dependency, no `TypeNameHandling.All` security smell.
+- **Odin Inspector `TypeFilterAttribute` / `[TypeRegistryAttribute]`** — paid asset; known good filtered-type-picker UX. `https://odininspector.com/`. **Steal pattern**: dropdown ergonomics for `Editor/DerivedTypeDropdown.cs`. Don't adopt the dependency for one drawer.
+- **Microsoft Roslyn `INamedTypeSymbol` + source generators** — for *editor-time* type discovery without reflection. `https://learn.microsoft.com/en-us/dotnet/csharp/roslyn-sdk/`. **Build (current path)**: runtime `TypeReference` is a serialization concern, not a discovery one. Source gen is overkill here.
+- **VContainer's own `Inject` resolution** — VContainer already walks ctors looking for `[Inject]`. `https://github.com/hadashiA/VContainer/blob/master/VContainer/Assets/VContainer/Runtime/Internal/InjectorBuilder.cs`. **Adopt**: `IDependencyExtractor` reimplements VContainer's logic via reflection + magic string. Either depend on VContainer's `IInjector` directly or drop the abstraction; the package has zero consumers of it anyway (see Consumers above).
+
+## Benchmark plan
+
+- **TypeReference round-trip allocation**
+  - What: bytes allocated per `OnBeforeSerialize`/`OnAfterDeserialize` cycle (Newtonsoft path).
+  - Tool: `Unity.PerformanceTesting`, `Measure.Method` with `SampleGroup` configured for `AllocatedManagedMemory`.
+  - Location: `Tests/Performance/TypeReferenceBenchmarks.cs`.
+  - Scenario: 10 distinct types × 1000 round-trips, 5 warmup, 10 iterations.
+  - Baseline: ~2 KB/round-trip estimated (JsonSerializerSettings + JObject + reflection).
+  - Success: AQN-string variant ≤ 200 B/round-trip; full Newtonsoft ≤ 1 KB if kept.
+
+- **DependencyExtractor cache hit cost**
+  - What: time and allocations for cached `GetConstructorDependencies(type)` after warm-up.
+  - Tool: BenchmarkDotNet (pure C#).
+  - Location: `Tests/Performance/DependencyExtractorBenchmarks.cs`.
+  - Scenario: 100 types pre-seeded, 10k random lookups, no warmup needed for hot path.
+  - Baseline: `ConcurrentDictionary.TryGet` ≈ 20 ns, 0 alloc.
+  - Success: 0 alloc steady-state; ≤ 50 ns/lookup.
+
+- **DerivedTypeDropdown population cost (editor)**
+  - What: time to enumerate `TypeUtility.GetTypesDerivedFrom<TBase>` over the loaded AppDomain.
+  - Tool: `Unity.PerformanceTesting` editor harness.
+  - Location: `Tests/Performance/Editor/TypeUtilityBenchmarks.cs`.
+  - Scenario: 3 base types (`IView`, `IViewController`, `Schema`), 5 iterations, 1 warmup.
+  - Baseline: O(n) over all loaded types; n ≈ 5–20k in this project; expect ~5–20 ms.
+  - Success: cached variant returns in < 0.1 ms after first call; first-call ≤ 30 ms.

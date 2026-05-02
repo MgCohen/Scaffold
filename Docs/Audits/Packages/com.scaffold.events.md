@@ -114,3 +114,78 @@ public void AddListener<T>(Action<T> handler) where T : ContextEvent
 - Naming: `EventController` reads like a Unity controller — `EventBus` would be the conventional name for an `IEventBus` impl.
 - Consider a `Channels<T>` style pull-based subscription using `IObservable<T>`/`R3` for view-models — fits MVVM project-wide and removes the need to manage handler dictionaries by hand. Reference: MessagePipe (Cysharp) for VContainer-friendly typed pub/sub; R3 for observable streams.
 - `Tests/` asmdef without .cs files: add or remove.
+
+## Consumers
+
+Single consumer package: `com.scaffold.navigation` (12 runtime files + 1 test fake). No other Scaffold package raises or subscribes to `ContextEvent` in `Assets/`. No `Assets/Scaffold/` consumer.
+
+**`com.scaffold.navigation/Runtime/Implementation/NavigationTransitions.cs:89, 96, 102, 104`** — every raise is "construct then raise":
+```csharp
+var beforeOpenEvent = new BeforeViewOpenEvent(viewType); events.Raise(beforeOpenEvent); to.View.gameObject.SetActive(true);
+...
+var afterOpenEvent = new AfterViewOpenEvent(viewType); events.Raise(afterOpenEvent);
+```
+Smells: (1) `Raise(ContextEvent)` boxes/dispatches via runtime `GetType()` per call (audit's `Implementation/EventController.cs:78` finding) — typed `Raise<T>` would devirtualize. (2) Multiple statements per line obscure that 4 events fire in one transition; profile this hot path. (3) Allocates a fresh record per raise even for record types with no payload variance (`AfterViewOpenEvent(viewType)` could be cached per `viewType` if the bus accepted struct events).
+
+**`com.scaffold.navigation/Runtime/Implementation/NavigationController.cs:15`** — every controller takes `IEventBus` via ctor:
+```csharp
+public NavigationController(IEventBus events, NavigationSettings settings, Transform viewHolder, IEnumerable<INavigationMiddleware> middlewares, IAddressablesGateway addressablesGateway, IViewControllerDependencyInjector dependencyInjector)
+```
+The bus is a god-object in this package — used for fire-and-forget lifecycle events. Per-event channels (`IPublisher<BeforeViewOpenEvent>`, MessagePipe-style) would let consumers depend only on the topics they care about. Today every navigation type holds the whole bus.
+
+**`com.scaffold.navigation/Runtime/Implementation/Before/AfterViewOpen/CloseEvent.cs:6`** — five trivial event records:
+```csharp
+public record AfterViewCloseEvent(Type ViewType) : ContextEvent;
+```
+Five files for five one-line records. The package's `ContextEvent` constraint forces this granularity. Fine for clarity, but a per-event-type dispatch is wasted because every consumer listens for "all four lifecycle hooks". A single `record ViewLifecycleEvent(ViewLifecyclePhase Phase, Type ViewType)` would collapse 4 raises and 4 subscriptions into 1 raise + 1 switch.
+
+**`com.scaffold.navigation/Tests/NavigationInstallerAndInjectionTests.cs:153-178`** — the consumer wrote a hand-rolled `FakeEventBus` with six no-op methods because:
+```csharp
+private sealed class FakeEventBus : IEventBus { /* six empty methods */ }
+```
+This is the strongest "interface-too-wide" signal. If `IEventBus` had a `IPublisher`/`ISubscriber` split (audit's recommendation re: `IDynamicEventBus`), the test would only need to fake `IPublisher`. Today every test that needs an event bus pays the same six-method tax.
+
+**`com.scaffold.navigation/Runtime/Utility/NavigationExtensions.cs:4-5, 8-9`** — `using Scaffold.Events.Contracts;` and `using Scaffold.Events;` are completely unused in this file (the file has zero events code). Same `autoReferenced` blast-radius pattern as `Scaffold.Types`. `NoView.cs` and `ViewSchema.cs` have the same dead imports.
+
+**Zero usage** of: `IEventBus.Clear()`, `IEventBus.AddListener(Type, Action<ContextEvent>)` (the non-generic dynamic surface). Audit's recommendation to extract `IDynamicEventBus` would remove dead surface from every consumer's mock.
+
+## Alternatives & prior art
+
+- **MessagePipe (Cysharp)** — VContainer-friendly typed pub/sub; zero-alloc steady-state, async handlers, filter pipeline. `https://github.com/Cysharp/MessagePipe`. **Adopt (wrap)**: register MessagePipe in VContainer, keep `IEventBus` as a thin façade for migration, then deprecate. The package's whole feature set is a strict subset of MessagePipe's.
+- **R3 (Cysharp)** — observable streams for .NET/Unity, replaces UniRx. `https://github.com/Cysharp/R3`. **Steal pattern**: for view-model binding (`IObservable<T>` per topic) where you want filtering/throttling. Don't replace bus dispatch.
+- **Zenject `SignalBus`** — Zenject's typed signal bus. `https://github.com/modesttree/Zenject/blob/master/Documentation/Signals.md`. **Steal pattern**: the `DeclareSignal<T>` / typed `Fire<T>` API is exactly the typed `Raise<T>` the audit recommends. We're on VContainer, not Zenject — copy the API shape, not the lib.
+- **VContainer's built-in `IObjectResolver` events** — none exist; VContainer is DI-only. Confirms a bus is justified. **Build (refactor path)**: keep `IEventBus` if MessagePipe is rejected, but implement the audit's typed-`Raise<T>` change. ~50 LOC delta vs ~5k LOC dependency.
+
+## Benchmark plan
+
+- **`Raise<T>` typed dispatch vs `Raise(ContextEvent)` reflection**
+  - What: ns/op and allocations for a single raise with 0/1/N subscribers.
+  - Tool: `Unity.PerformanceTesting`, `SampleGroup(AllocatedManagedMemory + Time)`.
+  - Location: `Tests/Performance/EventBusBenchmarks.cs`.
+  - Scenario: 1k raises × {0, 1, 10, 100} subscribers; 5 warmup, 10 iterations.
+  - Baseline: today, `evt.GetType()` lookup ≈ 30 ns + dictionary probe per raise; record allocs ~40 B.
+  - Success: typed `Raise<T>` ≤ 10 ns + 0 B at 0/1 subscriber; ≤ 2× MessagePipe baseline at 100 subscribers.
+
+- **AddListener / RemoveListener closure allocation**
+  - What: bytes allocated per `AddListener<T>(handler)` (the `e => handler((T)e)` wrapper at `Runtime/Implementation/EventController.cs:21`).
+  - Tool: `Unity.PerformanceTesting`.
+  - Location: `Tests/Performance/EventBusBenchmarks.cs`.
+  - Scenario: 1000 add/remove cycles, single event type, 5 warmup.
+  - Baseline: ~64 B per AddListener (closure + delegate + dict entry).
+  - Success: 0 alloc on `RemoveListener` (dictionary lookup only); AddListener alloc ≤ 64 B (cannot eliminate closure unless API changes to `Action<ContextEvent>`-typed adapter).
+
+- **Double-subscribe / unknown-unsubscribe behavior**
+  - What: throughput when a buggy caller subscribes twice (current silent-pass path).
+  - Tool: `Unity.PerformanceTesting` micro.
+  - Location: `Tests/Performance/EventBusBenchmarks.cs`.
+  - Scenario: 100 sub + 100 dup-sub; verify no growth in handler list.
+  - Baseline: today, `+=` chains the delegate; raise calls handler twice.
+  - Success: with audit's "throw on double-subscribe" change, this benchmark becomes a correctness test that throws — keep as a regression guard, not a perf test.
+
+- **`Clear()` cost on a populated bus**
+  - What: time + GC pressure clearing 1000 subscribers across 50 event types.
+  - Tool: `Unity.PerformanceTesting`.
+  - Location: `Tests/Performance/EventBusBenchmarks.cs`.
+  - Scenario: 1× clear after seeding; measure single op.
+  - Baseline: O(n) dictionary clear.
+  - Success: ≤ 1 ms for the seeded scenario; verify zero heap retention after clear.
