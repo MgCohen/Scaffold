@@ -1,0 +1,28 @@
+{
+  "name": "Scaffold.Figma.Tests",
+  "rootNamespace": "Scaffold.Figma.Tests.Editor",
+  "references": [
+    "GUID:c1ac9017434e3acbc4d2a22ca80f6db9",
+    "GUID:dd9d137bbac8db4cd9832433be2e80f1",
+    "Unity.TextMeshPro",
+    "UnityEditor",
+    "UnityEditor.TestRunner",
+    "UnityEngine.TestRunner",
+    "UnityEngine.UI"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": true,
+  "precompiledReferences": [
+    "nunit.framework.dll"
+  ],
+  "autoReferenced": false,
+  "defineConstraints": [
+    "UNITY_INCLUDE_TESTS"
+  ],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

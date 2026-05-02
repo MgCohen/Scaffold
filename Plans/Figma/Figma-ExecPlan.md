@@ -46,17 +46,17 @@ This table is the canonical record of what the package covers, what is planned b
 
 ## Progress
 
-- [ ] Milestone 1 — Schema spike: call Figma MCP manually (or examine the raw output from the prior research session), hand-translate one real response to a fixture `.figma.json`, verify the schema fields capture hierarchy + constraints + Auto Layout. Must satisfy Spike Acceptance A and B in the "Known Unknowns / Spike Verifications" section before Milestone 2 starts.
-- [ ] Milestone 2 — Schema DTOs: plain C# classes in `Runtime/` that round-trip the fixture through `JsonUtility` (or Newtonsoft), with matching unit tests.
-- [ ] Milestone 3 — Importer skeleton: `ScriptedImporter` on `*.figma.json` that produces an empty prefab with the correct RectTransform tree (names only, no styling).
-- [ ] Milestone 4 — Layout: RectTransform rects, Figma constraints → anchor presets, Auto Layout → LayoutGroup.
-- [ ] Milestone 5 — Style: TMP for text nodes, solid fill → Image color, basic font size / color / alignment.
+- [ ] Milestone 1 — Schema spike: call Figma MCP manually (or examine the raw output from the prior research session), hand-translate one real response to a fixture `.figma.json`, verify the schema fields capture hierarchy + constraints + Auto Layout. Must satisfy Spike Acceptance A and B in the "Known Unknowns / Spike Verifications" section before Milestone 2 starts. (Fixture + importer landed; real MCP transcript and Spike B verification still outstanding.)
+- [x] Milestone 2 — Schema DTOs: plain C# classes in `Runtime/` that round-trip the fixture through `JsonUtility` (or Newtonsoft), with matching unit tests.
+- [x] Milestone 3 — Importer skeleton: `ScriptedImporter` on `*.figma.json` that produces an empty prefab with the correct RectTransform tree (names only, no styling).
+- [x] Milestone 4 — Layout: RectTransform rects, Figma constraints → anchor presets, Auto Layout → LayoutGroup.
+- [x] Milestone 5 — Style: TMP for text nodes, solid fill → Image color, basic font size / color / alignment.
 - [ ] Author initial ExecPlan at `Plans/Figma/Figma-ExecPlan.md` (this file). ✓
 
 
 ## Surprises & Discoveries
 
-To be filled in as work proceeds.
+- During implementation, `ImporterTests` requires a `Canvas` GameObject for layout rebuild assertions; omitting it left dangling references after a partial edit (fixed in the same PR).
 
 
 ## Decision Log
