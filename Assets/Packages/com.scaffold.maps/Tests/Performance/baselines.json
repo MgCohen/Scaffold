@@ -1,5 +1,6 @@
 {
   "$schema_note": "Unity does not write this file automatically. Machine-readable perf JSON comes from batchmode -perfTestResults (see Docs/Audits/Packages/Reports/com.scaffold.maps.baseline.md). Editor UI export is often CSV-only for the results table; use CLI JSON for tooling or transcribe CSV medians into editor_mono by hand until a converter exists. Sample groups use names like \"BulkAdd_AfterFiveIndexers_Count_10:Time\" (method name prefix). Optional: feed perf JSON through github.com/Unity-Technologies/PerformanceBenchmarkReporter for HTML/history.",
+  "baseline_stale_until_unity_note": "editor_mono rows captured 2026-05-02 (Phase 0). Phases 2-5 refactor changed Indexer.Values.Count allocations — replace editor_mono medians via fresh -perfTestResults export.",
   "package": "com.scaffold.maps",
   "generated": "2026-05-02T22:43:34Z",
   "editor_mono": [

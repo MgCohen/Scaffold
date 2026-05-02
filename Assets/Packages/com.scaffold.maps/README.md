@@ -14,16 +14,23 @@
 ## Responsibilities
 
 - Owns two-key map storage and retrieval.
-- Owns dynamic indexer registration by predicates.
-- Owns automatic track/untrack behavior for indexers.
-- Does not own persistence, query language, or business-specific filtering policy.
+- Owns dynamic indexer registration by **key** predicates (`AddIndexer`). Predicates inspect primary/secondary only — stored values never reclassify indexer membership.
+
+## Contracts
+
+| Topic | Detail |
+|---|---|
+| Indexer predicates | **Key-only**. Changing `map[index]` does not move the key in/out of an indexer set; `Values` still reflects live values under those keys. |
+| `Indexer.Values` | `IndexerValuesView<>` implementing `IReadOnlyCollection<>`. **`Values.Count`** is O(1) and allocation-free after the Phase 2 storage change. Enumeration walks tracked keys — no snapshot `List<T>` per read. |
+| `IReadOnlyMap.TryGetIndexer` | Returns **`IReadOnlyIndexer<>`**. Use `map.AddIndexer` when you need the concrete `Indexer<>`. |
 
 ## Public API
 
 | Symbol | Purpose | Inputs | Outputs | Failure behavior |
 |---|---|---|---|---|
 | `Map<TPrimary,TSecondary,TValue>` | Composite-key value store | keys + value | get/set by pair and indexer support | missing keys follow map semantics (guard/not found) |
-| `Indexer<TPrimary,TSecondary,TValue>` | Predicate-based filtered view | predicate + tracked entries | values collection | empty when no matching keys |
+| `Indexer<TPrimary,TSecondary,TValue>` | Predicate-based filtered **key** view | key predicate | `IndexerValuesView` | empty when no matching keys |
+| `IReadOnlyIndexer<>` | Read-only indexer surface (`Name`, `Count`, `Values`) | via `TryGetIndexer` | view | … |
 | `Index<TPrimary,TSecondary>` | Composite key index struct | primary + secondary keys | stable hash/equality key | n/a |
 | `BaseMap<TKey,TValue>` | Base map abstraction | generic key/value | base storage behavior | n/a |
 
@@ -39,7 +46,7 @@
 1. Add entries with primary/secondary keys.
 2. Register named indexer predicates.
 3. Read from map directly or from indexer views.
-4. Remove/clear entries and rely on auto-sync.
+4. Remove/clear entries — indexers drop keys accordingly.
 
 ## Examples
 
@@ -52,9 +59,9 @@ sequenceDiagram
   participant Idx as Indexer<TP,TS,TV>
 
   Caller->>Map: Add(primary, secondary, value)
-  Map->>Idx: Track(index, holder)
+  Map->>Idx: Track(composite index)
   Caller->>Map: Update(existing key, value)
-  Map->>Idx: Keep membership / update holder value
+  Map->>Idx: membership unchanged — value updated in place
   Caller->>Map: Remove(primary, secondary)
   Map->>Idx: Untrack(index)
 ```

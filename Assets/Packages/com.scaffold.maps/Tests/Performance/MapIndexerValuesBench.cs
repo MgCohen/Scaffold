@@ -6,7 +6,7 @@ using UnityEngine.TestTools;
 namespace Scaffold.Maps.Tests.Performance
 {
     /// <summary>
-    /// Measures per-call allocation for <see cref="Indexer{TPrimary,TSecondary,TValue}.Values"/> (audit §11).
+    /// Measures per-call work for <see cref="Indexer{TPrimary,TSecondary,TValue}.Values"/> <c>.Count</c> (Phase 2+: O(1), no list snapshot).
     /// </summary>
     public sealed class MapIndexerValuesBench
     {
@@ -63,8 +63,8 @@ namespace Scaffold.Maps.Tests.Performance
 
         internal static Indexer<int, int, string> GetIndexer(Map<int, int, string> map)
         {
-            Assert.That(map.TryGetIndexer("all", out Indexer<int, int, string> indexer), Is.True);
-            return indexer;
+            Assert.That(map.TryGetIndexer("all", out IReadOnlyIndexer<int, int, string> ro), Is.True);
+            return (Indexer<int, int, string>)ro;
         }
     }
 }

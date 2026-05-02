@@ -143,15 +143,13 @@ namespace Scaffold.Maps.Tests.Performance
         }
 
         [Test]
-        public void Indexer_Values_Count10_SingleRead_Allocates()
+        public void Indexer_Values_Count_PerRead_NoAlloc()
         {
             RequireAllocCountRecorder();
             Map<int, int, string> map = MapIndexerValuesBench.BuildAllMatch(10);
             Indexer<int, int, string> indexer = MapIndexerValuesBench.GetIndexer(map);
 
-            long count = Bench.AllocationsSingleInvocation(() => _ = indexer.Values.Count);
-
-            Assert.That(count, Is.GreaterThan(0));
+            Bench.NoAllocations(() => _ = indexer.Values.Count);
         }
 
         [Test]

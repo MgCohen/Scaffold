@@ -4,7 +4,7 @@ namespace Scaffold.Maps.Samples
 {
     public class MapIndexerUseCases
     {
-        public IReadOnlyCollection<string> UseCaseCreateIndexerFromExistingEntries()
+        public IndexerValuesView<string, int, string> UseCaseCreateIndexerFromExistingEntries()
         {
             Map<string, int, string> people = CreatePeopleMap();
             BuildAddPeople(people);
@@ -12,7 +12,7 @@ namespace Scaffold.Maps.Samples
             return indexer.Values;
         }
 
-        public IReadOnlyCollection<string> UseCaseAutoTrackMatchingAdditions()
+        public IndexerValuesView<string, int, string> UseCaseAutoTrackMatchingAdditions()
         {
             Map<string, int, string> people = CreatePeopleMap();
             Indexer<string, int, string> indexer = people.AddIndexer("MatheusAdults", BuildMatchesMatheusAdult);
@@ -20,7 +20,7 @@ namespace Scaffold.Maps.Samples
             return indexer.Values;
         }
 
-        public IReadOnlyCollection<string> UseCaseAutoRemoveFromIndexerWhenEntryIsRemoved()
+        public IndexerValuesView<string, int, string> UseCaseAutoRemoveFromIndexerWhenEntryIsRemoved()
         {
             Map<string, int, string> people = CreatePeopleMap();
             Indexer<string, int, string> indexer = people.AddIndexer("MatheusAdults", BuildMatchesMatheusAdult);
@@ -29,7 +29,7 @@ namespace Scaffold.Maps.Samples
             return indexer.Values;
         }
 
-        public IReadOnlyCollection<string> UseCaseUpdateEntry_IndexerMembershipUnchangedByValue()
+        public IndexerValuesView<string, int, string> UseCaseUpdateEntry_IndexerMembershipUnchangedByValue()
         {
             Map<string, int, string> people = CreatePeopleMap();
             Indexer<string, int, string> indexer = people.AddIndexer("MatheusAdults", BuildMatchesMatheusAdult);

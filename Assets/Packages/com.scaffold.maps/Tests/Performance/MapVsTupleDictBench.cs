@@ -8,7 +8,7 @@ using UnityEngine.TestTools;
 namespace Scaffold.Maps.Tests.Performance
 {
     /// <summary>
-    /// Sanity baseline: Map&lt;int,int,string&gt; vs Dictionary&lt;(int,int),string&gt; (Holder vs tuple key).
+    /// Sanity baseline: Map&lt;int,int,string&gt; vs Dictionary&lt;(int,int),string&gt;.
     /// </summary>
     public sealed class MapVsTupleDictBench
     {

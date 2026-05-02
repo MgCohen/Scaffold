@@ -8,7 +8,7 @@ namespace Scaffold.Maps
     {
         protected BaseMap()
         {
-            data = new Dictionary<TKey, Holder<TValue>>();
+            data = new Dictionary<TKey, TValue>();
         }
 
         public BaseMap(IEqualityComparer<TKey> comparer)
@@ -18,13 +18,13 @@ namespace Scaffold.Maps
                 throw new ArgumentNullException(nameof(comparer));
             }
 
-            data = new Dictionary<TKey, Holder<TValue>>(comparer);
+            data = new Dictionary<TKey, TValue>(comparer);
         }
 
         public virtual TValue this[TKey key]
         {
-            get => data[key].Value;
-            set => data[key].Value = value;
+            get => data[key];
+            set => data[key] = value;
         }
 
         public int Count => data.Count;
@@ -33,39 +33,29 @@ namespace Scaffold.Maps
         {
             get
             {
-                foreach (KeyValuePair<TKey, Holder<TValue>> entry in data)
+                foreach (KeyValuePair<TKey, TValue> entry in data)
                 {
-                    yield return entry.Value.Value;
+                    yield return entry.Value;
                 }
             }
         }
 
-        private readonly Dictionary<TKey, Holder<TValue>> data;
+        private readonly Dictionary<TKey, TValue> data;
 
         public bool ContainsKey(TKey key) => data.ContainsKey(key);
 
-        public bool TryGetValue(TKey key, out TValue value)
-        {
-            bool found = data.TryGetValue(key, out Holder<TValue> holder);
-            value = found ? holder.Value : default;
-            return found;
-        }
+        public bool TryGetValue(TKey key, out TValue value) => data.TryGetValue(key, out value);
 
         public virtual bool Remove(TKey key) => data.Remove(key);
 
         public virtual void Clear() => data.Clear();
 
-        protected void Add(TKey key, Holder<TValue> holder)
+        protected void Add(TKey key, TValue value)
         {
-            data.Add(key, holder);
+            data.Add(key, value);
         }
 
-        internal bool TryGetHolder(TKey key, out Holder<TValue> holder)
-        {
-            return data.TryGetValue(key, out holder);
-        }
-
-        internal IEnumerable<KeyValuePair<TKey, Holder<TValue>>> GetEntries()
+        internal IEnumerable<KeyValuePair<TKey, TValue>> GetEntries()
         {
             return data;
         }
@@ -77,9 +67,9 @@ namespace Scaffold.Maps
 
         public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
         {
-            foreach (KeyValuePair<TKey, Holder<TValue>> entry in data)
+            foreach (KeyValuePair<TKey, TValue> entry in data)
             {
-                yield return new KeyValuePair<TKey, TValue>(entry.Key, entry.Value.Value);
+                yield return entry;
             }
         }
     }
