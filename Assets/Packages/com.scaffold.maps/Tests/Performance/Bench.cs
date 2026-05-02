@@ -50,11 +50,11 @@ namespace Scaffold.Maps.Tests.Performance
                 long bytesPerOp = (GC.GetAllocatedBytesForCurrentThread() - b0) / iterationsPer;
                 double nsPerOp = sw.Elapsed.TotalMilliseconds * 1_000_000.0 / iterationsPer;
 
-                Performance.Measure.Custom(Time, nsPerOp);
-                Performance.Measure.Custom(Bytes, bytesPerOp);
-                Performance.Measure.Custom(Gen0, GC.CollectionCount(0) - g00);
-                Performance.Measure.Custom(Gen1, GC.CollectionCount(1) - g10);
-                Performance.Measure.Custom(Gen2, GC.CollectionCount(2) - g20);
+                Unity.PerformanceTesting.Measure.Custom(Time, nsPerOp);
+                Unity.PerformanceTesting.Measure.Custom(Bytes, bytesPerOp);
+                Unity.PerformanceTesting.Measure.Custom(Gen0, GC.CollectionCount(0) - g00);
+                Unity.PerformanceTesting.Measure.Custom(Gen1, GC.CollectionCount(1) - g10);
+                Unity.PerformanceTesting.Measure.Custom(Gen2, GC.CollectionCount(2) - g20);
             }
         }
 
