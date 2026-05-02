@@ -571,69 +571,61 @@ Six libraries / patterns that solve "entity-with-typed-variable-bag" or "Scripta
 
 ## 12. Benchmark plan
 
-Each entry: what to measure, tool, test location, scenario, baseline expectation, success criteria for the proposed refactor. Tight bullets; no padding.
+All benchmarks use **Unity.PerformanceTesting** + the shared `Bench.Measure(...)` helper described in [`_benchmarking.md`](./_benchmarking.md). That doc covers tooling, the helper code, run policy (Editor + PlayMode IL2CPP), and the project-wide pass/fail thresholds. Tests live under `Tests/Performance/` with a dedicated asmdef. Each entry below: what to measure, scenario, baseline expectation, success criteria for the proposed refactor.
 
 ### 12.1 `VariableValueRegistry` first-access AppDomain scan
-- **What:** wall-clock ms on first `VariableValueRegistry.GetType(...)`; bytes allocated; `ReflectionTypeLoadException` count (should be 0 in CI, may be >0 in player).
-- **Tool:** EditMode test with `System.Diagnostics.Stopwatch` + `GC.GetAllocatedBytesForCurrentThread`. Force fresh state by restarting the registry via reflection on its private static caches (or use a domain-reload-bracketed test).
-- **Location:** `Tests/Performance/VariableValueRegistryColdStartTests.cs`.
+- **What:** wall-clock ms on first `VariableValueRegistry.GetType(...)`; bytes allocated; `ReflectionTypeLoadException` count (0 in CI, may be >0 in player).
+- **Test:** `Tests/Performance/VariableValueRegistryColdStartTests.cs`. EditMode `[Test, Performance]`. Force a fresh state by clearing the registry's private static caches via reflection between measurement windows (or bracket the test on domain reload). One-shot operation, so use `iterationsPer: 1` and a higher `measurementCount` (e.g. 50).
 - **Scenario:** project AppDomain as-is (currently ~120 assemblies); also a synthetic worst case with 500 dummy assemblies loaded.
 - **Baseline:** ~30-80 ms cold; ~50-200 KB allocated (assembly enumeration + `Type[]` arrays).
 - **Success criteria for §8.2 source-gen replacement:** **<2 ms first call, <4 KB allocated, zero `Type[]` enumeration, zero `lock` contention.**
 
 ### 12.2 `ModifierTypeIndex` reflection
 - **What:** time + alloc on first `GetCompatibleModifiers(typeof(float))`.
-- **Tool:** Unity.PerformanceTesting `Measure.Method`.
-- **Location:** `Tests/Performance/ModifierTypeIndexBenchmarks.cs`.
+- **Test:** `Tests/Performance/ModifierTypeIndexBenchmarks.cs`. Cold-call benchmark (`iterationsPer: 1`) and a separate warm-call benchmark (`iterationsPer: 1000`).
 - **Scenario:** cold first call vs. 1000 warm calls.
 - **Baseline:** cold ~20-50 ms; warm <1 µs (cached).
 - **Success criteria:** cold path eliminated entirely (source-gen registration); warm path unchanged.
 
 ### 12.3 `LocalVariableStorage.Subscribe` closure allocation
-- **What:** bytes allocated per call, total alloc count for 1000 sequential subscribes.
-- **Tool:** Unity.PerformanceTesting `Measure.GcAllocations`; cross-check with `Allocations` counter.
-- **Location:** `Tests/Performance/SubscribeBenchmarks.cs`.
+- **What:** bytes allocated per call.
+- **Test:** `Tests/Performance/SubscribeBenchmarks.cs`. Use `Bench.Measure(() => bag.Subscribe(key, _ => { }))`. Pair with a `Bench.NoAllocations` test post-refactor.
 - **Scenario:** 1, 100, 1000 subscriptions on one entity; same on 100 entities each with 16 vars.
 - **Baseline:** today, two allocations per call (`CallbackDisposable` + the `Unsubscribe` closure capturing `key`+`onChange`); 64–96 bytes each on 64-bit. Consumer evidence: `StoreVariableStorage.cs:77` does the same allocation.
 - **Success criteria for §8.4 struct-handle refactor:** **0 allocations on hot path; subscription token <16 bytes (struct on stack); `Dispose` returns the slot to a pooled free-list.**
 
 ### 12.4 `VariableNotifier` multicast-delegate churn
-- **What:** allocation count per `Add`/`Remove` cycle; dispatch time for N subscribers.
-- **Tool:** BenchmarkDotNet (pure-C# project under `Tests/Performance/Bdn/`) — `VariableNotifier` has no Unity surface.
-- **Location:** `Tests/Performance/Bdn/VariableNotifierBenchmarks.cs`.
+- **What:** allocations per `Add`/`Remove` cycle; dispatch time for N subscribers.
+- **Test:** `Tests/Performance/VariableNotifierBenchmarks.cs`. Three sub-tests: `Add_N`, `Remove_N`, `Dispatch_N`. `VariableNotifier` is pure C#, but we still run via `Bench.Measure` so allocations are reported on both Mono (Editor) and IL2CPP (PlayMode) — the IL2CPP behavior is what ships.
 - **Scenario:** add 1/16/256 subscribers, then dispatch 10 000 times; remove 1 of N during dispatch.
 - **Baseline:** every add/remove re-allocates the multicast `Action<VariableValue>` (.NET combines delegates by allocating a new `MulticastDelegate` array). At 256 subscribers, add = ~1 KB each.
 - **Success criteria for §5.9 list-based refactor:** **add: ≤32 bytes amortised (list resize); remove: 0 bytes; dispatch unchanged within 5 %.**
 
 ### 12.5 `ApplyModifiers` virtual dispatch — verify "no boxing"
 - **What:** allocations per `VariableValue<float>.ApplyModifiers(IReadOnlyList<ActiveModifier>)` with stack of 1/8/64 modifiers.
-- **Tool:** BenchmarkDotNet with `[MemoryDiagnoser]`.
-- **Location:** `Tests/Performance/Bdn/ApplyModifiersBenchmarks.cs`.
+- **Test:** `Tests/Performance/ApplyModifiersBenchmarks.cs`. Run on Editor (Mono) and PlayMode IL2CPP — IL2CPP enumerator boxing differs from Mono and is the canonical ship target.
 - **Scenario:** float, int, bool inner type; modifier-stack depths 1, 8, 64.
 - **Baseline (audit's claim):** zero allocation; only virtual-call cost. **Verifying** because §4 asserts it without a measurement.
-- **Success criteria:** confirmed 0 B allocated at all depths; if any allocation appears, find the path (likely `IReadOnlyList<ActiveModifier>` enumerator boxing on a struct-enumerator-less collection).
+- **Success criteria:** confirmed 0 B allocated at all depths on IL2CPP; if any allocation appears, find the path (likely `IReadOnlyList<ActiveModifier>` enumerator boxing on a struct-enumerator-less collection). Pair with `Bench.NoAllocations` once green.
 
 ### 12.6 Three-layer guard chain on `EntityComponent → EntityInstance → LocalVariableStorage`
 - **What:** time per `Subscribe` and per `GetVariable<T>` through the three layers vs. a hypothetical direct call.
-- **Tool:** Unity.PerformanceTesting `Measure.Method` with 100 000 iterations.
-- **Location:** `Tests/Performance/GuardChainBenchmarks.cs`.
-- **Scenario:** repeat `GetVariable<float>(key)` 100 000× on a hot entity; same for `Subscribe`/`Unsubscribe` pairs.
+- **Test:** `Tests/Performance/GuardChainBenchmarks.cs`. Two flavors: through-the-chain and direct-call control. `iterationsPer: 100_000` to dilute Stopwatch granularity since the op is sub-100 ns.
+- **Scenario:** repeat `GetVariable<float>(key)` on a hot entity; same for `Subscribe`/`Unsubscribe` pairs.
 - **Baseline:** 3 redundant null-checks + virtual call + dictionary lookup; expect ~50-80 ns/call.
 - **Success criteria for §5.3 entry-only refactor:** **≥30 % reduction on `GetVariable` hot path; `Subscribe` reduction dominated by §12.3 fix.**
 
 ### 12.7 Modifier add/remove on combat-tick loop
 - **What:** time + allocations for `AddModifier`/`RemoveModifier` cycles at combat-realistic rates.
-- **Tool:** Unity.PerformanceTesting.
-- **Location:** `Tests/Performance/ModifierChurnBenchmarks.cs`.
+- **Test:** `Tests/Performance/ModifierChurnBenchmarks.cs`. The consumer-side equivalent on `EntityVariableState` lives in the `entities.states` package's plan; cross-link from there.
 - **Scenario:** 100 entities, each receives 4 modifiers added then removed every simulated tick for 600 ticks (10 s @ 60 Hz). Variants: ordered insert (current) vs. append-and-sort.
-- **Baseline:** `VariableModifierHandler.ComputeInsertIndex` is O(n) per insert; per-key bucket reallocation if `List<ActiveModifier>` grows; per add a `ModifierId` struct + `ActiveModifier` struct (no heap on those, but the bucket list resize is). The consumer-side equivalent in `EntityVariableState.WithModifier` (`entities.states`) **always** allocates a new dictionary + new bucket list (record-with semantics) — should be benchmarked separately as it is genuinely worse.
+- **Baseline:** `VariableModifierHandler.ComputeInsertIndex` is O(n) per insert; per-key bucket reallocation if `List<ActiveModifier>` grows; per add a `ModifierId` struct + `ActiveModifier` struct (no heap on those, but the bucket list resize is). The consumer-side equivalent in `EntityVariableState.WithModifier` (`entities.states`) **always** allocates a new dictionary + new bucket list (record-with semantics) — benchmarked separately because it is structurally worse.
 - **Success criteria:** keep mutable path under 1 alloc per add (bucket grow only); document that `entities.states` immutable path is structurally per-mutation allocating and is the cost of the Store model.
 
 ### 12.8 `Variable` key lookup — `Dictionary<Variable, …>` vs. typed
-- **What:** lookup time and `GetHashCode`/`Equals` calls per `GetVariable`.
-- **Tool:** BenchmarkDotNet.
-- **Location:** `Tests/Performance/Bdn/VariableLookupBenchmarks.cs`.
-- **Scenario:** bag with 4, 16, 64 variables; key is interned (typical `VariableSO`) vs. fresh `new Variable("hp","float")` (test pattern observed in `StateEntityIntegrationTests`).
-- **Baseline:** `Variable.GetHashCode` combines two `string.GetHashCode` calls; `Equals` is two `string.Equals`. Fresh-allocation pattern in tests adds an allocation per call.
+- **What:** lookup time and per-call allocations for `GetVariable`.
+- **Test:** `Tests/Performance/VariableLookupBenchmarks.cs`. Two flavors: interned key (static field) vs. fresh-allocated key per call (the test-code pattern observed in `StateEntityIntegrationTests`). The two should differ by exactly one allocation; that's what we want to confirm and then eliminate.
+- **Scenario:** bag with 4, 16, 64 variables.
+- **Baseline:** `Variable.GetHashCode` combines two `string.GetHashCode` calls; `Equals` is two `string.Equals`. Fresh-allocation pattern adds one allocation per call.
 - **Success criteria for §8.1 `Variable<T>`:** equal or better lookup time; **fresh-Variable test pattern eliminated** (tests use a static `Variable<float> Hp = new("hp")` field, zero per-call alloc); compile-time T match removes the `BaseEntityInstance.cs:50` cast on read.
 

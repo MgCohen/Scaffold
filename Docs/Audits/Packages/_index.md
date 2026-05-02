@@ -13,7 +13,7 @@ Each package has its own report in this folder. This index aggregates verdicts a
 Every package report carries three companion sections appended after the audit body:
 - **Consumers** — every external call site under `Assets/`, `GameModule/`, `LiveOps/`, with usage smells visible only from the call side.
 - **Alternatives & prior art** — existing libraries / patterns with **Adopt / Wrap / Build / Steal pattern** verdicts.
-- **Benchmark plan** — what to measure, where the test should live, baseline expectation, success criteria. To be implemented later.
+- **Benchmark plan** — what to measure, where the test should live, baseline expectation, success criteria. Tooling, helper code, run policy, and pass/fail thresholds live in [`_benchmarking.md`](./_benchmarking.md) (single source of truth — Unity.PerformanceTesting + a shared `Bench.Measure` helper, no BenchmarkDotNet).
 
 ---
 
