@@ -752,72 +752,104 @@ The consumer's binding code is the only place that knows about zones, ownership,
 
 ## Vertical slice — minimum viable consumer
 
-A complete walkthrough of every file a fresh consumer of this package writes to get one runnable graph. The scenario: a graph with two nodes — an `OnPlay` entry that fires when something plays a card, wired into a `Log` action that prints a message. End-to-end so it's clear what's the consumer's responsibility versus what the package or the generator produces.
+Scenario: a fresh consumer of this package wants a graph with two nodes — `OnPlay` entry node wired into a `Log` action node — running in their game. Below is every file they write.
 
-### What the consumer writes (9 small files)
+### Files the consumer writes
 
-#### 1. Domain payload base classes — `MyGame/Domain/Bases.cs`
 ```csharp
-namespace MyGame {
-    public abstract class GraphEntry { }
+// ─────────────────────────────────────────────────────────────────
+// MyGame/Domain/Bases.cs
+// Domain base classes. Package never imports these; the generator
+// discovers them by name via [assembly: GraphConfig].
+// ─────────────────────────────────────────────────────────────────
+namespace MyGame
+{
+    public abstract class GraphEntry  { }
     public abstract class GraphAction { }
 }
 ```
-Plain abstract classes. The package never imports these; the generator finds them by name via the assembly attribute.
 
-#### 2. Concrete payloads — `MyGame/Domain/Payloads.cs`
 ```csharp
-namespace MyGame {
-    public sealed class OnPlay  : GraphEntry  { public int    CardId;  }   // 1 field → 1 output port
-    public sealed class Log     : GraphAction { public string Message; }   // 1 field → 1 input port
-}
-```
-These are the "node types" designers see in the editor's create-node menu. Add a new file here and a new node appears.
+// ─────────────────────────────────────────────────────────────────
+// MyGame/Domain/Payloads.cs
+// Concrete node types. Adding a file here = a new node in the editor.
+// ─────────────────────────────────────────────────────────────────
+namespace MyGame
+{
+    public sealed class OnPlay : GraphEntry
+    {
+        public int CardId;       // → output port on the OnPlay entry node
+    }
 
-#### 3. Runner — `MyGame/Runtime/MyRunner.cs`
-```csharp
-namespace MyGame {
-    public sealed class MyRunner : GraphRunner {
-        public ILogger Logger { get; init; }   // host-injected service used by action bases
+    public sealed class Log : GraphAction
+    {
+        public string Message;   // → input port on the Log action node
     }
 }
 ```
-Per-execution context. Anything node logic needs at runtime lives here.
 
-#### 4. Helper bases — `MyGame/Runtime/NodeBases.cs`
 ```csharp
-namespace MyGame {
-    // Entry nodes don't need much — generator can emit them directly. Skipped.
-    // For actions, we provide a base that does the actual domain work:
+// ─────────────────────────────────────────────────────────────────
+// MyGame/Runtime/MyRunner.cs
+// Per-execution context. Anything node logic needs at runtime lives here.
+// ─────────────────────────────────────────────────────────────────
+namespace MyGame
+{
+    public sealed class MyRunner : GraphRunner
+    {
+        public ILogger Logger { get; init; }
+    }
+}
+```
+
+```csharp
+// ─────────────────────────────────────────────────────────────────
+// MyGame/Runtime/ActionDispatcher.cs
+// Helper base where domain behavior lives. Generator emits a concrete
+// subclass per GraphAction; this base defines the Execute body.
+// ─────────────────────────────────────────────────────────────────
+namespace MyGame
+{
     public abstract class ActionDispatcher<TAction> : RuntimeNode<MyRunner>
         where TAction : GraphAction, new()
     {
-        protected sealed override async ValueTask Execute(MyRunner runner) {
-            var action = BuildPayload();   // generator-emitted — reads inputs, populates fields
-            await Run(action, runner);
+        protected sealed override async ValueTask Execute(MyRunner runner)
+        {
+            var action = BuildPayload();          // generator-supplied
+            await Run(action, runner);            // consumer-supplied
         }
-        protected abstract TAction BuildPayload();
+
+        protected abstract TAction   BuildPayload();
         protected abstract ValueTask Run(TAction action, MyRunner runner);
     }
 }
 ```
-This is **where the actual behavior lives**. The generator provides typed payload construction; you provide what to do with it.
 
-#### 5. Action behavior — `MyGame/Runtime/LogBehavior.cs`
 ```csharp
-namespace MyGame {
-    public sealed class LogBehavior : ActionDispatcher<Log> {
-        protected override ValueTask Run(Log action, MyRunner runner) {
+// ─────────────────────────────────────────────────────────────────
+// MyGame/Runtime/LogBehavior.cs
+// Concrete behavior for the Log action. Generator emits
+//   class LogDispatcherRuntime : LogBehavior
+// and fills in BuildPayload() from the typed input slots.
+// ─────────────────────────────────────────────────────────────────
+namespace MyGame
+{
+    public sealed class LogBehavior : ActionDispatcher<Log>
+    {
+        protected override ValueTask Run(Log action, MyRunner runner)
+        {
             runner.Logger.Log(action.Message);
             return default;
         }
     }
 }
 ```
-The generator emits `LogDispatcherRuntime : LogBehavior` (or some equivalent — see "What the generator emits" below). `BuildPayload()` is filled in by the generator, `Run()` is filled in by you.
 
-#### 6. Assembly attribute — `MyGame/AssemblyInfo.cs`
 ```csharp
+// ─────────────────────────────────────────────────────────────────
+// MyGame/AssemblyInfo.cs
+// Tells the generator what to look for and what helper base to extend.
+// ─────────────────────────────────────────────────────────────────
 [assembly: GraphConfig(
     EntryBases        = new[] { "MyGame.GraphEntry"  },
     CommandBases      = new[] { "MyGame.GraphAction" },
@@ -826,97 +858,191 @@ The generator emits `LogDispatcherRuntime : LogBehavior` (or some equivalent —
     DispatcherBase    = "MyGame.ActionDispatcher`1"
 )]
 ```
-Tells the generator what to look for and what helper base to extend.
 
-#### 7. Editor graph subclass — `MyGame/Editor/MyGraph.cs`
 ```csharp
-namespace MyGame.EditorGraph {
+// ─────────────────────────────────────────────────────────────────
+// MyGame/Editor/MyGraph.cs
+// Graph Toolkit hookup. Registers .mygraph extension + create menu.
+// ─────────────────────────────────────────────────────────────────
+namespace MyGame.EditorGraph
+{
     [Graph("mygraph")]
-    public sealed class MyGraph : Graph<MyRunner> {
+    public sealed class MyGraph : Graph<MyRunner>
+    {
         [MenuItem("Assets/Create/MyGame/Graph")]
         static void CreateNew() =>
             GraphDatabase.PromptInProjectBrowserToCreateNewAsset<MyGraph>("New Graph");
     }
 }
 ```
-Five lines. Registers the file extension and the create-asset menu item with Graph Toolkit.
 
-#### 8. Asset subclass — `MyGame/Runtime/MyGraphAsset.cs`
 ```csharp
-namespace MyGame {
+// ─────────────────────────────────────────────────────────────────
+// MyGame/Runtime/MyGraphAsset.cs
+// Concrete SO type — Unity can't serialize an open generic.
+// ─────────────────────────────────────────────────────────────────
+namespace MyGame
+{
     public sealed class MyGraphAsset : GraphAsset<MyRunner> { }
 }
 ```
-One line. Concrete `ScriptableObject` type so Unity can serialize it (open generics aren't allowed for SOs).
 
-#### 9. Importer subclass — `MyGame/Editor/MyGraphImporter.cs`
 ```csharp
-namespace MyGame.EditorGraph {
+// ─────────────────────────────────────────────────────────────────
+// MyGame/Editor/MyGraphImporter.cs
+// Wires the bake pipeline to the .mygraph extension.
+// ─────────────────────────────────────────────────────────────────
+namespace MyGame.EditorGraph
+{
     [ScriptedImporter(version: 1, ext: "mygraph")]
     internal sealed class MyGraphImporter
         : GraphAssetImporterBase<MyGraph, MyRunner, MyGraphAsset> { }
 }
 ```
-One line. Wires the bake pipeline to the file extension.
 
-#### 10. (game-side) Host MonoBehaviour — `MyGame/Components/GraphHost.cs`
 ```csharp
-namespace MyGame {
-    public sealed class GraphHost : MonoBehaviour {
-        [SerializeField] MyGraphAsset graphAsset;     // designer drops the .mygraph file here
-        GraphController<MyRunner> controller;
-        MyRunner runner;
+// ─────────────────────────────────────────────────────────────────
+// MyGame/Components/GraphHost.cs
+// Game-side wiring. One per gameplay object that uses graphs.
+// ─────────────────────────────────────────────────────────────────
+namespace MyGame
+{
+    public sealed class GraphHost : MonoBehaviour
+    {
+        [SerializeField] MyGraphAsset graphAsset;
 
-        void Awake() {
-            runner = new MyRunner {
-                Logger = ServiceLocator.Get<ILogger>(),
+        GraphController<MyRunner> controller;
+        MyRunner                  runner;
+
+        void Awake()
+        {
+            runner = new MyRunner
+            {
+                Logger            = ServiceLocator.Get<ILogger>(),
                 CancellationToken = destroyCancellationToken,
             };
+
             controller = new GraphController<MyRunner>(graphAsset);
             controller.Initialize(runner);
         }
 
-        public ValueTask Play() => controller.Run(new OnPlay { CardId = 42 });
+        public ValueTask Play() =>
+            controller.Run(new OnPlay { CardId = 42 });
+
         void OnDestroy() => controller.Dispose();
     }
 }
 ```
-Game-side wiring. Most consumers will have a class like this per gameplay object that uses graphs.
 
-### What the generator emits (consumer never writes any of this)
+That's the consumer surface — 10 small files, ~80 lines.
 
-From `OnPlay : GraphEntry`:
-- `MyGame.Graph.Generated.OnPlayEditorNode`  — Graph Toolkit `Node` subclass with one output port `CardId`
-- `MyGame.Graph.Generated.OnPlayRuntime`     — `RuntimeNode<MyRunner>` with `Ports.CardId` const, `_out_CardId` field, `BindInput`/`GetOutputConnection` switches
-- A registry entry: editor type → runtime type, port-name → port-ID
+### What the generator emits
 
-From `Log : GraphAction` (because `DispatcherBase = ActionDispatcher\`1\``):
-- `MyGame.Graph.Generated.LogDispatcherEditorNode` — Graph Toolkit node with input port `Message`
-- `MyGame.Graph.Generated.LogDispatcherRuntime : LogBehavior` — concrete subclass that fills in `BuildPayload()` by reading `_in_Message.Read()` (or the inline constant), passes the typed `Log` to `Run()`
-- `Ports.Message` const, `[NonSerialized] Connection<string> _in_Message`, the two switch overrides
-- `LogListenerEditorNode` + runtime, `LogReturnEditorNode` + runtime (since `Log` is in `CommandBases`, all three node forms are emitted; designer can use whichever they need)
-- A registry entry
+```csharp
+// Generated from: OnPlay : GraphEntry
+namespace MyGame.Graph.Generated
+{
+    // Editor-side: Graph Toolkit Node subclass
+    public sealed class OnPlayEditorNode : Node { /* output port: CardId */ }
 
-`Registry` is a generated `static partial class` in `MyGame.Graph.Generated` that the baker reads to translate editor port names into stable port IDs and to look up which runtime class to instantiate per editor node type.
+    // Runtime-side: typed RuntimeNode with port-ID switches
+    public sealed class OnPlayRuntime : RuntimeNode<MyRunner>
+    {
+        public static class Ports
+        {
+            public const int CardId = 0x4F2A_8B17;   // FNV-1a("CardId")
+        }
 
-### What the package provides (consumer never writes any of this)
+        [NonSerialized] public int _out_CardId;
 
-- `GraphRunner`, `Graph<TRunner>`, `RuntimeNode<TRunner>`, `Connection`/`Connection<T>`, `GraphAsset<TRunner>`, `GraphAssetImporterBase<TGraph, TRunner, TAsset>`, `GraphController<TRunner>`, `GraphBaker`, `GraphExecutor<TRunner>`
-- Built-in generic nodes (Branch, Cancel, Replace, Return, Return Bool, predicates, math, conversions) — already typed over `RuntimeNode<TRunner>`, work with any consumer's runner
-- Source generator (Roslyn incremental) — finds the `[GraphConfig]` attribute, walks `EntryBases`/`CommandBases` descendants, emits per the convention
-- Attributes-only DLL: `[GraphConfig]`, `[GraphPort]`, `[GraphHidden]`, `[GraphMenu]`, `[In]`, `[Out]`
+        public override Connection GetOutputConnection(int portId) => portId switch
+        {
+            Ports.CardId => new Connection<int>(this, Ports.CardId, () => _out_CardId),
+            _            => throw new ArgumentOutOfRangeException(nameof(portId)),
+        };
 
-### End-to-end at runtime
+        public override void BindInput(int portId, Connection connection) =>
+            throw new ArgumentOutOfRangeException(nameof(portId));   // no inputs
 
-1. Project compiles → generator produces editor + runtime nodes and the registry → `GraphHost.cs`, `LogBehavior.cs` etc. all reference real types.
-2. Designer creates `Foo.mygraph`, double-clicks → Graph Toolkit opens with the create-node menu showing `OnPlay`, `LogDispatcher`, `LogListener`, `LogReturn`, plus all the package-shipped generic nodes.
-3. Designer drops `OnPlay`, drops `LogDispatcher`, wires `OnPlay.CardId` to a `[ToString]` builtin, wires that into `LogDispatcher.Message`. Saves.
-4. Unity reimports `Foo.mygraph` → `MyGraphImporter` → `GraphBaker` walks the editor graph, assigns stable nodeIds, resolves port names to portIds via the generated registry, emits `MyGraphAsset` SO with three nodes (`OnPlayRuntime`, `ToStringRuntime`, `LogDispatcherRuntime`) and two `ConnectionRecord`s. The asset is `SetMainObject` — what other assets reference.
-5. Designer drops `Foo.mygraph` onto `GraphHost.graphAsset` field on a prefab.
-6. Game runs, `Awake()` fires → `controller.Initialize(runner)` → hydration walks connections, builds `Connection<int>` and `Connection<string>` instances, wires them into the right runtime-node slots via the generated `BindInput` switches.
-7. `Play()` is called → `controller.Run(new OnPlay { CardId = 42 })` → executor finds the entry root in the entry-type dictionary, runs it → `OnPlayRuntime` writes `_out_CardId = 42`, advances flow → `ToStringRuntime` reads its input via `_in_Value.Read()`, writes its output → `LogDispatcherRuntime.Execute(runner)` calls `BuildPayload()` (reads `_in_Message.Read()` → "42"), constructs `new Log { Message = "42" }`, hands it to `LogBehavior.Run` → `runner.Logger.Log("42")`.
+        public override ValueTask Execute(MyRunner runner) { /* set _out_CardId, walk flow */ }
+    }
+}
+```
 
-That's the complete vertical slice. **10 files, ~80 lines of consumer code total**, plus whatever payload classes the consumer adds over time. Everything else is generator output, package code, or designer-authored graph files.
+```csharp
+// Generated from: Log : GraphAction (with DispatcherBase = ActionDispatcher`1)
+namespace MyGame.Graph.Generated
+{
+    public sealed class LogDispatcherEditorNode : Node { /* input port: Message */ }
+
+    // Inherits the consumer's helper base, which inherits RuntimeNode<MyRunner>.
+    public sealed class LogDispatcherRuntime : LogBehavior
+    {
+        public static class Ports
+        {
+            public const int Message = 0x77E1_3C20;   // FNV-1a("Message")
+        }
+
+        public string Message;                                       // inline default (serialized)
+        [NonSerialized] public Connection<string> _in_Message;       // wired at hydration
+
+        public override Connection GetOutputConnection(int portId) =>
+            throw new ArgumentOutOfRangeException(nameof(portId));   // no outputs
+
+        public override void BindInput(int portId, Connection connection)
+        {
+            switch (portId)
+            {
+                case Ports.Message: _in_Message = (Connection<string>)connection; return;
+                default: throw new ArgumentOutOfRangeException(nameof(portId));
+            }
+        }
+
+        protected override Log BuildPayload() => new Log
+        {
+            Message = _in_Message != null ? _in_Message.Read() : this.Message,
+        };
+    }
+
+    // Listener + Return forms emitted alongside (since Log is in CommandBases) — same shape.
+
+    // Generator-emitted registry: editor type → runtime type + port-name → port-ID
+    public static partial class Registry
+    {
+        public static void Register(IRegistryBuilder b)
+        {
+            b.Map<OnPlayEditorNode, OnPlayRuntime>(typeof(OnPlay))
+             .Port("CardId",  OnPlayRuntime.Ports.CardId);
+
+            b.Map<LogDispatcherEditorNode, LogDispatcherRuntime>(typeof(Log))
+             .Port("Message", LogDispatcherRuntime.Ports.Message);
+        }
+    }
+}
+```
+
+### What the package provides
+
+- `GraphRunner`, `Graph<TRunner>`, `RuntimeNode<TRunner>`, `Connection`/`Connection<T>`
+- `GraphAsset<TRunner>`, `GraphAssetImporterBase<TGraph, TRunner, TAsset>`
+- `GraphController<TRunner>`, `GraphBaker`, `GraphExecutor<TRunner>`
+- Built-in generic nodes (`Branch`, `Cancel`, `Replace`, `Return`, `ReturnBool`, predicates, math, conversions) — typed over any consumer's runner
+- Source generator (Roslyn incremental) and an attributes-only DLL (`[GraphConfig]`, `[GraphPort]`, `[GraphHidden]`, `[GraphMenu]`, `[In]`, `[Out]`)
+
+### End-to-end runtime trace
+
+1. **Compile.** Generator runs → emits `OnPlayRuntime`, `LogDispatcherRuntime`, `Registry`. `GraphHost.cs` and `LogBehavior.cs` reference real types.
+2. **Author.** Designer right-clicks in project → "Create / MyGame / Graph" → `Foo.mygraph` opens in Graph Toolkit. Drops `OnPlay`, drops `LogDispatcher`, wires `OnPlay.CardId` → `[ToString]` (built-in) → `LogDispatcher.Message`. Saves.
+3. **Bake.** Unity re-imports `Foo.mygraph` → `MyGraphImporter.OnImportAsset` → `GraphBaker` walks the editor graph, assigns stable `nodeId`s (`editorGuid → int` map, persisted on each runtime node), resolves port names to `portId`s through `Registry`, emits a `MyGraphAsset` SO with three runtime nodes and two `ConnectionRecord`s. `ctx.SetMainObject(asset)`.
+4. **Reference.** Designer drops `Foo.mygraph` onto `GraphHost.graphAsset` field on a prefab. The reference points at the runtime SO inside the file (the main object).
+5. **Hydrate.** Game runs, `Awake()` builds `MyRunner`, constructs `GraphController<MyRunner>(graphAsset)`, calls `Initialize(runner)`. Hydration indexes nodes by id, walks each `ConnectionRecord` calling `from.GetOutputConnection(fromPortId)` then `to.BindInput(toPortId, conn)` — every `Connection<T>` slot is now populated.
+6. **Run.** `Play()` calls `controller.Run(new OnPlay { CardId = 42 })`. Executor looks up `typeof(OnPlay)` → root node → runs flow:
+   - `OnPlayRuntime.Execute` writes `_out_CardId = 42`, advances flow.
+   - `ToStringRuntime` reads `_in_Value.Read()` (= 42), writes `_out_Result = "42"`.
+   - `LogDispatcherRuntime.Execute` calls `BuildPayload()` (reads `_in_Message.Read()` = "42"), passes `new Log { Message = "42" }` to `LogBehavior.Run`.
+   - `runner.Logger.Log("42")` fires.
+
+That's the complete slice from designer-authored file to runtime side-effect. Every layer between is either package code, generator output, or one-line consumer glue.
 
 ---
 
