@@ -34,46 +34,61 @@ The reference for the **designer-facing surface** is the existing FlowCanvas-bas
 ## Architecture overview
 
 ```
-┌────────────────────────────────────────────────────────────────────┐
-│  CONSUMER (e.g. Overknights game)                                  │
-│  • Defines payload types (GameCommand subclasses, EntryPoint subs)  │
-│  • Declares [assembly: GraphConfig(...)]                     │
-│  • Game code drives controller.Invoke<T>() and listener registration│
-└──────────────────┬─────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│  CONSUMER (e.g. Overknights game)                                   │
+│  • Subclasses GraphRunner; declares services on it                  │
+│  • Defines payloads (IGraphEntry<R>/IGraphAction<R> markers,        │
+│    or wraps existing domain types via [GraphPackage(CommandBase=)]) │
+│  • Optionally implements IExecutable<R> on payloads (one class/node)│
+│  • Optionally writes a DispatcherBase helper (Mode 2)               │
+│  • Declares [assembly: GraphPackage(Runner = typeof(R), ...)]       │
+│  • Game code drives controller.Run<T>() / Validate<T>()             │
+└──────────────────┬──────────────────────────────────────────────────┘
                    │
         ┌──────────┴──────────┐
         ▼                     ▼
-┌───────────────┐    ┌─────────────────────────────────────────────┐
-│ ATTRIBUTES    │    │  PACKAGE                                     │
-│ (zero-dep DLL)│    │  ├─ Editor assembly                          │
-│               │    │  │  • Graph subclass (asset)                 │
-│ [GraphHidden] │    │  │  • ScriptedImporter (bake)                │
-│ [GraphPort]   │    │  │  • Hand-written generic nodes             │
-│ [GraphMenu]   │    │  │    (Cancel, Replace, Return*, Branch,     │
-│ [In] / [Out]  │    │  │     predicates, math, conversions)        │
-│               │    │  ├─ Runtime assembly                         │
-│               │    │  │  • GraphRunner (abstract base)            │
-│               │    │  │  • RuntimeNode<TRunner> base              │
-│               │    │  │  • GraphController<TRunner>         │
-│               │    │  │  • GraphExecutor<TRunner> (tree walker)   │
-│               │    │  │  • IInitializableNode<TRunner> / IListenerNode<TRunner> │
-│               │    │  │  • GraphAsset<TRunner> ScriptableObject   │
-│               │    │  └─ Generator assembly (Roslyn)              │
-│               │    │     • [assembly: GraphConfig] reader   │
-│               │    │     • Convention strategies (4 built-in)     │
-│               │    │     • Per-type emission                      │
-└───────────────┘    └─────────────────────────────────────────────┘
+┌───────────────┐    ┌──────────────────────────────────────────────┐
+│ ATTRIBUTES    │    │  PACKAGE                                      │
+│ (zero-dep DLL)│    │  ├─ Editor assembly                           │
+│               │    │  │  • GraphAssetImporterBase<TG, TR, TA>      │
+│ [GraphPackage]│    │  │  • GraphBaker (bake-time translation)      │
+│ [GraphPort]   │    │  │  • Hand-written generic nodes              │
+│ [GraphHidden] │    │  │    (Cancel, Replace, Return*, Branch,      │
+│ [GraphMenu]   │    │  │     predicates, math, conversions)         │
+│ [In] / [Out]  │    │  ├─ Runtime assembly                          │
+│               │    │  │  • GraphRunner (abstract)                  │
+│               │    │  │  • RuntimeNode<TRunner> (abstract)         │
+│               │    │  │  • Connection / Connection<T>              │
+│               │    │  │  • IGraphEntry<R> / IGraphAction<R>        │
+│               │    │  │  • IExecutable<R>                          │
+│               │    │  │  • IInitializableNode<R> / IListenerNode<R>│
+│               │    │  │  • GraphAsset<TRunner> (abstract SO base)  │
+│               │    │  │  • Graph<TRunner> (Graph Toolkit base)     │
+│               │    │  │  • GraphController<TRunner> (sealed)       │
+│               │    │  │  • GraphExecutor<TRunner> (tree walker)    │
+│               │    │  └─ Generator assembly (Roslyn)               │
+│               │    │     • [assembly: GraphPackage] reader         │
+│               │    │     • Convention strategies (4 built-in)      │
+│               │    │     • Per-package + per-payload emission      │
+└───────────────┘    └──────────────────────────────────────────────┘
                                 │
                                 ▼
-                  ┌─────────────────────────────┐
-                  │  GENERATED ASSEMBLY          │
-                  │  (one per consumer assembly) │
-                  │                              │
-                  │  • Per-payload editor nodes  │
-                  │  • Per-payload runtime nodes │
-                  │  • Port-ID constants + switch│
-                  │  • Registry partial extension│
-                  └─────────────────────────────┘
+                  ┌──────────────────────────────────┐
+                  │  GENERATED ASSEMBLY              │
+                  │  (one per consumer assembly)     │
+                  │                                  │
+                  │  Per [GraphPackage] declaration: │
+                  │   • <R>Graph : Graph<R> (partial)│
+                  │   • <R>GraphAsset : GraphAsset<R>│
+                  │   • <R>GraphImporter             │
+                  │                                  │
+                  │  Per payload:                    │
+                  │   • Editor Node subclasses       │
+                  │   • Runtime node + Ports consts  │
+                  │   • BindInput / GetOutputConn    │
+                  │     switch overrides             │
+                  │   • Registry partial entries     │
+                  └──────────────────────────────────┘
 ```
 
 Three layers, three assemblies in the package, one generated assembly per consumer.
@@ -82,38 +97,48 @@ Three layers, three assemblies in the package, one generated assembly per consum
 
 ## Concept layer
 
-### Two payload hierarchies
+### Two payload roles
 
-`**EntryPoint**` — object-specific, direct invocation. Only the graph that owns the entry node receives it.
+`**IGraphEntry<TRunner>**` — object-specific, direct invocation. Only the graph that owns the entry node receives it. Marker interface shipped by the package.
 
 ```csharp
-public abstract class EntryPoint { }
+// PACKAGE — game-agnostic
+public interface IGraphEntry<TRunner>  where TRunner : GraphRunner { }
+public interface IGraphAction<TRunner> where TRunner : GraphRunner { }
 
-public class Play    : EntryPoint { public bool special; }
-public class Execute : EntryPoint { }
-public class Dispose : EntryPoint { }
-public class Attach  : EntryPoint { public Card target; }
+// CONSUMER — fresh package
+public sealed class Play    : IGraphEntry<MyRunner> { public bool special; }
+public sealed class Execute : IGraphEntry<MyRunner> { }
+public sealed class Attach  : IGraphEntry<MyRunner> { public Card target; }
 ```
 
-`**GameCommand<TResult>**` — pipelined through the framework. Any graph can listen via `On Before X` / `On After X`.
+`**IGraphAction<TRunner>**` — pipelined through the framework. Any graph can listen via `On Before X` / `On After X`.
+
+The runner type parameter is the **package discriminator**: every payload declares which graph package it belongs to. The same project can have multiple `[GraphPackage]`-annotated runners (Effects, Dialogue, …) and the generator partitions payloads by their `IGraphEntry<R>` / `IGraphAction<R>` argument. No silent grouping, no missing-attribute footguns, no shared bucket.
+
+### Two binding modes — opt into the coupling, or stay clean
+
+The marker-interface form above is **Mode 1** — best for fresh code being written against the graph tooling. The runner-typed marker is type-safe and makes the package association explicit at the declaration site.
+
+**Mode 2** is for wrapping an existing domain hierarchy that you don't want to (or can't) modify. The classic case is the Card Framework, whose `Command<TResult>` hierarchy predates this package and shouldn't be tagged with anything graph-specific. Instead of touching the payload type, the consumer declares the binding on `[GraphPackage]`:
 
 ```csharp
-public abstract class GameCommand<TResult> where TResult : CommandResult { }
-public abstract class CommandResult { }
+[assembly: GraphPackage(
+    Runner      = typeof(CardEffectRunner),
+    CommandBase = typeof(Command<>),                  // existing Card Framework base
+    Convention  = PortConvention.CommandResultPair,
+    ...
+)]
 
-public sealed record StrikeResult : CommandResult {
-    public int DamageToCore;
-    public int DamageToShield;
-}
-
-public sealed record Strike : GameCommand<StrikeResult> {
+// Card Framework's command — completely untouched, no graph attribute, no marker interface
+public sealed record Strike : Command<StrikeResult> {
     public int Magnitude;
     public Player Owner;
     public bool Unblockable;
 }
 ```
 
-The **base classes are consumer-defined**. The graph package never imports them. The generator finds them via syntax-tree analysis of the consumer's configured base names.
+The generator unions both sources for a given runner R: payloads implementing `IGraphAction<R>` plus payloads descending from any base type listed under that runner's `[GraphPackage]`. A consumer picks per-package which mode they want; both can coexist.
 
 ### Flows are typed functions
 
@@ -122,8 +147,8 @@ Every flow output port on an entry/listener node is a function with a known sign
 
 | Flow                                 | Inputs                  | Return                                       |
 | ------------------------------------ | ----------------------- | -------------------------------------------- |
-| Entry node — Validate                | EntryPoint fields       | `bool`                                       |
-| Entry node — Run                     | EntryPoint fields       | `void`                                       |
+| Entry node — Validate                | Entry fields            | `bool`                                       |
+| Entry node — Run                     | Entry fields            | `void`                                       |
 | Trigger listener (Before) — Validate | Command fields          | `bool`                                       |
 | Trigger listener (Before) — Run      | Command fields          | the Command (modified) — or Cancel / Replace |
 | Trigger listener (After) — Validate  | Command + Result fields | `bool`                                       |
@@ -138,9 +163,28 @@ Three legal outcomes from a Before-trigger Run flow:
 
 - **Pass-through (with optional field modifications)** — terminate via `[Return Strike]` (typed, generated). Each input port defaults to "use original value" if unwired (Graph Toolkit embedded port values).
 - **Cancel** — terminate via generic `[Cancel]` node (takes a reason string). Aborts the in-flight command.
-- **Replace** — terminate via generic `[Replace]` node (takes any `GameCommand` reference). Substitutes a different command into the pipeline.
+- **Replace** — terminate via generic `[Replace]` node (takes any command reference). Substitutes a different command into the pipeline.
 
 Flow-end without a terminator on a non-void Run flow is a **graph-validation error** at edit time.
+
+### Execution: `IExecutable<TRunner>` vs. `DispatcherBase`
+
+For each payload, the generator decides at compile time how the emitted runtime node will execute it. Two strategies, picked per payload:
+
+```csharp
+// PACKAGE — opt-in interface for self-executing payloads
+public interface IExecutable<TRunner> where TRunner : GraphRunner {
+    ValueTask Execute(TRunner runner);
+}
+```
+
+Decision tree (per payload):
+
+1. Payload implements `IExecutable<TRunner>` → emit a runtime node whose `Execute(r)` calls `payload.Execute(r)`. **One class per node.**
+2. Else, `[GraphPackage].DispatcherBase` declared → emit a subclass of that base, closed over the payload's types. The base provides the `Execute` body; the generator fills in `BuildPayload()` / `WriteOutputs()`.
+3. Else → `EFG007` diagnostic: "Payload `Strike` has no execution path. Either implement `IExecutable<CardEffectRunner>`, or declare a `DispatcherBase` on `[GraphPackage]`."
+
+`IExecutable` always wins if both are available. That gives a per-payload escape hatch — one weird command in an otherwise-uniform Card Framework package can self-execute without breaking the convention.
 
 ### Variables (deferred to v2)
 
@@ -157,20 +201,20 @@ A full FIXED/MANAGED/VARIABLES blackboard with declared shared variables is a v2
 
 ### Node taxonomy
 
-**Generated per `EntryPoint` subclass** (1 editor node):
+**Generated per entry-shaped payload** (`IGraphEntry<TRunner>` implementer or `EntryBase` descendant — 1 editor node):
 
 - `OnPlayNode`, `OnExecuteNode`, `OnDisposeNode`, … — direct-invoke entry nodes with `Validate` + `Run` flow output ports plus data output ports for the entry's fields.
 
-**Generated per `GameCommand<TResult>` subclass** (3 editor nodes):
+**Generated per command-shaped payload** (`IGraphAction<TRunner>` implementer or `CommandBase` descendant — 3 editor nodes):
 
-- `StrikeDispatcherNode` — used in graph bodies; ports = command's input fields + result's output fields. Executes `pipeline.Dispatch(payload)`.
+- `StrikeDispatcherNode` — used in graph bodies; ports = command's input fields + result's output fields (when paired). Execution path picked per the `IExecutable<TRunner>` vs `DispatcherBase` decision tree.
 - `OnStrikeListenerNode` — entry-style with Before/After enum dropdown. Validate + Run flow ports. Output data ports for command fields (Before) or command + result fields (After). Registers with the consumer's pipeline through the controller's listener API.
 - `ReturnStrikeNode` — typed terminator for Before-trigger Run flows. Input ports for command fields with "use original" defaults.
 
 **Hand-written, shipped in the package** (finite set):
 
 - `[Cancel]` — generic early-exit. One reason-string input.
-- `[Replace]` — generic early-exit. One `GameCommand` reference input.
+- `[Replace]` — generic early-exit. One typed command reference input.
 - `[Return]` — void terminator. No inputs.
 - `[Return Bool]` — bool terminator. One bool input.
 - `[Branch]` — flow control. Bool input, two flow outputs (true / false).
@@ -202,36 +246,52 @@ Implemented via Graph Toolkit's `OnGraphChanged(GraphLogger)`:
 
 ### Configuration
 
-The consumer declares a single assembly-level attribute:
+A graph package is declared by one assembly-level attribute per runner. `AllowMultiple = true` — multi-package projects just stack them.
 
 ```csharp
-[assembly: GraphConfig(
-    EntryBases        = new[] { "MyGame.EntryPoint" },
-    CommandBases      = new[] { "MyGame.GameCommand`1" },
+[assembly: GraphPackage(
+    Runner            = typeof(CardEffectRunner),
+    Extension         = "card",                          // file extension; registers with Graph Toolkit
+    AssetMenu         = "Effects/Card Effect",           // Project-window create-asset menu path
     Convention        = PortConvention.CommandResultPair,
     RegistryNamespace = "MyGame.Effects.Generated",
 
-    // Optional: consumer-supplied helper bases the generator extends.
-    // If unset, generated runtime nodes inherit directly from RuntimeNode<TRunner>
-    // (and the consumer is responsible for providing Execute via partial class).
-    EntryNodeBase  = "MyGame.EntryNodeBase`1",            // generic over <TPayload>
-    DispatcherBase = "MyGame.CommandDispatcherNode`2",    // generic over <TCmd, TResult>
-    ListenerBase   = "MyGame.CommandListenerNode`2",      // generic over <TCmd, TResult>
-    ReturnBase     = "MyGame.ReturnPayloadNode`1"         // generic over <TCmd>
+    // Mode 2 — bind existing domain hierarchies (no IGraphAction<R> on payloads).
+    // Omit if all payloads in this package use IGraphEntry<R> / IGraphAction<R> markers (Mode 1).
+    EntryBase   = typeof(EntryPoint),                    // optional, singular
+    CommandBase = typeof(Command<>),                     // optional, singular open-generic
+
+    // Optional helper bases the generator emits subclasses of (Mode 2 / mixed).
+    // If a payload implements IExecutable<TRunner>, that path wins regardless.
+    DispatcherBase = typeof(CardCommandDispatcher<,>),
+    EntryNodeBase  = typeof(CardEntryPointNode<>),
+    ListenerBase   = typeof(CardCommandListener<,>),
+    ReturnBase     = typeof(ReturnPayloadNode<>)
 )]
 ```
 
-- **Required**. Compile error `EFG001` if missing.
-- `CommandBases` and `EntryBases` are lists — supports multiple base types per category (e.g., separating `GameAction` from `GameSignal`).
-- Base type names are fully-qualified strings; generator does syntax-only matching, no compilation-side type loading.
-- The four `*Base` fields tell the generator what hand-written abstract class each emitted runtime node should inherit from. The arity-suffixed name (`` `1 ``, `` `2 ``) is the open generic the generator closes over the payload (and result) type. Concrete-emitted classes look like `class StrikeDispatcherRuntime : CommandDispatcherNode<Strike, StrikeResult>`. The base classes are where the consumer puts the actual `Execute(runner)` body that does the domain work; the generator's emitted subclass only plugs in the typed payload-construction and port-binding plumbing.
+- **`Runner`** is the only required field outside Mode 1. It identifies which `[GraphPackage]` this is, partitions payloads by runner type, and parameterizes the generator-emitted Graph/Asset/Importer trio.
+- **`typeof(...)`** is real C# — open generics in `typeof` are valid syntax. The generator reads symbols straight from the compilation; no string parsing, no namespace drift, refactor-safe.
+- **`EntryBase` / `CommandBase`** are singular. If a consumer ever needs two distinct base hierarchies they split into two `[GraphPackage]` declarations — that's the right pressure, since two distinct hierarchies usually mean two distinct concerns.
+- **`*Base` helper fields are optional.** They tell the generator what hand-written abstract class each emitted runtime node should inherit from. The open-generic forms (`` typeof(CardCommandDispatcher<,>) ``) get closed by the generator over the payload (and result) type — concrete emission looks like `class StrikeDispatcherRuntime : CardCommandDispatcher<Strike, StrikeResult>`. We keep all four specced; whether `EntryNodeBase`, `ListenerBase`, `ReturnBase` actually pull weight in v1 will be decided during Card Framework integration. Easy to drop later, harder to retrofit.
+
+The runner stays clean — it's a services-only data carrier with no editor/generator metadata bolted on. All of that lives on the assembly-level config artifact.
+
+### Future config UX (v2 follow-up)
+
+The attribute form is intentionally Phase 1. Two follow-ups planned without changing the generator contract:
+
+- **Phase 2 — asset-backed config.** A `GraphPackageConfigAsset` ScriptableObject with a custom inspector (type pickers for runner/bases, dropdown for convention, text fields for extension/menu). On save, a custom Editor regenerates a hidden `<name>.g.cs` partial containing the equivalent `[assembly: GraphPackage(...)]`. The Roslyn generator stays oblivious — it just sees the same attribute shape it would have read from a hand-written file. Asset is the human-facing source of truth; the auto-emitted `.g.cs` is the machine-facing source of truth for Roslyn. Foot-gun mitigation: header comment on the `.g.cs` (`// Auto-generated from Foo.asset. Do not edit.`) plus an `AssetPostprocessor` that overwrites unconditionally on asset change.
+- **Phase 3 — wizard.** Project-window menu `Create > Graph Package` walks the user through runner type (or scaffolds a new one), extension, convention, base bindings, asset menu name. Outputs the asset + the runner stub + (via Phase 2's regen) the `.g.cs`. Designers and gameplay programmers never touch the attribute syntax.
+
+Both phases are additive — no v1 client breaks when they land.
 
 ### Built-in conventions
 
 
 | Convention             | Inputs                   | Outputs                                                     |
 | ---------------------- | ------------------------ | ----------------------------------------------------------- |
-| `CommandResultPair`    | command's public members | paired result's public members (via `GameCommand<TResult>`) |
+| `CommandResultPair`    | command's public members | paired result's public members (via `CommandBase` `<TResult>`) |
 | `AttributedFields`     | `[In]`-tagged            | `[Out]`-tagged                                              |
 | `MutableInReadOnlyOut` | settable members         | init/get-only members                                       |
 | `AllFieldsIn`          | all public members       | (none)                                                      |
@@ -241,7 +301,7 @@ The consumer declares a single assembly-level attribute:
 
 ### Per-payload emission
 
-For a `GameCommand<TResult>` subclass with N input fields and M output fields:
+For each command-shaped payload (an `IGraphAction<TRunner>` implementer or a descendant of the package's `CommandBase`) with N input fields and M output fields, the generator emits:
 
 - 3 editor `Node` subclasses (Dispatcher, Listener, Return)
 - 3 runtime node classes (matching counterparts), each with:
@@ -251,27 +311,59 @@ For a `GameCommand<TResult>` subclass with N input fields and M output fields:
   - Generated `BindInput(int portId, Connection)` and `GetOutputConnection(int portId)` overrides — `switch` jump tables keyed on the constants in `Ports`
 - One registry partial-class entry mapping the payload type id to the runtime node class plus an editor-port-name → port-ID lookup the baker uses when translating editor wires
 
-For an `EntryPoint` subclass with N fields: same shape, just 1 editor + 1 runtime node instead of 3.
+For each entry-shaped payload (an `IGraphEntry<TRunner>` implementer or a descendant of the package's `EntryBase`): same shape, just 1 editor + 1 runtime node instead of 3.
 
-The two key invariants the generator must hold:
+The runtime node's base class is picked per-payload by the **execution decision tree** (see "Execution" in the Concept layer):
+
+```
+if payload implements IExecutable<TRunner>:
+    emit:  class StrikeDispatcherRuntime : RuntimeNode<TRunner> {
+               override Execute(r) => payload.Execute(r);   // payload is typed
+           }
+elif [GraphPackage].DispatcherBase declared:
+    emit:  class StrikeDispatcherRuntime : CardCommandDispatcher<Strike, StrikeResult> {
+               override BuildPayload() => /* read input slots */;
+               override WriteOutputs(r) => /* write output slots */;
+           }
+else:
+    diagnostic EFG007 (no execution path)
+```
+
+Three invariants the generator must hold:
 
 1. **Port IDs are stable across source-order changes.** Adding a new field reserves a fresh ID; removing one retires it; an existing field keeps its ID even if the field above it is deleted. Default derivation is FNV-1a of the field name. `[GraphPort(Id = N)]` lets the consumer freeze an ID across a rename.
 2. **The `Ports` constants are the single source of truth.** Both the runtime node's `BindInput`/`GetOutputConnection` switches and the registry's editor-port-name → port-ID lookup the baker reads come from the same generated constants. There's no second list to keep in sync.
+3. **Payload-to-runner partition is enforced.** A payload satisfying bindings for two different `[GraphPackage]` declarations is `EFG008`. Each payload belongs to exactly one package.
+
+### Per-package emission (the Graph/Asset/Importer trio)
+
+For each `[GraphPackage]` declaration, the generator additionally emits the boilerplate trio that the consumer used to write by hand:
+
+- `<RunnerName>Graph : Graph<TRunner>` — `partial class` so the consumer can extend it (custom `OnGraphChanged`, additional menu items, etc.). Carries `[Graph(extension)]` and the create-asset menu item.
+- `<RunnerName>GraphAsset : GraphAsset<TRunner>` — concrete `ScriptableObject` type so Unity can serialize it.
+- `<RunnerName>GraphImporter : GraphAssetImporterBase<<RunnerName>Graph, TRunner, <RunnerName>GraphAsset>` — `[ScriptedImporter]`-annotated, registers the bake pipeline against the file extension.
+
+The naming convention is mechanical: strip a trailing `Runner` suffix, prepend to `Graph` / `GraphAsset` / `GraphImporter`. `CardEffectRunner` → `CardEffectGraph`, `CardEffectGraphAsset`, `CardEffectGraphImporter`.
+
+**Escape hatch.** If the consumer hand-writes any of those three (e.g. they need a custom importer that bumps `version: N` or runs additional post-bake steps), the generator detects the existing declaration and skips emission for that one. The other two are still auto-emitted. No all-or-nothing trade-off.
 
 ### Resolved generator behavior
 
 
 | Decision                    | Resolution                                          |
 | --------------------------- | --------------------------------------------------- |
-| Config required             | Yes; missing → `EFG001`                             |
-| Conventions per assembly    | One only (split assemblies if mixed needed)         |
+| Config required             | At least one `[assembly: GraphPackage]`; otherwise generator emits nothing |
+| Multi-package               | `AllowMultiple = true` on the attribute; one declaration per runner |
+| Conventions per package     | One per `[GraphPackage]`; different packages can use different conventions |
 | Abstract bases              | Skipped automatically, only instantiable types emit |
-| Open generics               | Not supported in v1; emits warning if encountered   |
+| Open generics in payloads   | Not supported in v1; emits warning if encountered   |
+| Open generics in `*Base`    | Required form (`typeof(CardCommandDispatcher<,>)`); generator closes per payload |
 | Registry shape              | `static partial class` so consumers can extend      |
+| Graph/Asset/Importer trio   | Auto-emitted per `[GraphPackage]`; consumer-written declarations override (skip emission) |
 | Nullable types              | Pass through as-is                                  |
 | Field ordering              | Source order for editor display; **does NOT determine port ID** (port IDs are stable hashes) |
 | Port ID stability           | Stable int per field (default: FNV-1a of name); `[GraphPort(Id = N)]` to freeze across renames |
-| Multiple bases per category | Supported (list in config)                          |
+| Payload-to-package partition | Each payload belongs to exactly one package; multi-binding → `EFG008` |
 
 
 ### Compile-time diagnostics (nice-to-have)
@@ -279,10 +371,12 @@ The two key invariants the generator must hold:
 - `EFG002` — `[In]` on a `readonly` field
 - `EFG003` — `[Out]` on a settable field (in `AttributedFields` mode)
 - `EFG004` — Field type not serializable
-- `EFG005` — `GameCommand` subclass without paired result type (in `CommandResultPair` mode)
+- `EFG005` — Command-shaped payload without paired result type (in `CommandResultPair` mode)
 - `EFG006` — Field name conflicts with a generated port label
+- `EFG007` — Payload has no execution path (no `IExecutable<TRunner>`, no `DispatcherBase` declared)
+- `EFG008` — Payload satisfies bindings for two different `[GraphPackage]` declarations
 
-Ship the structural ones (EFG001, EFG005); add the rest as friction emerges.
+Ship the structural ones (EFG005, EFG007, EFG008); add the rest as friction emerges.
 
 ---
 
@@ -306,24 +400,34 @@ The editor graph never runs. The runtime asset is what game code references and 
 
 Following Unity's `VisualNovelDirector` sample: **one source file on disk** (with an extension the consumer picks — e.g. `.cardgraph` for the Card Framework integration) holds both the editor graph (hidden, for re-editing) and the imported runtime asset (the `SetMainObject`, what consumers reference). Designers drag the file into a `GraphAsset<TRunner>` field (or a consumer-defined concrete subclass like `CardEffectGraphAsset`) and get the runtime form directly.
 
-**Custom Graph subclass** — registers the file extension and is the Graph Toolkit edit-time asset type. Written by the consumer (illustrated here as `CardEffectGraph` for the Card Framework integration; non-card consumers write their own analogue):
+**Custom Graph subclass** — registers the file extension and is the Graph Toolkit edit-time asset type. **Auto-emitted by the source generator** from `[assembly: GraphPackage(Runner = typeof(...), Extension = "...")]`. The consumer doesn't write it. Generator output looks like:
 
 ```csharp
+// AUTO-GENERATED — example for [GraphPackage(Runner = typeof(CardEffectRunner), Extension = "cardgraph")]
 [Graph("cardgraph")]
-public sealed class CardEffectGraph : Graph<CardEffectRunner> {
+public partial class CardEffectGraph : Graph<CardEffectRunner> {
     [MenuItem("Assets/Create/Effects/Card Effect")]
     static void CreateNew() =>
         GraphDatabase.PromptInProjectBrowserToCreateNewAsset<CardEffectGraph>("New Effect");
+}
+```
 
+The class is `partial` so the consumer can extend it with custom edit-time behavior — e.g. an `OnGraphChanged` override for additional validation:
+
+```csharp
+// CONSUMER — optional partial extension, only when custom edit-time logic is needed
+public partial class CardEffectGraph {
     public override void OnGraphChanged(GraphLogger logger) {
         // Light edit-time validation — flags errors as designers wire (terminator presence,
-        // type mismatches, unwired required ports). This drives the inline error UI;
-        // it does NOT determine whether the bake succeeds.
+        // type mismatches, unwired required ports). Drives inline error UI;
+        // does NOT determine whether the bake succeeds.
     }
 }
 ```
 
-`[Graph("cardgraph")]` registers the extension with Unity. `PromptInProjectBrowserToCreateNewAsset` is the standard creation API — no `[CreateAssetMenu]`, no custom `CreateInstance` plumbing. The package supplies the `Graph<TRunner>` base; consumers pick their extension and runner type.
+If the consumer hand-writes the whole class (full override of name/namespace/etc.), the generator detects the existing `[Graph("cardgraph")]` declaration and skips emission for that one. The other two trio members (`<R>GraphAsset`, `<R>GraphImporter`) are still auto-emitted independently.
+
+`[Graph("cardgraph")]` registers the extension with Unity. `PromptInProjectBrowserToCreateNewAsset` is the standard creation API — no `[CreateAssetMenu]`, no custom `CreateInstance` plumbing. The package supplies the `Graph<TRunner>` base; the generator pairs it with the consumer's runner.
 
 **What Graph Toolkit serializes for us** (auto, into the `.cardgraph` YAML):
 
@@ -340,12 +444,14 @@ v1 does not use Graph Toolkit's blackboard surface; designer constants live as e
 
 ### The bake step (editor → runtime)
 
-The ScriptedImporter is where editor connections become runtime connections. It is a real translation, not a copy. The package provides a reusable base class; the consumer writes a thin subclass with the version and extension attribute:
+The ScriptedImporter is where editor connections become runtime connections. It is a real translation, not a copy. The package provides a reusable abstract base class; the generator emits the concrete subclass per `[GraphPackage]`:
 
 ```csharp
-// Package
-public abstract class GraphAssetImporterBase<TGraph, TRunner> : ScriptedImporter
-    where TGraph : Graph<TRunner> where TRunner : GraphRunner
+// PACKAGE — reusable base
+public abstract class GraphAssetImporterBase<TGraph, TRunner, TAsset> : ScriptedImporter
+    where TGraph  : Graph<TRunner>
+    where TRunner : GraphRunner
+    where TAsset  : GraphAsset<TRunner>
 {
     public override void OnImportAsset(AssetImportContext ctx) {
         var editorGraph = GraphDatabase.LoadGraphForImporter<TGraph>(ctx.assetPath);
@@ -354,7 +460,7 @@ public abstract class GraphAssetImporterBase<TGraph, TRunner> : ScriptedImporter
             return;
         }
 
-        var bakeResult = GraphBaker.Bake<TGraph, TRunner>(editorGraph);
+        var bakeResult = GraphBaker.Bake<TGraph, TRunner, TAsset>(editorGraph);
         foreach (var diag in bakeResult.Diagnostics)
             ctx.LogImportError(diag.Message, ctx.assetPath);
 
@@ -365,11 +471,13 @@ public abstract class GraphAssetImporterBase<TGraph, TRunner> : ScriptedImporter
     }
 }
 
-// Consumer
+// AUTO-GENERATED — concrete subclass from [GraphPackage]
 [ScriptedImporter(version: 1, ext: "cardgraph")]
 internal sealed class CardEffectGraphImporter
-    : GraphAssetImporterBase<CardEffectGraph, CardEffectRunner> { }
+    : GraphAssetImporterBase<CardEffectGraph, CardEffectRunner, CardEffectGraphAsset> { }
 ```
+
+If the consumer needs to bump `version: N` or add post-bake steps, they hand-write the importer subclass and the generator skips emission for that one.
 
 `GraphBaker` is responsible for **everything that turns an editor graph into a runtime-compliant artifact**:
 
@@ -383,8 +491,8 @@ internal sealed class CardEffectGraphImporter
   - **A connection's `fromPortId` or `toPortId` no longer exists on its node's runtime type** (catches generator-side breakage when a payload field is removed)
   - Missing terminators on non-void Run flows (`[Return X]` / `[Cancel]` / `[Replace]`)
   - Cycles in flow paths
-  - Entry node referring to an `EntryPoint` type that no longer exists in the registry
-  - Listener node referring to a `GameCommand` type that's been removed
+  - Entry node referring to a payload type that no longer exists in the registry
+  - Listener node referring to a command-shaped payload type that's been removed
 6. **Entry-point indexing.** Walks all entry/listener nodes, builds the `entries` list mapping bound `entryTypeId` (string registry key) to the runtime root `nodeId` (int).
 7. **Schema version stamping.** The runtime asset records the current schema version (paired with the importer version — see asset versioning below).
 
@@ -459,14 +567,14 @@ public abstract class GraphAsset<TRunner> : ScriptableObject where TRunner : Gra
 }
 ```
 
-Concrete subclass example, written by the Card Framework integration (any other consumer follows the same shape):
+Concrete subclass — **auto-emitted by the source generator** from `[GraphPackage]`:
 
 ```csharp
-// CONSUMER — Card Framework adapter
+// AUTO-GENERATED — example for [GraphPackage(Runner = typeof(CardEffectRunner), ...)]
 public sealed class CardEffectGraphAsset : GraphAsset<CardEffectRunner> { }
 ```
 
-The concrete subclass exists because Unity needs a concrete `ScriptableObject` type per asset (it can't serialize an open generic). It's a one-line file. Designers drag this into `CardEffectGraphAsset` fields; non-card consumers define their own analogous one (e.g. `DialogueGraphAsset : GraphAsset<DialogueRunner>`).
+The concrete subclass exists because Unity needs a concrete `ScriptableObject` type per asset (it can't serialize an open generic). The generator emits a one-line file per `[GraphPackage]`. Designers drag the imported asset into `CardEffectGraphAsset`-typed fields. A consumer can hand-write the class to override its name/namespace; the generator detects the existing declaration and skips emission for that one.
 
 Why typed `[SerializeReference]` nodes instead of an opaque `byte[] serializedConstants` blob: the source generator already emits a runtime class per payload type, so each node has a known C# shape. Storing that shape directly means
 
@@ -623,14 +731,12 @@ public class CardEffectRunner : GraphRunner {
     public T GetService<T>() { ... }         // optional service-locator helper, consumer's call
 }
 
-public sealed class CardEffectGraph : Graph<CardEffectRunner> {
-    [MenuItem("Assets/Create/Effects/Card Effect")]
-    static void CreateNew() =>
-        GraphDatabase.PromptInProjectBrowserToCreateNewAsset<CardEffectGraph>("New Effect");
-}
+// Editor graph subclass is auto-emitted from [GraphPackage] (see Asset lifecycle section).
+// Consumer can extend it via partial class if they need custom OnGraphChanged etc.
 
-public abstract class CommandDispatcherNode<TCmd, TResult> : RuntimeNode<CardEffectRunner>
-    where TCmd : GameCommand<TResult>, new()
+// Mode 2 helper base — written once, generator emits typed subclasses per Command.
+public abstract class CardCommandDispatcher<TCmd, TResult> : RuntimeNode<CardEffectRunner>
+    where TCmd : Command<TResult>, new()
 {
     protected sealed override async ValueTask Execute(CardEffectRunner runner) {
         var cmd = BuildPayload();
@@ -644,7 +750,7 @@ public abstract class CommandDispatcherNode<TCmd, TResult> : RuntimeNode<CardEff
 
 Why the runner is separate from the editor `Graph` subclass: the editor `Graph` is a `ScriptableObject` shared across all instances of an asset. Runtime services like `IEffectScope` are per-execution and can't live on a shared SO. The runner is the per-execution carrier.
 
-The editor `Graph<TRunner>` subclass is mandatory (Graph Toolkit registers the file extension via `[Graph("ext")]`). It stays a 5-line class — extension binding + create-asset menu — and the consumer is free to extend it with their own editor concerns. We deliberately do **not** auto-emit the Graph subclass: the boilerplate is small and consumer-extension freedom is more valuable.
+The editor `Graph<TRunner>` subclass is generator-emitted from `[GraphPackage]` (see Asset lifecycle), as `partial` so the consumer can extend it without losing the generated bits.
 
 ### Executor
 
@@ -661,7 +767,7 @@ internal sealed class GraphExecutor<TRunner> where TRunner : GraphRunner {
 
 ### Integration with `IEffectScope` (Card Framework adapter)
 
-There is no `IGraphScope` interface in the package. The Card Framework integration creates a `CardEffectRunner` that holds `IEffectScope` as a property; consumer-authored helper bases (e.g., `CommandDispatcherNode`) read from `runner.EffectScope` directly.
+There is no `IGraphScope` interface in the package. The Card Framework integration creates a `CardEffectRunner` that holds `IEffectScope` as a property; consumer-authored helper bases (e.g., `CardCommandDispatcher`) read from `runner.EffectScope` directly.
 
 For non-Card-Framework consumers, the same pattern applies: subclass `GraphRunner`, add the services you need, write helper bases that bridge package-generated nodes to your domain. The package never imports your domain types.
 
@@ -680,9 +786,12 @@ public sealed class GraphController<TRunner> where TRunner : GraphRunner {
     // One-time setup; walks the runtime tree for IInitializableNode<TRunner> instances
     public void Initialize(TRunner runner);
 
-    // Direct invocation of EntryPoints — payload type drives entry lookup
-    public ValueTask        Run<TEntry>(TEntry payload)      where TEntry : EntryPoint;
-    public ValueTask<bool>  Validate<TEntry>(TEntry payload) where TEntry : EntryPoint;
+    // Direct invocation of entry payloads — payload type drives entry lookup.
+    // Constraint is `class` because entry payloads can be either
+    // IGraphEntry<TRunner> (Mode 1) or descendants of [GraphPackage].EntryBase (Mode 2);
+    // both shapes are reference types but don't share a common base.
+    public ValueTask        Run<TEntry>(TEntry payload)      where TEntry : class;
+    public ValueTask<bool>  Validate<TEntry>(TEntry payload) where TEntry : class;
 
     // Listener access for the consumer to register/unregister with their pipeline
     public IReadOnlyList<ICommandListener<TRunner>> CommandListeners { get; }
@@ -752,46 +861,14 @@ The consumer's binding code is the only place that knows about zones, ownership,
 
 ## Vertical slice — minimum viable consumer
 
-Scenario: a fresh consumer of this package wants a graph with two nodes — `OnPlay` entry node wired into a `Log` action node — running in their game. Below is every file they write.
+Scenario: a fresh consumer wants a graph with two nodes — `OnPlay` entry → `Log` action — running in their game. Mode 1 (marker interfaces + `IExecutable<TRunner>`) so payloads are self-executing and there's exactly one class per node.
 
-### Files the consumer writes
-
-```csharp
-// ─────────────────────────────────────────────────────────────────
-// MyGame/Domain/Bases.cs
-// Domain base classes. Package never imports these; the generator
-// discovers them by name via [assembly: GraphConfig].
-// ─────────────────────────────────────────────────────────────────
-namespace MyGame
-{
-    public abstract class GraphEntry  { }
-    public abstract class GraphAction { }
-}
-```
-
-```csharp
-// ─────────────────────────────────────────────────────────────────
-// MyGame/Domain/Payloads.cs
-// Concrete node types. Adding a file here = a new node in the editor.
-// ─────────────────────────────────────────────────────────────────
-namespace MyGame
-{
-    public sealed class OnPlay : GraphEntry
-    {
-        public int CardId;       // → output port on the OnPlay entry node
-    }
-
-    public sealed class Log : GraphAction
-    {
-        public string Message;   // → input port on the Log action node
-    }
-}
-```
+### Files the consumer writes (4 files, ~50 lines)
 
 ```csharp
 // ─────────────────────────────────────────────────────────────────
 // MyGame/Runtime/MyRunner.cs
-// Per-execution context. Anything node logic needs at runtime lives here.
+// Per-execution context. Services-only. No editor/generator metadata.
 // ─────────────────────────────────────────────────────────────────
 namespace MyGame
 {
@@ -804,41 +881,29 @@ namespace MyGame
 
 ```csharp
 // ─────────────────────────────────────────────────────────────────
-// MyGame/Runtime/ActionDispatcher.cs
-// Helper base where domain behavior lives. Generator emits a concrete
-// subclass per GraphAction; this base defines the Execute body.
+// MyGame/Runtime/Payloads.cs
+// Concrete node types. Adding a file here = a new node in the editor.
+// IGraphEntry<MyRunner> / IGraphAction<MyRunner> = "belongs to MyRunner's package".
+// IExecutable<MyRunner> = "this payload executes itself; no DispatcherBase needed".
 // ─────────────────────────────────────────────────────────────────
 namespace MyGame
 {
-    public abstract class ActionDispatcher<TAction> : RuntimeNode<MyRunner>
-        where TAction : GraphAction, new()
+    public sealed class OnPlay : IGraphEntry<MyRunner>
     {
-        protected sealed override async ValueTask Execute(MyRunner runner)
-        {
-            var action = BuildPayload();          // generator-supplied
-            await Run(action, runner);            // consumer-supplied
-        }
+        public int CardId;     // → output port
 
-        protected abstract TAction   BuildPayload();
-        protected abstract ValueTask Run(TAction action, MyRunner runner);
+        // Entry payloads typically don't implement IExecutable —
+        // they're just data fired at the controller. The generated runtime
+        // node writes their fields to the output ports and advances flow.
     }
-}
-```
 
-```csharp
-// ─────────────────────────────────────────────────────────────────
-// MyGame/Runtime/LogBehavior.cs
-// Concrete behavior for the Log action. Generator emits
-//   class LogDispatcherRuntime : LogBehavior
-// and fills in BuildPayload() from the typed input slots.
-// ─────────────────────────────────────────────────────────────────
-namespace MyGame
-{
-    public sealed class LogBehavior : ActionDispatcher<Log>
+    public sealed class Log : IGraphAction<MyRunner>, IExecutable<MyRunner>
     {
-        protected override ValueTask Run(Log action, MyRunner runner)
+        public string Message; // → input port
+
+        public ValueTask Execute(MyRunner runner)
         {
-            runner.Logger.Log(action.Message);
+            runner.Logger.Log(Message);
             return default;
         }
     }
@@ -848,70 +913,31 @@ namespace MyGame
 ```csharp
 // ─────────────────────────────────────────────────────────────────
 // MyGame/AssemblyInfo.cs
-// Tells the generator what to look for and what helper base to extend.
+// One attribute. Multi-package projects stack multiple of these.
 // ─────────────────────────────────────────────────────────────────
-[assembly: GraphConfig(
-    EntryBases        = new[] { "MyGame.GraphEntry"  },
-    CommandBases      = new[] { "MyGame.GraphAction" },
+[assembly: GraphPackage(
+    Runner            = typeof(MyGame.MyRunner),
+    Extension         = "mygraph",
+    AssetMenu         = "MyGame/Graph",
     Convention        = PortConvention.AllFieldsIn,
-    RegistryNamespace = "MyGame.Graph.Generated",
-    DispatcherBase    = "MyGame.ActionDispatcher`1"
+    RegistryNamespace = "MyGame.Graph.Generated"
+    // No CommandBase / DispatcherBase — Mode 1.
 )]
-```
-
-```csharp
-// ─────────────────────────────────────────────────────────────────
-// MyGame/Editor/MyGraph.cs
-// Graph Toolkit hookup. Registers .mygraph extension + create menu.
-// ─────────────────────────────────────────────────────────────────
-namespace MyGame.EditorGraph
-{
-    [Graph("mygraph")]
-    public sealed class MyGraph : Graph<MyRunner>
-    {
-        [MenuItem("Assets/Create/MyGame/Graph")]
-        static void CreateNew() =>
-            GraphDatabase.PromptInProjectBrowserToCreateNewAsset<MyGraph>("New Graph");
-    }
-}
-```
-
-```csharp
-// ─────────────────────────────────────────────────────────────────
-// MyGame/Runtime/MyGraphAsset.cs
-// Concrete SO type — Unity can't serialize an open generic.
-// ─────────────────────────────────────────────────────────────────
-namespace MyGame
-{
-    public sealed class MyGraphAsset : GraphAsset<MyRunner> { }
-}
-```
-
-```csharp
-// ─────────────────────────────────────────────────────────────────
-// MyGame/Editor/MyGraphImporter.cs
-// Wires the bake pipeline to the .mygraph extension.
-// ─────────────────────────────────────────────────────────────────
-namespace MyGame.EditorGraph
-{
-    [ScriptedImporter(version: 1, ext: "mygraph")]
-    internal sealed class MyGraphImporter
-        : GraphAssetImporterBase<MyGraph, MyRunner, MyGraphAsset> { }
-}
 ```
 
 ```csharp
 // ─────────────────────────────────────────────────────────────────
 // MyGame/Components/GraphHost.cs
 // Game-side wiring. One per gameplay object that uses graphs.
+// MyGraphAsset is generator-emitted (see below).
 // ─────────────────────────────────────────────────────────────────
 namespace MyGame
 {
     public sealed class GraphHost : MonoBehaviour
     {
-        [SerializeField] MyGraphAsset graphAsset;
+        [SerializeField] MyGraphAsset graphAsset;     // designer drops .mygraph file here
 
-        GraphController<MyRunner> controller;
+        GraphController<MyRunner> controller;         // package-shipped sealed class
         MyRunner                  runner;
 
         void Awake()
@@ -934,18 +960,42 @@ namespace MyGame
 }
 ```
 
-That's the consumer surface — 10 small files, ~80 lines.
+That's it. **4 files.** No `Bases.cs`, no `MyGraph.cs`, no `MyGraphAsset.cs`, no `MyGraphImporter.cs`, no separate behavior classes — generator handles all of those, payload self-executes via `IExecutable`.
 
-### What the generator emits
+### What the generator emits (consumer never writes any of this)
+
+#### Per-package trio
 
 ```csharp
-// Generated from: OnPlay : GraphEntry
+// AUTO-GENERATED — from [assembly: GraphPackage(Runner = typeof(MyRunner), ...)]
 namespace MyGame.Graph.Generated
 {
-    // Editor-side: Graph Toolkit Node subclass
+    [Graph("mygraph")]
+    public partial class MyGraph : Graph<MyRunner>
+    {
+        [MenuItem("Assets/Create/MyGame/Graph")]
+        static void CreateNew() =>
+            GraphDatabase.PromptInProjectBrowserToCreateNewAsset<MyGraph>("New Graph");
+    }
+
+    public sealed class MyGraphAsset : GraphAsset<MyRunner> { }
+
+    [ScriptedImporter(version: 1, ext: "mygraph")]
+    internal sealed class MyGraphImporter
+        : GraphAssetImporterBase<MyGraph, MyRunner, MyGraphAsset> { }
+}
+```
+
+`MyGraph` is `partial` so the consumer can extend it with custom `OnGraphChanged`, additional menu items, etc. without losing the auto-emitted bits. If the consumer hand-writes any of the three (e.g. to bump the importer version), the generator detects the existing declaration and skips emission for that one.
+
+#### Per-payload nodes
+
+```csharp
+// AUTO-GENERATED — from OnPlay : IGraphEntry<MyRunner>
+namespace MyGame.Graph.Generated
+{
     public sealed class OnPlayEditorNode : Node { /* output port: CardId */ }
 
-    // Runtime-side: typed RuntimeNode with port-ID switches
     public sealed class OnPlayRuntime : RuntimeNode<MyRunner>
     {
         public static class Ports
@@ -964,30 +1014,30 @@ namespace MyGame.Graph.Generated
         public override void BindInput(int portId, Connection connection) =>
             throw new ArgumentOutOfRangeException(nameof(portId));   // no inputs
 
-        public override ValueTask Execute(MyRunner runner) { /* set _out_CardId, walk flow */ }
+        public override ValueTask Execute(MyRunner runner) { /* write _out_CardId, walk flow */ }
     }
 }
 ```
 
 ```csharp
-// Generated from: Log : GraphAction (with DispatcherBase = ActionDispatcher`1)
+// AUTO-GENERATED — from Log : IGraphAction<MyRunner>, IExecutable<MyRunner>
+// Decision: payload implements IExecutable<MyRunner> → emit self-executing runtime node.
 namespace MyGame.Graph.Generated
 {
     public sealed class LogDispatcherEditorNode : Node { /* input port: Message */ }
 
-    // Inherits the consumer's helper base, which inherits RuntimeNode<MyRunner>.
-    public sealed class LogDispatcherRuntime : LogBehavior
+    public sealed class LogDispatcherRuntime : RuntimeNode<MyRunner>
     {
         public static class Ports
         {
             public const int Message = 0x77E1_3C20;   // FNV-1a("Message")
         }
 
-        public string Message;                                       // inline default (serialized)
-        [NonSerialized] public Connection<string> _in_Message;       // wired at hydration
+        public string Message;                                  // inline default (serialized)
+        [NonSerialized] public Connection<string> _in_Message;  // wired at hydration
 
         public override Connection GetOutputConnection(int portId) =>
-            throw new ArgumentOutOfRangeException(nameof(portId));   // no outputs
+            throw new ArgumentOutOfRangeException(nameof(portId));
 
         public override void BindInput(int portId, Connection connection)
         {
@@ -998,15 +1048,18 @@ namespace MyGame.Graph.Generated
             }
         }
 
-        protected override Log BuildPayload() => new Log
+        public override ValueTask Execute(MyRunner runner)
         {
-            Message = _in_Message != null ? _in_Message.Read() : this.Message,
-        };
+            var payload = new Log
+            {
+                Message = _in_Message != null ? _in_Message.Read() : this.Message,
+            };
+            return payload.Execute(runner);   // delegates to IExecutable.Execute
+        }
     }
 
-    // Listener + Return forms emitted alongside (since Log is in CommandBases) — same shape.
+    // Listener + Return forms emitted alongside (Log is action-shaped) — same pattern.
 
-    // Generator-emitted registry: editor type → runtime type + port-name → port-ID
     public static partial class Registry
     {
         public static void Register(IRegistryBuilder b)
@@ -1021,28 +1074,67 @@ namespace MyGame.Graph.Generated
 }
 ```
 
+### Mode 2 contrast — Card Framework, payloads untouched
+
+```csharp
+// MyGame/AssemblyInfo.cs — declares package using the existing Card Framework hierarchy
+[assembly: GraphPackage(
+    Runner         = typeof(CardEffectRunner),
+    Extension      = "card",
+    AssetMenu      = "Effects/Card Effect",
+    Convention     = PortConvention.CommandResultPair,
+    CommandBase    = typeof(Command<>),                      // existing CF base
+    DispatcherBase = typeof(CardCommandDispatcher<,>)        // consumer-supplied helper
+)]
+
+// Card Framework's payload — no marker interface, no IExecutable, no graph attributes
+public sealed record Strike : Command<StrikeResult>
+{
+    public int    Magnitude;
+    public Player Owner;
+}
+
+// Consumer's helper base — written once, applies to every Command<,> in the package
+public abstract class CardCommandDispatcher<TCmd, TResult> : RuntimeNode<CardEffectRunner>
+    where TCmd : Command<TResult>, new()
+{
+    protected sealed override async ValueTask Execute(CardEffectRunner runner)
+    {
+        var cmd    = BuildPayload();                          // generator-supplied
+        var result = await runner.EffectScope.Dispatch(cmd);  // CF pipeline
+        WriteOutputs(result);                                 // generator-supplied
+    }
+    protected abstract TCmd BuildPayload();
+    protected abstract void WriteOutputs(TResult result);
+}
+```
+
+`Strike` stays a clean Card Framework record. The generator emits `class StrikeDispatcherRuntime : CardCommandDispatcher<Strike, StrikeResult>` and fills in `BuildPayload()` / `WriteOutputs()` from the typed input/output port slots. Same per-package trio (`CardEffectGraph`, `CardEffectGraphAsset`, `CardEffectGraphImporter`) auto-emitted.
+
 ### What the package provides
 
 - `GraphRunner`, `Graph<TRunner>`, `RuntimeNode<TRunner>`, `Connection`/`Connection<T>`
+- `IGraphEntry<TRunner>`, `IGraphAction<TRunner>`, `IExecutable<TRunner>` (marker + capability interfaces)
 - `GraphAsset<TRunner>`, `GraphAssetImporterBase<TGraph, TRunner, TAsset>`
-- `GraphController<TRunner>`, `GraphBaker`, `GraphExecutor<TRunner>`
+- `GraphController<TRunner>` (sealed class, not a base — instantiated by the consumer)
+- `GraphBaker`, `GraphExecutor<TRunner>`
 - Built-in generic nodes (`Branch`, `Cancel`, `Replace`, `Return`, `ReturnBool`, predicates, math, conversions) — typed over any consumer's runner
-- Source generator (Roslyn incremental) and an attributes-only DLL (`[GraphConfig]`, `[GraphPort]`, `[GraphHidden]`, `[GraphMenu]`, `[In]`, `[Out]`)
+- Source generator (Roslyn incremental) and an attributes-only DLL (`[GraphPackage]`, `[GraphPort]`, `[GraphHidden]`, `[GraphMenu]`, `[In]`, `[Out]`)
 
-### End-to-end runtime trace
+### End-to-end runtime trace (Mode 1)
 
-1. **Compile.** Generator runs → emits `OnPlayRuntime`, `LogDispatcherRuntime`, `Registry`. `GraphHost.cs` and `LogBehavior.cs` reference real types.
-2. **Author.** Designer right-clicks in project → "Create / MyGame / Graph" → `Foo.mygraph` opens in Graph Toolkit. Drops `OnPlay`, drops `LogDispatcher`, wires `OnPlay.CardId` → `[ToString]` (built-in) → `LogDispatcher.Message`. Saves.
+1. **Compile.** Generator runs → emits the per-package trio (`MyGraph`, `MyGraphAsset`, `MyGraphImporter`), per-payload nodes (`OnPlayRuntime`, `LogDispatcherRuntime`), and `Registry`. `GraphHost.cs` references `MyGraphAsset` (now a real type).
+2. **Author.** Designer right-clicks in project → `Create / MyGame / Graph` → `Foo.mygraph` opens in Graph Toolkit. Drops `OnPlay`, drops `LogDispatcher`, wires `OnPlay.CardId` → `[ToString]` (built-in) → `LogDispatcher.Message`. Saves.
 3. **Bake.** Unity re-imports `Foo.mygraph` → `MyGraphImporter.OnImportAsset` → `GraphBaker` walks the editor graph, assigns stable `nodeId`s (`editorGuid → int` map, persisted on each runtime node), resolves port names to `portId`s through `Registry`, emits a `MyGraphAsset` SO with three runtime nodes and two `ConnectionRecord`s. `ctx.SetMainObject(asset)`.
 4. **Reference.** Designer drops `Foo.mygraph` onto `GraphHost.graphAsset` field on a prefab. The reference points at the runtime SO inside the file (the main object).
 5. **Hydrate.** Game runs, `Awake()` builds `MyRunner`, constructs `GraphController<MyRunner>(graphAsset)`, calls `Initialize(runner)`. Hydration indexes nodes by id, walks each `ConnectionRecord` calling `from.GetOutputConnection(fromPortId)` then `to.BindInput(toPortId, conn)` — every `Connection<T>` slot is now populated.
 6. **Run.** `Play()` calls `controller.Run(new OnPlay { CardId = 42 })`. Executor looks up `typeof(OnPlay)` → root node → runs flow:
    - `OnPlayRuntime.Execute` writes `_out_CardId = 42`, advances flow.
    - `ToStringRuntime` reads `_in_Value.Read()` (= 42), writes `_out_Result = "42"`.
-   - `LogDispatcherRuntime.Execute` calls `BuildPayload()` (reads `_in_Message.Read()` = "42"), passes `new Log { Message = "42" }` to `LogBehavior.Run`.
+   - `LogDispatcherRuntime.Execute` constructs `new Log { Message = "42" }`, calls `payload.Execute(runner)`.
    - `runner.Logger.Log("42")` fires.
 
-That's the complete slice from designer-authored file to runtime side-effect. Every layer between is either package code, generator output, or one-line consumer glue.
+That's the complete slice from designer-authored file to runtime side-effect. Consumer surface = 4 files. Everything else is package code, generator output, or designer-authored graph files.
 
 ---
 
@@ -1113,68 +1205,84 @@ Implemented via Graph Toolkit's `OnGraphChanged(GraphLogger)` hook on the consum
 
 ## Phasing
 
-### Milestone 1 — Foundation (1 week)
+The first two milestones deliberately split the design risk from the meta-tooling risk: M0 hand-writes one of every shape so we validate the architecture against runtime + editor + Unity end-to-end **before** writing a Roslyn generator. M1 then builds the generator with M0 as the golden output. If anything in the design (Connection<T>, [SerializeReference] polymorphism, port-ID switches, hydration, nodeId stability) turns out to be wrong, M0 surfaces it cheaply. M1 inherits a known-good template.
 
-- Project structure: package layout, asmdefs, package manifest
-- Attributes-only DLL: `[In]`, `[Out]`, `[GraphHidden]`, `[GraphPort]`, `[GraphMenu]`, `[NoGraphNode]`
-- `GraphConfig` attribute and convention enum
-- Generator skeleton: read config, locate base-type descendants, emit a stub file per type
-- One end-to-end test: a trivial `EntryPoint` → walks through the generator → emits a node class → loads in Graph Toolkit
+### Milestone 0 — Hand-written vertical slice (1.5–2 weeks)
 
-### Milestone 2 — Generator (1.5 weeks)
+**Goal:** prove the architecture compiles, links, bakes, hydrates, and executes end-to-end with no source generator anywhere in the loop. Real `.ext` file on disk → real bake → real ScriptableObject asset → loaded in a player build → `controller.Run` → assert side effect.
 
-- `CommandResultPair` convention strategy
-- Per-payload emission: editor Dispatcher / Listener / Return nodes
-- Per-payload emission: runtime nodes
-- Per-payload `Ports` constants + generated `BindInput` / `GetOutputConnection` switch overrides
-- Registry partial-class emission
-- Diagnostics: EFG001 (config required), EFG005 (missing result pair)
-- `AttributedFields` convention (validates the generator's strategy abstraction)
+The hand-written code must be **representative**, not corner-cut. Validation hinges on the slice being the real shape:
 
-### Milestone 3 — Asset lifecycle + runtime (1.5 weeks)
+- Project structure: package layout, asmdefs, package manifest. Attributes-only DLL is empty/stubbed.
+- Package runtime base classes: `GraphRunner`, `RuntimeNode<TRunner>`, `Connection`/`Connection<T>`, `IGraphEntry<TRunner>`, `IGraphAction<TRunner>`, `IExecutable<TRunner>`, `IInitializableNode<TRunner>`, `IListenerNode<TRunner>`.
+- Package asset/import: `GraphAsset<TRunner>`, `GraphAssetImporterBase<TGraph, TRunner, TAsset>`, `GraphBaker` (real implementation: walks nodes/edges, assigns stable nodeIds, resolves port names → port IDs, emits `ConnectionRecord`s, validates).
+- Package execution: `GraphExecutor<TRunner>`, `GraphController<TRunner>` (sealed).
+- A test consumer (smoke project): one runner + one entry payload + one action payload, plus the per-package trio (`<R>Graph`, `<R>GraphAsset`, `<R>GraphImporter`) and per-payload nodes — **all hand-written**.
+- The runtime nodes have the real shape: `static class Ports` with `const int` IDs, `[NonSerialized] Connection<T>` slots, `BindInput` / `GetOutputConnection` switches with the `Delegate → Connection<T>` casts. No "I'll just call setters directly for now."
+- The asset is a real `[SerializeReference] List<RuntimeNode<TRunner>>` SO stored as a sub-asset via `ctx.SetMainObject`.
+- The connection records are the real four-int form `(fromNodeId, fromPortId, toNodeId, toPortId)`.
+- Hydration does the real two-virtual-call wiring: `from.GetOutputConnection(portId)` then `to.BindInput(portId, conn)`.
+- End-to-end test: file on disk → reimport → load asset in **a built player** (not just edit-mode) → `controller.Run` → assert side effect. Validates the build path, not just the editor path.
 
-- `GraphRunner` abstract base class
-- `Graph<TRunner>` package base for consumer editor-graph subclasses
-- `RuntimeNode<TRunner>`, `IInitializableNode<TRunner>`, `IListenerNode<TRunner>` interfaces
-- `GraphAsset<TRunner>` abstract runtime `ScriptableObject` base + record types (`ConnectionRecord`, `EntryIndex`); consumer ships a one-line concrete subclass like `CardEffectGraphAsset : GraphAsset<CardEffectRunner>` (no variables collection in v1)
-- `GraphAssetImporterBase<TGraph, TRunner>` — package-shipped reusable importer base
-- `GraphBaker` — walks nodes/edges, extracts port values via `port.firstConnectedPort` / `port.TryGetValue`, emits records, validates (no variable-name resolution in v1)
-- `GraphExecutor<TRunner>` async tree walker
-- `GraphController<TRunner>` API surface
-- End-to-end test (consumer-side smoke project): create `.cardgraph` → edit → re-import → hydrate → run → assert side effects
+**Discipline note:** the temptation during M0 will be to keep adding payloads manually because it works. The line is sharp — exactly one of each shape (one entry, one action via `IExecutable`, one action via `DispatcherBase` if we want to validate Mode 2 too), then stop and start M1.
 
-### Milestone 4 — Editor authoring (1.5 weeks)
+### Milestone 1 — Source generator parity (1.5–2 weeks)
 
-- Hand-written generic nodes (Cancel, Replace, Return, Return Bool, Branch, predicates, math, conversions) — generic over `TRunner`
-- Validate / Run flow port handling on generated entry / listener nodes
-- `[Return Strike]` (and friends) typed terminator with unwired-default semantics
-- `OnGraphChanged` edit-time validation rules
-- (No blackboard panel — deferred to v2)
+**Goal:** the generator emits exactly what M0 wrote by hand. Delete the M0 hand-written nodes; generator produces them. M0's end-to-end test still passes unchanged.
 
-### Milestone 5 — Card Framework integration (1 week)
+- Attributes-only DLL: `[GraphPackage]`, `[GraphPort]`, `[GraphHidden]`, `[GraphMenu]`, `[In]`, `[Out]`. `PortConvention` enum.
+- Roslyn incremental generator skeleton: read `[assembly: GraphPackage]`, partition payloads by runner, locate base-type / marker-interface descendants.
+- Per-package emission: `<R>Graph` (partial), `<R>GraphAsset`, `<R>GraphImporter` trio. Skip emission if the consumer hand-wrote one.
+- Per-payload emission: editor `Node` subclasses (Dispatcher / Listener / Return for actions; one Entry node for entries).
+- Per-payload runtime emission: `static class Ports` constants, `[NonSerialized] Connection<T>` slots, `BindInput` / `GetOutputConnection` switches.
+- Per-payload execution path: `IExecutable<TRunner>` detection → self-executing `Execute`; otherwise `DispatcherBase` close + `BuildPayload`/`WriteOutputs` emission.
+- Registry partial-class emission (editor type → runtime type + port-name → port-ID).
+- Conventions: `CommandResultPair` and `AttributedFields` (the two that exercise the strategy abstraction).
+- Diagnostics: `EFG005` (missing result pair), `EFG007` (no execution path), `EFG008` (multi-package binding).
+- Snapshot tests: take the M0 hand-written file, run the generator on the corresponding payload, diff against the hand-written file. Generator is correct iff diff is empty.
 
-- `CardEffectRunner : GraphRunner` with `IEffectScope`, host references, services
-- `CardEffectGraph : Graph<CardEffectRunner>` editor subclass + `[ScriptedImporter]` importer subclass
-- Helper bases: `CommandDispatcherNode<TCmd, TResult>`, `CommandListenerNode<TCmd, TResult>`, `ReturnPayloadNode<TCmd>`, `EntryPointNode<TEntry>` — all `RuntimeNode<CardEffectRunner>`
-- `ICommandListener<CardEffectRunner>` adapter to the framework's pipeline registration interface
-- One real card authored end-to-end (recreate `500 Strike` from Overknights)
-- Documented integration recipe
+### Milestone 2 — Editor authoring (1.5 weeks)
 
-### Milestone 6 — Polish (1 week)
+- Hand-written generic nodes (Cancel, Replace, Return, Return Bool, Branch, predicates, math, conversions) — generic over `TRunner`.
+- Validate / Run flow port handling on generated entry / listener nodes.
+- `[Return Strike]` (and friends) typed terminator with unwired-default semantics.
+- `OnGraphChanged` edit-time validation rules.
+- (No blackboard panel — deferred to v2.)
 
-- Remaining built-in conventions (`MutableInReadOnlyOut`, `AllFieldsIn`)
-- Diagnostics EFG002–EFG006
-- Per-type escape-hatch attribute handling
-- Editor menu organization (`[GraphMenu]`)
-- Documentation: package README, conventions guide, "writing a payload" tutorial
+### Milestone 3 — Card Framework integration (1 week)
 
-**Total estimate:** ~7-8 weeks of focused work for v1.
+- `CardEffectRunner : GraphRunner` with `IEffectScope`, host references, services.
+- `[assembly: GraphPackage(Runner = typeof(CardEffectRunner), CommandBase = typeof(Command<>), DispatcherBase = typeof(CardCommandDispatcher<,>), ...)]` — Mode 2 binding, payloads untouched.
+- Helper bases: `CardCommandDispatcher<TCmd, TResult>`, `CardCommandListener<TCmd, TResult>`, `ReturnPayloadNode<TCmd>`, `CardEntryPointNode<TEntry>` — all `RuntimeNode<CardEffectRunner>`.
+- `ICommandListener<CardEffectRunner>` adapter to the framework's pipeline registration interface.
+- One real card authored end-to-end (recreate `500 Strike` from Overknights).
+- Documented integration recipe.
+- Decision pass on whether `EntryNodeBase` / `ListenerBase` / `ReturnBase` actually pulled weight; drop the unused ones from `[GraphPackage]` if so.
+
+### Milestone 4 — Polish (1 week)
+
+- Remaining built-in conventions (`MutableInReadOnlyOut`, `AllFieldsIn`).
+- Diagnostics EFG002–EFG006.
+- Per-type escape-hatch attribute handling.
+- Editor menu organization (`[GraphMenu]`).
+- Documentation: package README, conventions guide, "writing a payload" tutorial, "how to add a graph package" tutorial.
+
+**Total estimate:** ~7–8 weeks of focused work for v1.
 
 ---
 
 ## v2 follow-ups
 
 Tracked but explicitly out of scope for v1.
+
+### Asset-backed config + wizard UX (priority)
+
+Phase 2 / Phase 3 of `[GraphPackage]` config (specced in the Source generator > Configuration section). Two stages, additive on the v1 attribute form:
+
+- **Phase 2.** A `GraphPackageConfigAsset` ScriptableObject with a custom inspector (type pickers for runner/bases, dropdown for convention, text fields for extension/menu). On save, a custom Editor regenerates a hidden `<name>.g.cs` partial containing the equivalent `[assembly: GraphPackage(...)]`. Roslyn generator stays oblivious. `AssetPostprocessor` overwrites the `.g.cs` unconditionally on asset change; header comment marks it auto-generated.
+- **Phase 3.** Project-window menu `Create > Graph Package` walks the user through runner type (or scaffolds a new one), extension, convention, base bindings, asset menu name. Outputs the asset + the runner stub + (via Phase 2's regen) the `.g.cs`. Designers and gameplay programmers never touch the attribute syntax.
+
+Both phases are pure UX layers — no generator contract change, no breaking change for v1 consumers.
 
 ### Macros / sub-graphs (priority)
 
@@ -1252,7 +1360,9 @@ All previously-open architecture questions are resolved:
 | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Blackboard / variables          | **No blackboard in v1.** Designer constants as inline embedded port values. Host-injected references on the consumer's runner. Full blackboard deferred to v2.                                                                                                                                                                                                 |
 | Runtime context                 | `**GraphRunner` abstract base class, generic `RuntimeNode<TRunner>`.** Consumer subclasses `GraphRunner` with their own services. Package has no opinion on what's on the runner.                                                                                                                                                                              |
-| Editor `Graph` subclass         | **Mandatory, hand-written by consumer (~5 lines).** Not auto-generated; preserves consumer freedom to extend.                                                                                                                                                                                                                                                  |
+| Editor `Graph` subclass         | **Auto-emitted by the generator** as `<R>Graph : Graph<TRunner>` (`partial class` so the consumer can extend it). Same applies to `<R>GraphAsset` and `<R>GraphImporter`. Consumer can hand-write any of the three to override; generator skips emission for the overridden one.                                                                                |
+| Payload-to-package binding      | **Two modes per `[GraphPackage]`:** (1) marker interface `IGraphAction<TRunner>` / `IGraphEntry<TRunner>` for fresh code; (2) `CommandBase = typeof(...)` / `EntryBase = typeof(...)` config for wrapping existing domain hierarchies (Card Framework's `Command<>`). Generator unions both sources per runner.                                                  |
+| Per-payload execution           | **`IExecutable<TRunner>` on the payload wins**, otherwise generator emits a subclass of `[GraphPackage].DispatcherBase`. Mixed within one package is allowed. Missing both → `EFG007`.                                                                                                                                                                          |
 | Host-injected references        | **Consumer concern.** Package defines no contract; consumer's runner exposes whatever properties it wants and writes whatever accessor nodes it needs.                                                                                                                                                                                                         |
 | Asset versioning                | **(d) Strict load + ScriptedImporter version bump.** No migration system. Bumping `[ScriptedImporter(version: N)]` triggers Unity to re-import all graphs from source. The consumer's source-graph files (whichever extension they pick) are the durable artifact; runtime assets are derived and rebakeable. Soft warning logged on `schemaVersion` mismatch. |
 | Source generator implementation | **Roslyn incremental source generator** (`IIncrementalGenerator`). Modern API, better build performance, the only sensible choice on current toolchains.                                                                                                                                                                                                       |
