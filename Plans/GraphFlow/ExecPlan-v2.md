@@ -37,7 +37,7 @@ The reference for the **designer-facing surface** is the existing FlowCanvas-bas
 ┌────────────────────────────────────────────────────────────────────┐
 │  CONSUMER (e.g. Overknights game)                                  │
 │  • Defines payload types (GameCommand subclasses, EntryPoint subs)  │
-│  • Declares [assembly: EffectGraphConfig(...)]                     │
+│  • Declares [assembly: GraphConfig(...)]                     │
 │  • Game code drives controller.Invoke<T>() and listener registration│
 └──────────────────┬─────────────────────────────────────────────────┘
                    │
@@ -54,12 +54,12 @@ The reference for the **designer-facing surface** is the existing FlowCanvas-bas
 │               │    │  ├─ Runtime assembly                         │
 │               │    │  │  • GraphRunner (abstract base)            │
 │               │    │  │  • RuntimeNode<TRunner> base              │
-│               │    │  │  • EffectGraphController<TRunner>         │
+│               │    │  │  • GraphController<TRunner>         │
 │               │    │  │  • GraphExecutor<TRunner> (tree walker)   │
 │               │    │  │  • IInitializableNode<TRunner> / IListenerNode<TRunner> │
-│               │    │  │  • EffectGraphAsset ScriptableObject      │
+│               │    │  │  • GraphAsset<TRunner> ScriptableObject   │
 │               │    │  └─ Generator assembly (Roslyn)              │
-│               │    │     • [assembly: EffectGraphConfig] reader   │
+│               │    │     • [assembly: GraphConfig] reader   │
 │               │    │     • Convention strategies (4 built-in)     │
 │               │    │     • Per-type emission                      │
 └───────────────┘    └─────────────────────────────────────────────┘
@@ -205,7 +205,7 @@ Implemented via Graph Toolkit's `OnGraphChanged(GraphLogger)`:
 The consumer declares a single assembly-level attribute:
 
 ```csharp
-[assembly: EffectGraphConfig(
+[assembly: GraphConfig(
     CommandBases = new[] { "MyGame.GameCommand`1" },
     EntryBases   = new[] { "MyGame.EntryPoint" },
     Convention   = PortConvention.CommandResultPair,
@@ -291,7 +291,7 @@ The editor graph never runs. The runtime asset is what game code references and 
 
 ### Asset lifecycle (single source file, dual representation)
 
-Following Unity's `VisualNovelDirector` sample: **one source file on disk** (with an extension the consumer picks — e.g. `.cardgraph` for the Card Framework integration) holds both the editor graph (hidden, for re-editing) and the imported runtime asset (the `SetMainObject`, what consumers reference). Designers drag the file into a `EffectGraphAsset` field and get the runtime form directly.
+Following Unity's `VisualNovelDirector` sample: **one source file on disk** (with an extension the consumer picks — e.g. `.cardgraph` for the Card Framework integration) holds both the editor graph (hidden, for re-editing) and the imported runtime asset (the `SetMainObject`, what consumers reference). Designers drag the file into a `GraphAsset<TRunner>` field (or a consumer-defined concrete subclass like `CardEffectGraphAsset`) and get the runtime form directly.
 
 **Custom Graph subclass** — registers the file extension and is the Graph Toolkit edit-time asset type. Written by the consumer (illustrated here as `CardEffectGraph` for the Card Framework integration; non-card consumers write their own analogue):
 
@@ -379,41 +379,55 @@ A graph that passes `OnGraphChanged` validation can still **fail to bake**. That
 
 The runtime asset is a real Unity `ScriptableObject` — added as a sub-asset and made the main object via `ctx.SetMainObject` (same pattern as the VisualNovelDirector sample). That means: it survives builds, ships through Addressables, can be referenced from prefabs and scenes by GUID, shows up in the Inspector. **It is an asset, not a serializable POCO.** The editor graph stays inside the same source file as a non-main object; nothing at runtime touches it.
 
-Serialization is **plain Unity ScriptableObject serialization** — we ride Unity's machinery, we do not layer a custom one on top:
+Serialization is **plain Unity ScriptableObject serialization** — we ride Unity's machinery, we do not layer a custom one on top.
+
+The package ships an **abstract, runner-typed base class**. The package is game-agnostic; it never names "effect" or anything domain-specific. Consumers (Card Framework, Overknights, anyone) subclass it concretely:
 
 ```csharp
-public sealed class EffectGraphAsset : ScriptableObject {
-    [SerializeReference] public List<RuntimeNode>            nodes;        // typed, polymorphic
-    public                List<RuntimeConnectionRecord>      connections;
-    public                List<EntryIndex>                   entryIndex;
-    public                int                                schemaVersion;
+// PACKAGE — game-agnostic
+[Serializable]
+public abstract class RuntimeNode<TRunner> where TRunner : GraphRunner {
+    public string nodeId;             // stable guid, assigned at bake, persisted in the asset
+    // generator-emitted subclasses carry their typed inline-value fields directly
+    public abstract ValueTask Execute(TRunner runner);
 }
 
 [Serializable]
-public abstract class RuntimeNode {
-    public string nodeId;             // stable guid (consistent across re-imports)
-    // generated subclasses carry their typed inline-value fields directly:
-    //   public sealed class StrikeDispatcherRuntime : RuntimeNode<CardEffectRunner> {
-    //       public int   Magnitude;
-    //       public Card  Target;
-    //       ...
-    //   }
-}
-
-[Serializable]
-public struct RuntimeConnectionRecord {
+public struct ConnectionRecord {
     public string fromNodeId;
     public int    fromPortIndex;       // resolved at bake time, not edit-time port name
     public string toNodeId;
     public int    toPortIndex;
 }
+
+[Serializable]
+public struct EntryIndex {
+    public string entryTypeId;         // payload type id from the registry
+    public string rootNodeId;          // the runtime root for that entry
+}
+
+public abstract class GraphAsset<TRunner> : ScriptableObject where TRunner : GraphRunner {
+    [SerializeReference] public List<RuntimeNode<TRunner>> nodes;          // typed, polymorphic
+    public                List<ConnectionRecord>           connections;
+    public                List<EntryIndex>                 entries;
+    public                int                              schemaVersion;
+}
 ```
+
+Concrete subclass example, written by the Card Framework integration (any other consumer follows the same shape):
+
+```csharp
+// CONSUMER — Card Framework adapter
+public sealed class CardEffectGraphAsset : GraphAsset<CardEffectRunner> { }
+```
+
+The concrete subclass exists because Unity needs a concrete `ScriptableObject` type per asset (it can't serialize an open generic). It's a one-line file. Designers drag this into `CardEffectGraphAsset` fields; non-card consumers define their own analogous one (e.g. `DialogueGraphAsset : GraphAsset<DialogueRunner>`).
 
 Why typed `[SerializeReference]` nodes instead of an opaque `byte[] serializedConstants` blob: the source generator already emits a runtime class per payload type, so each node has a known C# shape. Storing that shape directly means
 
 - Unity serializes fields normally — `Sprite`, `AssetReferenceT<>`, `UnityEngine.Object` references all patch up correctly through the build pipeline (the VND sample relies on this for `BackgroundSprite`).
 - The runtime asset is Inspector-debuggable.
-- Hydration reads already-typed objects; no per-node `Deserialize(blob)` step, no `typeId` string lookup at load time (the C# type *is* the identity).
+- Hydration reads already-typed objects; no per-node `Deserialize(blob)` step, no `typeId` string lookup at load time (the C# type *is* the identity for already-instantiated nodes).
 - No hand-written serializer/deserializer to maintain.
 
 `typeId` strings still exist, but only at the **registry/bake** layer — they're how the baker maps a Graph Toolkit editor node to the runtime node class to instantiate. Once instantiated and stored in the asset, the runtime carries the live typed instance.
@@ -425,19 +439,50 @@ Two concrete differences from the editor connections:
 - **Port references are integer indices**, not names. The baker maps editor port names (designer-visible labels) to integer indices (registry-stable, source-gen-determined). Faster lookup, immune to editor-side label rename if we ever support it.
 - **Connection records reference runtime node ids only.** Editor-only helper nodes that get inlined or dropped during bake do not appear.
 
+#### Connection model — references survive via stable IDs, not pointers
+
+This is the core thing that has to work and the thing VND does **not** exercise (VND is a linear sequence with no port-to-port connections). The reference model is FlowCanvas-shaped:
+
+- Every runtime node carries a stable `nodeId` string (guid), assigned at first bake and persisted across re-imports — same id on the same node before and after a re-bake unless the node is destroyed and recreated by the designer.
+- Every wire becomes a `ConnectionRecord` containing **both endpoints' ids** plus the integer port indices on each side. There is no direct C# reference between nodes inside the asset — the asset only holds id strings + ints, which Unity serializes losslessly.
+- At load time the executor resolves `fromNodeId`/`toNodeId` against an in-memory `Dictionary<string, RuntimeNode<TRunner>>` to recover the live references, then wires the source's output port at `fromPortIndex` to the target's input port at `toPortIndex` using the source-generated accessor delegates.
+
+That's the durable artifact: the connection between A's port X and B's port Y is "two ids and two ints" in the SO. Unity's serializer handles it without any custom pipeline. References get re-resolved fresh on every load.
+
 **Editor positions are not in the runtime asset** — they live in the editor graph (Graph Toolkit handles them). Round-trip editing works because reopening the file shows the editor graph, not the runtime asset.
 
-### Hydration
+### Hydration — turning records into a wired runtime tree
 
-At game time, `EffectGraphController<TRunner>.Initialize(runner)` constructs the in-memory runtime tree from the asset. Because nodes are stored as typed `[SerializeReference]` instances with their inline-value fields already populated by Unity, hydration is mostly **wiring**, not reconstruction:
+This is the step the implementer needs to execute exactly right, because it's where serialized records become a live, port-wired tree the executor can walk. `GraphController<TRunner>.Initialize(runner)` is the entry point.
 
-1. The `nodes` list is already a list of live, typed `RuntimeNode<TRunner>` subclass instances — Unity deserialized them when the asset loaded. No registry lookup, no blob deserialization at this point.
-2. Build a `Dictionary<string, RuntimeNode<TRunner>>` keyed by `nodeId` for connection resolution.
-3. For each `RuntimeConnectionRecord`, set up the port-binding delegate from the source node's output to the target node's input. Delegates come from the source-generated accessor tables — no reflection.
-4. Build the entry-point lookup: `Dictionary<Type, RuntimeNode<TRunner>>` for fast `Invoke<T>` dispatch.
-5. Walk the tree once calling `Initialize(runner)` on `IInitializableNode<TRunner>` instances; collect `IListenerNode<TRunner>` instances for the consumer.
+Pre-condition when `Initialize` is called: the consumer has loaded a `GraphAsset<TRunner>` (Resources, Addressables, direct reference — doesn't matter to the controller). Unity has already deserialized the asset, so:
 
-Hydration is paid once per controller. After it, the executor walks pointer references and invokes delegates — no string-keyed lookups in the hot path.
+- `asset.nodes` is a `List<RuntimeNode<TRunner>>` of **live, typed instances** with their inline-value fields populated. No factory step needed.
+- `asset.connections` is a `List<ConnectionRecord>` of `(fromNodeId, fromPortIndex, toNodeId, toPortIndex)` tuples.
+- `asset.entries` is a `List<EntryIndex>` mapping payload type id → root `nodeId`.
+
+Hydration steps, in order:
+
+1. **Index nodes by id.** Build `var byId = new Dictionary<string, RuntimeNode<TRunner>>(asset.nodes.Count);` then `foreach (var n in asset.nodes) byId.Add(n.nodeId, n);`. This is the dictionary used to resolve every connection's endpoints.
+
+2. **Wire connections.** For each `ConnectionRecord c`:
+   - `var from = byId[c.fromNodeId]; var to = byId[c.toNodeId];`
+   - Look up the source-generated accessor table for the source node's runtime type to get the **getter delegate** for `fromPortIndex` (returns the typed output value).
+   - Look up the accessor table for the target node's type to get the **setter delegate** for `toPortIndex` (writes the typed input field).
+   - Compose them into a single port-binding delegate stored on the target node, keyed by input-port index, of shape "when this input is read, call source.GetOutput(fromPortIndex)" — or equivalently, push the source's output value into the target's input slot at flow time. Exact delegate shape lives in the runtime helper alongside the executor; the contract is "no reflection, no string lookup, no `port.TryGetValue` at game time."
+   - The accessor tables come from the generator's per-payload emission (one `Func<T, V>` getter and `Action<T, V>` setter per port). They're keyed by the runtime node's C# type, so no string ids cross into the hot path after this step.
+
+3. **Build the entry index.** `var entryByType = new Dictionary<Type, RuntimeNode<TRunner>>();` Walk `asset.entries`, look up the payload `Type` for each `entryTypeId` in the registry, find the root node by id, populate the dictionary. This is what `Run<TEntry>(payload)` and `Validate<TEntry>(payload)` look up at dispatch time.
+
+4. **Lifecycle pass.** Walk `asset.nodes` once and:
+   - For any node implementing `IInitializableNode<TRunner>`, call `Initialize(runner)`. Nodes can cache typed services off the runner here.
+   - For any node implementing `IListenerNode<TRunner>`, collect it into `CommandListeners` for the consumer to register with their pipeline.
+
+5. **Done.** The controller now holds: `byId` (id→node, retained only if needed for diagnostics/macros later), wired port delegates on every node, the entry-type dictionary, the listener list. After this point the executor walks live C# references and invokes delegates. Zero string-keyed lookups, zero reflection, zero `byId` dictionary access in the hot path.
+
+Hydration runs **once per controller**. If a consumer wants multiple independent runtime instances of the same asset (e.g. one per card in play), they construct one controller per instance. The asset itself is shared and immutable; the per-controller state lives in the wired delegates and any per-instance node fields the generator marks as runtime-only (none in v1 — designer constants are immutable).
+
+Re-baking the asset (designer edits the source file) re-runs `OnImportAsset`, produces a fresh runtime SO with potentially different `nodeId`s for new nodes. Existing controllers holding the old asset keep working until disposed; new controllers built after the re-import use the new asset. There is no in-place mutation of an in-flight controller's tree.
 
 ### Typed Runner — generic execution context
 
@@ -517,13 +562,13 @@ For non-Card-Framework consumers, the same pattern applies: subclass `GraphRunne
 
 ## Package API
 
-### `EffectGraphController<TRunner>`
+### `GraphController<TRunner>`
 
 The controller is generic over the consumer's runner type — the same one that types nodes:
 
 ```csharp
-public sealed class EffectGraphController<TRunner> where TRunner : GraphRunner {
-    public EffectGraphController(EffectGraphAsset asset);
+public sealed class GraphController<TRunner> where TRunner : GraphRunner {
+    public GraphController(GraphAsset<TRunner> asset);
 
     // One-time setup; walks the runtime tree for IInitializableNode<TRunner> instances
     public void Initialize(TRunner runner);
@@ -565,7 +610,7 @@ The package ships **no** registration policy. Consumer drives it:
 ```csharp
 // Game-side card binding
 class CardEffectBinding : MonoBehaviour {
-    EffectGraphController<CardEffectRunner> graph;
+    GraphController<CardEffectRunner> graph;
     CardEffectRunner runner;
 
     void Awake() {
@@ -612,8 +657,8 @@ public interface IListenerNode<TRunner> where TRunner : GraphRunner {
 }
 ```
 
-- `EffectGraphController<TRunner>.Initialize(runner)` walks the runtime tree once and calls `Initialize(runner)` on any `IInitializableNode<TRunner>`. Nodes can fetch typed services from the runner here and cache them.
-- `EffectGraphController<TRunner>.RefreshListeners()` walks the tree and calls `RefreshSubscriptions(runner)` on any `IListenerNode<TRunner>`. Used when the host wants to re-evaluate listener activity (e.g., on zone change). Actual pipeline registration stays consumer-driven; this hook just updates internal node state.
+- `GraphController<TRunner>.Initialize(runner)` walks the runtime tree once and calls `Initialize(runner)` on any `IInitializableNode<TRunner>`. Nodes can fetch typed services from the runner here and cache them.
+- `GraphController<TRunner>.RefreshListeners()` walks the tree and calls `RefreshSubscriptions(runner)` on any `IListenerNode<TRunner>`. Used when the host wants to re-evaluate listener activity (e.g., on zone change). Actual pipeline registration stays consumer-driven; this hook just updates internal node state.
 
 There is no separate `IGraphHost` interface in v1 — anything the package would have asked from the host (host-injected references, diagnostics, etc.) lives on the consumer's runner subclass directly. The consumer decides what's exposed and how it's named.
 
@@ -653,7 +698,7 @@ Implemented via Graph Toolkit's `OnGraphChanged(GraphLogger)` hook on the consum
 
 - Detect cycles in flow paths (other than legitimate trigger registration cycles, which aren't graph-internal)
 - Validate type compatibility between connected ports
-- Emit `EffectGraphAsset` only if no errors; on error, log via `ctx.LogImportError` and skip emission
+- Emit the consumer's concrete `GraphAsset<TRunner>` subclass only if no errors; on error, log via `ctx.LogImportError` and skip emission
 
 ### Runtime
 
@@ -669,7 +714,7 @@ Implemented via Graph Toolkit's `OnGraphChanged(GraphLogger)` hook on the consum
 
 - Project structure: package layout, asmdefs, package manifest
 - Attributes-only DLL: `[In]`, `[Out]`, `[GraphHidden]`, `[GraphPort]`, `[GraphMenu]`, `[NoGraphNode]`
-- `EffectGraphConfig` attribute and convention enum
+- `GraphConfig` attribute and convention enum
 - Generator skeleton: read config, locate base-type descendants, emit a stub file per type
 - One end-to-end test: a trivial `EntryPoint` → walks through the generator → emits a node class → loads in Graph Toolkit
 
@@ -688,11 +733,11 @@ Implemented via Graph Toolkit's `OnGraphChanged(GraphLogger)` hook on the consum
 - `GraphRunner` abstract base class
 - `Graph<TRunner>` package base for consumer editor-graph subclasses
 - `RuntimeNode<TRunner>`, `IInitializableNode<TRunner>`, `IListenerNode<TRunner>` interfaces
-- `EffectGraphAsset` runtime `ScriptableObject` with the record types (no variables collection in v1)
+- `GraphAsset<TRunner>` abstract runtime `ScriptableObject` base + record types (`ConnectionRecord`, `EntryIndex`); consumer ships a one-line concrete subclass like `CardEffectGraphAsset : GraphAsset<CardEffectRunner>` (no variables collection in v1)
 - `GraphAssetImporterBase<TGraph, TRunner>` — package-shipped reusable importer base
 - `GraphBaker` — walks nodes/edges, extracts port values via `port.firstConnectedPort` / `port.TryGetValue`, emits records, validates (no variable-name resolution in v1)
 - `GraphExecutor<TRunner>` async tree walker
-- `EffectGraphController<TRunner>` API surface
+- `GraphController<TRunner>` API surface
 - End-to-end test (consumer-side smoke project): create `.cardgraph` → edit → re-import → hydrate → run → assert side effects
 
 ### Milestone 4 — Editor authoring (1.5 weeks)
@@ -825,7 +870,10 @@ The single-file dual-representation design was audited against Unity's `VisualNo
 | Inline port values are read at bake via `port.TryGetValue<T>()` (and `firstConnectedPort` for variable/constant nodes) and stored as typed fields on the runtime node objects — not as opaque blobs. | `GetInputPortValue<T>` in the importer; runtime nodes like `SetBackgroundRuntimeNode { public Sprite BackgroundSprite; }` carry the value as a normal serialized field, which is how `Sprite`/`UnityEngine.Object` references survive the build. |
 | Game code holds only the runtime SO. | `VisualNovelDirector.cs` has `public VisualNovelRuntimeGraph RuntimeGraph;` — no reference to the editor graph type at runtime. |
 
-**Implication for our plan:** runtime nodes are stored as typed `[SerializeReference]` instances on `EffectGraphAsset`. We do **not** store a `byte[] serializedConstants` blob — the source generator already produces a typed class per payload, so the asset can carry those instances directly and let Unity serialize their fields the normal way. This is what keeps Unity-object references (Cards, Sprites, AssetReferences, ScriptableObjects on the runner side) patch-correct through the build pipeline.
+**Implications for our plan:**
+
+1. Runtime nodes are stored as typed `[SerializeReference]` instances on the asset (`GraphAsset<TRunner>` abstract base, with consumer-defined concrete subclass). We do **not** store a `byte[] serializedConstants` blob — the source generator already produces a typed class per payload, so the asset can carry those instances directly and let Unity serialize their fields the normal way. This is what keeps Unity-object references (Cards, Sprites, AssetReferences, ScriptableObjects on the runner side) patch-correct through the build pipeline.
+2. **VND only validates the asset-shipping story, not the connection model.** VND is a linear sequence (start node + `next` chain) baked into a flat list — it has no port-to-port wiring. Our connection model follows the FlowCanvas pattern instead: stable `nodeId` strings on both endpoints, `ConnectionRecord` carrying `(fromNodeId, fromPortIndex, toNodeId, toPortIndex)`, and load-time resolution against an in-memory id→node dictionary that produces wired delegates. See "Connection model" and "Hydration" sections above for the explicit walkthrough.
 
 ---
 
