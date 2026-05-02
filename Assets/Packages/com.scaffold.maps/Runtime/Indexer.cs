@@ -20,20 +20,15 @@ namespace Scaffold.Maps
             {
                 List<TValue> result = new List<TValue>(holders.Count);
                 foreach (Holder<TValue> holder in holders)
-{
-    result.Add(holder.Value);
-}
+                {
+                    result.Add(holder.Value);
+                }
+
                 return result;
             }
         }
 
-        public int Count
-        {
-            get
-            {
-                return holders.Count;
-            }
-        }
+        public int Count => holders.Count;
 
         private readonly Func<TPrimary, TSecondary, bool> predicate;
         private readonly List<Holder<TValue>> holders;
@@ -42,9 +37,9 @@ namespace Scaffold.Maps
         {
             holders.Clear();
             foreach (KeyValuePair<Index<TPrimary, TSecondary>, Holder<TValue>> entry in entries)
-{
-    Track(entry.Key, entry.Value);
-}
+            {
+                Track(entry.Key, entry.Value);
+            }
         }
 
         internal void Track(Index<TPrimary, TSecondary> index, Holder<TValue> holder)
@@ -80,17 +75,18 @@ namespace Scaffold.Maps
             {
                 throw new ArgumentException("Indexer name cannot be null or empty.", nameof(name));
             }
+
             return name;
         }
 
         private Func<TPrimary, TSecondary, bool> ValidatePredicate(Func<TPrimary, TSecondary, bool> predicate)
         {
-            if (predicate == null)
+            if (predicate is null)
             {
                 throw new ArgumentNullException(nameof(predicate));
             }
+
             return predicate;
         }
     }
 }
-

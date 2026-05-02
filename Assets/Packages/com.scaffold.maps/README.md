@@ -6,7 +6,7 @@
 
 - Purpose: composite-key map with dynamic predicate indexers.
 - Location: `Assets/Packages/com.scaffold.maps/`.
-- Depends on: `Scaffold.Records`.
+- Depends on: none (BCL only).
 - Used by: modules requiring indexed grouped lookups.
 - Runtime/Editor: runtime with samples/tests.
 - Keywords: map, indexer, composite key, filtered views.
@@ -24,7 +24,6 @@
 |---|---|---|---|---|
 | `Map<TPrimary,TSecondary,TValue>` | Composite-key value store | keys + value | get/set by pair and indexer support | missing keys follow map semantics (guard/not found) |
 | `Indexer<TPrimary,TSecondary,TValue>` | Predicate-based filtered view | predicate + tracked entries | values collection | empty when no matching keys |
-| `Index<TPrimary>` | Single key index struct | primary key | stable hash/equality key | n/a |
 | `Index<TPrimary,TSecondary>` | Composite key index struct | primary + secondary keys | stable hash/equality key | n/a |
 | `BaseMap<TKey,TValue>` | Base map abstraction | generic key/value | base storage behavior | n/a |
 
@@ -100,7 +99,7 @@ IReadOnlyCollection<string> values = adults.Values;
   - indexer membership reflects key predicate, not value-only updates.
   - remove/clear operations fully untrack entries.
 - Allowed Dependencies:
-  - `Scaffold.Records`.
+  - BCL / Unity engine only (no scaffold package required for maps).
 - Forbidden Dependencies:
   - module-specific app logic or UI concerns.
 - Change Checklist:
@@ -118,5 +117,3 @@ IReadOnlyCollection<string> values = adults.Values;
 ## Changelog
 
 - Rewritten to AI-first standard with map/indexer tracking sequence diagram.
-
-- Added map/indexer coverage for missing-indexer lookup and null predicate guard on `AddIndexer`.

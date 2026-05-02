@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 using Scaffold.Maps;
@@ -7,7 +6,7 @@ using Scaffold.Maps;
 namespace Scaffold.Maps.Tests
 {
     /// <summary>
-    /// Pins current semantics before refactor (Phase 0). Duplicate-name and missing-name expectations flip in Phase 3.
+    /// Pins semantics retained after Phase 0 baseline. Duplicate-name and missing-name expectations flip in Phase 3.
     /// </summary>
     public sealed class MapIndexerCharacterizationTests
     {
@@ -44,13 +43,6 @@ namespace Scaffold.Maps.Tests
                 Throws.Exception.TypeOf<KeyNotFoundException>());
         }
 
-        [Test]
-        public void Add_HalfKey_TPrimaryRefType_DefaultPrimaryNull_ThrowsArgumentNullException()
-        {
-            Map<string, int, string> map = new Map<string, int, string>();
-
-            Assert.That(() => map.Add(1, "value"),
-                Throws.Exception.TypeOf<ArgumentNullException>());
-        }
+        // Phase 1 removed Add(TPrimary|TSecondary, TValue); use Add(primary, secondary, value) or Add(Index<>, value).
     }
 }

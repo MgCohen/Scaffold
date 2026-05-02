@@ -23,23 +23,11 @@ namespace Scaffold.Maps
 
         public virtual TValue this[TKey key]
         {
-            get
-            {
-                return data[key].Value;
-            }
-            set
-            {
-                data[key].Value = value;
-            }
+            get => data[key].Value;
+            set => data[key].Value = value;
         }
 
-        public int Count
-        {
-            get
-            {
-                return data.Count;
-            }
-        }
+        public int Count => data.Count;
 
         public IEnumerable<TValue> Values
         {
@@ -54,47 +42,18 @@ namespace Scaffold.Maps
 
         private readonly Dictionary<TKey, Holder<TValue>> data;
 
-        public bool ContainsKey(TKey key)
-        {
-            if (data == null)
-            {
-                throw new InvalidOperationException("Map storage was not initialized.");
-            }
-
-            return data.ContainsKey(key);
-        }
+        public bool ContainsKey(TKey key) => data.ContainsKey(key);
 
         public bool TryGetValue(TKey key, out TValue value)
         {
-            if (data == null)
-            {
-                throw new InvalidOperationException("Map storage was not initialized.");
-            }
-
             bool found = data.TryGetValue(key, out Holder<TValue> holder);
             value = found ? holder.Value : default;
             return found;
         }
 
-        public virtual bool Remove(TKey key)
-        {
-            if (data == null)
-            {
-                throw new InvalidOperationException("Map storage was not initialized.");
-            }
+        public virtual bool Remove(TKey key) => data.Remove(key);
 
-            return data.Remove(key);
-        }
-
-        public virtual void Clear()
-        {
-            if (data == null)
-            {
-                throw new InvalidOperationException("Map storage was not initialized.");
-            }
-
-            data.Clear();
-        }
+        public virtual void Clear() => data.Clear();
 
         protected void Add(TKey key, Holder<TValue> holder)
         {

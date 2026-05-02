@@ -33,7 +33,7 @@ Repeat in **Play Mode** with an **IL2CPP** standalone player build when your pip
 | Test class | Intent |
 |------------|--------|
 | `MapIndexerValuesBench` | `Indexer.Values` cost — forces materialization via `.Count`; expect large bytes/op proportional to entry count × iterations today. |
-| `MapKeyEnumerationBench` | `GetPrimaryKeys` / `GetSecondaryKeys` × 10k on 1000-entry map — expect HashSet + List allocation per call today. |
+| `MapKeyEnumerationBench` | `GetPrimaryKeys` / `GetSecondaryKeys` × 10k on 1000-entry map. **Phase 1:** one `HashSet<>` per call (the `List<>` copy removed). |
 | `MapIndexerBulkRebuildBench` | Empty map + five indexers + bulk Add 10 / 100 / 1000. |
 | `MapVsTupleDictBench` | `Map<int,int,string>` vs `Dictionary<(int,int),string>` — Add / TryGetValue / foreach. |
 
@@ -50,7 +50,7 @@ Located in `Tests/MapIndexerCharacterizationTests.cs` (assembly **`Scaffold.Maps
 | `IndexerValues_DoesNotReflectValueMutation_ByDesign_KeyOnlyPredicates` | Pass — membership unchanged by key; returned values reflect current holder value after `[index]` set. |
 | `AddIndexer_DuplicateName_ThrowsArgumentException` | Pass — `Dictionary.Add` throws **`ArgumentException`**. Phase 3 → **`InvalidOperationException`**. |
 | `GetIndexedValues_MissingName_ThrowsKeyNotFoundException` | Pass — indexer dictionary indexer throws **`KeyNotFoundException`**. Phase 3 → explicit message contract. |
-| `Add_HalfKey_TPrimaryRefType_DefaultPrimaryNull_ThrowsArgumentNullException` | Pass — **`Add(TSecondary, TValue)`** uses default primary **`null`** for `Map<string,int,string>` → **`ArgumentNullException`** on **`Index`** ctor. Removed in Phase 1. |
+| _(removed in Phase 1)_ | Half-key `Add(TPrimary\|TSecondary, TValue)` overloads deleted; use **`Add(primary, secondary, value)`** or **`Add(Index<>, value)`**. |
 
 ---
 

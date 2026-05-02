@@ -8,6 +8,7 @@ namespace Scaffold.Maps.Tests.Performance
 {
     /// <summary>
     /// Measures key enumeration allocations (<see cref="Map{TPrimary,TSecondary,TValue}.GetPrimaryKeys"/> / GetSecondaryKeys).
+    /// Phase 1 returns the <see cref="HashSet{T}"/> directly (no per-call <c>List&lt;T&gt;</c> copy).
     /// </summary>
     public sealed class MapKeyEnumerationBench
     {
