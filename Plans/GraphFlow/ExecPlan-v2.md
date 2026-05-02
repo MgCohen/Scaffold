@@ -377,22 +377,30 @@ A graph that passes `OnGraphChanged` validation can still **fail to bake**. That
 
 ### Runtime asset format
 
-This is **our** serialization, not Graph Toolkit's:
+The runtime asset is a real Unity `ScriptableObject` — added as a sub-asset and made the main object via `ctx.SetMainObject` (same pattern as the VisualNovelDirector sample). That means: it survives builds, ships through Addressables, can be referenced from prefabs and scenes by GUID, shows up in the Inspector. **It is an asset, not a serializable POCO.** The editor graph stays inside the same source file as a non-main object; nothing at runtime touches it.
+
+Serialization is **plain Unity ScriptableObject serialization** — we ride Unity's machinery, we do not layer a custom one on top:
 
 ```csharp
 public sealed class EffectGraphAsset : ScriptableObject {
-    public List<RuntimeNodeRecord>       nodes;
-    public List<RuntimeConnectionRecord> connections;
-    public List<EntryIndex>              entryIndex;
-    public int                           schemaVersion;
+    [SerializeReference] public List<RuntimeNode>            nodes;        // typed, polymorphic
+    public                List<RuntimeConnectionRecord>      connections;
+    public                List<EntryIndex>                   entryIndex;
+    public                int                                schemaVersion;
 }
 
-public struct RuntimeNodeRecord {
-    public string nodeId;              // stable guid (consistent across re-imports)
-    public string typeId;              // registry key — generated payload type, or built-in node
-    public byte[] serializedConstants; // Unity-serialized inline values
+[Serializable]
+public abstract class RuntimeNode {
+    public string nodeId;             // stable guid (consistent across re-imports)
+    // generated subclasses carry their typed inline-value fields directly:
+    //   public sealed class StrikeDispatcherRuntime : RuntimeNode<CardEffectRunner> {
+    //       public int   Magnitude;
+    //       public Card  Target;
+    //       ...
+    //   }
 }
 
+[Serializable]
 public struct RuntimeConnectionRecord {
     public string fromNodeId;
     public int    fromPortIndex;       // resolved at bake time, not edit-time port name
@@ -401,23 +409,30 @@ public struct RuntimeConnectionRecord {
 }
 ```
 
-No `variables` collection in v1 — the blackboard concept is deferred. Designer constants are inlined into `serializedConstants`; host-injected references come off the consumer's runner. When v2 adds a blackboard, we'll add a `variables` field and bump `schemaVersion` + the importer version.
+Why typed `[SerializeReference]` nodes instead of an opaque `byte[] serializedConstants` blob: the source generator already emits a runtime class per payload type, so each node has a known C# shape. Storing that shape directly means
+
+- Unity serializes fields normally — `Sprite`, `AssetReferenceT<>`, `UnityEngine.Object` references all patch up correctly through the build pipeline (the VND sample relies on this for `BackgroundSprite`).
+- The runtime asset is Inspector-debuggable.
+- Hydration reads already-typed objects; no per-node `Deserialize(blob)` step, no `typeId` string lookup at load time (the C# type *is* the identity).
+- No hand-written serializer/deserializer to maintain.
+
+`typeId` strings still exist, but only at the **registry/bake** layer — they're how the baker maps a Graph Toolkit editor node to the runtime node class to instantiate. Once instantiated and stored in the asset, the runtime carries the live typed instance.
+
+No `variables` collection in v1 — the blackboard concept is deferred. Designer constants are baked into the corresponding fields on the typed runtime nodes; host-injected references come off the consumer's runner. When v2 adds a blackboard, we'll add a `variables` field and bump `schemaVersion` + the importer version.
 
 Two concrete differences from the editor connections:
 
 - **Port references are integer indices**, not names. The baker maps editor port names (designer-visible labels) to integer indices (registry-stable, source-gen-determined). Faster lookup, immune to editor-side label rename if we ever support it.
 - **Connection records reference runtime node ids only.** Editor-only helper nodes that get inlined or dropped during bake do not appear.
 
-The runtime asset's serialization is Unity's normal `ScriptableObject` mechanism (the same one that persists any Unity asset). It survives re-import; the editor graph in the same file is regenerated from designer edits independently.
-
 **Editor positions are not in the runtime asset** — they live in the editor graph (Graph Toolkit handles them). Round-trip editing works because reopening the file shows the editor graph, not the runtime asset.
 
 ### Hydration
 
-At game time, `EffectGraphController<TRunner>.Initialize(runner)` constructs the in-memory runtime tree from the asset:
+At game time, `EffectGraphController<TRunner>.Initialize(runner)` constructs the in-memory runtime tree from the asset. Because nodes are stored as typed `[SerializeReference]` instances with their inline-value fields already populated by Unity, hydration is mostly **wiring**, not reconstruction:
 
-1. For each `RuntimeNodeRecord`, look up the `typeId` in the registry to find the runtime node class (e.g., `StrikeDispatcherRuntime : RuntimeNode<TRunner>`).
-2. Instantiate it. Deserialize `serializedConstants` into its inline-value fields.
+1. The `nodes` list is already a list of live, typed `RuntimeNode<TRunner>` subclass instances — Unity deserialized them when the asset loaded. No registry lookup, no blob deserialization at this point.
+2. Build a `Dictionary<string, RuntimeNode<TRunner>>` keyed by `nodeId` for connection resolution.
 3. For each `RuntimeConnectionRecord`, set up the port-binding delegate from the source node's output to the target node's input. Delegates come from the source-generated accessor tables — no reflection.
 4. Build the entry-point lookup: `Dictionary<Type, RuntimeNode<TRunner>>` for fast `Invoke<T>` dispatch.
 5. Walk the tree once calling `Initialize(runner)` on `IInitializableNode<TRunner>` instances; collect `IListenerNode<TRunner>` instances for the consumer.
@@ -795,6 +810,22 @@ All previously-open architecture questions are resolved:
 | Source generator implementation | **Roslyn incremental source generator** (`IIncrementalGenerator`). Modern API, better build performance, the only sensible choice on current toolchains.                                                                                                                                                                                                       |
 | Graph Toolkit version           | **Pin to `0.4.0-exp.2`** (current sample version). Re-evaluate at v1 ship time if a stable release lands.                                                                                                                                                                                                                                                      |
 
+
+---
+
+## Appendix — Serialization strategy, validated against VisualNovelDirector
+
+The single-file dual-representation design was audited against Unity's `VisualNovelDirector` sample (`Assets/Samples/Graph Toolkit/0.4.0-exp.2/VisualNovelDirector Sample/`) before finalizing this plan. Each load-bearing claim has direct evidence in the sample so we don't have to re-litigate it later:
+
+| Claim | Evidence in sample |
+| --- | --- |
+| One source file holds the editor graph (as a non-main object) and the imported runtime SO (as the main object). | `VisualNovelDirectorImporter.cs`: `ctx.AddObjectToAsset("RuntimeAsset", runtimeAsset); ctx.SetMainObject(runtimeAsset);`. The `.vnd` YAML on disk has `GraphObjectImp` as one object plus the runtime SO as another. |
+| The runtime asset is a real, build-shippable Unity asset (referenced by GUID from prefabs/scenes). | `BasicVisualNovelCanvas.prefab` has `RuntimeGraph: {fileID: …, guid: …}` pointing at the `.vnd`'s main object. The runtime SO is what flows through the asset DB, Addressables, and player builds. |
+| The bake reads the editor graph at import time and produces a fresh typed runtime SO. The editor graph never runs. | `OnImportAsset`: `GraphDatabase.LoadGraphForImporter<VisualNovelDirectorGraph>(ctx.assetPath)` → walk → `ScriptableObject.CreateInstance<VisualNovelRuntimeGraph>()` → populate. |
+| Inline port values are read at bake via `port.TryGetValue<T>()` (and `firstConnectedPort` for variable/constant nodes) and stored as typed fields on the runtime node objects — not as opaque blobs. | `GetInputPortValue<T>` in the importer; runtime nodes like `SetBackgroundRuntimeNode { public Sprite BackgroundSprite; }` carry the value as a normal serialized field, which is how `Sprite`/`UnityEngine.Object` references survive the build. |
+| Game code holds only the runtime SO. | `VisualNovelDirector.cs` has `public VisualNovelRuntimeGraph RuntimeGraph;` — no reference to the editor graph type at runtime. |
+
+**Implication for our plan:** runtime nodes are stored as typed `[SerializeReference]` instances on `EffectGraphAsset`. We do **not** store a `byte[] serializedConstants` blob — the source generator already produces a typed class per payload, so the asset can carry those instances directly and let Unity serialize their fields the normal way. This is what keeps Unity-object references (Cards, Sprites, AssetReferences, ScriptableObjects on the runner side) patch-correct through the build pipeline.
 
 ---
 
