@@ -4,7 +4,7 @@
 Hand-rolled type-keyed pub/sub bus over `Action<ContextEvent>` with a VContainer installer. Functional, but the implementation duplicates state-validity guards everywhere, leaks `UnityEngine` for no reason, and reinvents a wheel that MessagePipe / R3 already turn fast and allocation-aware. **Verdict: refactor (or replace with MessagePipe and keep `IEventBus` as a façade).**
 
 ## Structure
-```
+```text
 com.scaffold.events/
   Container/
     EventsInstaller.cs                       (VContainer)

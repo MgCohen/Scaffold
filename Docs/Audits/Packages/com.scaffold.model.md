@@ -4,7 +4,7 @@
 A two-line `Model` base class that is `[NestedObservableObject] partial class Model : ObservableObject` over CommunityToolkit.Mvvm. The package's reason to exist is to be the shared `Model` root for the project's MVVM. Asmdef wiring is correct (engine-free, source-generator-friendly), but the package is so thin that any project rule it carries lives implicitly in the source generator and the consuming style guide rather than here. **Verdict: keep, but it's barely a package; document or merge.**
 
 ## Structure
-```
+```text
 com.scaffold.model/
   Runtime/
     Model.cs                                 (8 LOC)

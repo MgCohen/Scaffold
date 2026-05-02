@@ -4,7 +4,7 @@
 "Component-like" composable data on `ScriptableObject`s: `SchemaObject` owns a `SchemaSet` of `[SerializeReference]` `Schema` instances, with editor UI for add/remove/required/duplicate rules. Concept is solid and useful (think Unity ECS authoring or Unreal data tables for designers). Implementation is the most fragile in the audit set: silent failures on type mismatches, public mutable serialized fields, magic strings in editor messages, no asmdef discipline, and zero tests. **Verdict: refactor before relying on it for production data.**
 
 ## Structure
-```
+```text
 com.scaffold.schemas/
   Runtime/
     Schema.cs                                 (empty abstract class)

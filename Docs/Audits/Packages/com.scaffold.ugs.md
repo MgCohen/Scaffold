@@ -10,7 +10,7 @@ Verdict: **keep, refactor lightly**. The shape is right; flesh out the auth abst
 
 ## 2. Structure
 
-```
+```text
 com.scaffold.ugs/
   package.json                                       ; deps: com.scaffold.appflow only
   README.md                                          ; thorough; ~120 lines for ~30 lines of code

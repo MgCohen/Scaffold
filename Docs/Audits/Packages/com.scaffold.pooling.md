@@ -4,7 +4,7 @@
 Generic `Pool<T>` with optional `IPoolable` lifecycle and self-return events. Tight, well-tested, and well-typed — the strongest package in this audit set. The `Container/PoolingInstaller` is empty and `Active`'s allocation pattern is wasteful, but otherwise this one is "keep". **Verdict: keep, with two small fixes.**
 
 ## Structure
-```
+```text
 com.scaffold.pooling/
   Container/PoolingInstaller.cs                (empty Install)
   Runtime/

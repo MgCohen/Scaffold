@@ -1,7 +1,7 @@
 # Audit: `com.scaffold.viewmodel`
 
 Audited: 2026-05-02. Reviewer: senior architect (audit pass).
-Path: `/home/user/Scaffold/Assets/Packages/com.scaffold.viewmodel`
+Path: `Assets/Packages/com.scaffold.viewmodel`
 Asmdef: `Scaffold.MVVM.ViewModel` (`noEngineReferences: false`).
 
 ## 1. Summary
@@ -12,7 +12,7 @@ Tiny package — 4 files. It exposes one base class (`ViewModel : ObservableObje
 
 ## 2. Structure
 
-```
+```text
 com.scaffold.viewmodel/
 ├── Runtime/
 │   ├── AssemblyInfo.cs                   # InternalsVisibleTo Scaffold.MVVM.ViewModel.Tests
@@ -232,7 +232,7 @@ Async viewmodels (loading content, async services) need a cancellation token tie
 - README is in good shape and matches the project standard. The doc states the package's responsibilities clearly.
 - The README's "Forbidden Dependencies" line (line 129) lists `MonoBehaviour` view concerns, but the asmdef's `noEngineReferences: false` doesn't *forbid* it — it permits it. Either the README is aspirational or the asmdef is wrong. Make them match.
 - The `BindChildViewModel<T>` example in README works but uses `() => model.Value, () => Value` — this is a viewmodel binding *to itself* via `TreeBinding`, which is the in-VM data-flow case. The README doesn't show a child viewmodel actually being bound (which is what the test covers); add an example for that path.
-- Generator-emitted code is invisible to consumers. Consider adding a snippet in the README showing what `RegisterNestedProperties` looks like after generation, so users understand the cost model. (Recommend a hidden link in the package README pointing to the generator authoring file at `/home/user/Scaffold/Generators/MVVMCompositionGenerator/MVVMCompositionGenerator.cs`.)
+- Generator-emitted code is invisible to consumers. Consider adding a snippet in the README showing what `RegisterNestedProperties` looks like after generation, so users understand the cost model. (Recommend a hidden link in the package README pointing to the generator authoring file at `Generators/MVVMCompositionGenerator/MVVMCompositionGenerator.cs`.)
 
 ## References
 
@@ -245,8 +245,8 @@ Async viewmodels (loading content, async services) need a cancellation token tie
 
 Repo-wide grep across `Assets/`, `GameModule/`, `LiveOps/` for `using Scaffold.MVVM.ViewModel*`, `: ViewModel`, `[BindSource]` on a class deriving from `ViewModel`, and direct `BindChildViewModel<T>` calls. **Result: a single derivation outside the package.**
 
-- `/home/user/Scaffold/Assets/Packages/com.scaffold.view/Samples/MVVMUseCases.cs:73-86` — `public partial class SampleViewModel : ViewModel` is the only `: ViewModel` derivation in the repo. The class declares `[ObservableProperty] private BuildSampleModel sampleModel; [ObservableProperty] private int value;` and overrides `Initialize()` with `Bind(() => SampleModel.Value, () => Value)`. Smell visible from the call site: the override is mandatory boilerplate (every concrete VM that wants bindings must override `Initialize`), and the VM binds itself to itself (a property mirror) — that's the only documented usage shape.
-- `/home/user/Scaffold/Assets/Packages/com.scaffold.view/Samples/MVVMUseCases.cs:15-16, 24-25` — `viewModel.Bind(null)` is called twice in samples. The package's `Bind(INavigation)` accepts null (no `ArgumentNullException` on the `navigation` parameter — wait, audit §4.7 says it's there at `ViewModel.cs:24-27`; sample passes `null` and gets `ArgumentNullException` at runtime). The sample is **broken**: `Bind(null)` will throw immediately, so the sample never reaches `BuildRegisterNested`. This is dead documentation. Reinforces the audit's general thinness on lifecycle tests.
+- `Assets/Packages/com.scaffold.view/Samples/MVVMUseCases.cs:73-86` — `public partial class SampleViewModel : ViewModel` is the only `: ViewModel` derivation in the repo. The class declares `[ObservableProperty] private BuildSampleModel sampleModel; [ObservableProperty] private int value;` and overrides `Initialize()` with `Bind(() => SampleModel.Value, () => Value)`. Smell visible from the call site: the override is mandatory boilerplate (every concrete VM that wants bindings must override `Initialize`), and the VM binds itself to itself (a property mirror) — that's the only documented usage shape.
+- `Assets/Packages/com.scaffold.view/Samples/MVVMUseCases.cs:15-16, 24-25` — `viewModel.Bind(null)` is called twice in samples. The package's `Bind(INavigation)` accepts null (no `ArgumentNullException` on the `navigation` parameter — wait, audit §4.7 says it's there at `ViewModel.cs:24-27`; sample passes `null` and gets `ArgumentNullException` at runtime). The sample is **broken**: `Bind(null)` will throw immediately, so the sample never reaches `BuildRegisterNested`. This is dead documentation. Reinforces the audit's general thinness on lifecycle tests.
 - `BindChildViewModel<T>` consumers: **zero outside the package's own test** (`Tests/ViewModelChildPrepareTests.cs`). The single test is the only field exercise of the navigation-prepare-then-bind ordering invariant.
 - `[NestedObservableObject]` consumers above `ViewModel`: only `Model.cs` (`Assets/Packages/com.scaffold.model/Runtime/Model.cs:6`) — itself an empty class. So nested observable composition has zero shaped instances in production code. Audit §4.3 (rebind nested-handler leak) has no production exposure.
 - `protected INavigation navigation` field reads from outside `ViewModel.cs`: **zero** (the sample doesn't use it). Audit §4.6 (mutable protected field) has no current attack surface but the bug is real.
@@ -277,5 +277,5 @@ Repo-wide grep across `Assets/`, `GameModule/`, `LiveOps/` for `using Scaffold.M
 - **`Bind` → `Initialize` → `RegisterNestedProperties` end-to-end cost.** Measure first-bind and rebind times for VMs with 0 / 1 / 5 nested observable children. Tool: `Unity.PerformanceTesting`. Location: `Assets/Packages/com.scaffold.viewmodel/Tests/PerfViewModelBind.cs`. Baseline: rebind clears and re-runs nested-handler registration; today the generator's `__nestedRefreshHandlerRegistered` flag avoids double-registration but child-property handlers detach by reference (audit §4.3). Success: rebind cost ≤ 2× first-bind cost; no leaked subscriptions across 1 / 10 / 100 cycles (correctness assertion via `INotifyPropertyChanged` invocation count).
 - **Rebind nested-handler leak — *write the test that proves it*.** EditMode test: VM with `[NestedObservableObject]` child; `Bind(navStub)`; replace nested model **outside** the `[ObservableProperty]` setter via reflection or backdoor field; `Bind(navStub)` again; assert that the prior nested model has zero `PropertyChanged` subscribers. Tool: NUnit. Location: `Assets/Packages/com.scaffold.viewmodel/Tests/NestedRebindLeakTests.cs` (new). Today this should fail per §4.3.
 - **`Close` before `Bind` regression.** Correctness test: instantiate VM, call `Close()`, assert `InvalidOperationException` (post-fix). Today silently no-ops. Location: `Assets/Packages/com.scaffold.viewmodel/Tests/ViewModelCloseFailFastTests.cs` (new). 4-line test; pairs with the audit §6 easy win.
-- **Generator output size for the ViewModel partial.** Measure: emitted `_nested.g.cs` and `_bindings.g.cs` byte counts and method counts for VMs with 1 / 5 / 20 properties and 0 / 1 / 5 levels of `ViewModel`-inheritance. Tool: `Microsoft.CodeAnalysis.Testing` (`CSharpSourceGeneratorTest`) snapshot tests. Location: `/home/user/Scaffold/Generators/MVVMCompositionGenerator.Tests/ViewModelEmissionTests.cs` (new). Baseline: snapshot today's output (notably the per-derivation `base.RegisterNestedProperties()` duplication, mvvm audit §4.16). Success after capping emission to classes that introduce tracked fields: byte count drops linearly with the chain length saved.
+- **Generator output size for the ViewModel partial.** Measure: emitted `_nested.g.cs` and `_bindings.g.cs` byte counts and method counts for VMs with 1 / 5 / 20 properties and 0 / 1 / 5 levels of `ViewModel`-inheritance. Tool: `Microsoft.CodeAnalysis.Testing` (`CSharpSourceGeneratorTest`) snapshot tests. Location: `Generators/MVVMCompositionGenerator.Tests/ViewModelEmissionTests.cs` (new). Baseline: snapshot today's output (notably the per-derivation `base.RegisterNestedProperties()` duplication, mvvm audit §4.16). Success after capping emission to classes that introduce tracked fields: byte count drops linearly with the chain length saved.
 - **`is INestedObservableProperties` cast cost.** Micro-bench (`BenchmarkDotNet`-shaped or `Unity.PerformanceTesting`) for the cast in `ViewModel.cs:30-33`. Location: `Assets/Packages/com.scaffold.viewmodel/Tests/PerfNestedCastRemoval.cs`. Baseline: a single virtual interface cast per `Bind`. Success: drop is small (1-2 ns) but provable — confirms §4.5 is a cleanup, not a perf fix.

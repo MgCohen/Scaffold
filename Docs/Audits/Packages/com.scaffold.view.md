@@ -1,7 +1,7 @@
 # Audit: `com.scaffold.view`
 
 Audited: 2026-05-02. Reviewer: senior architect (audit pass).
-Path: `/home/user/Scaffold/Assets/Packages/com.scaffold.view`
+Path: `Assets/Packages/com.scaffold.view`
 Asmdef: `Scaffold.MVVM.View` (`noEngineReferences: false`).
 
 ## 1. Summary
@@ -12,7 +12,7 @@ The Unity-side of the MVVM stack: `View<T>`, `ViewElement<T>`, `UIView<T>`, `Vie
 
 ## 2. Structure
 
-```
+```text
 com.scaffold.view/
 ├── Runtime/
 │   ├── AssemblyInfo.cs                     # InternalsVisibleTo Scaffold.MVVM.View.Tests
@@ -449,8 +449,8 @@ The current state — DLL imported, no usage — leaves it unclear.
 
 Repo-wide grep across `Assets/`, `GameModule/`, `LiveOps/` for `using Scaffold.MVVM.View*`, `: View<`, `: ViewElement<`, `: ViewComponent<`, `: UIView<`, `ViewEvents.Raise`, and `EventLedger`. **Result: only the package's own `Samples/` and `Tests/` directories use these symbols. No consumer code in `Assets/Scaffold`, `GameModule/`, or `LiveOps/` derives from any view base class today.**
 
-- `/home/user/Scaffold/Assets/Packages/com.scaffold.view/Samples/MVVMUseCases.cs:88` — `public class SampleView : View<SampleViewModel>` — the only `: View<...>` derivation in the repo. Smell from the call site: the override `OnBind` uses `Bind<int, int>(() => viewModel.Value, BuildOnValueChanged)`, the **explicit** generic form. The 2-generic overload exists because the compiler can't always infer `TTarget` from a method group. Real consumers will write this clunky form a lot. (Compare to `Subscribe(value => ...)` in R3 where TTarget == TSource is inferred trivially.)
-- `/home/user/Scaffold/Assets/Packages/com.scaffold.view/Samples/MVVMUseCases.cs:43-46` — `host.AddComponent<SampleView>()` then `view.Bind(viewModel)`. There is no `Unbind` in the sample teardown — the `SampleViewHost.Dispose` destroys the GameObject directly, which means the INPC subscription leak in audit §4.1 fires during sample teardown. Sample is its own evidence of the bug.
+- `Assets/Packages/com.scaffold.view/Samples/MVVMUseCases.cs:88` — `public class SampleView : View<SampleViewModel>` — the only `: View<...>` derivation in the repo. Smell from the call site: the override `OnBind` uses `Bind<int, int>(() => viewModel.Value, BuildOnValueChanged)`, the **explicit** generic form. The 2-generic overload exists because the compiler can't always infer `TTarget` from a method group. Real consumers will write this clunky form a lot. (Compare to `Subscribe(value => ...)` in R3 where TTarget == TSource is inferred trivially.)
+- `Assets/Packages/com.scaffold.view/Samples/MVVMUseCases.cs:43-46` — `host.AddComponent<SampleView>()` then `view.Bind(viewModel)`. There is no `Unbind` in the sample teardown — the `SampleViewHost.Dispose` destroys the GameObject directly, which means the INPC subscription leak in audit §4.1 fires during sample teardown. Sample is its own evidence of the bug.
 - `: ViewElement<…>` derivations: **zero outside the package.** `ViewComponent<T>` derivations: **zero.** `UIView<T>` derivations: **zero.** The Unity-side hierarchy currently has one consumer (the sample) and zero production users. Same architectural-debt window as the engine package.
 - `[BindSource]` on a `ViewElement` subclass: not used by consumers. The attribute is inherited via `ViewElement` itself (`Runtime/ViewElement.cs:11`), so consumers never re-apply it.
 - `Bind(() => vm.X, () => vm.Y)` typed call sites in the View package: only `MVVMUseCases.cs:94` (`Bind<int, int>(() => viewModel.Value, BuildOnValueChanged)`). The lambda is typed; the smell visible from the call site is that the source-side dispatch on `OnViewModelChanged` (`ViewElement.cs:21-25`) is still string-keyed. So a refactor of `viewModel.Value` to `viewModel.CurrentValue` updates the lambda but the bind registry is rebuilt only on next `Bind`.

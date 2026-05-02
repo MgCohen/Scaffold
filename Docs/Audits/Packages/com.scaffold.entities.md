@@ -16,7 +16,7 @@ Date: 2026-05-02.
 
 ## 2. High-level architecture
 
-```
+```text
                  ┌──────────────────────────────────────────────┐
                  │            Authoring (UnityEngine)           │
                  │    VariableSO   EntityDefinitionAsset        │
@@ -480,7 +480,7 @@ The tightest peer in C#-land is Entitas; its source-generator approach validates
 
 ## 10. Consumers
 
-Searched for `Scaffold.Entities` across `/home/user/Scaffold/Assets/`, `/home/user/Scaffold/GameModule/`, `/home/user/Scaffold/LiveOps/` (excluding the package itself). **Finding #1: there are essentially no first-party consumers outside the package and `entities.states`.** GameModule and LiveOps return zero matches for `Scaffold.Entities`, `EntityComponent`, `EntityInstance`, `GetVariable`, `VariableSO`, or `EntityDefinition`. The directories `Assets/Scaffold/Packages/com.scaffold.entities/` and `Assets/Packages/com.scaftold.entities/` (note typo) contain only `.meta` files — empty husks; recommend deletion as part of cleanup. **All real consumption is concentrated in two places: the in-package `Samples/` and `com.scaffold.entities.states`.** This dramatically lowers the cost of the §8.1 typed `Variable<T>` migration: the blast radius is tiny.
+Searched for `Scaffold.Entities` across `Assets/`, `GameModule/`, `LiveOps/` (excluding the package itself). **Finding #1: there are essentially no first-party consumers outside the package and `entities.states`.** GameModule and LiveOps return zero matches for `Scaffold.Entities`, `EntityComponent`, `EntityInstance`, `GetVariable`, `VariableSO`, or `EntityDefinition`. The directories `Assets/Scaffold/Packages/com.scaffold.entities/` and `Assets/Packages/com.scaftold.entities/` (note typo) contain only `.meta` files — empty husks; recommend deletion as part of cleanup. **All real consumption is concentrated in two places: the in-package `Samples/` and `com.scaffold.entities.states`.** This dramatically lowers the cost of the §8.1 typed `Variable<T>` migration: the blast radius is tiny.
 
 ### 10.1 `com.scaffold.entities.states` — the dominant consumer
 

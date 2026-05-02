@@ -23,7 +23,7 @@ The execution does not hold up to the rubric:
 
 ## 2. Structure
 
-```
+```text
 com.scaffold.maps/
   Runtime/
     BaseMap.cs                Dictionary<TKey, Holder<TValue>> wrapper
@@ -488,12 +488,12 @@ A repo-wide `grep -rn 'new Map<\|: Map<\|: BaseMap<'` excluding the `com.scaffol
 
 | File | Declaration | Value type | Predicate / `AddIndexer` use? |
 |---|---|---|---|
-| `/home/user/Scaffold/Assets/Packages/com.scaffold.states/Runtime/State/Snapshot.cs:6` | `class Snapshot : Map<IReference, Type, State>` | class (`State`) | **No** |
-| `/home/user/Scaffold/Assets/Packages/com.scaffold.states/Runtime/Store.cs:16` | `new Map<IReference, Type, Slice>()` | class (`Slice`) | **No** |
-| `/home/user/Scaffold/Assets/Packages/com.scaffold.states/Runtime/Store.cs:17` | `new Map<IReference, Type, AggregateSlice>()` | class | **No** |
-| `/home/user/Scaffold/Assets/Packages/com.scaffold.addressables/Runtime/Implementation/AddressablesAssetReferenceHandler.cs:24` | `new Map<Type, string, AddressablesLoadedEntry>()` | class | **No** |
-| `/home/user/Scaffold/Assets/Packages/com.scaffold.mvvm/Runtime/Binding/BindRegistry.cs:24` | `new Map<string, Type, IBindContext>()` | interface (class behind it) | **No** |
-| `/home/user/Scaffold/Assets/Packages/com.scaffold.mvvm/Runtime/Binding/BindSets.cs:7` | `new Map<Type, Type, IBindSet>()` | interface | **No** |
+| `Assets/Packages/com.scaffold.states/Runtime/State/Snapshot.cs:6` | `class Snapshot : Map<IReference, Type, State>` | class (`State`) | **No** |
+| `Assets/Packages/com.scaffold.states/Runtime/Store.cs:16` | `new Map<IReference, Type, Slice>()` | class (`Slice`) | **No** |
+| `Assets/Packages/com.scaffold.states/Runtime/Store.cs:17` | `new Map<IReference, Type, AggregateSlice>()` | class | **No** |
+| `Assets/Packages/com.scaffold.addressables/Runtime/Implementation/AddressablesAssetReferenceHandler.cs:24` | `new Map<Type, string, AddressablesLoadedEntry>()` | class | **No** |
+| `Assets/Packages/com.scaffold.mvvm/Runtime/Binding/BindRegistry.cs:24` | `new Map<string, Type, IBindContext>()` | interface (class behind it) | **No** |
+| `Assets/Packages/com.scaffold.mvvm/Runtime/Binding/BindSets.cs:7` | `new Map<Type, Type, IBindSet>()` | interface | **No** |
 
 A second sweep — `grep -rn 'AddIndexer\|GetIndexedValues\|TryGetIndexer\|new Indexer<'` outside the package — returns **zero hits**. The headline feature of `com.scaffold.maps` has no production consumers in this repo. The `Indexer<>`, `Holder<T>`, `predicateIndexers` dictionary, the rebuild-on-`AddIndexer` machinery, and the entire `IndexPrimary.cs` file are dead infrastructure measured by call-site count.
 
@@ -505,7 +505,7 @@ Concrete observations from the call sites:
 - **`BindRegistry.cs:24`** — `Map<string, Type, IBindContext>` keyed on `(propertyPath, sourceType)`. The class adds, looks up via `TryGetValue(path, type, out _)`, removes via `Remove(path, type)`, iterates via `Values`. Indexers: zero.
 - **`BindSets.cs:7`** — `Map<Type, Type, IBindSet>` keyed on `(sourceType, targetType)`. Identical pattern: get-or-add. Indexers: zero.
 
-**Note on `StoreVariableStorage` (audit cross-reference):** the existing audit text said "rebuilds a Dictionary per state change". I confirmed at `/home/user/Scaffold/Assets/Packages/com.scaffold.entities.states/Runtime/StoreVariableStorage.cs:202-235` — `ApplyCanonicalUpdate` calls `BuildCurrentValueMap` (`:308-319`) which allocates a fresh `Dictionary<Variable, VariableValue>` *every state-change tick*, then `CopyMapsIntoCaches` rebuilds `effectiveCache` and `lastKeySnapshot` from scratch. **`StoreVariableStorage` does not import `Scaffold.Maps` at all.** It uses raw `Dictionary` and `HashSet` because — in this consumer's data model — the keying is single (`Variable`), not composite, so `Map<,,>` was the wrong shape. The double-allocate-on-mutate is a real perf smell, but it's *not* a maps-package issue. It's the consumer reinventing a dictionary-with-snapshot rather than using a value-aware reactive structure (see `DynamicData` in audit 8/Refs).
+**Note on `StoreVariableStorage` (audit cross-reference):** the existing audit text said "rebuilds a Dictionary per state change". I confirmed at `Assets/Packages/com.scaffold.entities.states/Runtime/StoreVariableStorage.cs:202-235` — `ApplyCanonicalUpdate` calls `BuildCurrentValueMap` (`:308-319`) which allocates a fresh `Dictionary<Variable, VariableValue>` *every state-change tick*, then `CopyMapsIntoCaches` rebuilds `effectiveCache` and `lastKeySnapshot` from scratch. **`StoreVariableStorage` does not import `Scaffold.Maps` at all.** It uses raw `Dictionary` and `HashSet` because — in this consumer's data model — the keying is single (`Variable`), not composite, so `Map<,,>` was the wrong shape. The double-allocate-on-mutate is a real perf smell, but it's *not* a maps-package issue. It's the consumer reinventing a dictionary-with-snapshot rather than using a value-aware reactive structure (see `DynamicData` in audit 8/Refs).
 
 **Predicate-only-on-keys: bug magnet in practice?** Across these six consumers, **no one uses predicates at all**. The keys are stable composite identifiers (a `Reference` × a `Type`, or a `propertyPath` × a `Type`); they don't get filtered. Value mutation is what changes (a `Slice.State` flips, an `IBindContext` accumulates bindings, an `AddressablesLoadedEntry.RefCount` increments). If anyone ever did add an indexer for "all slices whose state == Active", they'd hit audit 4.5 immediately — predicates don't see value updates. Conclusion: **the design isn't currently a bug magnet because the trap is unreachable** (no caller is anywhere near it), but the moment someone tries to use the headline feature, the trap will spring. The README oversells; the implementation under-delivers; the consumers don't notice because they never tried.
 

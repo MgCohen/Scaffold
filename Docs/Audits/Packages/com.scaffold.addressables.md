@@ -20,7 +20,7 @@ But the implementation has measurable problems against the rubric:
 
 ## 2. Structure
 
-```
+```text
 com.scaffold.addressables/
   Container/
     AddressablesInstaller.cs                       VContainer registrations
@@ -78,7 +78,7 @@ The split across `Contracts` / `Implementation` / `Internal` is correct and well
 
 `Runtime/Implementation/AssetHandle.cs`. The deferred `Load<T>(...)` path constructs an empty `AssetHandle<T>` (`AssetHandle.cs:20-23`), returns it to the caller, and races `CompleteLoadAsync` (`AddressablesGateway.cs:175-186`) on a background task. If the caller calls `handle.Release()` before `Complete` runs:
 
-```
+```text
 AssetHandle.cs:83-95   Release()
   releasedFlag := 1                           // sets flag
   if state == Loading: return                 // bails — DOESN'T release the inner handle
@@ -461,11 +461,11 @@ Namespace hygiene is good (`Scaffold.Addressables`, `Scaffold.Addressables.Contr
 
 Concrete consumers of `Scaffold.Addressables` outside the package itself (the only ones in the repo are inside `com.scaffold.navigation`):
 
-- `/home/user/Scaffold/Assets/Packages/com.scaffold.navigation/Runtime/Implementation/AddressablesNavigationPointStrategy.cs:47` — calls **`addressables.Load<GameObject>(config.Asset)`** (the deferred-sync overload, not `LoadAsync`). The handle is then awaited via `await handle.WhenReady` at `:80`, with a `point.Disposed` check before the await and after. **This is the exact call site that triggers the race in audit 4.1**: if `point.Disposed` flips between line 80 and the second `getHandle()` at `:81`, `ReleaseOrBuffer` runs `handle.Release()` while `state == Loading` (early-return on `AssetHandle.cs:85-87`), `WhenReady` never resolves, the awaiter at `:80` is permanently parked, and the inner `AsyncOperationHandle` continues to load and is **never released** — a textbook leak under contention plus a stuck task. Also: every `NavigationPoint.Disposed` callback eventually calls `handle.Release()` once-or-via-`assetHandleBuffer.Return` (`:106-129`), so the audit's "Release at least once" is correct in shape, but on the deferred path it's racy.
-- `/home/user/Scaffold/Assets/Packages/com.scaffold.navigation/Runtime/Implementation/NavigationAssetHandleBuffer.cs:16` — pools released `IAssetHandle<GameObject>` instances **per `ViewConfig`**, max 2. The buffer pops handles whose `handle.IsReleased == true` and `State == Faulted` are filtered out (`:75-83`). This is wrapping-the-wrapper: a second-level cache on top of `AddressablesAssetReferenceHandler`'s refcount cache — meaning a single asset can have a refcount of 1 in the handler and be sitting idle in the navigation pool, which **defeats** Addressables' eviction semantics. If the handler's NeverDie pin (4.6) ever gets wired, this pool becomes redundant; if it doesn't, the pool serves as the de-facto retention layer. Pick one.
-- `/home/user/Scaffold/Assets/Packages/com.scaffold.navigation/Runtime/Implementation/NavigationProvider.cs:11` and `NavigationController.cs:15` — receive `IAddressablesGateway` via constructor injection. Pure pass-through to the strategy; no smell.
-- `/home/user/Scaffold/Assets/Packages/com.scaffold.navigation/Runtime/Providers/NavigationAssetProvider.cs:9` — extends `AssetProvider<NavigationConfig>(gateway)`. The provider/registrar shape is being used as designed.
-- `/home/user/Scaffold/Assets/Packages/com.scaffold.navigation/Tests/NavigationInstallerAndInjectionTests.cs` — DI-wiring tests that resolve the gateway via VContainer. No runtime use.
+- `Assets/Packages/com.scaffold.navigation/Runtime/Implementation/AddressablesNavigationPointStrategy.cs:47` — calls **`addressables.Load<GameObject>(config.Asset)`** (the deferred-sync overload, not `LoadAsync`). The handle is then awaited via `await handle.WhenReady` at `:80`, with a `point.Disposed` check before the await and after. **This is the exact call site that triggers the race in audit 4.1**: if `point.Disposed` flips between line 80 and the second `getHandle()` at `:81`, `ReleaseOrBuffer` runs `handle.Release()` while `state == Loading` (early-return on `AssetHandle.cs:85-87`), `WhenReady` never resolves, the awaiter at `:80` is permanently parked, and the inner `AsyncOperationHandle` continues to load and is **never released** — a textbook leak under contention plus a stuck task. Also: every `NavigationPoint.Disposed` callback eventually calls `handle.Release()` once-or-via-`assetHandleBuffer.Return` (`:106-129`), so the audit's "Release at least once" is correct in shape, but on the deferred path it's racy.
+- `Assets/Packages/com.scaffold.navigation/Runtime/Implementation/NavigationAssetHandleBuffer.cs:16` — pools released `IAssetHandle<GameObject>` instances **per `ViewConfig`**, max 2. The buffer pops handles whose `handle.IsReleased == true` and `State == Faulted` are filtered out (`:75-83`). This is wrapping-the-wrapper: a second-level cache on top of `AddressablesAssetReferenceHandler`'s refcount cache — meaning a single asset can have a refcount of 1 in the handler and be sitting idle in the navigation pool, which **defeats** Addressables' eviction semantics. If the handler's NeverDie pin (4.6) ever gets wired, this pool becomes redundant; if it doesn't, the pool serves as the de-facto retention layer. Pick one.
+- `Assets/Packages/com.scaffold.navigation/Runtime/Implementation/NavigationProvider.cs:11` and `NavigationController.cs:15` — receive `IAddressablesGateway` via constructor injection. Pure pass-through to the strategy; no smell.
+- `Assets/Packages/com.scaffold.navigation/Runtime/Providers/NavigationAssetProvider.cs:9` — extends `AssetProvider<NavigationConfig>(gateway)`. The provider/registrar shape is being used as designed.
+- `Assets/Packages/com.scaffold.navigation/Tests/NavigationInstallerAndInjectionTests.cs` — DI-wiring tests that resolve the gateway via VContainer. No runtime use.
 
 Verdict on consumer disposal: navigation does call `handle.Release()` on every disposal path (`AddressablesNavigationPointStrategy.cs:65, 129`), but **only on the post-`WhenReady` paths** — the failure mode is the loading-state race, not double-release. The `IAssetGroupHandle<T> : IDisposable` contract is **never used by any consumer in the repo**; nobody loads by label. The whole `IAssetGroupHandle` / `IAssetGroupProvider<T>` half of the public surface is exercised only by the package's own tests. That's a load-bearing observation: half the gateway has no production traffic.
 

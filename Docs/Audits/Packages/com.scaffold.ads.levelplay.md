@@ -8,7 +8,7 @@ The implementation does enough work to demo and ship, but it has provider-shape 
 **Verdict: refactor.** Provider boundary is correct, but the bridging code needs both correctness and lifecycle fixes before this is a calm production path.
 
 ## Structure
-```
+```text
 com.scaffold.ads.levelplay/
   Container/
     LevelPlayInstaller.cs                       (registers SO + delegates to AdsInstaller)
@@ -273,10 +273,10 @@ Outside this package's scope but worth raising again: a fake provider in the abs
 - Google AdMob mediation reward verification: https://developers.google.com/admob/unity/ssv
 
 ## Consumers
-A repo-wide `grep -r` for `Scaffold.Ads.LevelPlay`, `LevelPlayAdProvider`, `LevelPlayAdConfigurationSO`, `UnityAdsTester`, and `LevelPlayInstaller` across `/home/user/Scaffold/Assets/`, `/home/user/Scaffold/GameModule/`, and `/home/user/Scaffold/LiveOps/` returns hits **only inside this package**. No application code imports `Scaffold.Ads.Levelplay` directly — the abstraction's "no leak" rule passes by virtue of having no consumers at all.
+A repo-wide `grep -r` for `Scaffold.Ads.LevelPlay`, `LevelPlayAdProvider`, `LevelPlayAdConfigurationSO`, `UnityAdsTester`, and `LevelPlayInstaller` across `Assets/`, `GameModule/`, and `LiveOps/` returns hits **only inside this package**. No application code imports `Scaffold.Ads.Levelplay` directly — the abstraction's "no leak" rule passes by virtue of having no consumers at all.
 
-- **Init is owned by `UnityAdsTester.Start()`**: `/home/user/Scaffold/Assets/Packages/com.scaffold.ads.levelplay/Runtime/Test/UnityAdsTester.cs:22-25` calls `Initialize()` from `MonoBehaviour.Start()` and then `AdManager.InitializeAds(userId, CreateRewardEndpointClient())` (`:34`). This is the de-facto bootstrap — there is no AppFlow stage owning ads. The file is in a folder named `Test/`, in the runtime asmdef, and ships in player builds. Smell: the only production initialization path is camouflaged as a tester.
-- **AppFlow / SceneFlow integration is absent**: `grep -rn 'IAdProvider\|InitializeAds\|AdManager' /home/user/Scaffold/Assets/Packages/com.scaffold.appflow /home/user/Scaffold/Assets/Packages/com.scaffold.sceneflow` returns nothing. Ads init is not staged behind login/`ILiveOpsService` ready, not gated on consent, not retried on failure.
+- **Init is owned by `UnityAdsTester.Start()`**: `Assets/Packages/com.scaffold.ads.levelplay/Runtime/Test/UnityAdsTester.cs:22-25` calls `Initialize()` from `MonoBehaviour.Start()` and then `AdManager.InitializeAds(userId, CreateRewardEndpointClient())` (`:34`). This is the de-facto bootstrap — there is no AppFlow stage owning ads. The file is in a folder named `Test/`, in the runtime asmdef, and ships in player builds. Smell: the only production initialization path is camouflaged as a tester.
+- **AppFlow / SceneFlow integration is absent**: `grep -rn 'IAdProvider\|InitializeAds\|AdManager' Assets/Packages/com.scaffold.appflow Assets/Packages/com.scaffold.sceneflow` returns nothing. Ads init is not staged behind login/`ILiveOpsService` ready, not gated on consent, not retried on failure.
 - **Placement keys at call sites are bare strings**: `RewardedAdTester.cs:21,150` (`ClickShowAdReward(placement)`), `BannerAdTester.cs:45,54` (`ShowBanner(placement)`/`HideBanner(placement)`), `InterstitialAdTester.cs:46` (`ShowInterstitial(placement)`). `RewardedAdPlacementUI.Key` is typed `AdPlacementKeySO` but decays via implicit cast at every API call — typing erodes at the boundary.
 - **Reward callbacks**: no consumer outside this package subscribes to `IRewardedAdService.AdSuccessfullyCompletedWithToken`. The only listener is `RewardedAdManager` itself (`com.scaffold.ads/Runtime/Abstraction/Rewarded/RewardedAdManager.cs:32-33`), which then forwards to `IRewardEndpointClient`. The forged-token finding therefore has no production victim today, but the abstraction's `bool Success` collapse means a future consumer cannot distinguish "validation failed because token was forged" from "no network".
 - **`AdRewardUIController` not used here either**: `grep -rn AdRewardUIController` returns only its own definition — confirms it leaks across packages by zero, and is dead-on-arrival.

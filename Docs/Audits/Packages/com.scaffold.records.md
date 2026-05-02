@@ -4,7 +4,7 @@
 A package whose entire runtime is a one-line shim that adds `IsExternalInit` so `init` setters compile on older TFMs. Everything else is empty. The samples don't even use the shim — they use `init` on a `private struct` that any modern Unity already supports without help. **Verdict: probably delete; if kept, document why and shrink to the minimum.**
 
 ## Structure
-```
+```text
 com.scaffold.records/
   Runtime/
     IsExternalInit.cs                      (shim)

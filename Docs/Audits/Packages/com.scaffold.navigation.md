@@ -24,7 +24,7 @@ Critical issues:
 
 ## 2. Structure
 
-```
+```text
 com.scaffold.navigation/
   Container/                                 (Scaffold.Navigation.Container.asmdef → Scaffold.AppFlow + VContainer)
     NavigationInjection.cs                   (INavigationOpenHandler + IViewControllerDependencyInjector)
@@ -494,7 +494,7 @@ if (stack == null || provider == null || transitions == null || middleware == nu
 ```
 
 **After:**
-```
+```text
 [delete all three occurrences; private readonly fields, set in ctor, cannot be null]
 ```
 
@@ -544,7 +544,7 @@ private async Task RunTransitionsAsync()
 
 ### 5.6 Delete dead code
 
-```
+```text
 DELETE Runtime/Implementation/ServerNavigationController.cs
 DELETE Runtime/Utility/NoView.cs                (replace sentinel use with private marker)
 DELETE Runtime/Contracts/IViewContext.cs        (if no consumer in this repo)
@@ -643,7 +643,7 @@ Currently `maxPerView = 2` per config. There is no global memory-pressure-driven
 
 ## 9. Consumers
 
-Scope: `/home/user/Scaffold/Assets/`, `/home/user/Scaffold/GameModule/`, `/home/user/Scaffold/LiveOps/`, excluding `com.scaffold.navigation/`. No game-side consumer exists under `Assets/Scaffold/`, `Assets/Scenes/`, `GameModule/`, or `LiveOps/`. The only consumers are sibling Scaffold packages (`com.scaffold.viewmodel`, `com.scaffold.view`) plus tests. **Distinct screens / popups in the repo: zero in production code, one stub in `Samples/NavigationUseCases.cs:5` (`SampleViewController`)**. The package's complexity (55 files, four stack policies, three view-source strategies, 21 audit issues) is justified by zero production routes.
+Scope: `Assets/`, `GameModule/`, `LiveOps/`, excluding `com.scaffold.navigation/`. No game-side consumer exists under `Assets/Scaffold/`, `Assets/Scenes/`, `GameModule/`, or `LiveOps/`. The only consumers are sibling Scaffold packages (`com.scaffold.viewmodel`, `com.scaffold.view`) plus tests. **Distinct screens / popups in the repo: zero in production code, one stub in `Samples/NavigationUseCases.cs:5` (`SampleViewController`)**. The package's complexity (55 files, four stack policies, three view-source strategies, 21 audit issues) is justified by zero production routes.
 
 - **`INavigation.Open<T>` call sites: zero outside the package's own samples and tests.** `grep -rn "navigation\.Open\|\.OpenReplace\|\.OpenClearAllAndPush\|\.OpenClearBelowAndPush"` against `Assets/Packages/` excluding `com.scaffold.navigation/` returns no production hits. The only `navigation.Close(...)` call is `ViewModel.Close()` itself (`Assets/Packages/com.scaffold.viewmodel/Runtime/ViewModel.cs:66` — `navigation.Close(this);`). Smell at the call site: `if (navigation == null) return;` (`ViewModel.cs:62-65`) — defensive null check before forwarding to the stack, the exact rubric anti-pattern.
 - **`IViewController` consumers (3 sites, all framework glue).** `IViewModel : IViewController` (`Assets/Packages/com.scaffold.viewmodel/Runtime/Contracts/IViewModel.cs:4`); `ViewModel.Bind(INavigation)` (`ViewModel.cs:22`); `ViewElement.Bind(IViewController)` and `ViewElementT.Bind(IViewController)` (`Assets/Packages/com.scaffold.view/Runtime/ViewElement.cs:29`, `ViewElementT.cs:16`). No concrete controller is registered in any installer in the repo — there's no `ViewConfig` ScriptableObject anywhere outside the package, so `NavigationSettings.GetViewConfig` (§4.1, `NavigationSettings.cs:36`) would throw `Exception("No view config found for ...")` for any real call.

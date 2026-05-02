@@ -20,7 +20,7 @@ The other miss: `SceneFlowInstaller` accepts `null` for `ISceneFlowBootstrapShel
 
 ## 2. Structure
 
-```
+```text
 com.scaffold.sceneflow/
   Runtime/                                 (Scaffold.SceneFlow.asmdef, autoReferenced, refs:
                                             Unity.Addressables, Unity.ResourceManager,
@@ -320,7 +320,7 @@ Pair a `SceneRegistry` ScriptableObject (mirroring `NavigationSettings`) with a 
 
 ### 7.2 Split asmdefs along the rubric boundary
 
-```
+```text
 Scaffold.SceneFlow                       (pure C#: ISceneFlowService, contracts, SceneFlowService)
 Scaffold.SceneFlow.Addressables          (AddressablesSceneOperations — UnityEngine.AddressableAssets)
 Scaffold.SceneFlow.Components            (MonoBehaviours: SceneFlowBootstrapShell, LoadingView)
@@ -363,7 +363,7 @@ Right now the README's example wraps `LoadAdditiveAsync` in `try/finally` with `
 
 ## 9. Consumers
 
-Scope: `/home/user/Scaffold/Assets/`, `/home/user/Scaffold/GameModule/`, `/home/user/Scaffold/LiveOps/`, excluding `com.scaffold.sceneflow/`. **There are zero `ISceneFlowService` callers in the entire repo.** No `LoadAdditiveAsync`, no `UnloadAsync`, no `SceneFlowLoadResult` reads, no `AssetReference` literals routed at it. The only cross-package dependency is one `using Scaffold.SceneFlow;` for `LoadingView`, which is a UI MonoBehaviour, not a service consumer. Verdict: this package has no production users — its claimed "additive scene loader" responsibility is dormant. The audit's §4.4 ("LoadingView doesn't belong here") is reinforced — `LoadingView` is the only thing anyone imports from SceneFlow.
+Scope: `Assets/`, `GameModule/`, `LiveOps/`, excluding `com.scaffold.sceneflow/`. **There are zero `ISceneFlowService` callers in the entire repo.** No `LoadAdditiveAsync`, no `UnloadAsync`, no `SceneFlowLoadResult` reads, no `AssetReference` literals routed at it. The only cross-package dependency is one `using Scaffold.SceneFlow;` for `LoadingView`, which is a UI MonoBehaviour, not a service consumer. Verdict: this package has no production users — its claimed "additive scene loader" responsibility is dormant. The audit's §4.4 ("LoadingView doesn't belong here") is reinforced — `LoadingView` is the only thing anyone imports from SceneFlow.
 
 - **Service-level callers of `ISceneFlowService.LoadAdditiveAsync` / `UnloadAsync`: zero.** `grep -rn "LoadAdditiveAsync\|ISceneFlowService\|SceneFlowInstaller\|SceneFlowLoadResult"` against `Assets/`/`GameModule/`/`LiveOps/` (excluding the package) returns no hits. The README's `try/finally` example with `loadingView.Show()/Hide()` is unrealised.
 - **`AssetReference` literals targeting scenes: zero.** No call sites pass an `AssetReference` to a scene-load API. `AssetReference` is used pervasively elsewhere — `AddressablesGateway.LoadAsync<T>(AssetReference reference, ...)` (`Assets/Packages/com.scaffold.addressables/Runtime/Implementation/AddressablesGateway.cs:39,63`), `ViewConfig.asset` for prefabs (`Assets/Packages/com.scaffold.navigation/Runtime/Implementation/ViewConfig.cs:20-21`), and `NavigationAssetProvider.AssetKey` for the `"Navigation Settings"` SO (`Assets/Packages/com.scaffold.navigation/Runtime/Providers/NavigationAssetProvider.cs:13`) — none for `LoadSceneMode.Additive`.

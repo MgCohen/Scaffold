@@ -4,7 +4,7 @@
 Editor + runtime helpers for `Type` references in serialized data: a `TypeReference` that round-trips through Newtonsoft, a `TypeSelectionAttribute` for `[SerializeReference]` polymorphism, and a `DependencyExtractor` that scans constructor params for an `[Inject]`-named attribute. Useful primitives, but the runtime ships engine-coupled, the package has zero tests, and several files violate the "fail-fast / no redundant guards" rubric. **Verdict: refactor.**
 
 ## Structure
-```
+```text
 com.scaffold.types/
   Runtime/
     TypeReference.cs                  (UnityEngine + Newtonsoft)

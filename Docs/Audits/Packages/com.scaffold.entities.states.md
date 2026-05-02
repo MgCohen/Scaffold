@@ -12,7 +12,7 @@ Verdict: **Refactor.** Keep the public API; rewrite `StoreVariableStorage`'s dif
 
 ## 2. Structure
 
-```
+```text
 com.scaffold.entities.states/
   Runtime/
     EntityBridgeContext.cs           (RegisterMutators)
@@ -394,7 +394,7 @@ Same proposal as the states audit §7.1. Specifically applied here, the six payl
 
 `Scaffold.Entities.States` has **zero consumers** outside its own `Runtime/` and `Tests/` folders. Verified via:
 
-```
+```text
 grep -rn "Scaffold\.Entities\.States\|EntityVariableState\|StateEntity<\|EntityStateFactory\|EntityStateReference\|EntityBridgeContext" Assets/ GameModule/ LiveOps/ --include="*.cs"
 # only matches inside Assets/Packages/com.scaffold.entities.states/
 ```

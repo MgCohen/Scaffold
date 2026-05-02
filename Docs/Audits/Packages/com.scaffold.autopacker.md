@@ -4,7 +4,7 @@ Audit date: 2026-05-02. Reviewer: senior architect.
 
 ## 1. Summary
 
-This package is a **shipping shell** around two precompiled DLLs (`AutoPackerContracts.dll`, `AutoPackerGenerator.dll`) plus four C# files: an `AssemblyInfo.cs` that contains nothing but a `#pragma`, two sample `MonoBehaviour`s, and one Edit Mode test fixture. The actual functionality (`[AutoPack]` attribute, `IPackingHandler`, `IPackedStruct`, the Roslyn source generator) lives outside this package — generator source is at `/home/user/Scaffold/Generators/AutoPacker/src/`. From a code-review standpoint, **the four `.cs` files do not constitute the package**; the audit surface is mostly the README, the test, and the integration choices.
+This package is a **shipping shell** around two precompiled DLLs (`AutoPackerContracts.dll`, `AutoPackerGenerator.dll`) plus four C# files: an `AssemblyInfo.cs` that contains nothing but a `#pragma`, two sample `MonoBehaviour`s, and one Edit Mode test fixture. The actual functionality (`[AutoPack]` attribute, `IPackingHandler`, `IPackedStruct`, the Roslyn source generator) lives outside this package — generator source is at `Generators/AutoPacker/src/`. From a code-review standpoint, **the four `.cs` files do not constitute the package**; the audit surface is mostly the README, the test, and the integration choices.
 
 What the package promises is sound and matches the rubric: a source generator that writes `partial` `Pack`/unpack methods and an `unmanaged Packed` struct per `[AutoPack]` type. Compile-time generation, zero reflection at runtime, blittable snapshots — exactly the "minimum code, maximum extensibility, prefer generics" model. The diagnostic CSG002 for managed fields that aren't mapped via `[Packed(typeof(T))]` is a textbook fail-fast.
 
@@ -22,7 +22,7 @@ The problems are at the package boundary, not the design:
 
 ## 2. Structure
 
-```
+```text
 com.scaffold.autopacker/
   Runtime/
     AssemblyInfo.cs                    1 line, only `#pragma warning disable SCA0009`
@@ -43,7 +43,7 @@ The two DLL sizes (~130 bytes each, per `ls -la`) are suspicious — that's stub
 
 If those DLLs are placeholders, the entire package is non-functional in the checked-in state and CI will be relying on something built elsewhere. Investigate before trusting any test pass.
 
-The actual generator project lives at `/home/user/Scaffold/Generators/AutoPacker/{src/AutoPackerGenerator,src/Contracts,AutoPackerGenerator.csproj,AutoPackerGenerator.sln}` — outside the audit scope. The `package.json` does not declare any dependency, so this package is correctly self-contained at the manifest level (`package.json:13`).
+The actual generator project lives at `Generators/AutoPacker/{src/AutoPackerGenerator,src/Contracts,AutoPackerGenerator.csproj,AutoPackerGenerator.sln}` — outside the audit scope. The `package.json` does not declare any dependency, so this package is correctly self-contained at the manifest level (`package.json:13`).
 
 ## 3. What's good
 
@@ -212,7 +212,7 @@ Costs nothing; turns a future "all six tests fail with cryptic 'Pack does not ex
 
 ### 5.4 Move samples out of compilation
 
-```
+```text
 Samples/    -> Samples~/
 ```
 
@@ -295,13 +295,13 @@ That's significantly above average. The gaps:
 
 A repo-wide `grep -rn "\[AutoPack\]\|AutoPackAttribute\|IPackingHandler\|IPackedStruct\|IPackable"` excluding the package itself and the `Generators/AutoPacker/src/` source: **zero hits.** The attribute does not appear in `Assets/`, `GameModule/`, or `LiveOps/`. The only code that exercises the generator is:
 
-- `/home/user/Scaffold/Assets/Packages/com.scaffold.autopacker/Tests/AutoPackerTests.cs:8, 18, 24` — three `[AutoPack] partial class` declarations (`PlayerState`, `SecurePayload`, `ExtendedPayload`) inside the test fixture file. Audit 4.6 already flagged the placement.
-- `/home/user/Scaffold/Assets/Packages/com.scaffold.autopacker/Samples/AutoPackerUseCase.cs` and `Samples/CustomPackerUseCase.cs` — `[AutoPack]` on sample types `Player`, `Secret`. **These compile into consumer builds today** because the folder is `Samples/`, not `Samples~/` (audit 4.10).
+- `Assets/Packages/com.scaffold.autopacker/Tests/AutoPackerTests.cs:8, 18, 24` — three `[AutoPack] partial class` declarations (`PlayerState`, `SecurePayload`, `ExtendedPayload`) inside the test fixture file. Audit 4.6 already flagged the placement.
+- `Assets/Packages/com.scaffold.autopacker/Samples/AutoPackerUseCase.cs` and `Samples/CustomPackerUseCase.cs` — `[AutoPack]` on sample types `Player`, `Secret`. **These compile into consumer builds today** because the folder is `Samples/`, not `Samples~/` (audit 4.10).
 
 Two consequential findings from the call-site survey:
 
 1. **The package has no production traffic.** Outside its own samples and tests, no script in this repo authors a `[AutoPack]` type or implements `IPackingHandler`. Either the feature was speculatively built ahead of need, or it was used in a sibling project not present here. Either way, claims of "battle-tested" cannot be inferred from this codebase — only the 6 in-fixture tests (`AutoPackerTests.cs:80-183`) exercise the generator at all.
-2. **The DLLs are git-LFS pointer files, not real binaries.** `file Runtime/AutoPackerContracts.dll` and `Runtime/AutoPackerGenerator.dll` both report **ASCII text**, sized 129/130 bytes, with content `version https://git-lfs.github.com/spec/v1` + `oid sha256:...` + `size 5120` (contracts) / `size 20992` (generator). This **confirms audit 4.1 to the letter**: in a working copy without `git lfs install`/`git lfs pull`, the DLLs are 129-byte text stubs and the entire package is non-functional. CI almost certainly runs LFS pull; local devs may not. Add `git lfs install` to onboarding docs and a `*.dll filter=lfs diff=lfs merge=lfs -text` line to `.gitattributes` if it isn't there. Real DLL sizes (5KB / 21KB) are also **smaller than typical Roslyn generators** (often hundreds of KB once Roslyn refs are pulled in via reference assemblies), suggesting the contracts and generator both depend on a slim subset and the build trims correctly — possibly because `AutoPackerGenerator.csproj` lists `<PrivateAssets>all</PrivateAssets>` on the Roslyn refs. Verify in `/home/user/Scaffold/Generators/AutoPacker/AutoPackerGenerator.csproj`.
+2. **The DLLs are git-LFS pointer files, not real binaries.** `file Runtime/AutoPackerContracts.dll` and `Runtime/AutoPackerGenerator.dll` both report **ASCII text**, sized 129/130 bytes, with content `version https://git-lfs.github.com/spec/v1` + `oid sha256:...` + `size 5120` (contracts) / `size 20992` (generator). This **confirms audit 4.1 to the letter**: in a working copy without `git lfs install`/`git lfs pull`, the DLLs are 129-byte text stubs and the entire package is non-functional. CI almost certainly runs LFS pull; local devs may not. Add `git lfs install` to onboarding docs and a `*.dll filter=lfs diff=lfs merge=lfs -text` line to `.gitattributes` if it isn't there. Real DLL sizes (5KB / 21KB) are also **smaller than typical Roslyn generators** (often hundreds of KB once Roslyn refs are pulled in via reference assemblies), suggesting the contracts and generator both depend on a slim subset and the build trims correctly — possibly because `AutoPackerGenerator.csproj` lists `<PrivateAssets>all</PrivateAssets>` on the Roslyn refs. Verify in `Generators/AutoPacker/AutoPackerGenerator.csproj`.
 
 No consumer is "wrapping the wrapper" — there's nothing to wrap. The package's contracts (`IPackingHandler`, `[AutoPack]`) are not re-exported from any other Scaffold package. If `com.scaffold.entities` or `com.scaffold.states` were eventually going to use packed snapshots for serialization, that wire-up has not happened.
 

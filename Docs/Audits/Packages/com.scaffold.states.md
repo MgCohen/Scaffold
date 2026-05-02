@@ -12,7 +12,7 @@ Verdict: **Refactor.** The model is right. Many internals need tightening before
 
 ## 2. Structure
 
-```
+```text
 com.scaffold.states/
   Runtime/
     Abstractions/      IPayloadReference, IReference, IStateEventHandler, IStateScope, IStoreScope, ISubscription, IStateEventDeferralController

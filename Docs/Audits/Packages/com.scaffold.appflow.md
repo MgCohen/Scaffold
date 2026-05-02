@@ -16,7 +16,7 @@ The single biggest gap relative to the rubric: **no real flow abstraction**. The
 
 ## 2. Structure
 
-```
+```text
 com.scaffold.appflow/
   Runtime/                 (Scaffold.AppFlow.asmdef, autoReferenced=true, override=true, refs=VContainer)
     AppFlowHost.cs
@@ -69,7 +69,7 @@ The README (`README.md:24-29`) describes startup as `BeginSession("Startup", cou
 
 Suggested layering (see §5.1):
 
-```
+```text
 IAppFlow<TContext>          -- typed flow, has Stages
 IAppFlowStage<TContext>     -- typed stage, has Run(ctx, ct)
 AppFlowHost (current)       -- still here, used by stage runner
@@ -435,7 +435,7 @@ Strings in error info, progress entries, session names. Replace with a `LayerKey
 
 ## 9. Consumers
 
-Scope of search: `/home/user/Scaffold/Assets/`, `/home/user/Scaffold/GameModule/`, `/home/user/Scaffold/LiveOps/`, excluding `com.scaffold.appflow/` itself. There is **no game-side consumer** under `Assets/Scenes/`, `Assets/Scaffold/`, `GameModule/`, or `LiveOps/Scaffold/`; every consumer is another Scaffold package or AppFlow's own samples. That is the most important finding: AppFlow has zero in-repo proof that the rubric's "Boot / Intro / Login / MainLoop" stages exist anywhere — the only `IScopeLayer` implementers are samples.
+Scope of search: `Assets/`, `GameModule/`, `LiveOps/`, excluding `com.scaffold.appflow/` itself. There is **no game-side consumer** under `Assets/Scenes/`, `Assets/Scaffold/`, `GameModule/`, or `LiveOps/Scaffold/`; every consumer is another Scaffold package or AppFlow's own samples. That is the most important finding: AppFlow has zero in-repo proof that the rubric's "Boot / Intro / Login / MainLoop" stages exist anywhere — the only `IScopeLayer` implementers are samples.
 
 - **`IScopeLayer` impls (4 total, all in samples).** `SampleAssetsLayer` (`Assets/Packages/com.scaffold.appflow/Samples/Layers/SampleAssetsLayer.cs:10`), `SampleConfigsLayer` (`SampleConfigsLayer.cs:8`), `SampleFeatureLayer` (`SampleFeatureLayer.cs:10`). No production layer exists. Stage registration goes through `AppFlowRoot.GetInitialLayers()` returning `IEnumerable<IScopeLayer>` (`SampleAppFlowRoot.cs:14-18`); ad-hoc runtime stages call `Host.PushAsync(new SampleFeatureLayer(), ct)` (`SampleAppFlowRoot.cs:22`). Smell at the call site: `new SampleFeatureLayer()` is a stringly-keyed identity — no compile-time stage id, the only handle is the runtime type.
 - **`IAsyncInitializable` consumers (5 distinct services).** `AddressablesGateway` (`Assets/Packages/com.scaffold.addressables/Runtime/Implementation/AddressablesGateway.cs:13`, registered `AddressablesInstaller.cs:22`), `LiveOpsService` (`Assets/Packages/com.scaffold.liveops/Runtime/LiveOpsService.cs:17`, `LiveOpsInstaller.cs:14`), `GameClientModuleBase<T>` (`com.scaffold.liveops/Runtime/GameClientModuleBase.cs:10`), `Ugs` (`Assets/Packages/com.scaffold.ugs/Runtime/Ugs.cs:9`, `UgsInstaller.cs:11`), `PushSubscriptionService` and `PushDisconnectHandler` (`Assets/Packages/com.scaffold.directpush/Runtime/PushSubscriptionService.cs:13`, `PushDisconnectHandler.cs:10`, `DirectPushInstaller.cs:13,19`). All implement the same `Task InitializeAsync(CancellationToken ct)` contract; this is the *real* AppFlow surface in production, not `IScopeLayer`.
