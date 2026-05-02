@@ -1,0 +1,27 @@
+{
+  "$schema_note": "Populate via Unity Test Runner JSON export + PerformanceBenchmarkReporter after Phase 0 Editor run; IL2CPP lane optional.",
+  "package": "com.scaffold.maps",
+  "generated": null,
+  "editor_mono": [],
+  "playmode_il2cpp": [],
+  "benchmarks_expected": [
+    "MapIndexerValuesBench.Indexer_Values_PerRead_Count10",
+    "MapIndexerValuesBench.Indexer_Values_PerRead_Count100",
+    "MapIndexerValuesBench.Indexer_Values_PerRead_Count1000",
+    "MapKeyEnumerationBench.GetPrimaryKeys_1000Entries_10000Calls",
+    "MapKeyEnumerationBench.GetSecondaryKeys_1000Entries_10000Calls",
+    "MapIndexerBulkRebuildBench.BulkAdd_AfterFiveIndexers_Count_10",
+    "MapIndexerBulkRebuildBench.BulkAdd_AfterFiveIndexers_Count_100",
+    "MapIndexerBulkRebuildBench.BulkAdd_AfterFiveIndexers_Count_1000",
+    "MapVsTupleDictBench.Map_Add_FromEmpty_Count10",
+    "MapVsTupleDictBench.Dict_Add_FromEmpty_Count10",
+    "MapVsTupleDictBench.Map_Add_FromEmpty_Count100",
+    "MapVsTupleDictBench.Dict_Add_FromEmpty_Count100",
+    "MapVsTupleDictBench.Map_Add_FromEmpty_Count1000",
+    "MapVsTupleDictBench.Dict_Add_FromEmpty_Count1000",
+    "MapVsTupleDictBench.Map_TryGetValue_Hit_Count1000",
+    "MapVsTupleDictBench.Dict_TryGetValue_Hit_Count1000",
+    "MapVsTupleDictBench.Map_Foreach_Count1000",
+    "MapVsTupleDictBench.Dict_Foreach_Count1000"
+  ]
+}

@@ -1,0 +1,22 @@
+{
+    "name": "Scaffold.Maps.Tests.Performance",
+    "rootNamespace": "Scaffold.Maps.Tests.Performance",
+    "references": [
+        "Scaffold.Maps",
+        "Unity.PerformanceTesting"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false,
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
+}
