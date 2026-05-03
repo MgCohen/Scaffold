@@ -161,12 +161,14 @@ namespace Scaffold.States.Tests
 
             CardGameStoreFactory.DrawTop(store, demo.Player);
 
-            // PlayerView depends on both HandState and DeckState. Even though both change in one Execute,
-            // we just care that the final committed state is consistent.
+            // PlayerView depends on both HandState and DeckState; both change in one Execute commit.
+            // The framework currently re-rebuilds PlayerView once per dependency Notify, so this asserts
+            // the observable rebuild count today (two notifications → two rebuilds). When commit-batch
+            // coalescing lands (see Plans/AggregateRebuildOptimization), this should become EqualTo(1).
             PlayerView pv = store.Get<PlayerView>(demo.Player);
             Assert.That(pv.HandSize, Is.EqualTo(1));
             Assert.That(pv.DeckSize, Is.EqualTo(4));
-            Assert.That(playerViewBuilds, Is.GreaterThanOrEqualTo(1));
+            Assert.That(playerViewBuilds, Is.EqualTo(2));
         }
     }
 }
