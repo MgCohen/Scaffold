@@ -22,8 +22,8 @@ Runtime slice/store pattern for immutable game state. **`Store`** composes **`Sl
 
 | Term | Role | Shape |
 |---|---|---|
-| `IReference` | Marker for entity identity | `record PlayerId(int V) : IReference;` |
-| `State` | Immutable record stored per `(reference, type)` | `record CounterState(int V) : State;` |
+| `IReference` | Marker for entity identity | `record PlayerId(int Value) : IReference;` |
+| `State` | Immutable record stored per `(reference, type)` | `record CounterState(int Value) : State;` |
 | `Slice` | Canonical row holding one `State` at one reference | created via `store.RegisterSlice(...)` |
 | `AggregateState` | Derived state, rebuilt from declared deps | `record TotalsView(int Sum) : AggregateState;` |
 | `Mutator<TState, TPayload>` | Pure `(state, payload, scope) → newState` | `class Inc : Mutator<CounterState, IncPayload>` |
@@ -176,7 +176,7 @@ Buffer `Notify` calls during a scope; flush as a batch (`PreserveAll` or `Latest
     // DO — split them
     public sealed record CardId(int Value) : IReference;            // identity
     public sealed record CardDef(int Cost, int Atk, int Hp);        // definition (outside the store)
-    public sealed record CardView(...) : AggregateState;            // derived, in the store
+    public sealed record CardView(/* fields */) : AggregateState;   // derived, in the store
 
 ### Per-concern aggregates, not mega-aggregates
 
@@ -235,10 +235,10 @@ Buffer `Notify` calls during a scope; flush as a batch (`PreserveAll` or `Latest
 ### Specific subscriptions over `SubscribeAllReferences` in production
 
     // DON'T (in production code) — wakes for every card in the game
-    scope.Events.SubscribeAllReferences<CardRuntimeState>(...);
+    scope.Events.SubscribeAllReferences<CardRuntimeState>((_, _, _) => rebuild.RequestRebuild());
 
     // DO
-    scope.Events.Subscribe<CardRuntimeState>(myCardId, ...);
+    scope.Events.Subscribe<CardRuntimeState>(myCardId, (_, _, _) => rebuild.RequestRebuild());
 
 ## Roadmap
 
