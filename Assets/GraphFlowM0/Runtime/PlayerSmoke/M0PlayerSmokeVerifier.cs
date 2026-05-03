@@ -1,4 +1,5 @@
 using Scaffold.GraphFlow.M0.Smoke;
+using TMPro;
 using UnityEngine;
 
 namespace Scaffold.GraphFlow.M0.PlayerSmoke
@@ -12,6 +13,8 @@ namespace Scaffold.GraphFlow.M0.PlayerSmoke
         const string PrefsKey = "GraphFlow.M0.LastResult";
 
         [SerializeField] MySmokeGraphAsset graph = null!;
+        [SerializeField] TextMeshProUGUI before;
+        [SerializeField] TextMeshProUGUI after;
 
         void Awake()
         {
@@ -19,14 +22,18 @@ namespace Scaffold.GraphFlow.M0.PlayerSmoke
             var controller = new GraphController<MySmokeRunner>(graph);
             controller.Initialize(runner);
 
-            _ = RunAsync(controller, runner);
+            RunAsync(controller, runner);
         }
 
-        static async void RunAsync(GraphController<MySmokeRunner> controller, MySmokeRunner runner)
+        async void RunAsync(GraphController<MySmokeRunner> controller, MySmokeRunner runner)
         {
-            await controller.Run(new OnPlay { CardId = 42 });
+            int id = Random.Range(0, 50);
+            Debug.Log($"[M0] Player smoke: Id ={id}");
+            before.text = id.ToString();
+            await controller.Run(new OnPlay { CardId = id });
             PlayerPrefs.SetString(PrefsKey, runner.LastLogMessage);
             PlayerPrefs.Save();
+            after.text = runner.LastLogMessage;
             Debug.Log($"[M0] Player smoke: {PrefsKey}={runner.LastLogMessage}");
 #if !UNITY_EDITOR
             Application.Quit(0);

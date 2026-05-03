@@ -44,7 +44,7 @@ namespace Scaffold.GraphFlow.M0
             }
         }
 
-        public ValueTask Run<TEntry>(TEntry payload) where TEntry : class
+        public Task Run<TEntry>(TEntry payload) where TEntry : class
         {
             if (_entryRoots == null)
                 throw new InvalidOperationException("Initialize must be called first.");

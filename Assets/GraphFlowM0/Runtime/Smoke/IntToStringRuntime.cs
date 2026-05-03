@@ -9,8 +9,8 @@ namespace Scaffold.GraphFlow.M0.Smoke
     {
         public static class Ports
         {
-            public const int InValue = 0xA001_0001;
-            public const int OutString = 0xA001_0002;
+            public const int InValue = unchecked((int)0xA001_0001u);
+            public const int OutString = unchecked((int)0xA001_0002u);
         }
 
         [NonSerialized] Connection<int>? _inValue;
@@ -36,7 +36,7 @@ namespace Scaffold.GraphFlow.M0.Smoke
             }
         }
 
-        public override ValueTask<FlowContinuation> Execute(MySmokeRunner runner) =>
-            new ValueTask<FlowContinuation>(FlowContinuation.Stop);
+        public override Task<FlowContinuation> Execute(MySmokeRunner runner) =>
+            Task.FromResult(FlowContinuation.Stop);
     }
 }

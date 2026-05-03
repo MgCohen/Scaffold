@@ -1,3 +1,5 @@
+using System.Threading.Tasks;
+
 namespace Scaffold.GraphFlow.M0.Smoke
 {
     /// <summary>Entry payload for M0 slice (Mode 1).</summary>
@@ -11,10 +13,10 @@ namespace Scaffold.GraphFlow.M0.Smoke
     {
         public string Message = "";
 
-        public System.Threading.Tasks.ValueTask Execute(MySmokeRunner runner)
+        public Task Execute(MySmokeRunner runner)
         {
             runner.RecordLog(Message);
-            return default;
+            return Task.CompletedTask;
         }
     }
 }

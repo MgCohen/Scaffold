@@ -195,14 +195,7 @@ namespace Scaffold.GraphFlow.M0.Editor
 
         static string? TryGetEditorGuid(INode node)
         {
-            try
-            {
-                return EditorNodeIdentity.GetStableGuid(node);
-            }
-            catch
-            {
-                return null;
-            }
+            return EditorNodeIdentity.GetStableGuid(node);
         }
 
         static bool IsFlowEdge(INode fromEditor, string fromPortName, INode toEditor, string toPortName)

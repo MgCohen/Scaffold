@@ -19,7 +19,7 @@ namespace Scaffold.GraphFlow.M0.Editor
             var graph = GraphDatabase.LoadGraphForImporter<TGraph>(ctx.assetPath);
             if (graph == null)
             {
-                ctx.LogImportError($"Failed to load graph for importer: {typeof(TGraph).Name}", ctx.assetPath);
+                ctx.LogImportError($"Failed to load graph for importer: {typeof(TGraph).Name} ({ctx.assetPath})", null);
                 return;
             }
 
@@ -35,7 +35,7 @@ namespace Scaffold.GraphFlow.M0.Editor
 
             var bake = Bake(graph, previous);
             foreach (var msg in bake.Diagnostics)
-                ctx.LogImportError(msg, ctx.assetPath);
+                ctx.LogImportError($"{msg} ({ctx.assetPath})", null);
 
             if (bake.HasErrors || bake.Asset == null)
                 return;

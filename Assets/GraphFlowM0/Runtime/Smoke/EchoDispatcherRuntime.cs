@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 
 namespace Scaffold.GraphFlow.M0.Smoke
 {
@@ -7,10 +8,10 @@ namespace Scaffold.GraphFlow.M0.Smoke
     {
         public static class Ports
         {
-            public const int FlowIn = 0xF003_0001;
-            public const int FlowOut = 0xF003_0002;
-            public const int Magnitude = 0xC003_0001;
-            public const int Summary = 0xC003_0002;
+            public const int FlowIn = unchecked((int)0xF003_0001u);
+            public const int FlowOut = unchecked((int)0xF003_0002u);
+            public const int Magnitude = unchecked((int)0xC003_0001u);
+            public const int Summary = unchecked((int)0xC003_0002u);
         }
 
         public int Magnitude;
@@ -25,8 +26,8 @@ namespace Scaffold.GraphFlow.M0.Smoke
 
         protected override void WriteOutputs(FakeResult result) => _out_Summary = result.Summary;
 
-        protected override ValueTask<FakeResult> DispatchAsync(MySmokeRunner runner, Echo cmd) =>
-            new ValueTask<FakeResult>(new FakeResult { Summary = $"echo:{cmd.Magnitude}" });
+        protected override Task<FakeResult> DispatchAsync(MySmokeRunner runner, Echo cmd) =>
+            Task.FromResult(new FakeResult { Summary = $"echo:{cmd.Magnitude}" });
 
         public override Connection GetOutputConnection(int portId) => portId switch
         {

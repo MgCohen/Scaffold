@@ -1,3 +1,5 @@
+using System.Threading.Tasks;
+
 namespace Scaffold.GraphFlow.M0
 {
     /// <summary>Marker: payload types that belong to this runner package (Mode 1).</summary>
@@ -9,6 +11,6 @@ namespace Scaffold.GraphFlow.M0
     /// <summary>Optional: payload executes itself instead of DispatcherBase (Mode 1).</summary>
     public interface IExecutable<TRunner> where TRunner : GraphRunner
     {
-        System.Threading.Tasks.ValueTask Execute(TRunner runner);
+        Task Execute(TRunner runner);
     }
 }

@@ -9,8 +9,8 @@ namespace Scaffold.GraphFlow.M0.Smoke
     {
         public static class Ports
         {
-            public const int FlowOut = 0xF001_0001;
-            public const int CardId = 0x4F2A_8B17;
+            public const int FlowOut = unchecked((int)0xF001_0001u);
+            public const int CardId = unchecked((int)0x4F2A_8B17u);
         }
 
         [NonSerialized] public int _out_CardId;
@@ -24,11 +24,11 @@ namespace Scaffold.GraphFlow.M0.Smoke
         public override void BindInput(int portId, Connection connection) =>
             throw new ArgumentOutOfRangeException(nameof(portId));
 
-        public override ValueTask<FlowContinuation> Execute(MySmokeRunner runner)
+        public override Task<FlowContinuation> Execute(MySmokeRunner runner)
         {
             if (Payload != null)
                 _out_CardId = Payload.CardId;
-            return new ValueTask<FlowContinuation>(FlowContinuation.Next(Ports.FlowOut));
+            return Task.FromResult(FlowContinuation.Next(Ports.FlowOut));
         }
     }
 
@@ -42,7 +42,7 @@ namespace Scaffold.GraphFlow.M0.Smoke
 
         public static class Ports
         {
-            public const int Message = 0x77E1_3C20;
+            public const int Message = unchecked((int)0x77E1_3C20u);
         }
 
         /// <summary>Baked embedded default when Message port is unwired.</summary>
@@ -60,7 +60,7 @@ namespace Scaffold.GraphFlow.M0.Smoke
             _in_Message = (Connection<string>)connection;
         }
 
-        public override async ValueTask<FlowContinuation> Execute(MySmokeRunner runner)
+        public override async Task<FlowContinuation> Execute(MySmokeRunner runner)
         {
             var payload = new Log
             {

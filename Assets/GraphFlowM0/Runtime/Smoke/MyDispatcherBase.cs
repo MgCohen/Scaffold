@@ -10,7 +10,7 @@ namespace Scaffold.GraphFlow.M0.Smoke
         /// <summary>Flow output after dispatch — matches editor <c>FlowOut</c> / baker.</summary>
         protected abstract int FlowOutPortId { get; }
 
-        protected sealed override async ValueTask<FlowContinuation> Execute(MySmokeRunner runner)
+        public sealed override async Task<FlowContinuation> Execute(MySmokeRunner runner)
         {
             var cmd = BuildPayload();
             var result = await DispatchAsync(runner, cmd).ConfigureAwait(false);
@@ -22,7 +22,9 @@ namespace Scaffold.GraphFlow.M0.Smoke
         protected abstract void WriteOutputs(TResult result);
 
         /// <summary>Fake Card Framework pipeline — replace with real dispatch in product code.</summary>
-        protected virtual ValueTask<TResult> DispatchAsync(MySmokeRunner runner, TCmd cmd) =>
+        protected virtual Task<TResult> DispatchAsync(MySmokeRunner runner, TCmd cmd)
+        {
             throw new System.NotImplementedException();
+        }
     }
 }
