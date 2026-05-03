@@ -1440,7 +1440,8 @@ The first two milestones deliberately split the design risk from the meta-toolin
 | **M0** | **Done** | Golden vertical slice under `Assets/GraphFlowM0/` — bake, hydrate, `GraphController`, player smoke; hand-written trio + registry switches in `GraphBaker`. |
 | **M1** | **Done** | Trio + payload-driven editor/runtime nodes, registry-driven generic baker, EFG diagnostics, convention strategy abstraction, snapshot harness — see [Recent generator-stabilization work](#recent-generator-stabilization-work-2026-05-03) and [M1 closeout](#m1-closeout-2026-05-03) below. |
 | **M2** | **Done** | Generic-node generation pass on the **typed-port-handle model** (port handles + `Connection.Bind` seam, dict-based dispatch on `RuntimeNode` base, `partial void InitializePorts()` for OutputPort assignment, no port-id leakage to user code, pure-data nodes inherit from `RuntimeNode` directly without `TRunner`/`Execute`); minimum built-in set (Branch, Cancel, Return, ReturnBool, Not); Validate/Run flow ports on entry/listener nodes; `OnGraphChanged` validation (EFG-V01..V04); smoke graph extension; sandbox folder rename. `[Return Strike]` deferred to M3 (Mode 2 dependency); multi-T predicates (`Equals<T>` etc.) and remainder of catalog deferred to M4. See "Generic-node emission" subsection (which carries a design-iteration log of the three-pass redesign) and [M2 closeout](#m2-closeout-2026-05-03) below. |
-| M3+ | Planned | CF integration, M4 polish per sections below. |
+| **M3** | Planned (reframed 2026-05-03) | Package consolidation + typed entries + per-run `Flow` state + Mode-2 sample. Reframed from the original "CF integration" scope after a design pass surfaced four structural decisions (D1–D9 in the M3 milestone section): everything required to run lives in `com.scaffold.graphflow/`, runner is reused across runs, per-run state moves to a new `Flow` object that absorbs `FlowContinuation`, entries carry both `TPayload` and `TResult` and unify with triggers, cross-asm `[GraphNode]` discovery lights up shared node libs automatically, and `GraphRunner.Cancelled` / `ReturnValue` / `ReturnBool` (added M2) are removed in favour of the typed `Flow.Outcome` / `Flow.Result` / `Return<TRunner, TResult>` shape. CardSandbox is rewritten as a sample under `Samples~/`; M0 sandbox is demoted alongside. See full milestone section below for D1–D9, Execute-signature change, generator changes, sample lifecycle, and implementation order. |
+| M4+ | Planned | Polish + remaining catalog per sections below. |
 
 #### Recent generator-stabilization work (2026-05-03)
 
@@ -1534,15 +1535,352 @@ The hand-written code must be **representative**, not corner-cut. Validation hin
 - (Deferred:) `Connection` type-conversion mechanism — architectural seam is in place at `Connection.Bind` for M2; the actual converter registry + conversion logic is M4+.
 - (Deferred:) Blackboard panel — v2.
 
-### Milestone 3 — Card Framework integration (1 week)
+### Milestone 3 — Package consolidation, typed entries, Mode-2 sample (3 weeks)
 
-- `CardEffectRunner : GraphRunner` with `IEffectScope`, host references, services.
-- `[assembly: GraphPackage(Runner = typeof(CardEffectRunner), CommandBase = typeof(Command<>), DispatcherBase = typeof(CardCommandDispatcher<,>), ...)]` — Mode 2 binding, payloads untouched.
-- Helper bases: `CardCommandDispatcher<TCmd, TResult>`, `CardCommandListener<TCmd, TResult>`, `ReturnPayloadNode<TCmd>`, `CardEntryPointNode<TEntry>` — all `RuntimeNode<CardEffectRunner>`.
-- `ICommandListener<CardEffectRunner>` adapter to the framework's pipeline registration interface.
-- One real card authored end-to-end (recreate `500 Strike` from Overknights).
-- Documented integration recipe.
-- Decision pass on whether `EntryNodeBase` / `ListenerBase` / `ReturnBase` actually pulled weight; drop the unused ones from `[GraphPackage]` if so.
+> **Reframing note (2026-05-03).** The original M3 was scoped narrowly as "Card Framework integration". A design-pass while standing up the CF stand-in surfaced four structural decisions that subsume what the original M3 was trying to do; this milestone now folds them. The CF integration becomes a sample — useful for validating the Mode-2 path end-to-end, not a hard dependency the framework integrates against. Expect M3 to be substantively bigger than M0–M2 because it touches every Execute signature in the system; estimate is widened from 1 week to 3.
+
+> **Supersession map — read this before treating earlier sections as authoritative.** Several earlier sections of this plan (Architecture overview, Concept layer, Source generator, Runtime, Authoring surface) describe shapes from the M0–M2 era. M3 supersedes them in the following ways. When an earlier passage and a D-decision below conflict, **the D-decision wins.**
+>
+> | Earlier-section claim | Status under M3 | Superseded by |
+> | --- | --- | --- |
+> | Core types live under `Assets/GraphFlowM0/` (later `Assets/GraphFlowSandbox/`) and namespace `Scaffold.GraphFlow.M0`. | Moved into `Assets/Packages/com.scaffold.graphflow/Runtime/` and `/Editor/`; namespace `Scaffold.GraphFlow`. M0 sandbox demoted to `Samples~/`. | **D1** |
+> | `Execute` returns `Task<FlowContinuation>` (or `ValueTask<FlowContinuation>`); the executor reads the `FlowContinuation` to pick the next port. `FlowContinuation.Stop` / `FlowContinuation.Next(portId)`. | `Execute` returns plain `Task` and takes `(TRunner, Flow)`. Routing decisions move onto `Flow` via `GoTo` / `Stop` / `Return` / `Cancel`. `FlowContinuation` is deleted. | **D2 + D3** |
+> | `GraphRunner` carries per-run state (`Cancelled`, `ReturnValue` from M2). | Both fields removed. State lives on `Flow.Outcome` / `Flow.Result` for the duration of one Run; runner is reused across runs and stays clean. | **D2 + D4** |
+> | `EntryRuntimeNode<TEntry, TRunner>`. `IGraphEntry<TRunner>` marker. Listener nodes are a separate concept (`IListenerNode<TRunner>`). | `EntryRuntimeNode<TEntry, TRunner, TResult>` with three type parameters. `IGraphEntry<TPayload, TResult>` (and the void-sugar `IGraphEntry<TPayload>`). `IGraphTrigger<TEvent>` is a marker subset of entries — *triggers are entries*; there is no separate listener concept on the runtime. | **D5** |
+> | `ReturnBool` is a built-in flow terminator. | Removed. Replaced by the typed `Return<TRunner, TResult>` built-in (any `TResult`). The M2 `ReturnBool<TRunner>` becomes `Return<TRunner, bool>`. | **D3 (Return) + D5** |
+> | `[GraphPackage]` exposes `EntryBase`, `ListenerBase`, `ReturnBase` knobs. | All three knobs removed. Only `DispatcherBase` and `CommandBase` survive (still load-bearing for Mode-2 emission). | **D7** |
+> | Generator walks only the runner's containing assembly for `[GraphNode]` types ("M2 supports a single source assembly per package; consumer-authored nodes in other referenced assemblies are a v2 follow-up"). | Generator walks every asm referenced by the runner's asm that itself references the GraphFlow runtime asm. Built-in nodes in the package light up automatically; shared node libraries supported. | **D6** |
+> | `CommandPipeline` + `ICommandListener<TCmd, TResult>` model in CardSandbox (M3-prep `b657389`). | Deleted. Cross-card command modification happens through events + trigger entries (D8). The CardSandbox sample is rewritten on top of D9's entry catalog. | **D8** |
+> | Card Framework (Overknights) is referenced as the integration target; M3 is "the CF integration". | Card Framework is **not** integrated. The CF concepts (commands, listeners, scope) are reproduced in a self-contained `CardSandbox` sample under `Samples~/CardSandbox/` purely to validate the Mode-2 path end-to-end. No third-party CF dependency is taken. | **D8 + sample lifecycle** |
+> | `controller.Run<TEntry>(payload) → Task` (untyped result). | `controller.Run<TEntry, TResult>(payload) → Task<TResult>`. Each entry node also exposes `Task<TResult> Run(TEntry)` directly so hosts can pattern-match the entry list and invoke without restating type args. | **D5 + D9** |
+> | Listener registration / discovery is a runtime concern. | Subscription is host territory. Framework exposes `controller.EntryNodes : IReadOnlyList<RuntimeNode>`; the host pattern-matches typed entries and wires them into whatever event source it owns. No descriptor classes, no listener registry. | **D8 + D9** |
+>
+> Earlier text that's not in this table is still accurate (port handles, `Connection.Bind` seam, dict-based dispatch on `RuntimeNode`, generic-node emission shape, validation rules EFG-V01..V04, etc. — all from M2 and unchanged in M3).
+
+#### Goal
+
+Promote GraphFlow from "sandbox proving the architecture" to "consumable Unity package". By the end of M3, **every type required to author and run a graph lives inside `Assets/Packages/com.scaffold.graphflow/`**, the runtime is reentrant-safe via per-run `Flow` state, entries are typed end-to-end on both payload and result, triggers are unified with entries, and a CardSandbox sample validates the Mode-2 pipeline against a recreation of `500 Strike`. The M0 sandbox (currently `Assets/GraphFlowSandbox/`) is demoted to a sample (or deleted) — nothing outside the package may be load-bearing.
+
+#### Architectural decisions locked in by M3
+
+These are settled. The implementer should not relitigate; they should implement.
+
+##### D1 — Package is the only home of the framework
+
+- Everything required to run a graph at runtime lives in `Assets/Packages/com.scaffold.graphflow/Runtime/`. This includes: `GraphRunner`, `RuntimeNode`, `RuntimeNode<TRunner>`, `Connection` / `Connection<T>`, `Port` / `InputPort<T>` / `OutputPort<T>` / `FlowOut`, `Flow`, `FlowOutcome`, `EntryRuntimeNode<TEntry, TRunner, TResult>`, `GraphAsset<TRunner>`, `GraphController<TRunner>`, `GraphExecutor<TRunner>`, the lifecycle interfaces, plus the built-in nodes (`Branch`, `Cancel`, `Not`, `Return<TRunner, TResult>`, `ReturnBool` if kept — see D3 / built-ins).
+- Editor-side core lives in `Assets/Packages/com.scaffold.graphflow/Editor/`: `GraphPackageRegistry<>`, `GraphBakerCore`, `GraphAssetImporterBase`, `EditorNodeIdentity`. The generator's hardcoded `EditorRegistryNamespace` (currently `"Scaffold.GraphFlow.M0.Editor"` in `GraphRegistryEmitter.cs`) is updated to the package namespace (`"Scaffold.GraphFlow.Editor"` or whatever lands).
+- `Generators/` stays where it is (compiled to DLL, synced into the package per `Generators/Scaffold.GraphFlow/sync-unity-dlls.ps1`). This is the one exception to "core lives in the package" — the generator is build-time tooling, not runtime, and Roslyn analyzers ride into Unity through the package's `.meta`-labelled DLL anyway.
+- Cross-package dependencies (Unity GraphToolkit, the AttributesLib DLL, Unity engine asms) are fine and expected.
+- **No core type may live in a sample asm.** If something currently in `Assets/GraphFlowSandbox/` is needed for the framework to function, it migrates. If it's only there to prove a flow end-to-end, it stays a sample.
+- **Namespace migration.** Core types currently live under `Scaffold.GraphFlow.M0`. They move to `Scaffold.GraphFlow` (or `Scaffold.GraphFlow.Runtime` if we want a sub-namespace — implementer's call, but be consistent). The `M0` infix only made sense while the sandbox was the framework; it doesn't anymore.
+
+##### D2 — Runner is reused across runs; per-run state lives on `Flow`
+
+This was the load-bearing pivot. It changes how Execute is shaped.
+
+- **`GraphRunner` is session-long.** It carries services + listener pipelines + scope factories + host references. It does **not** carry result slots, cancellation per-run state, or anything that varies between two `controller.Run` invocations. A controller may be `Run`-invoked many times (a card played multiple times, a trigger firing repeatedly); the same runner instance is reused.
+- **`Flow` is the per-run state object.** A new `Flow` is constructed at the start of each `controller.Run`, plumbed through every `Execute` call along the walk, and discarded when the walk terminates. Two concurrent `Run` calls produce two `Flow` instances and never share state.
+
+**`Flow` shape (in `Assets/Packages/com.scaffold.graphflow/Runtime/Flow.cs`):**
+
+```csharp
+public enum FlowOutcome { Stopped, Returned, Cancelled }
+
+public sealed class Flow
+{
+    public CancellationToken CancellationToken { get; }
+    public IEffectScope? Scope { get; internal set; }   // IEffectScope is package-level; Mode-2 runners (e.g. CardEffectRunner) populate it; Mode-1 runners can leave it null.
+    public string? Reason { get; set; }                  // free-form trace string for debug
+
+    public FlowOutcome Outcome { get; private set; }
+    internal object? Result { get; private set; }
+    int? _nextPortId;
+
+    // Control + state primitives. All four return Task.CompletedTask after mutating Flow,
+    // so authors can write `return flow.GoTo(X);` for one-line Execute bodies.
+    public Task GoTo(int outFlowPortId)  { _nextPortId = outFlowPortId; return Task.CompletedTask; }
+    public Task Stop()                    { Outcome = FlowOutcome.Stopped;   _nextPortId = null; return Task.CompletedTask; }
+    public Task Return<T>(T value)        { Outcome = FlowOutcome.Returned;  Result = value; _nextPortId = null; return Task.CompletedTask; }
+    public Task Cancel()                  { Outcome = FlowOutcome.Cancelled; _nextPortId = null; return Task.CompletedTask; }
+
+    internal int? ConsumeNext() { var n = _nextPortId; _nextPortId = null; return n; }
+    internal T? ReadResult<T>() => Result is T t ? t : default;
+}
+```
+
+**Default-on-no-call is `Stop`.** If an `Execute` body never calls any `flow.*` method, the flow terminates. Same as today's `default(FlowContinuation) = Stop`. Loud failures (throwing for "you forgot to set next-step") are not worth the ceremony.
+
+##### D3 — `FlowContinuation` is removed; `Execute` returns `Task`
+
+`FlowContinuation` was a routing token (a struct returned by `Execute` saying "go to port N" or "stop"). With `Flow` plumbed through `Execute` as a parameter, the routing decision moves onto `Flow` (via `GoTo` / `Stop` / `Return` / `Cancel`) and the return value collapses to `Task`.
+
+- **Old:** `abstract Task<FlowContinuation> Execute(TRunner runner)`
+- **New:** `abstract Task Execute(TRunner runner, Flow flow)`
+
+`FlowContinuation.cs` is deleted. The executor's flow-walk loop becomes:
+
+```csharp
+while (current != null) {
+    await current.Execute(runner, flow).ConfigureAwait(false);
+    var nextPortId = flow.ConsumeNext();
+    if (nextPortId == null) break;          // Stop / Return / Cancel reached
+    current = TryGetFlowTarget(current.nodeId, nextPortId.Value, asset);
+}
+return flow;
+```
+
+**Author-facing Execute examples (the API the implementer must match for the built-in nodes):**
+
+```csharp
+// Branch
+public override Task Execute(TRunner runner, Flow flow) =>
+    flow.GoTo(Condition.Read() ? TruePortId : FalsePortId);
+
+// Return<TRunner, TResult>  —  typed terminator that REPLACES the M2 untyped Return + ReturnBool.
+public sealed partial class Return<TRunner, TResult> : RuntimeNode<TRunner> where TRunner : GraphRunner
+{
+    public InputPort<TResult> Value = null!;
+    public override Task Execute(TRunner runner, Flow flow) => flow.Return(Value.Read());
+}
+
+// Cancel
+public override Task Execute(TRunner runner, Flow flow) => flow.Cancel();
+
+// Async dispatcher (CardCommandDispatcher style)
+public sealed override async Task Execute(CardEffectRunner runner, Flow flow)
+{
+    var cmd = BuildPayload(runner);
+    var result = await cmd.Execute(flow.Scope!).ConfigureAwait(false);
+    WriteOutputs(result);
+    await flow.GoTo(FlowOutPortId);
+}
+```
+
+##### D4 — `GraphRunner.Cancelled` and `GraphRunner.ReturnValue` are removed
+
+These were the M2 v1 boxed result channel on the runner. With D2, they don't survive — per-run state cannot live on a session-long object. Both fields go away. The information they carried lives on `Flow.Outcome` (replaces `Cancelled`) and `Flow.Result` (replaces `ReturnValue`, now typed via the controller's `TResult`).
+
+`GraphRunner` shrinks to:
+
+```csharp
+public abstract class GraphRunner
+{
+    public CancellationToken CancellationToken { get; set; }   // session-default; flows can override
+}
+```
+
+That's it. Subclasses (`CardEffectRunner`, etc.) add their own session-scoped services on top.
+
+##### D5 — Entries are typed on `(TPayload, TResult)`; triggers are entries
+
+The M2 entry shape is `EntryRuntimeNode<TEntry, TRunner>`. M3 adds `TResult`:
+
+```csharp
+public abstract class EntryRuntimeNode<TEntry, TRunner, TResult> : RuntimeNode<TRunner>
+    where TEntry : class
+    where TRunner : GraphRunner
+{
+    protected TEntry? Payload { get; private set; }
+    public void SetPayload(TEntry payload) => Payload = payload;
+
+    // Set during controller.Initialize so each entry node can be invoked directly.
+    Func<TEntry, Task<TResult>>? _runFromHere;
+    internal void BindRunner(Func<TEntry, Task<TResult>> runFromHere) => _runFromHere = runFromHere;
+
+    public Task<TResult> Run(TEntry payload)
+    {
+        if (_runFromHere == null) throw new InvalidOperationException("Entry not initialized.");
+        return _runFromHere(payload);
+    }
+}
+```
+
+**Marker interfaces (in attributes asm):**
+
+```csharp
+// Base — anything invocable
+public interface IGraphEntry<TPayload, TResult> { }
+
+// Sugar for the void-graph case (most card effects don't return anything)
+public interface IGraphEntry<TPayload> : IGraphEntry<TPayload, Unit> { }
+
+// Trigger subset — host treats these as auto-subscribable to events of TEvent
+public interface IGraphTrigger<TEvent> : IGraphEntry<TEvent, Unit> { }
+
+// Unit type — the v1 "no result" placeholder; lives in package
+public readonly struct Unit { public static readonly Unit Default = default; }
+```
+
+**Why triggers and entries are the same node:** the difference is purely in *how* the host invokes them. An imperative entry is invoked by code calling `controller.Run<DealStrike, DamageResult>(payload)`. A trigger is invoked by an event-bus subscription that the host wires up at session start (`bus.Subscribe<DamageDealtEvent>(e => triggerNode.Run(e))`). Same node shape, same execution path, two front doors. There is **no** runtime-side concept of "listener" — that vocabulary is dead in M3.
+
+**One TResult per graph constraint.** A graph has one entry, the entry has one TResult, every `Return` in the graph must close on the same TResult. Conflicting Returns is a validation error (EFG-V07 — see validation additions below).
+
+##### D6 — Cross-assembly `[GraphNode]` discovery
+
+`GraphPackageTrioEmitter.EmitGenericNodeArtifacts` currently walks only the runner's containing assembly for `[GraphNode]` types. The M2 comment `"M2 supports a single source assembly per package; consumer-authored nodes in other referenced assemblies are a v2 follow-up"` is the line we delete.
+
+**M3 mechanism:** walk every assembly that the runner's containing assembly **references**, **filtered to assemblies that themselves reference the GraphFlow runtime asm** (i.e. the asm where `[GraphNode]` and the package's runtime base classes live). The filter is the firewall — only asms that already reference the package can possibly *define* `[GraphNode]`-attributed types, so this excludes Unity engine asms, third-party SDKs, etc., without any consumer ceremony.
+
+**Consequences:**
+- Built-in nodes (`Branch`, `Cancel`, `Not`, `Return<,>`) live in the package's runtime asm and are discovered automatically for every consumer (the consumer's runner asm references the package; the package's runtime asm references itself trivially).
+- Shared node libraries (third-party `MyTeam.GraphNodes.Math.dll`) light up automatically when referenced. No explicit opt-in needed.
+- Snapshot harness fixture setup mirrors production: separate package-runtime DLL reference + the per-fixture asm. The current Windows-hardcoded paths (`C:\Unity\Scaffold\Library\ScriptAssemblies\Scaffold.GraphFlow.M0.dll` etc. in `Generators/Scaffold.GraphFlow.PackageGenerator.SnapshotTests/Program.cs`) are replaced with relative / env-var-driven resolution before this lands.
+
+##### D7 — Drop unused helper bases; shrink `[GraphPackage]`
+
+The original M2 plan note already called for this decision pass. Settling it now:
+
+- **Drop** `CardEntryPointNode<TEntry>` from the plan. Card entries write `EntryRuntimeNode<MyCard, CardEffectRunner, Unit>` directly. No alias, no wrapper.
+- **Drop** `ListenerBase`, `ReturnBase`, `EntryBase` knobs from `[GraphPackage]`. Listeners are gone (D5). Return is a single typed built-in (`Return<TRunner, TResult>`). Entries don't need a per-package base — `EntryRuntimeNode<,,>` from the package is the base.
+- **Keep** `DispatcherBase` and `CommandBase` on `[GraphPackage]`. These remain load-bearing for Mode-2 emission (the generator needs to know which open-generic to close when emitting per-payload dispatcher runtimes).
+
+**Updated `[GraphPackage]` surface:**
+
+```csharp
+[AttributeUsage(AttributeTargets.Assembly)]
+public sealed class GraphPackageAttribute : Attribute
+{
+    public Type Runner { get; set; } = null!;
+    public string Extension { get; set; } = "";
+    public string AssetMenu { get; set; } = "";
+    public PortConvention Convention { get; set; }
+    public string? RegistryNamespace { get; set; }
+
+    // Mode-2 only — wrap existing command hierarchies.
+    public Type? CommandBase { get; set; }
+    public Type? DispatcherBase { get; set; }
+}
+```
+
+##### D8 — Listener registration is replaced by entry-catalog + host-side subscription
+
+Today's CardSandbox `CommandPipeline` and `ICommandListener<TCmd, TResult>` collapse into the trigger model from D5. Cross-card command modification ("+1 damage on first strike") becomes a card with a trigger entry on `PreDamageDealtEvent` that mutates the event before `DealDamage` reads it.
+
+**Concrete pattern:**
+1. `DealDamageCommand.Execute` publishes `PreDamageDealtEvent { Amount = X }` on the host's event bus before computing.
+2. Trigger entries on cards subscribed to `PreDamageDealtEvent` run synchronously (sequentially in the sample; host's choice in production), each mutating the event's `Amount`.
+3. `DealDamageCommand` reads the (possibly modified) `Amount` and proceeds.
+4. (Optionally) publishes `PostDamageDealtEvent` for reactive triggers ("when damage is dealt, draw a card").
+
+**The framework supplies nothing here.** The event bus, subscription mechanics, ordering policy, and parallel-vs-sequential dispatch are all host territory — the framework just exposes the entry catalog (D9) and lets the host wire it however it wants.
+
+##### D9 — Entry catalog is a list of typed entry nodes; pattern-match, no descriptors
+
+`GraphController<TRunner>` exposes the entries it found at hydration time:
+
+```csharp
+public sealed class GraphController<TRunner> where TRunner : GraphRunner
+{
+    public IReadOnlyList<RuntimeNode> EntryNodes { get; }
+    // Built once during Initialize by filtering asset.nodes to anything assignable to
+    // EntryRuntimeNode<,,>. No descriptor class, no metadata serialised to the asset
+    // beyond the existing EntryIndex list. The runtime node IS the metadata — its concrete
+    // generic type carries TPayload / TRunner / TResult.
+
+    public Task<TResult> Run<TEntry, TResult>(TEntry payload) where TEntry : class;
+}
+```
+
+**Host's wiring loop (sample):**
+
+```csharp
+foreach (var card in activeCards)
+foreach (var entry in card.Controller.EntryNodes)
+{
+    switch (entry)
+    {
+        case EntryRuntimeNode<DamageDealtEvent, CardEffectRunner, Unit> dmg:
+            bus.Subscribe<DamageDealtEvent>(e => dmg.Run(e));
+            break;
+        case EntryRuntimeNode<TurnStartEvent,   CardEffectRunner, Unit> turn:
+            bus.Subscribe<TurnStartEvent>(e => turn.Run(e));
+            break;
+        // ...
+    }
+}
+```
+
+**Dynamic discovery helper (optional, for hosts that want it):** one reflection helper that walks the entry's generic args and checks whether `TPayload` implements `IGraphTrigger<>`. Keep it on the side as a utility, not a core API.
+
+#### What this means for the M2 work in flight
+
+- `GraphRunner.Cancelled` and `GraphRunner.ReturnValue` (added M2) **are removed** in M3. Their replacement (`Flow.Outcome` / `Flow.Result`) lands as part of the same Execute-signature change.
+- `ReturnBool` (added M2) **is removed** in M3 in favour of the typed `Return<TRunner, TResult>` built-in. Same machine, generalised. Existing test `M2_ReturnBool_Stores_Value` becomes a test of `Return<MySmokeRunner, bool>`.
+- The M2 `[GraphNode]`-attributed `Branch<TRunner>` / `Cancel<TRunner>` / `Not` / `Return<TRunner>` move from `Assets/GraphFlowSandbox/Runtime/Nodes/` into `Assets/Packages/com.scaffold.graphflow/Runtime/Nodes/`. Their bodies update to the new Execute signature using `Flow`.
+- M2's M0SmokeRuntimeTests (`M2_OnPlay_Not_Branch_Return_TruePath`, `M2_Branch_False_Cancel_Path`) update to read `flow.Outcome` / `flow.Result` instead of `runner.Cancelled` / `runner.ReturnValue`.
+
+#### CardSandbox sample rewrite
+
+The runtime-only CardSandbox shipped in M2-prep (`b657389`) had a `CommandPipeline` + `ICommandListener<TCmd, TResult>` model. **Both are deleted.** The sample is rebuilt against the entry-catalog + event-bus approach (D8/D9):
+
+- `IEffectScope` stays — it's the per-run host-services bag that lives on `Flow.Scope`.
+- `Command<TResult>` stays — Mode-2 commands still exist; they just execute directly against the scope without a wrapping pipeline.
+- `CommandPipeline.cs` and `ICommandListener.cs` are deleted.
+- `CardEffectRunner` no longer holds a `Pipeline`. It holds a scope-factory (or whatever produces `IEffectScope` per Run) and any host service refs.
+- New: a tiny `EventBus` stand-in (just `Publish<T>(T)` / `Subscribe<T>(Action<T>)`) lives in the sample so the 500-Strike test has something to subscribe triggers against. **Not in the package** — the host owns its bus.
+- 500 Strike sample tests are rewritten:
+  - Two cards: `Strike500` (entry: `OnPlay`, plays 5 damage) and `PlusOneDamage` (entry: trigger on `PreDamageDealtEvent`, mutates `Amount += 1`).
+  - Test 1: only Strike500 active → 5 damage dealt.
+  - Test 2: both cards active, host wires triggers via the entry catalog → 6 damage dealt. Same outcome as today's pipeline-based test, achieved via the unified entry-and-trigger model.
+
+#### Validation additions (`OnGraphChanged`)
+
+M3 adds one new rule on top of M2's EFG-V01..V04:
+
+- **EFG-V07 Conflicting Return types in a graph.** Walk all `Return<,>` nodes reachable from the entry. If their `TResult` type arguments don't all match the entry's `TResult`, error. (One TResult per graph constraint from D5.)
+
+EFG-V05 (required-input-unwired) and EFG-V06 (data-edge type mismatch) remain deferred to M4.
+
+#### Generator changes
+
+- Update `GraphRegistryEmitter.EditorRegistryNamespace` to point at the package's editor namespace.
+- Update `GraphPackageTrioEmitter.EmitGenericNodeArtifacts` to walk all asms that reference the package's runtime asm (D6).
+- Update entry-emit path (`GraphPayloadNodeEmitter.EmitEntryRuntime` etc.) to emit `EntryRuntimeNode<TEntry, TRunner, TResult>` instead of the M2 two-arg base. The emitter reads `TResult` from the payload's `IGraphEntry<TEntry, TResult>` interface.
+- Update generic-node emit (`GraphGenericNodeEmitter`) Execute body emission to match the new `(TRunner, Flow)` signature.
+- Drop the per-payload `BindInput` / `GetOutputConnection` switch emit if it survives anywhere — M2 already moved most of it to the dict-based `Ports` lookup; verify no residue in Mode-2 entry emit.
+- Snapshot harness: delete the hardcoded Windows DLL paths in `Program.cs`; resolve via env var (`SCAFFOLD_GRAPHFLOW_DLLS`) or a relative path under the package. Add a Cards fixture alongside the M0 fixture.
+
+#### Sample lifecycle
+
+- `Assets/GraphFlowSandbox/` (M0) becomes a sample. Two options:
+  - **(a)** Move under `Assets/Packages/com.scaffold.graphflow/Samples~/M0Sandbox/` per UPM convention. Survives in the repo, doesn't compile by default for consumers.
+  - **(b)** Delete entirely once the package's own runtime tests cover the same shapes.
+  - **Default: (a)** to preserve the smoke flow + snapshot fixtures. Final call belongs to the implementer.
+- `Assets/CardSandbox/` (M3-prep CardSandbox, after the rewrite above) lives under `Assets/Packages/com.scaffold.graphflow/Samples~/CardSandbox/`. Same UPM convention.
+
+#### Implementation order (sequenced; each step keeps the build green)
+
+1. **Package skeleton** — create `Assets/Packages/com.scaffold.graphflow/Runtime/` and `/Editor/` asmdefs; nothing inside yet but the asmdef + meta. Both compile empty.
+2. **Move core runtime types** into `Runtime/`: `GraphRunner` (shrunk per D4), `RuntimeNode`, `RuntimeNode<TRunner>`, `Connection`, `Connection<T>`, `Port` and typed ports, `EntryRuntimeNode<,,>` (new third type parameter), `GraphAsset<TRunner>`, `GraphController<TRunner>`, `GraphExecutor<TRunner>`, `LifecycleInterfaces`, `Concepts`. Namespace: `Scaffold.GraphFlow`. Update asmdef GUIDs in any consumer that referenced the old M0 runtime asm.
+3. **Introduce `Flow` + `FlowOutcome`** in `Runtime/Flow.cs`. Update `RuntimeNode<TRunner>.Execute` signature to `(TRunner, Flow)`. Update `GraphExecutor<TRunner>.RunFlow` to construct a `Flow`, plumb it through, and return it (or its outcome) at the end. Delete `FlowContinuation.cs`.
+4. **Update built-in nodes** (`Branch`, `Cancel`, `Not`, `Return<TRunner, TResult>`) to the new Execute shape. `ReturnBool` is replaced by the typed Return; remove its file.
+5. **Move editor-side core** into `Editor/`: `GraphPackageRegistry<>`, `GraphBakerCore`, `GraphAssetImporterBase`, `EditorNodeIdentity`. Namespace: `Scaffold.GraphFlow.Editor`.
+6. **Update generator** (D6 cross-asm walk; new namespace; new entry emit shape; Execute-signature emit; snapshot harness path cleanup).
+7. **Demote M0 sandbox** to `Samples~/M0Sandbox/`. Update its `[GraphPackage]` and references. Re-run snapshot harness against it.
+8. **Rewrite CardSandbox** per the sample rewrite section above. Move to `Samples~/CardSandbox/`. Add 500-Strike + PlusOneDamage tests.
+9. **Update ExecPlan-v2 status table** to mark M3 done; add M3 closeout subsection mirroring the M2 closeout style.
+
+#### Out of scope for M3 (deferred to M4 or later)
+
+- Required-input-unwired diagnostic (EFG-V05) — needs a `[Required]` metadata seam not designed yet.
+- Data-edge type-mismatch diagnostic (EFG-V06) — preempted by GraphToolkit's UI-level wiring filter; revisit in M4 with the type-conversion mechanism.
+- Listener priority / ordering — host territory by design, but we may eventually add an opt-in `[GraphTrigger(Priority = N)]` attribute. Defer.
+- Multi-T `[GraphNode]` (`Equals<T>`, etc.) — already deferred from M2.
+- Editor-visual API pass — already deferred from M2.
+- Documentation / tutorials — bundled with M4.
+
+#### Why this is bigger than the original M3
+
+The original M3 was scoped as "build the CF integration helper bases and one card". That assumed the framework's runtime, runner, and entry shapes were already in their final form. They aren't:
+
+- The runner-as-result-carrier model (M2 shipped with `GraphRunner.ReturnValue`) doesn't survive runner reuse. Fixing it is a per-run-state refactor that touches every Execute body.
+- The two-arg `EntryRuntimeNode<TEntry, TRunner>` doesn't carry enough type information to make `controller.Run<TEntry, TResult>(payload)` typed at the call site. Fixing it adds a third type parameter and re-emits every entry node.
+- The "core lives in M0 sandbox" reality (today, half the framework is in `Assets/GraphFlowSandbox/`) is structurally wrong for a publishable package. The relocation is mechanical but pervasive.
+- Listeners-via-pipeline was the wrong abstraction once we accepted entries-as-typed; they collapse into triggers, which collapses CardSandbox's runtime.
+
+Each of these is small individually; together they're what M3 actually is. Treating M3 as "just integrate Cards" while the framework still has these issues would either (a) ship Cards on a wobbly base, or (b) discover the same four decisions during the Cards work and grow into the same shape. We're choosing to make the structural pass first and let Cards land cleanly on top.
+
+---
 
 ### Milestone 4 — Polish (1 week)
 
