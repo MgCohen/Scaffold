@@ -1,42 +1,19 @@
-using System;
-using System.Threading.Tasks;
-using Scaffold.GraphFlow.M0;
+using Scaffold.GraphFlow;
 
 namespace Scaffold.GraphFlow.M0.Smoke
 {
-    /// <summary>Pure data node — converts int to string via lazy <see cref="Connection{T}"/> reads.</summary>
-    public sealed class IntToStringRuntime : RuntimeNode<MySmokeRunner>
+    /// <summary>
+    /// Pure data node — converts int input to string output. No <c>TRunner</c>, no <c>Execute</c>.
+    /// The generator emits the default ctor (<c>IntToStringRuntime.g.cs</c>), the editor mirror, and
+    /// the registry entry from the <c>[GraphNode]</c> attribute and the typed port-handle fields below.
+    /// </summary>
+    [GraphNode(Category = "Convert")]
+    public sealed partial class IntToStringRuntime : RuntimeNode
     {
-        public static class Ports
-        {
-            public const int InValue = unchecked((int)0xA001_0001u);
-            public const int OutString = unchecked((int)0xA001_0002u);
-        }
+        public InputPort<int> Value = null!;
+        public OutputPort<string> Result = null!;
 
-        [NonSerialized] Connection<int>? _inValue;
-
-        public override Connection GetOutputConnection(int portId) => portId switch
-        {
-            Ports.OutString => new Connection<string>(
-                this,
-                Ports.OutString,
-                () => (_inValue != null ? _inValue.Read() : 0).ToString()),
-            _ => throw new ArgumentOutOfRangeException(nameof(portId)),
-        };
-
-        public override void BindInput(int portId, Connection connection)
-        {
-            switch (portId)
-            {
-                case Ports.InValue:
-                    _inValue = (Connection<int>)connection;
-                    return;
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(portId));
-            }
-        }
-
-        public override Task<FlowContinuation> Execute(MySmokeRunner runner) =>
-            Task.FromResult(FlowContinuation.Stop);
+        partial void InitializePorts() =>
+            Result = new OutputPort<string>(() => Value.Read().ToString());
     }
 }

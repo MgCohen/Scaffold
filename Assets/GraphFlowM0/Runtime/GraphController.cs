@@ -7,7 +7,7 @@ namespace Scaffold.GraphFlow.M0
     public sealed class GraphController<TRunner> where TRunner : GraphRunner
     {
         readonly GraphAsset<TRunner> _asset;
-        Dictionary<int, RuntimeNode<TRunner>> _byId = null!;
+        Dictionary<int, RuntimeNode> _byId = null!;
         Dictionary<Type, RuntimeNode<TRunner>> _entryRoots = null!;
         readonly GraphExecutor<TRunner> _executor = new GraphExecutor<TRunner>();
         TRunner _runner = null!;
@@ -21,17 +21,18 @@ namespace Scaffold.GraphFlow.M0
         {
             _runner = runner ?? throw new ArgumentNullException(nameof(runner));
 
-            _byId = new Dictionary<int, RuntimeNode<TRunner>>(_asset.nodes.Count);
+            _byId = new Dictionary<int, RuntimeNode>(_asset.nodes.Count);
             foreach (var n in _asset.nodes)
                 _byId[n.nodeId] = n;
 
+            // Hydrate data wiring through the single Connection.Bind seam. Per-node Bind on the base
+            // looks up both ports via the dict and constructs Connection<T>.
             foreach (var c in _asset.connections)
             {
                 if (!_byId.TryGetValue(c.fromNodeId, out var from) || !_byId.TryGetValue(c.toNodeId, out var to))
                     continue;
 
-                var conn = from.GetOutputConnection(c.fromPortId);
-                to.BindInput(c.toPortId, conn);
+                to.Bind(c.toPortId, from, c.fromPortId);
             }
 
             _entryRoots = new Dictionary<Type, RuntimeNode<TRunner>>();
@@ -40,7 +41,8 @@ namespace Scaffold.GraphFlow.M0
                 var t = Type.GetType(e.entryTypeId);
                 if (t == null || !_byId.TryGetValue(e.rootNodeId, out var root))
                     continue;
-                _entryRoots[t] = root;
+                if (root is RuntimeNode<TRunner> flowRoot)
+                    _entryRoots[t] = flowRoot;
             }
         }
 

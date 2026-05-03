@@ -99,12 +99,37 @@ namespace Scaffold.GraphFlow.PackageGenerator
                 AddEditorSources(spc, compilation, p);
                 var registrations = new System.Collections.Generic.List<string>();
                 GraphPayloadNodeEmitter.Emit(spc, compilation, true, p, cancellationToken, registrations);
+                EmitGenericNodeArtifacts(spc, compilation, p, registrations, cancellationToken, editorAssembly: true);
                 GraphRegistryEmitter.EmitRegistryFile(spc, compilation, p, registrations);
             }
             else
             {
                 GraphPayloadNodeEmitter.Emit(spc, compilation, false, p, cancellationToken);
+                EmitGenericNodeArtifacts(spc, compilation, p, registrations: null, cancellationToken, editorAssembly: false);
             }
+        }
+
+        static void EmitGenericNodeArtifacts(
+            SourceProductionContext spc,
+            Compilation compilation,
+            GraphPackageModel p,
+            System.Collections.Generic.List<string>? registrations,
+            System.Threading.CancellationToken ct,
+            bool editorAssembly)
+        {
+            // Generic-node hand-written classes live in the runner's own assembly. The runtime pass
+            // emits the partial class completing each [GraphNode]; the editor pass emits the editor
+            // mirror + appends a registry entry. M2 supports a single source assembly per package;
+            // consumer-authored nodes in other referenced assemblies are a v2 follow-up.
+            var runner = GraphCompilationNames.TypeFromFullyQualified(compilation, p.RunnerFullyQualified);
+            var runnerAsm = runner?.ContainingAssembly;
+            if (runnerAsm == null)
+            {
+                return;
+            }
+
+            var nodes = GenericNodeParser.Parse(compilation, runnerAsm, ct);
+            GraphGenericNodeEmitter.EmitForPackage(spc, compilation, p, nodes, registrations, editorAssembly);
         }
 
         static bool IsEditorAssembly(Compilation compilation)

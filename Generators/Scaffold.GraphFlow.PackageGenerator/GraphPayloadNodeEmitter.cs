@@ -61,7 +61,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
                         EmitEntryEditor(spc, type, compilation);
                         if (editorRegistrations != null)
                         {
-                            editorRegistrations.Add(BuildEntryRegistration(type, package, compilation, graphPortAttr));
+                            editorRegistrations.Add(BuildEntryRegistration(type, flowOut, package, compilation, graphPortAttr));
                         }
                     }
                     else
@@ -106,7 +106,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
                         EmitCommandEditor(spc, type, resultType, fi, fo, compilation);
                         if (editorRegistrations != null)
                         {
-                            editorRegistrations.Add(BuildCommandRegistration(type, resultType, package, compilation, graphPortAttr));
+                            editorRegistrations.Add(BuildCommandRegistration(type, resultType, fi, fo, package, compilation, graphPortAttr));
                         }
                     }
                     else
@@ -171,7 +171,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             return result;
         }
 
-        static string BuildEntryRegistration(INamedTypeSymbol payload, GraphPackageModel package, Compilation compilation, INamedTypeSymbol graphPortAttr)
+        static string BuildEntryRegistration(INamedTypeSymbol payload, int flowOutPortId, GraphPackageModel package, Compilation compilation, INamedTypeSymbol graphPortAttr)
         {
             var leaf = payload.Name;
             var editorTypeFq = GraphCompilationNames.EditorGraphToolkitNamespace(compilation) + "." + leaf + "EditorNode";
@@ -186,7 +186,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
                 dataOuts.Add((f.Name, f.Id));
             }
 
-            return GraphRegistryEmitter.BuildEntryRegistrationBlock(runnerFq, editorTypeFq, runtimeTypeFq, payloadTypeFq, "FlowOut", dataOuts);
+            return GraphRegistryEmitter.BuildEntryRegistrationBlock(runnerFq, editorTypeFq, runtimeTypeFq, payloadTypeFq, "FlowOut", flowOutPortId, dataOuts);
         }
 
         static string BuildExecutableActionRegistration(INamedTypeSymbol payload, System.Collections.Generic.IReadOnlyList<IFieldSymbol> inputs, GraphPackageModel package, Compilation compilation, INamedTypeSymbol graphPortAttr)
@@ -197,7 +197,8 @@ namespace Scaffold.GraphFlow.PackageGenerator
             var runtimeTypeFq = string.IsNullOrEmpty(typeNs) ? leaf + "DispatcherRuntime" : typeNs + "." + leaf + "DispatcherRuntime";
             var runnerFq = GraphRegistryEmitter.TrimGlobal(package.RunnerFullyQualified);
             var dataIns = FieldsWithPortIdsFiltered(inputs, graphPortAttr);
-            return GraphRegistryEmitter.BuildExecutableActionRegistrationBlock(runnerFq, editorTypeFq, runtimeTypeFq, "FlowIn", dataIns);
+            // IExecutable actions get an implicit FlowIn at port id 0; no FlowOut (terminal — Execute returns Stop).
+            return GraphRegistryEmitter.BuildExecutableActionRegistrationBlock(runnerFq, editorTypeFq, runtimeTypeFq, "FlowIn", 0, dataIns);
         }
 
         static System.Collections.Generic.IReadOnlyList<(string Name, int Id, string CSharpType)> FieldsWithPortIdsFiltered(System.Collections.Generic.IReadOnlyList<IFieldSymbol> fields, INamedTypeSymbol graphPortAttr)
@@ -214,7 +215,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             return result;
         }
 
-        static string BuildCommandRegistration(INamedTypeSymbol cmd, INamedTypeSymbol result, GraphPackageModel package, Compilation compilation, INamedTypeSymbol graphPortAttr)
+        static string BuildCommandRegistration(INamedTypeSymbol cmd, INamedTypeSymbol result, int flowInPortId, int flowOutPortId, GraphPackageModel package, Compilation compilation, INamedTypeSymbol graphPortAttr)
         {
             var leaf = cmd.Name;
             var editorTypeFq = GraphCompilationNames.EditorGraphToolkitNamespace(compilation) + "." + leaf + "DispatcherEditorNode";
@@ -229,7 +230,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
                 dataOuts.Add((f.Name, f.Id));
             }
 
-            return GraphRegistryEmitter.BuildCommandRegistrationBlock(runnerFq, editorTypeFq, runtimeTypeFq, "FlowIn", "FlowOut", dataIns, dataOuts);
+            return GraphRegistryEmitter.BuildCommandRegistrationBlock(runnerFq, editorTypeFq, runtimeTypeFq, "FlowIn", flowInPortId, "FlowOut", flowOutPortId, dataIns, dataOuts);
         }
 
         static void EmitEntryEditor(SourceProductionContext spc, INamedTypeSymbol payload, Compilation compilation)
@@ -279,6 +280,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             var sb = new StringBuilder();
             var leaf = payload.Name;
             var typeNs = payload.ContainingNamespace.IsGlobalNamespace ? "" : payload.ContainingNamespace.ToDisplayString();
+            var fields = FieldsWithPortIds(payload, graphPortAttr);
             sb.AppendLine("// <auto-generated />");
             sb.AppendLine("#nullable enable");
             sb.AppendLine("using System;");
@@ -287,67 +289,63 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine();
             sb.AppendLine($"namespace {typeNs}");
             sb.AppendLine("{");
-            sb.AppendLine($"    public sealed class {leaf}Runtime : EntryRuntimeNode<{leaf}, {runnerName}>");
+            sb.AppendLine($"    public sealed partial class {leaf}Runtime : EntryRuntimeNode<{leaf}, {runnerName}>");
             sb.AppendLine("    {");
-            sb.AppendLine("        public static class Ports");
-            sb.AppendLine("        {");
-            sb.AppendLine($"            public const int FlowOut = {PortIdLiteral(flowOut)};");
-            foreach (var f in PayloadDiscovery.InstanceFields(payload))
+            // OutputPort handles + their backing fields. Port-id lookup lives in the inherited Ports dict;
+            // no static Ports class needed.
+            foreach (var f in fields)
             {
-                if (!PayloadDiscovery.TryGetGraphPortId(f, graphPortAttr, out var pid))
-                {
-                    continue;
-                }
+                sb.AppendLine($"        public OutputPort<{f.CSharpType}> {f.Name} = null!;");
+                sb.AppendLine();
+                sb.AppendLine($"        {f.CSharpType} _{LowerFirst(f.Name)}Value = {TypeFmt.DefaultLiteral(GetFieldType(payload, f.Name))};");
+                sb.AppendLine();
+            }
 
-                sb.AppendLine($"            public const int {f.Name} = {PortIdLiteral(pid)};");
+            sb.AppendLine($"        public {leaf}Runtime()");
+            sb.AppendLine("        {");
+            foreach (var f in fields)
+            {
+                sb.AppendLine($"            {f.Name} = new OutputPort<{f.CSharpType}>(() => _{LowerFirst(f.Name)}Value);");
+            }
+
+            foreach (var f in fields)
+            {
+                sb.AppendLine($"            Ports.Add({GraphRegistryEmitter.PortIdLiteral(f.Id)}, {f.Name});");
             }
 
             sb.AppendLine("        }");
-            foreach (var f in PayloadDiscovery.InstanceFields(payload))
-            {
-                var kt = TypeFmt.Simple(f.Type);
-                sb.AppendLine();
-                sb.AppendLine($"        [NonSerialized] public {kt} _out_{f.Name};");
-            }
-
-            sb.AppendLine();
-            sb.AppendLine("        public override Connection GetOutputConnection(int portId) => portId switch");
-            sb.AppendLine("        {");
-            foreach (var f in PayloadDiscovery.InstanceFields(payload))
-            {
-                if (!PayloadDiscovery.TryGetGraphPortId(f, graphPortAttr, out var pid))
-                {
-                    continue;
-                }
-
-                var kt = TypeFmt.Simple(f.Type);
-                sb.AppendLine($"            Ports.{f.Name} => new Connection<{kt}>(this, Ports.{f.Name}, () => _out_{f.Name}),");
-            }
-
-            sb.AppendLine("            _ => throw new ArgumentOutOfRangeException(nameof(portId)),");
-            sb.AppendLine("        };");
-            sb.AppendLine();
-            sb.AppendLine("        public override void BindInput(int portId, Connection connection) =>");
-            sb.AppendLine("            throw new ArgumentOutOfRangeException(nameof(portId));");
             sb.AppendLine();
             sb.AppendLine($"        public override Task<FlowContinuation> Execute({runnerName} runner)");
             sb.AppendLine("        {");
             sb.AppendLine("            if (Payload != null)");
             sb.AppendLine("            {");
-            foreach (var f in PayloadDiscovery.InstanceFields(payload))
+            foreach (var f in fields)
             {
-                sb.AppendLine($"                _out_{f.Name} = Payload.{f.Name};");
+                sb.AppendLine($"                _{LowerFirst(f.Name)}Value = Payload.{f.Name};");
             }
 
             sb.AppendLine("            }");
-            sb.AppendLine("            return Task.FromResult(FlowContinuation.Next(Ports.FlowOut));");
+            sb.AppendLine($"            return Task.FromResult(FlowContinuation.Next({GraphRegistryEmitter.PortIdLiteral(flowOut)}));");
             sb.AppendLine("        }");
             sb.AppendLine("    }");
             sb.AppendLine("}");
             spc.AddSource($"{leaf}Runtime.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
         }
 
-        static string PortIdLiteral(int pid) => "unchecked((int)0x" + ((uint)pid).ToString("X8") + "u)";
+        static string LowerFirst(string s) => string.IsNullOrEmpty(s) ? s : char.ToLowerInvariant(s[0]) + s.Substring(1);
+
+        static ITypeSymbol GetFieldType(INamedTypeSymbol type, string fieldName)
+        {
+            foreach (var f in PayloadDiscovery.InstanceFields(type))
+            {
+                if (f.Name == fieldName)
+                {
+                    return f.Type;
+                }
+            }
+
+            throw new System.InvalidOperationException($"Field {fieldName} not found on {type.Name}.");
+        }
 
         static void EmitExecutableEditor(SourceProductionContext spc, INamedTypeSymbol payload, System.Collections.Generic.IReadOnlyList<IFieldSymbol> inputs, Compilation compilation)
         {
@@ -396,6 +394,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             var sb = new StringBuilder();
             var leaf = payload.Name;
             var typeNs = payload.ContainingNamespace.IsGlobalNamespace ? "" : payload.ContainingNamespace.ToDisplayString();
+            var inputFields = FieldsWithPortIdsFiltered(inputs, graphPortAttr);
             sb.AppendLine("// <auto-generated />");
             sb.AppendLine("#nullable enable");
             sb.AppendLine("using System;");
@@ -404,65 +403,39 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine();
             sb.AppendLine($"namespace {typeNs}");
             sb.AppendLine("{");
-            sb.AppendLine($"    public sealed class {leaf}DispatcherRuntime : RuntimeNode<{runnerName}>");
+            sb.AppendLine($"    public sealed partial class {leaf}DispatcherRuntime : RuntimeNode<{runnerName}>");
             sb.AppendLine("    {");
-            sb.AppendLine("        public static class Ports");
-            sb.AppendLine("        {");
-            sb.AppendLine("            public const int FlowIn = 0;");
-            foreach (var f in inputs)
+            // Inline default fields (serialized by Unity) + typed input port handles. Port-id lookup
+            // lives in the inherited Ports dict; no static Ports class needed.
+            foreach (var f in inputFields)
             {
-                if (!PayloadDiscovery.TryGetGraphPortId(f, graphPortAttr, out var pid))
-                {
-                    continue;
-                }
-
-                sb.AppendLine($"            public const int {f.Name} = {PortIdLiteral(pid)};");
-            }
-
-            sb.AppendLine("        }");
-            foreach (var f in inputs)
-            {
-                var kt = TypeFmt.Simple(f.Type);
+                sb.AppendLine($"        public {f.CSharpType} {f.Name} = {TypeFmt.DefaultLiteral(GetFieldType(payload, f.Name))};");
                 sb.AppendLine();
-                sb.AppendLine($"        public {kt} {f.Name} = {TypeFmt.DefaultLiteral(f.Type)};");
+                sb.AppendLine($"        public InputPort<{f.CSharpType}> In{f.Name} = null!;");
                 sb.AppendLine();
-                sb.AppendLine($"        [NonSerialized] public Connection<{kt}>? _in_{f.Name};");
             }
 
-            sb.AppendLine();
-            sb.AppendLine("        public override Connection GetOutputConnection(int portId) =>");
-            sb.AppendLine("            throw new ArgumentOutOfRangeException(nameof(portId));");
-            sb.AppendLine();
-            sb.AppendLine("        public override void BindInput(int portId, Connection connection)");
+            sb.AppendLine($"        public {leaf}DispatcherRuntime()");
             sb.AppendLine("        {");
-            sb.AppendLine("            switch (portId)");
-            sb.AppendLine("            {");
-            foreach (var f in inputs)
+            foreach (var f in inputFields)
             {
-                if (!PayloadDiscovery.TryGetGraphPortId(f, graphPortAttr, out _))
-                {
-                    continue;
-                }
-
-                var kt = TypeFmt.Simple(f.Type);
-                sb.AppendLine($"                case Ports.{f.Name}:");
-                sb.AppendLine($"                    _in_{f.Name} = (Connection<{kt}>)connection;");
-                sb.AppendLine("                    return;");
+                sb.AppendLine($"            In{f.Name} = new InputPort<{f.CSharpType}>(() => {f.Name});");
             }
 
-            sb.AppendLine("                default:");
-            sb.AppendLine("                    throw new ArgumentOutOfRangeException(nameof(portId));");
-            sb.AppendLine("            }");
+            foreach (var f in inputFields)
+            {
+                sb.AppendLine($"            Ports.Add({GraphRegistryEmitter.PortIdLiteral(f.Id)}, In{f.Name});");
+            }
+
             sb.AppendLine("        }");
             sb.AppendLine();
             sb.AppendLine($"        public override async Task<FlowContinuation> Execute({runnerName} runner)");
             sb.AppendLine("        {");
             sb.AppendLine($"            var payload = new {leaf}");
             sb.AppendLine("            {");
-            foreach (var f in inputs)
+            foreach (var f in inputFields)
             {
-                var kt = TypeFmt.Simple(f.Type);
-                sb.AppendLine($"                {f.Name} = _in_{f.Name} != null ? _in_{f.Name}.Read() : {f.Name},");
+                sb.AppendLine($"                {f.Name} = In{f.Name}.Read(),");
             }
 
             sb.AppendLine("            };");
@@ -549,6 +522,8 @@ namespace Scaffold.GraphFlow.PackageGenerator
             var sb = new StringBuilder();
             var leaf = cmd.Name;
             var typeNs = cmd.ContainingNamespace.IsGlobalNamespace ? "" : cmd.ContainingNamespace.ToDisplayString();
+            var cmdFields = FieldsWithPortIds(cmd, graphPortAttr);
+            var resultFields = FieldsWithPortIds(result, graphPortAttr);
             sb.AppendLine("// <auto-generated />");
             sb.AppendLine("#nullable enable");
             sb.AppendLine("using System;");
@@ -559,103 +534,64 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine("{");
             sb.AppendLine($"    public sealed partial class {leaf}DispatcherRuntime : {closedDispatcherFq}");
             sb.AppendLine("    {");
-            sb.AppendLine("        public static class Ports");
-            sb.AppendLine("        {");
-            sb.AppendLine($"            public const int FlowIn = {PortIdLiteral(flowIn)};");
-            sb.AppendLine($"            public const int FlowOut = {PortIdLiteral(flowOut)};");
-            foreach (var f in PayloadDiscovery.InstanceFields(cmd))
+            // Inline default fields (serialized) + typed InputPort handles for the command's fields.
+            foreach (var f in cmdFields)
             {
-                if (!PayloadDiscovery.TryGetGraphPortId(f, graphPortAttr, out var pid))
-                {
-                    continue;
-                }
-
-                sb.AppendLine($"            public const int {f.Name} = {PortIdLiteral(pid)};");
+                sb.AppendLine($"        public {f.CSharpType} {f.Name};");
+                sb.AppendLine();
+                sb.AppendLine($"        public InputPort<{f.CSharpType}> In{f.Name} = null!;");
+                sb.AppendLine();
             }
 
-            foreach (var f in PayloadDiscovery.InstanceFields(result))
+            // OutputPort handles for result fields, with backing storage written by WriteOutputs.
+            foreach (var f in resultFields)
             {
-                if (!PayloadDiscovery.TryGetGraphPortId(f, graphPortAttr, out var pid))
-                {
-                    continue;
-                }
+                sb.AppendLine($"        public OutputPort<{f.CSharpType}> {f.Name} = null!;");
+                sb.AppendLine();
+                sb.AppendLine($"        {f.CSharpType} _{LowerFirst(f.Name)}Value = {TypeFmt.DefaultLiteral(GetFieldType(result, f.Name))};");
+                sb.AppendLine();
+            }
 
-                sb.AppendLine($"            public const int {f.Name} = {PortIdLiteral(pid)};");
+            sb.AppendLine($"        public {leaf}DispatcherRuntime()");
+            sb.AppendLine("        {");
+            foreach (var f in cmdFields)
+            {
+                sb.AppendLine($"            In{f.Name} = new InputPort<{f.CSharpType}>(() => {f.Name});");
+            }
+
+            foreach (var f in resultFields)
+            {
+                sb.AppendLine($"            {f.Name} = new OutputPort<{f.CSharpType}>(() => _{LowerFirst(f.Name)}Value);");
+            }
+
+            foreach (var f in cmdFields)
+            {
+                sb.AppendLine($"            Ports.Add({GraphRegistryEmitter.PortIdLiteral(f.Id)}, In{f.Name});");
+            }
+
+            foreach (var f in resultFields)
+            {
+                sb.AppendLine($"            Ports.Add({GraphRegistryEmitter.PortIdLiteral(f.Id)}, {f.Name});");
             }
 
             sb.AppendLine("        }");
-            foreach (var f in PayloadDiscovery.InstanceFields(cmd))
-            {
-                var kt = TypeFmt.Simple(f.Type);
-                sb.AppendLine();
-                sb.AppendLine($"        public {kt} {f.Name};");
-                sb.AppendLine();
-                sb.AppendLine($"        [NonSerialized] Connection<{kt}>? _in_{f.Name};");
-            }
-
-            foreach (var f in PayloadDiscovery.InstanceFields(result))
-            {
-                var kt = TypeFmt.Simple(f.Type);
-                sb.AppendLine();
-                sb.AppendLine($"        [NonSerialized] public {kt} _out_{f.Name} = {TypeFmt.DefaultLiteral(f.Type)};");
-            }
-
             sb.AppendLine();
-            sb.AppendLine("        protected override int FlowOutPortId => Ports.FlowOut;");
+            sb.AppendLine($"        protected override int FlowOutPortId => {GraphRegistryEmitter.PortIdLiteral(flowOut)};");
             sb.AppendLine();
-            sb.AppendLine($"        protected override {cmd.Name} BuildPayload() => new {cmd.Name} {{ {BuildPayloadObjectInitializer(cmd)} }};");
+            sb.AppendLine($"        protected override {cmd.Name} BuildPayload() => new {cmd.Name} {{ {BuildPayloadInputs(cmdFields)} }};");
             sb.AppendLine();
-            AppendWriteOutputsBody(sb, result);
-            sb.AppendLine();
-            sb.AppendLine("        public override Connection GetOutputConnection(int portId) => portId switch");
-            sb.AppendLine("        {");
-            foreach (var f in PayloadDiscovery.InstanceFields(result))
-            {
-                if (!PayloadDiscovery.TryGetGraphPortId(f, graphPortAttr, out _))
-                {
-                    continue;
-                }
-
-                var kt = TypeFmt.Simple(f.Type);
-                sb.AppendLine($"            Ports.{f.Name} => new Connection<{kt}>(this, Ports.{f.Name}, () => _out_{f.Name}),");
-            }
-
-            sb.AppendLine("            _ => throw new ArgumentOutOfRangeException(nameof(portId)),");
-            sb.AppendLine("        };");
-            sb.AppendLine();
-            sb.AppendLine("        public override void BindInput(int portId, Connection connection)");
-            sb.AppendLine("        {");
-            sb.AppendLine("            switch (portId)");
-            sb.AppendLine("            {");
-            foreach (var f in PayloadDiscovery.InstanceFields(cmd))
-            {
-                if (!PayloadDiscovery.TryGetGraphPortId(f, graphPortAttr, out _))
-                {
-                    continue;
-                }
-
-                var kt = TypeFmt.Simple(f.Type);
-                sb.AppendLine($"                case Ports.{f.Name}:");
-                sb.AppendLine($"                    _in_{f.Name} = (Connection<{kt}>)connection;");
-                sb.AppendLine("                    return;");
-            }
-
-            sb.AppendLine("                default:");
-            sb.AppendLine("                    throw new ArgumentOutOfRangeException(nameof(portId));");
-            sb.AppendLine("            }");
-            sb.AppendLine("        }");
+            AppendWriteOutputsBody(sb, result, resultFields);
             sb.AppendLine("    }");
             sb.AppendLine("}");
             spc.AddSource($"{leaf}DispatcherRuntime.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
         }
 
-        static void AppendWriteOutputsBody(StringBuilder sb, INamedTypeSymbol result)
+        static void AppendWriteOutputsBody(StringBuilder sb, INamedTypeSymbol result, System.Collections.Generic.IReadOnlyList<(string Name, int Id, string CSharpType)> fields)
         {
-            var fields = PayloadDiscovery.InstanceFields(result);
-            if (fields.Length == 1)
+            if (fields.Count == 1)
             {
                 var f = fields[0];
-                sb.AppendLine($"        protected override void WriteOutputs({result.Name} result) => _out_{f.Name} = result.{f.Name};");
+                sb.AppendLine($"        protected override void WriteOutputs({result.Name} result) => _{LowerFirst(f.Name)}Value = result.{f.Name};");
                 return;
             }
 
@@ -663,23 +599,23 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine("        {");
             foreach (var f in fields)
             {
-                sb.AppendLine($"            _out_{f.Name} = result.{f.Name};");
+                sb.AppendLine($"            _{LowerFirst(f.Name)}Value = result.{f.Name};");
             }
 
             sb.AppendLine("        }");
         }
 
-        static string BuildPayloadObjectInitializer(INamedTypeSymbol cmd)
+        static string BuildPayloadInputs(System.Collections.Generic.IReadOnlyList<(string Name, int Id, string CSharpType)> cmdFields)
         {
             var sb = new StringBuilder();
-            foreach (var f in PayloadDiscovery.InstanceFields(cmd))
+            foreach (var f in cmdFields)
             {
                 if (sb.Length > 0)
                 {
                     sb.Append(", ");
                 }
 
-                sb.Append($"{f.Name} = _in_{f.Name} != null ? _in_{f.Name}.Read() : {f.Name}");
+                sb.Append($"{f.Name} = In{f.Name}.Read()");
             }
 
             return sb.ToString();

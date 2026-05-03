@@ -31,8 +31,11 @@ namespace Scaffold.GraphFlow.M0
 
                 foreach (var n in asset.nodes)
                 {
+                    // Data nodes (RuntimeNode without TRunner) cannot be flow targets — they have no
+                    // FlowIn port. A flow edge pointing at one is a bake error; the cast returns null
+                    // and the executor stops.
                     if (n.nodeId == e.toNodeId)
-                        return n;
+                        return n as RuntimeNode<TRunner>;
                 }
             }
 

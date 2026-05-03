@@ -6,8 +6,12 @@ using Microsoft.CodeAnalysis.Text;
 namespace Scaffold.GraphFlow.PackageGenerator
 {
     /// <summary>
-    /// Builds the per-package registry partial and the per-payload registration snippets
-    /// the baker reads to dispatch editor nodes → runtime nodes generically.
+    /// Builds the per-package registry partial and the per-payload registration snippets the baker
+    /// reads to dispatch editor nodes → runtime nodes generically.
+    /// <para>Port-id lookup dicts in the registry use literal int values (rather than referencing a
+    /// runtime <c>Ports</c> static class that no longer exists). Same id-derivation pipeline drives
+    /// both the runtime ctor's <c>Ports.Add(id, port)</c> call and the registry's
+    /// <c>["Name"] = id</c> entries.</para>
     /// </summary>
     internal static class GraphRegistryEmitter
     {
@@ -80,6 +84,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             string runtimeTypeFq,
             string payloadTypeFq,
             string flowOutPortName,
+            int flowOutPortId,
             IReadOnlyList<(string Name, int Id)> dataOutputs)
         {
             var sb = new StringBuilder();
@@ -89,9 +94,9 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine($"                Factory = _ => new {runtimeTypeFq}(),");
             sb.AppendLine("                FlowOutputPortIds = new System.Collections.Generic.Dictionary<string, int>(System.StringComparer.Ordinal)");
             sb.AppendLine("                {");
-            sb.AppendLine($"                    [\"{flowOutPortName}\"] = {runtimeTypeFq}.Ports.FlowOut,");
+            sb.AppendLine($"                    [\"{flowOutPortName}\"] = {PortIdLiteral(flowOutPortId)},");
             sb.AppendLine("                },");
-            AppendDataOutputs(sb, runtimeTypeFq, dataOutputs);
+            AppendDataOutputs(sb, dataOutputs);
             sb.AppendLine($"                EntryTypeId = typeof({payloadTypeFq}).AssemblyQualifiedName,");
             sb.AppendLine("            });");
             return sb.ToString();
@@ -102,6 +107,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             string editorTypeFq,
             string runtimeTypeFq,
             string flowInPortName,
+            int flowInPortId,
             IReadOnlyList<(string Name, int Id, string CSharpType)> dataInputs)
         {
             var sb = new StringBuilder();
@@ -111,9 +117,9 @@ namespace Scaffold.GraphFlow.PackageGenerator
             AppendInlineFactory(sb, editorTypeFq, runtimeTypeFq, dataInputs);
             sb.AppendLine("                FlowInputPortIds = new System.Collections.Generic.Dictionary<string, int>(System.StringComparer.Ordinal)");
             sb.AppendLine("                {");
-            sb.AppendLine($"                    [\"{flowInPortName}\"] = {runtimeTypeFq}.Ports.FlowIn,");
+            sb.AppendLine($"                    [\"{flowInPortName}\"] = {PortIdLiteral(flowInPortId)},");
             sb.AppendLine("                },");
-            AppendDataInputs(sb, runtimeTypeFq, dataInputs);
+            AppendDataInputs(sb, dataInputs);
             sb.AppendLine("            });");
             return sb.ToString();
         }
@@ -123,7 +129,9 @@ namespace Scaffold.GraphFlow.PackageGenerator
             string editorTypeFq,
             string runtimeTypeFq,
             string flowInPortName,
+            int flowInPortId,
             string flowOutPortName,
+            int flowOutPortId,
             IReadOnlyList<(string Name, int Id, string CSharpType)> dataInputs,
             IReadOnlyList<(string Name, int Id)> dataOutputs)
         {
@@ -134,14 +142,77 @@ namespace Scaffold.GraphFlow.PackageGenerator
             AppendInlineFactory(sb, editorTypeFq, runtimeTypeFq, dataInputs);
             sb.AppendLine("                FlowInputPortIds = new System.Collections.Generic.Dictionary<string, int>(System.StringComparer.Ordinal)");
             sb.AppendLine("                {");
-            sb.AppendLine($"                    [\"{flowInPortName}\"] = {runtimeTypeFq}.Ports.FlowIn,");
+            sb.AppendLine($"                    [\"{flowInPortName}\"] = {PortIdLiteral(flowInPortId)},");
             sb.AppendLine("                },");
             sb.AppendLine("                FlowOutputPortIds = new System.Collections.Generic.Dictionary<string, int>(System.StringComparer.Ordinal)");
             sb.AppendLine("                {");
-            sb.AppendLine($"                    [\"{flowOutPortName}\"] = {runtimeTypeFq}.Ports.FlowOut,");
+            sb.AppendLine($"                    [\"{flowOutPortName}\"] = {PortIdLiteral(flowOutPortId)},");
             sb.AppendLine("                },");
-            AppendDataInputs(sb, runtimeTypeFq, dataInputs);
-            AppendDataOutputs(sb, runtimeTypeFq, dataOutputs);
+            AppendDataInputs(sb, dataInputs);
+            AppendDataOutputs(sb, dataOutputs);
+            sb.AppendLine("            });");
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Build a registration block for a pure-data <c>[GraphNode]</c> or hand-written data node
+        /// (no flow ports, no entry-type id). Used by the generic-node emitter and any
+        /// <c>RegisterAdditional</c> hand-rolled equivalents.
+        /// </summary>
+        internal static string BuildDataNodeRegistrationBlock(
+            string runnerFq,
+            string editorTypeFq,
+            string runtimeTypeFq,
+            IReadOnlyList<(string Name, int Id, string CSharpType)> dataInputs,
+            IReadOnlyList<(string Name, int Id)> dataOutputs)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine($"            r.Register(new {EditorRegistryTypeName}<{runnerFq}>.NodeRegistration");
+            sb.AppendLine("            {");
+            sb.AppendLine($"                EditorNodeType = typeof({editorTypeFq}),");
+            sb.AppendLine($"                Factory = _ => new {runtimeTypeFq}(),");
+            AppendDataInputs(sb, dataInputs);
+            AppendDataOutputs(sb, dataOutputs);
+            sb.AppendLine("            });");
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Build a registration block for a <c>[GraphNode]</c> flow node (RuntimeNode&lt;TRunner&gt; with
+        /// an explicit flow-in plus N flow-outs and arbitrary data ports).
+        /// </summary>
+        internal static string BuildFlowNodeRegistrationBlock(
+            string runnerFq,
+            string editorTypeFq,
+            string runtimeTypeFq,
+            int flowInPortId,
+            IReadOnlyList<(string Name, int Id)> flowOutputs,
+            IReadOnlyList<(string Name, int Id, string CSharpType)> dataInputs,
+            IReadOnlyList<(string Name, int Id)> dataOutputs)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine($"            r.Register(new {EditorRegistryTypeName}<{runnerFq}>.NodeRegistration");
+            sb.AppendLine("            {");
+            sb.AppendLine($"                EditorNodeType = typeof({editorTypeFq}),");
+            sb.AppendLine($"                Factory = _ => new {runtimeTypeFq}(),");
+            sb.AppendLine("                FlowInputPortIds = new System.Collections.Generic.Dictionary<string, int>(System.StringComparer.Ordinal)");
+            sb.AppendLine("                {");
+            sb.AppendLine($"                    [\"FlowIn\"] = {PortIdLiteral(flowInPortId)},");
+            sb.AppendLine("                },");
+            if (flowOutputs.Count > 0)
+            {
+                sb.AppendLine("                FlowOutputPortIds = new System.Collections.Generic.Dictionary<string, int>(System.StringComparer.Ordinal)");
+                sb.AppendLine("                {");
+                foreach (var p in flowOutputs)
+                {
+                    sb.AppendLine($"                    [\"{p.Name}\"] = {PortIdLiteral(p.Id)},");
+                }
+
+                sb.AppendLine("                },");
+            }
+
+            AppendDataInputs(sb, dataInputs);
+            AppendDataOutputs(sb, dataOutputs);
             sb.AppendLine("            });");
             return sb.ToString();
         }
@@ -181,7 +252,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             return csharpType == "string" ? " ?? \"\"" : "";
         }
 
-        static void AppendDataInputs(StringBuilder sb, string runtimeTypeFq, IReadOnlyList<(string Name, int Id, string CSharpType)> dataInputs)
+        static void AppendDataInputs(StringBuilder sb, IReadOnlyList<(string Name, int Id, string CSharpType)> dataInputs)
         {
             if (dataInputs.Count == 0)
             {
@@ -192,13 +263,13 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine("                {");
             foreach (var f in dataInputs)
             {
-                sb.AppendLine($"                    [\"{f.Name}\"] = {runtimeTypeFq}.Ports.{f.Name},");
+                sb.AppendLine($"                    [\"{f.Name}\"] = {PortIdLiteral(f.Id)},");
             }
 
             sb.AppendLine("                },");
         }
 
-        static void AppendDataOutputs(StringBuilder sb, string runtimeTypeFq, IReadOnlyList<(string Name, int Id)> dataOutputs)
+        static void AppendDataOutputs(StringBuilder sb, IReadOnlyList<(string Name, int Id)> dataOutputs)
         {
             if (dataOutputs.Count == 0)
             {
@@ -209,11 +280,13 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine("                {");
             foreach (var f in dataOutputs)
             {
-                sb.AppendLine($"                    [\"{f.Name}\"] = {runtimeTypeFq}.Ports.{f.Name},");
+                sb.AppendLine($"                    [\"{f.Name}\"] = {PortIdLiteral(f.Id)},");
             }
 
             sb.AppendLine("                },");
         }
+
+        internal static string PortIdLiteral(int pid) => "unchecked((int)0x" + ((uint)pid).ToString("X8") + "u)";
 
         internal static string TrimGlobal(string fq)
         {

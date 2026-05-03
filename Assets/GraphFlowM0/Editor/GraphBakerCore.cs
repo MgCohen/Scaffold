@@ -56,7 +56,7 @@ namespace Scaffold.GraphFlow.M0.Editor
             var guidToNodeId = RecoverGuidMap<TRunner, TAsset>(previousRuntime);
             var nextId = NextFreeNodeId(guidToNodeId);
 
-            var editorToRuntime = new Dictionary<INode, RuntimeNode<TRunner>>();
+            var editorToRuntime = new Dictionary<INode, RuntimeNode>();
             var editorToRegistration = new Dictionary<INode, GraphPackageRegistry<TRunner>.NodeRegistration>();
 
             foreach (var n in editorNodes)
@@ -135,7 +135,7 @@ namespace Scaffold.GraphFlow.M0.Editor
             }
 
             var asset = ScriptableObject.CreateInstance<TAsset>();
-            asset.nodes = new List<RuntimeNode<TRunner>>(editorToRuntime.Values);
+            asset.nodes = new List<RuntimeNode>(editorToRuntime.Values);
             asset.connections = dataConnections;
             asset.flowEdges = flowEdges;
             asset.entries = entries;

@@ -11,7 +11,11 @@ namespace Scaffold.GraphFlow.M0.Editor
     /// </summary>
     public sealed class GraphPackageRegistry<TRunner> where TRunner : GraphRunner
     {
-        public delegate RuntimeNode<TRunner> NodeFactory(INode editorNode);
+        // Returns RuntimeNode (base) so pure data nodes — extending RuntimeNode without TRunner —
+        // can register through the same registry as flow-bearing RuntimeNode<TRunner> classes. The
+        // executor only invokes Execute on RuntimeNode<TRunner> instances reached through flowEdges;
+        // data nodes are never participants in flow.
+        public delegate RuntimeNode NodeFactory(INode editorNode);
 
         public sealed class NodeRegistration
         {

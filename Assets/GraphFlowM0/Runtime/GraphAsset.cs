@@ -31,10 +31,17 @@ namespace Scaffold.GraphFlow.M0
         public int rootNodeId;
     }
 
-    /// <summary>Baked runtime artifact — reference this from game code (abstract generic).</summary>
+    /// <summary>
+    /// Baked runtime artifact — reference this from game code (abstract generic).
+    /// <para>The node list is typed as <see cref="RuntimeNode"/> (not <c>RuntimeNode&lt;TRunner&gt;</c>)
+    /// so pure data nodes — which inherit from <see cref="RuntimeNode"/> directly without a
+    /// <c>TRunner</c> — can serialize alongside flow-bearing nodes. The executor only invokes
+    /// <c>Execute</c> on <c>RuntimeNode&lt;TRunner&gt;</c> instances reached through <c>flowEdges</c>;
+    /// data nodes are read-only sinks for connections and never participate in flow.</para>
+    /// </summary>
     public abstract class GraphAsset<TRunner> : ScriptableObject where TRunner : GraphRunner
     {
-        [SerializeReference] public List<RuntimeNode<TRunner>> nodes = new();
+        [SerializeReference] public List<RuntimeNode> nodes = new();
         public List<ConnectionRecord> connections = new();
         public List<FlowEdge> flowEdges = new();
         public List<EntryIndex> entries = new();
