@@ -10,9 +10,9 @@ namespace Scaffold.States
 
         public IEnumerable<ISubscription> Get(Type stateType)
         {
-            if (Lookup.ContainsKey(stateType))
+            if (Lookup.TryGetValue(stateType, out var list))
             {
-                return Lookup[stateType];
+                return list;
             }
             return Enumerable.Empty<ISubscription>();
         }
@@ -20,11 +20,12 @@ namespace Scaffold.States
         public void Add(ISubscription sub)
         {
             Type type = sub.GetSubscriptionType();
-            if (!Lookup.ContainsKey(type))
+            if (!Lookup.TryGetValue(type, out var list))
             {
-                Lookup[type] = new List<ISubscription>();
+                list = new List<ISubscription>();
+                Lookup[type] = list;
             }
-            Lookup[type].Add(sub);
+            list.Add(sub);
         }
 
         public bool RemoveSubscription<TState>(Action<IReference, TState, StateChangeEvent> action) where TState : BaseState

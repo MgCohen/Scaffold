@@ -31,9 +31,9 @@ namespace Scaffold.States
 
         internal void RunMutatorBindingsWithoutCommit(object payload, IReadOnlyList<IPayloadMutatorBinding> mutators, IReference executeReference)
         {
-            foreach (var m in mutators)
+            for (int i = 0; i < mutators.Count; i++)
             {
-                m.Apply(payload, this, executeReference);
+                mutators[i].Apply(payload, this, executeReference);
             }
         }
 

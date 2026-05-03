@@ -26,7 +26,7 @@ namespace Scaffold.States
 
         private static IReference FromPayload(object payload, IReference executeReference)
         {
-            if (!executeReference.Equals(Reference.Null))
+            if (!ReferenceEquals(executeReference, Reference.Null))
             {
                 return executeReference;
             }

@@ -47,6 +47,8 @@ namespace Scaffold.States
         private readonly List<BaseSlice> sliceBuffer = new List<BaseSlice>();
         private readonly List<(IReference Reference, Type StateType)> pruneBuffer = new List<(IReference Reference, Type StateType)>();
 
+        private static IReference Resolve(IReference? reference) => reference ?? Reference.Null;
+
         #region Subscriptions
         public void Subscribe<TState>(Action<IReference, TState, StateChangeEvent> action) where TState : BaseState
         {
@@ -55,21 +57,41 @@ namespace Scaffold.States
 
         public void Subscribe<TState>(IReference reference, Action<IReference, TState, StateChangeEvent> action) where TState : BaseState
         {
+            if (action is null)
+            {
+                throw new ArgumentNullException(nameof(action));
+            }
+
             eventHandler.Subscribe(reference, action);
         }
 
         public void Unsubscribe<TState>(IReference reference, Action<IReference, TState, StateChangeEvent> action) where TState : BaseState
         {
+            if (action is null)
+            {
+                throw new ArgumentNullException(nameof(action));
+            }
+
             eventHandler.Unsubscribe(reference, action);
         }
 
         public void SubscribeAllReferences<TState>(Action<IReference, TState, StateChangeEvent> action) where TState : BaseState
         {
+            if (action is null)
+            {
+                throw new ArgumentNullException(nameof(action));
+            }
+
             eventHandler.SubscribeAllReferences(action);
         }
 
         public void SubscribeAny(Action<IReference, BaseState, StateChangeEvent> action)
         {
+            if (action is null)
+            {
+                throw new ArgumentNullException(nameof(action));
+            }
+
             eventHandler.SubscribeAny(action);
         }
         #endregion
@@ -152,7 +174,7 @@ namespace Scaffold.States
 
         public void ExecuteMutator<TState>(IReference? reference, Mutator<TState> mutator) where TState : State
         {
-            var r = reference ?? Reference.Null;
+            var r = Resolve(reference);
             MutatorRunner runner = mutatorRunnerPool.Take();
             try
             {
@@ -175,7 +197,7 @@ namespace Scaffold.States
             MutatorRunner runner = mutatorRunnerPool.Take();
             try
             {
-                runner.RunTypedMutatorWithoutCommit(reference ?? Reference.Null, mutator, payload);
+                runner.RunTypedMutatorWithoutCommit(Resolve(reference), mutator, payload);
                 runner.CommitOverlay();
             }
             finally
@@ -196,7 +218,7 @@ namespace Scaffold.States
                 throw new ArgumentNullException(nameof(payload));
             }
 
-            var r = reference ?? Reference.Null;
+            var r = Resolve(reference);
             MutatorRunner runner = mutatorRunnerPool.Take();
             try
             {
@@ -219,6 +241,14 @@ namespace Scaffold.States
             if (payloads.Count == 0)
             {
                 return;
+            }
+
+            for (int i = 0; i < payloads.Count; i++)
+            {
+                if (payloads[i] is null)
+                {
+                    throw new ArgumentException("Batch contains a null command payload.", nameof(payloads));
+                }
             }
 
             RunExecuteBatchWithPool(payloads);
@@ -248,21 +278,15 @@ namespace Scaffold.States
 
         private void ApplyOnePayloadToOverlay(MutatorRunner runner, object payload, IReadOnlyList<object> payloads)
         {
-            if (payload is null)
-            {
-                throw new ArgumentException("Batch contains a null command payload.", nameof(payloads));
-            }
-
             RunRegisteredMutatorsWithoutCommit(runner, payload, Reference.Null);
         }
 
         private void RunRegisteredMutatorsWithoutCommit(MutatorRunner runner, object payload, IReference executeReference)
         {
             Type payloadType = payload.GetType();
-            if (!mutatorRegistry.TryGet(payloadType, out IReadOnlyList<IPayloadMutatorBinding>? bindings) || bindings == null || bindings.Count == 0)
+            if (!mutatorRegistry.TryGet(payloadType, out var bindings) || bindings.Count == 0)
             {
-                UnityEngine.Debug.LogWarning($"[Store] No mutators registered for payload type {payloadType.FullName}.");
-                return;
+                throw new MutatorNotRegisteredException(payloadType);
             }
 
             runner.RunMutatorBindingsWithoutCommit(payload, bindings, executeReference);
@@ -288,7 +312,7 @@ namespace Scaffold.States
                 throw new ArgumentNullException(nameof(state));
             }
 
-            var r = reference ?? Reference.Null;
+            var r = Resolve(reference);
             Slice slice = Slice.Create(r, state);
             Type t = slice.StateType;
             ThrowIfSliceConflict(r, t, map.Contains(r, t), aggregates.Contains(r, t));
@@ -308,7 +332,7 @@ namespace Scaffold.States
                 throw new ArgumentNullException(nameof(stateType));
             }
 
-            var r = reference ?? Reference.Null;
+            var r = Resolve(reference);
             return TryRemoveCanonicalSliceAndNotify(r, stateType);
         }
 
@@ -344,7 +368,7 @@ namespace Scaffold.States
                 throw new ArgumentNullException(nameof(provider));
             }
 
-            var r = reference ?? Reference.Null;
+            var r = Resolve(reference);
             var aSlice = new AggregateSlice(r, provider);
             Type t = aSlice.StateType;
             ThrowIfSliceConflict(r, t, map.Contains(r, t), aggregates.Contains(r, t));
@@ -387,7 +411,7 @@ namespace Scaffold.States
 
         public TState Get<TState>(IReference? reference) where TState : BaseState
         {
-            var r = reference ?? Reference.Null;
+            var r = Resolve(reference);
             var t = typeof(TState);
             if (!TryGetSlice(r, t, out BaseSlice slice))
             {
@@ -533,7 +557,7 @@ namespace Scaffold.States
 
             public TState Get<TState>(IReference? reference) where TState : BaseState
             {
-                var r = reference ?? Reference.Null;
+                var r = Resolve(reference);
                 if (overlay.TryGetValue(r, typeof(TState), out var fromOverlay))
                 {
                     return (TState)(object)fromOverlay!;

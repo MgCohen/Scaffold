@@ -25,12 +25,11 @@ namespace Scaffold.States
         private void NotifyReferenceSubscriptions(IReference reference, BaseState state, StateChangeEvent changeEvent)
         {
             IReference r = reference ?? Reference.Null;
-            if (!Subscriptions.ContainsKey(r))
+            if (!Subscriptions.TryGetValue(r, out Ledger? ledger))
             {
                 return;
             }
 
-            var ledger = Subscriptions[r];
             var list = ledger.Get(state.GetType());
             foreach (var item in list)
             {
@@ -61,31 +60,16 @@ namespace Scaffold.States
 
         public void SubscribeAny(Action<IReference, BaseState, StateChangeEvent> action)
         {
-            if (action is null)
-            {
-                throw new ArgumentNullException(nameof(action));
-            }
-
             anySubscriptions.Add(action);
         }
 
         public void Subscribe<TState>(IReference reference, Action<IReference, TState, StateChangeEvent> action) where TState : BaseState
         {
-            if (action is null)
-            {
-                throw new ArgumentNullException(nameof(action));
-            }
-
             AddReferenceSubscription(reference, action);
         }
 
         public void Unsubscribe<TState>(IReference reference, Action<IReference, TState, StateChangeEvent> action) where TState : BaseState
         {
-            if (action is null)
-            {
-                throw new ArgumentNullException(nameof(action));
-            }
-
             AttemptRemoveSubscription(reference ?? Reference.Null, action);
         }
 
@@ -109,23 +93,19 @@ namespace Scaffold.States
 
         public void SubscribeAllReferences<TState>(Action<IReference, TState, StateChangeEvent> action) where TState : BaseState
         {
-            if (action is null)
-            {
-                throw new ArgumentNullException(nameof(action));
-            }
-
             AddAllReferencesSubscription(action);
         }
 
         private void AddReferenceSubscription<TState>(IReference reference, Action<IReference, TState, StateChangeEvent> action) where TState : BaseState
         {
             IReference r = reference ?? Reference.Null;
-            if (!Subscriptions.ContainsKey(r))
+            if (!Subscriptions.TryGetValue(r, out Ledger? ledger))
             {
-                Subscriptions[r] = new Ledger();
+                ledger = new Ledger();
+                Subscriptions[r] = ledger;
             }
 
-            Subscriptions[r].Add(new TypedSubscription<TState>(action));
+            ledger.Add(new TypedSubscription<TState>(action));
         }
 
         private void AddAllReferencesSubscription<TState>(Action<IReference, TState, StateChangeEvent> action) where TState : BaseState

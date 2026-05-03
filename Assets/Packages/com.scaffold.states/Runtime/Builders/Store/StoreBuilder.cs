@@ -10,6 +10,7 @@ namespace Scaffold.States
         private List<BaseSlice> entries = new List<BaseSlice>();
         private MutatorRegistry? mutatorRegistry;
         private readonly HashSet<(IReference Reference, Type StateType)> registeredAggregates = new();
+        private readonly HashSet<(IReference Reference, Type StateType)> registeredCanonical = new();
 
         public void AddEventHandler(IStateEventHandler eventHandler)
         {
@@ -18,6 +19,11 @@ namespace Scaffold.States
 
         public void RegisterMutator<TState, TPayload>(Mutator<TState, TPayload> mutator) where TState : State
         {
+            if (mutator is null)
+            {
+                throw new ArgumentNullException(nameof(mutator));
+            }
+
             mutatorRegistry ??= new MutatorRegistry();
             mutatorRegistry.Register(mutator);
         }
@@ -71,7 +77,16 @@ namespace Scaffold.States
 
         public void AddState(IReference reference, State state)
         {
-            entries.Add(Slice.Create(reference, state));
+            var slice = Slice.Create(reference, state);
+            Type stateType = slice.StateType;
+            IReference key = slice.Reference;
+            if (!registeredCanonical.Add((key, stateType)))
+            {
+                throw new InvalidOperationException(
+                    $"A canonical slice for state type {stateType.Name} is already registered at this reference.");
+            }
+
+            entries.Add(slice);
         }
 
         public Store Build()
@@ -82,7 +97,7 @@ namespace Scaffold.States
 
         private IStateEventHandler GetDefaultStateEventHandler()
         {
-            return StateEventHandlers.CreateDefault();
+            return StateEventHandlerFactory.CreateDefault();
         }
     }
 }

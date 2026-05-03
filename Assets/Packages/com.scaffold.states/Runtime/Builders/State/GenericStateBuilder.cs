@@ -2,7 +2,7 @@ using System;
 
 namespace Scaffold.States
 {
-    public class GenericStateBuilder<TRef, TState> : StateBuilder<TRef, TState> where TState: State
+    public class GenericStateBuilder<TRef, TState> : StateBuilder<TRef, TState> where TRef : IReference where TState : State
     {
         public GenericStateBuilder(Func<TRef, TState> factory)
         {

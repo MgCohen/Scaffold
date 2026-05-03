@@ -12,7 +12,7 @@ Runtime slice/store pattern for immutable-ish game state: **`Store`** composes *
 - **`Runtime/Store.cs`**: central API (`Execute`, `Get`, `Subscribe`, snapshots).
 - **`Runtime/State/`**: `Slice.cs`, `State.cs`, `Snapshot.cs`, `StateChangeEvent.cs`, etc.
 - **`Runtime/Builders/`**: `StoreBuilder` / state builders for composition.
-- **`Runtime/Events/`**: `StateEventHandler`, `DeferredStateEventHandler`, `StateEventHandlers`, `TypedSubscription`, `Ledger`.
+- **`Runtime/Events/`**: `StateEventHandler`, `DeferredStateEventHandler`, `StateEventHandlerFactory`, `TypedSubscription`, `Ledger`.
 - **`Runtime/Mutators/Mutator.cs`**: mutation wrapper.
 
 ## Snapshots
@@ -34,7 +34,7 @@ Many commits in one logical frame can call `IStateEventHandler.Notify` (two-argu
 
 Composition example:
 
-    var inner = StateEventHandlers.CreateDefault();
+    var inner = StateEventHandlerFactory.CreateDefault();
     var deferred = new DeferredStateEventHandler(inner, StateEventMergeMode.LatestPerKey);
     builder.AddEventHandler(deferred);
     using (deferred.BeginDeferScope())

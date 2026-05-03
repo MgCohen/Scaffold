@@ -333,5 +333,35 @@ namespace Scaffold.States.Tests
             store.Execute(new RoutedCounterPayload(keyA, 2));
             Assert.That(count, Is.EqualTo(1));
         }
+
+        private sealed record OrphanPayload;
+
+        [Test]
+        public void Execute_UnregisteredPayload_ThrowsMutatorNotRegisteredException()
+        {
+            var builder = new StoreBuilder();
+            builder.AddState(new CounterState(0));
+            Store store = builder.Build();
+
+            var ex = Assert.Throws<MutatorNotRegisteredException>(() => store.Execute(new OrphanPayload()));
+            Assert.That(ex!.PayloadType, Is.EqualTo(typeof(OrphanPayload)));
+        }
+
+        [Test]
+        public void StoreBuilder_DuplicateCanonicalAtSameReference_Throws()
+        {
+            var builder = new StoreBuilder();
+            var key = new SampleKey("K");
+            builder.AddState(key, new CounterState(0));
+
+            Assert.Throws<InvalidOperationException>(() => builder.AddState(key, new CounterState(1)));
+        }
+
+        [Test]
+        public void Snapshot_Get_MissingEntry_ThrowsKeyNotFoundException()
+        {
+            var snap = new Snapshot();
+            Assert.Throws<KeyNotFoundException>(() => snap.Get<CounterState>());
+        }
     }
 }
