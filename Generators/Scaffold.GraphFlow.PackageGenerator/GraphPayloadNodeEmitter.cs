@@ -305,7 +305,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine("#nullable enable");
             sb.AppendLine("using System;");
             sb.AppendLine("using System.Threading.Tasks;");
-            sb.AppendLine("using Scaffold.GraphFlow.M0;");
+            sb.AppendLine("using Scaffold.GraphFlow;");
             sb.AppendLine();
             sb.AppendLine($"namespace {typeNs}");
             sb.AppendLine("{");
@@ -419,7 +419,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine("#nullable enable");
             sb.AppendLine("using System;");
             sb.AppendLine("using System.Threading.Tasks;");
-            sb.AppendLine("using Scaffold.GraphFlow.M0;");
+            sb.AppendLine("using Scaffold.GraphFlow;");
             sb.AppendLine();
             sb.AppendLine($"namespace {typeNs}");
             sb.AppendLine("{");
@@ -548,7 +548,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine("#nullable enable");
             sb.AppendLine("using System;");
             sb.AppendLine("using System.Threading.Tasks;");
-            sb.AppendLine("using Scaffold.GraphFlow.M0;");
+            sb.AppendLine("using Scaffold.GraphFlow;");
             sb.AppendLine();
             sb.AppendLine($"namespace {typeNs}");
             sb.AppendLine("{");

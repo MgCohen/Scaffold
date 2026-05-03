@@ -333,6 +333,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             AppendRunnerUsingIfNeeded(sb, p);
             sb.AppendLine("using Unity.GraphToolkit.Editor;");
             sb.AppendLine("using UnityEditor;");
+            sb.AppendLine($"using {GraphRegistryEmitter.PackageEditorGToolkitNamespace};");
         }
 
         static void AppendRunnerUsingIfNeeded(StringBuilder sb, GraphPackageModel p)
@@ -391,6 +392,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine($"using {EditorGraphToolkitNamespace(compilation)};");
             AppendRunnerUsingIfNeeded(sb, p);
             sb.AppendLine($"using {GraphRegistryEmitter.ResolveRegistryNamespace(p, compilation)};");
+            sb.AppendLine($"using {GraphRegistryEmitter.EditorRegistryNamespace};");
             sb.AppendLine("using UnityEditor.AssetImporters;");
             sb.AppendLine();
             sb.AppendLine($"namespace {EditorImporterNamespace(compilation)}");

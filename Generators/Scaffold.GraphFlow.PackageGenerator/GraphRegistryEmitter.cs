@@ -15,7 +15,9 @@ namespace Scaffold.GraphFlow.PackageGenerator
     /// </summary>
     internal static class GraphRegistryEmitter
     {
-        internal const string EditorRegistryNamespace = "Scaffold.GraphFlow.M0.Editor";
+        internal const string EditorRegistryNamespace = "Scaffold.GraphFlow.Editor";
+        internal const string PackageEditorGToolkitNamespace = "Scaffold.GraphFlow.Editor.GToolkit";
+        internal const string PackageRuntimeNamespace = "Scaffold.GraphFlow";
         internal const string EditorRegistryTypeName = "GraphPackageRegistry";
 
         internal static string ResolveRegistryNamespace(GraphPackageModel package, Compilation compilation)
