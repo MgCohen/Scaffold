@@ -68,7 +68,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
 
                 // Mode 2 command/result pairs must win over IExecutable-shaped emission so DispatcherBase (partial + overrides) is consistent.
                 if (graphCmdAttr != null &&
-                    PayloadDiscovery.TryGetCommandPair(type, graphCmdAttr, compilation, out var resultType, out var fi, out var fo))
+                    PayloadDiscovery.TryReadCommandPairAttribute(type, graphCmdAttr, out var resultType, out var fi, out var fo))
                 {
                     if (package.DispatcherBaseMetadataName == null)
                     {
@@ -79,6 +79,18 @@ namespace Scaffold.GraphFlow.PackageGenerator
                     if (openDisp is not INamedTypeSymbol { TypeParameters.Length: 2 } openNamed)
                     {
                         continue;
+                    }
+
+                    // typeof(...) args in attributes serialized into a referenced assembly's metadata can come back Kind=Error
+                    // because the C# compiler omits the assembly qualifier for same-assembly type names. When that happens,
+                    // recover the result type by finding a concrete dispatcher subclass closed over this command.
+                    if (resultType == null)
+                    {
+                        resultType = PayloadDiscovery.FindResultTypeFromDispatcherSubclass(payloadAssembly, openNamed, type, ct);
+                        if (resultType == null)
+                        {
+                            continue;
+                        }
                     }
 
                     var closedDisp = openNamed.Construct(type, resultType);
@@ -617,15 +629,13 @@ namespace Scaffold.GraphFlow.PackageGenerator
             return false;
         }
 
-        internal static bool TryGetCommandPair(
+        internal static bool TryReadCommandPairAttribute(
             INamedTypeSymbol type,
             INamedTypeSymbol graphCmdAttr,
-            Compilation compilation,
-            out INamedTypeSymbol resultType,
+            out INamedTypeSymbol? resultType,
             out int flowIn,
             out int flowOut)
         {
-            _ = compilation;
             foreach (var a in type.GetAttributes())
             {
                 if (!SymbolEqualityComparer.Default.Equals(a.AttributeClass, graphCmdAttr))
@@ -633,12 +643,12 @@ namespace Scaffold.GraphFlow.PackageGenerator
                     continue;
                 }
 
-                resultType = null!;
+                resultType = null;
                 flowIn = 0;
                 flowOut = 0;
                 foreach (var na in a.NamedArguments)
                 {
-                    if (na.Key == "ResultType" && na.Value.Value is ITypeSymbol rt && rt is INamedTypeSymbol r)
+                    if (na.Key == "ResultType" && na.Value.Value is INamedTypeSymbol r)
                     {
                         resultType = r;
                     }
@@ -652,13 +662,48 @@ namespace Scaffold.GraphFlow.PackageGenerator
                     }
                 }
 
-                return resultType != null;
+                return true;
             }
 
-            resultType = null!;
+            resultType = null;
             flowIn = 0;
             flowOut = 0;
             return false;
+        }
+
+        internal static INamedTypeSymbol? FindResultTypeFromDispatcherSubclass(
+            IAssemblySymbol payloadAssembly,
+            INamedTypeSymbol openDispatcher,
+            INamedTypeSymbol commandType,
+            System.Threading.CancellationToken ct)
+        {
+            foreach (var t in GraphPayloadTypeWalker.AllNamedTypesInAssembly(payloadAssembly, ct))
+            {
+                for (var b = t.BaseType; b != null; b = b.BaseType)
+                {
+                    if (!SymbolEqualityComparer.Default.Equals(b.OriginalDefinition, openDispatcher))
+                    {
+                        continue;
+                    }
+
+                    if (b.TypeArguments.Length != 2)
+                    {
+                        continue;
+                    }
+
+                    if (!SymbolEqualityComparer.Default.Equals(b.TypeArguments[0], commandType))
+                    {
+                        continue;
+                    }
+
+                    if (b.TypeArguments[1] is INamedTypeSymbol r)
+                    {
+                        return r;
+                    }
+                }
+            }
+
+            return null;
         }
 
         internal static ImmutableArray<IFieldSymbol> InstanceFields(INamedTypeSymbol type)

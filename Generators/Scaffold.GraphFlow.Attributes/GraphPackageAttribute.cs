@@ -9,7 +9,7 @@ namespace Scaffold.GraphFlow
     /// <remarks>
     /// <para><strong>Consumer requirements</strong> (the assembly that hosts this attribute):</para>
     /// <list type="number">
-    /// <item><description>Reference the <c>Scaffold.GraphFlow.PackageAttributes</c> assembly (Unity: the precompiled DLL wired through <c>Scaffold.GraphFlow.PackageAttributes.asmdef</c>).</description></item>
+    /// <item><description>Reference the <c>Scaffold.GraphFlow.AttributesLib</c> assembly (Unity: the precompiled DLL wired through <c>Scaffold.GraphFlow.PackageAttributes.asmdef</c>).</description></item>
     /// <item><description>Reference the <c>Scaffold.GraphFlow.PackageGenerator</c> Roslyn analyzer so generation runs on this compilation (Unity: asmdef GUID reference to the generator DLL; labels: RoslynAnalyzer, RunOnlyOnAssembliesWithReference, explicit reference).</description></item>
     /// <item><description>Set <see cref="Runner"/> to a concrete, visible <c>GraphRunner</c> subclass type.</description></item>
     /// <item><description>For production emit: set <see cref="Extension"/>, <see cref="AssetMenu"/>, <see cref="Convention"/>, and <see cref="RegistryNamespace"/>; extension must not include a leading dot.</description></item>

@@ -38,8 +38,9 @@ namespace Scaffold.GraphFlow.M0.Editor
             var editorNodes = editorGraph.GetNodes().ToList();
             if (editorNodes.Count == 0)
             {
-                result.LogError("Graph has no nodes.");
-                result.HasErrors = true;
+                // Newly-created graph: emit an empty asset so the importer succeeds and the user can author.
+                var emptyAsset = ScriptableObject.CreateInstance<MySmokeGraphAsset>();
+                result.Asset = emptyAsset;
                 return result;
             }
 

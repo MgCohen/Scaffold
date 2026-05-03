@@ -8,9 +8,11 @@ $generators = Join-Path $repo "Assets/Packages/com.scaffold.graphflow/Generators
 if (-not (Test-Path (Join-Path $bin "Scaffold.GraphFlow.PackageGenerator.dll"))) {
     throw "Build Generators first: dotnet build Generators/Scaffold.GraphFlow.PackageGenerator/Scaffold.GraphFlow.PackageGenerator.csproj -c Release"
 }
-# Avoid Unity seeing two attribute DLLs if the assembly was renamed.
-Remove-Item (Join-Path $runtime "Scaffold.GraphFlow.Attributes.dll") -ErrorAction SilentlyContinue
-Remove-Item (Join-Path $runtime "Scaffold.GraphFlow.Attributes.dll.meta") -ErrorAction SilentlyContinue
-Copy-Item (Join-Path $bin "Scaffold.GraphFlow.PackageAttributes.dll") $runtime -Force
+# Sweep any prior attribute DLL filenames so Unity doesn't see two copies after a rename.
+foreach ($stale in @("Scaffold.GraphFlow.Attributes.dll", "Scaffold.GraphFlow.PackageAttributes.dll")) {
+    Remove-Item (Join-Path $runtime $stale) -ErrorAction SilentlyContinue
+    Remove-Item (Join-Path $runtime "$stale.meta") -ErrorAction SilentlyContinue
+}
+Copy-Item (Join-Path $bin "Scaffold.GraphFlow.AttributesLib.dll") $runtime -Force
 Copy-Item (Join-Path $bin "Scaffold.GraphFlow.PackageGenerator.dll") $generators -Force
-Write-Host "Copied Attributes + PackageGenerator DLLs into com.scaffold.graphflow."
+Write-Host "Copied AttributesLib + PackageGenerator DLLs into com.scaffold.graphflow."

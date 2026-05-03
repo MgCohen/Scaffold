@@ -1253,8 +1253,18 @@ The first two milestones deliberately split the design risk from the meta-toolin
 | Milestone | Status | Notes |
 | --------- | ------ | ----- |
 | **M0** | **Done** | Golden vertical slice under `Assets/GraphFlowM0/` — bake, hydrate, `GraphController`, player smoke; hand-written trio + registry switches in `GraphBaker`. |
-| **M1** | **In progress** | Trio + payload-driven editor/runtime nodes for `IGraphEntry` / `IExecutable` actions / `GraphCommandPair` dispatchers; `[GraphPort]`, `[GraphEntry]`, `DispatcherBase` on `[GraphPackage]`. Remaining: registry emission, EFG diagnostics, convention strategies beyond M0, snapshot tests, analyzer cleanup on generator project. |
+| **M1** | **In progress** | Trio + payload-driven editor/runtime nodes for `IGraphEntry` / `IExecutable` actions / `GraphCommandPair` dispatchers; `[GraphPort]`, `[GraphEntry]`, `DispatcherBase` on `[GraphPackage]`. **Generator now compiles cleanly in Unity** for both runtime + editor passes (see notes below). Remaining: registry emission, EFG diagnostics, convention strategies beyond M0, snapshot tests, analyzer cleanup on generator project. |
 | M2+ | Planned | Editor nodes, flow semantics, CF integration per sections below. |
+
+#### Recent generator-stabilization work (2026-05-03)
+
+End-to-end debugging of the editor compile in Unity surfaced four bugs and one design-constraint clarification:
+
+1. **Mode 2 editor nodes silently dropped.** `GraphPayloadNodeEmitter` was reading `[GraphCommandPair(ResultType = typeof(...))]` via `TypedConstant` against the *referenced* runtime asm. The C# compiler omits the assembly qualifier when serializing same-assembly `typeof()` into attribute metadata, so Roslyn returned `TypedConstant.Kind = Error` cross-assembly and `TryGetCommandPair` silently returned false. `EchoDispatcherEditorNode` was never emitted, breaking `GraphBaker`. Fixed by splitting attribute reading from result-type lookup: when the typeof argument is unresolvable, fall back to scanning the runtime assembly for a `MyDispatcherBase<{Cmd}, ?>` subclass and harvesting the closed generic. Runtime pass still uses the attribute (works because it reads from source).
+2. **`Scaffold.GraphFlow.PackageAttributes.dll` collided with the same-named asmdef.** Earlier rename attempts only renamed the file; `dotnet build` regenerated the old DLL because `<AssemblyName>` was unchanged. Now renamed end-to-end: `<AssemblyName>` → `Scaffold.GraphFlow.AttributesLib`, sync script sweeps both legacy filenames, asmdef GUID preserved so consumer references don't break.
+3. **`MySmokeGraphAsset` SO failed `AddObjectToAsset`.** Unity's `MonoScript` binding for `ScriptableObject` types requires a real on-disk `.cs` file with a matching name; generator-emitted virtual sources do not satisfy that lookup. **Decision: do not emit the GraphAsset SO from the generator.** The consumer hand-writes a one-line `<Stem>GraphAsset.cs` (the only piece of the trio with this constraint — Graph + Importer are not SOs). Comment in `GraphPackageTrioEmitter` documents why. Roslyn-writes-to-disk and an editor-side AssetPostprocessor were both considered and rejected as more complexity than the one-liner is worth at v1 scale.
+4. **Empty graph rejected at bake.** `GraphBaker.Bake` was logging `"Graph has no nodes."` and setting `HasErrors = true`, which broke Unity's "Create new graph" flow (always starts empty). Now an empty editor graph produces an empty `MySmokeGraphAsset` with no error.
+5. **Standalone Roslyn host as the only honest debugger.** Unity's Console doesn't show generator output; the editor compile silently produced nothing. A small console app (`Microsoft.CodeAnalysis.CSharp` 4.3.1, mirroring Unity's editor-asm setup) drove the generator end-to-end and let us inspect emitted trees + raw attribute blobs. Worth keeping in `Generators/` as a smoke-test harness when iterating on the generator.
 
 ### Milestone 0 — Hand-written vertical slice (1.5–2 weeks)
 

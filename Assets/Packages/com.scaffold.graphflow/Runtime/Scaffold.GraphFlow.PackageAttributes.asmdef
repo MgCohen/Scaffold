@@ -16,7 +16,7 @@
 
     "precompiledReferences": [
 
-        "Scaffold.GraphFlow.PackageAttributes.dll"
+        "Scaffold.GraphFlow.AttributesLib.dll"
 
     ],
 
