@@ -1,0 +1,20 @@
+{
+    "name": "Scaffold.GraphFlow.M0.Editor",
+    "rootNamespace": "Scaffold.GraphFlow.M0.Editor",
+    "references": [
+        "Scaffold.GraphFlow.M0",
+        "Unity.GraphToolkit.Common.Editor",
+        "Unity.GraphToolkit.Editor"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
