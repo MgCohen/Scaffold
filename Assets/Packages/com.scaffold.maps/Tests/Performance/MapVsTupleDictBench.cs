@@ -15,6 +15,9 @@ namespace Scaffold.Maps.Tests.Performance
         [SetUp]
         public void SetUp() => LogAssert.ignoreFailingMessages = true;
 
+        [TearDown]
+        public void TearDown() => LogAssert.ignoreFailingMessages = true;
+
         internal static Map<int, int, string> BuildMap(int n)
         {
             Map<int, int, string> map = new Map<int, int, string>();

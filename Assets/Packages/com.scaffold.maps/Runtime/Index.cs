@@ -7,12 +7,14 @@ namespace Scaffold.Maps
     {
         public Index(TPrimary primary, TSecondary secondary)
         {
-            if (primary is null)
+            // Avoid `primary is null` on unconstrained T when T is a value type: some runtimes emit
+            // boxing or extra allocs on the generic null check; gate on type kind first.
+            if (!typeof(TPrimary).IsValueType && primary is null)
             {
                 throw new ArgumentNullException(nameof(primary));
             }
 
-            if (secondary is null)
+            if (!typeof(TSecondary).IsValueType && secondary is null)
             {
                 throw new ArgumentNullException(nameof(secondary));
             }

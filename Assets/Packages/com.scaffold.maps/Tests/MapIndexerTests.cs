@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 using Scaffold.Maps;
@@ -65,8 +67,7 @@ namespace Scaffold.Maps.Tests
             Map<int, int, string> map = new Map<int, int, string>();
             map.AddIndexer("dup", (_, _) => true);
 
-            InvalidOperationException ex = Assert.Throws<InvalidOperationException>(() =>
-                map.AddIndexer("dup", (_, _) => false));
+            InvalidOperationException ex = Assert.Throws<InvalidOperationException>(() => map.AddIndexer("dup", (_, _) => false));
             Assert.That(ex.Message, Does.Contain("'dup'"));
         }
 
@@ -100,6 +101,7 @@ namespace Scaffold.Maps.Tests
             Assert.That(map.TryGetIndexer("i", out IReadOnlyIndexer<int, int, string> ro), Is.True);
             Assert.That(ro.Name, Is.EqualTo("i"));
             Assert.That(ro.Values, Is.Empty);
+        }
 
         [Test]
         public void GetIndexedValues_MissingName_ThrowsKeyNotFoundExceptionWithMessage()
