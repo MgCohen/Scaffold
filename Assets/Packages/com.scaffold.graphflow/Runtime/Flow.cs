@@ -32,9 +32,12 @@ namespace Scaffold.GraphFlow
         internal object? Result { get; private set; }
         int? _nextPortId;
 
-        // TODO M3 phase 3: IEffectScope? Scope { get; internal set; }
-        // — populated by Mode-2 runners (CardEffectRunner) so dispatcher nodes can reach the host's
-        // per-run services bag without resurrecting state on the runner. Mode-1 runners leave it null.
+        /// <summary>
+        /// Per-run host-services bag. Mode-2 runners (e.g. CardEffectRunner) populate this in
+        /// GraphController's BindRunner closure so dispatcher nodes can reach the host's services
+        /// without resurrecting state on the long-lived runner. Mode-1 runners can leave it null.
+        /// </summary>
+        public IEffectScope? Scope { get; internal set; }
 
         public Flow(CancellationToken cancellationToken = default)
         {

@@ -1,3 +1,4 @@
+#nullable enable
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -5,9 +6,9 @@ namespace Scaffold.GraphFlow
 {
     public sealed class GraphExecutor<TRunner> where TRunner : GraphRunner
     {
-        public async Task<Flow> RunFlow(RuntimeNode<TRunner> start, TRunner runner, GraphAsset<TRunner> asset, CancellationToken ct = default)
+        public async Task<Flow> RunFlow(RuntimeNode<TRunner> start, TRunner runner, GraphAsset<TRunner> asset, IEffectScope? scope = null, CancellationToken ct = default)
         {
-            var flow = new Flow(ct);
+            var flow = new Flow(ct) { Scope = scope };
             RuntimeNode<TRunner>? current = start;
             while (current != null)
             {

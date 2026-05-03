@@ -15,6 +15,7 @@ namespace Scaffold.GraphFlow
         readonly GraphExecutor<TRunner> _executor = new GraphExecutor<TRunner>();
         TRunner _runner = null!;
         List<RuntimeNode> _entryNodes = new();
+        Func<IEffectScope?>? _scopeFactory;
 
         /// <summary>
         /// All entry nodes discovered in the asset (anything assignable to
@@ -28,9 +29,10 @@ namespace Scaffold.GraphFlow
             _asset = asset ?? throw new ArgumentNullException(nameof(asset));
         }
 
-        public void Initialize(TRunner runner)
+        public void Initialize(TRunner runner, Func<IEffectScope?>? scopeFactory = null)
         {
             _runner = runner ?? throw new ArgumentNullException(nameof(runner));
+            _scopeFactory = scopeFactory;
 
             _byId = new Dictionary<int, RuntimeNode>(_asset.nodes.Count);
             foreach (var n in _asset.nodes)
@@ -91,7 +93,8 @@ namespace Scaffold.GraphFlow
             entry.BindRunner(async payload =>
             {
                 entry.SetPayload(payload);
-                var flow = await _executor.RunFlow(entry, _runner, _asset).ConfigureAwait(false);
+                var scope = _scopeFactory?.Invoke();
+                var flow = await _executor.RunFlow(entry, _runner, _asset, scope).ConfigureAwait(false);
                 return flow.ReadResult<TResult>()!;
             });
         }
@@ -132,7 +135,7 @@ namespace Scaffold.GraphFlow
                 setPayload?.Invoke(root, new object[] { payload });
             }
 
-            return _executor.RunFlow(root, _runner, _asset, ct);
+            return _executor.RunFlow(root, _runner, _asset, _scopeFactory?.Invoke(), ct);
         }
 
         public void Dispose()
