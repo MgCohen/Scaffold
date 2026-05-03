@@ -12,8 +12,8 @@
     },
     {
       "displayName": "Card Sandbox",
-      "description": "M3-prep CardSandbox stand-in for the Mode-2 loop.",
-      "path": "Samples~/CardSandbox"
+      "description": "Mode-2 loop demonstration: entry-catalog + event-bus trigger model.",
+      "path": "Samples/CardSandbox"
     }
   ]
 }
