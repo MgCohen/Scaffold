@@ -85,7 +85,8 @@ namespace Scaffold.GraphFlow.PackageGenerator
             string payloadTypeFq,
             string flowOutPortName,
             int flowOutPortId,
-            IReadOnlyList<(string Name, int Id)> dataOutputs)
+            IReadOnlyList<(string Name, int Id)> dataOutputs,
+            IReadOnlyList<(string Name, int Id)>? extraFlowOutputs = null)
         {
             var sb = new StringBuilder();
             sb.AppendLine($"            r.Register(new {EditorRegistryTypeName}<{runnerFq}>.NodeRegistration");
@@ -95,6 +96,14 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine("                FlowOutputPortIds = new System.Collections.Generic.Dictionary<string, int>(System.StringComparer.Ordinal)");
             sb.AppendLine("                {");
             sb.AppendLine($"                    [\"{flowOutPortName}\"] = {PortIdLiteral(flowOutPortId)},");
+            if (extraFlowOutputs != null)
+            {
+                foreach (var (name, id) in extraFlowOutputs)
+                {
+                    sb.AppendLine($"                    [\"{name}\"] = {PortIdLiteral(id)},");
+                }
+            }
+
             sb.AppendLine("                },");
             AppendDataOutputs(sb, dataOutputs);
             sb.AppendLine($"                EntryTypeId = typeof({payloadTypeFq}).AssemblyQualifiedName,");

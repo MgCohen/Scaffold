@@ -10,7 +10,7 @@ namespace Scaffold.GraphFlow.M0.Editor.GToolkit
 {
     [Serializable]
     [Graph(AssetExtension)]
-    public sealed class MySmokeGraph : Graph<MySmokeRunner>
+    public sealed partial class MySmokeGraph : Graph<MySmokeRunner>
     {
         internal const string AssetExtension = "gfmsmoke";
         const string k_CreateMenuName = "GraphFlow M0 Smoke Graph";
