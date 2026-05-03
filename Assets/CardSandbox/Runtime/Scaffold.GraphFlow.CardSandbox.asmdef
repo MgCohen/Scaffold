@@ -1,0 +1,17 @@
+{
+    "name": "Scaffold.GraphFlow.CardSandbox",
+    "rootNamespace": "Scaffold.GraphFlow.CardSandbox",
+    "references": [
+        "GUID:c7a8f3e21d4b4e6f9a1029384756abcd",
+        "GUID:b13665e99cedac1faa8a90387e6163c3"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
