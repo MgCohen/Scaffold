@@ -12,7 +12,7 @@ namespace Scaffold.Benchmarks.States
     /// </summary>
     public sealed record CounterState(int Value) : State;
 
-    public sealed record SampleKey(string Name) : IReference;
+    public sealed record SampleKey(string Name) : Reference;
 
     /// <summary>Reference-type payload (record class). Mirrors the sample <c>CombinedTickPayload</c>.</summary>
     public sealed record CombinedTickPayload(int Delta);

@@ -3,7 +3,9 @@
 using System;
 using System.Collections.Generic;
 using NUnit.Framework;
-using Scaffold.States.Samples;
+using Scaffold.States;
+using Scaffold.States.Tests.Fixtures;
+using UnityEngine.Profiling;
 
 namespace Scaffold.States.Tests
 {
@@ -20,28 +22,53 @@ namespace Scaffold.States.Tests
 
             public int NotifyCount { get; private set; }
 
-            public void Notify(IReference reference, BaseState state, StateChangeEvent changeEvent)
+            public void Notify(Reference reference, BaseState state, StateChangeEvent changeEvent)
             {
                 NotifyCount++;
                 inner.Notify(reference, state, changeEvent);
             }
 
-            public void Subscribe<TState>(IReference reference, Action<IReference, TState, StateChangeEvent> action) where TState : BaseState
+            public void Subscribe<TState>(Reference reference, Action<Reference, TState, StateChangeEvent> action) where TState : BaseState
             {
                 inner.Subscribe(reference, action);
             }
 
-            public void Unsubscribe<TState>(IReference reference, Action<IReference, TState, StateChangeEvent> action) where TState : BaseState
+            public void Subscribe<TState>(Reference reference, Action<TState, StateChangeEvent> action) where TState : BaseState
+            {
+                inner.Subscribe(reference, action);
+            }
+
+            public void Subscribe<TState>(Reference reference, Action<TState> action) where TState : BaseState
+            {
+                inner.Subscribe(reference, action);
+            }
+
+            public void Unsubscribe<TState>(Reference reference, Action<Reference, TState, StateChangeEvent> action) where TState : BaseState
             {
                 inner.Unsubscribe(reference, action);
             }
 
-            public void SubscribeAllReferences<TState>(Action<IReference, TState, StateChangeEvent> action) where TState : BaseState
+            public void Unsubscribe<TState>(Reference reference, Action<TState, StateChangeEvent> action) where TState : BaseState
+            {
+                inner.Unsubscribe(reference, action);
+            }
+
+            public void Unsubscribe<TState>(Reference reference, Action<TState> action) where TState : BaseState
+            {
+                inner.Unsubscribe(reference, action);
+            }
+
+            public void SubscribeAllReferences<TState>(Action<Reference, TState, StateChangeEvent> action) where TState : BaseState
             {
                 inner.SubscribeAllReferences(action);
             }
 
-            public void SubscribeAny(Action<IReference, BaseState, StateChangeEvent> action)
+            public void UnsubscribeAllReferences<TState>(Action<Reference, TState, StateChangeEvent> action) where TState : BaseState
+            {
+                inner.UnsubscribeAllReferences(action);
+            }
+
+            public void SubscribeAny(Action<Reference, BaseState, StateChangeEvent> action)
             {
                 inner.SubscribeAny(action);
             }
@@ -236,6 +263,45 @@ namespace Scaffold.States.Tests
 
             deferred.Notify(Reference.Null, new CounterState(1));
             Assert.That(counting.NotifyCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void Flush_PreserveAll_ReentrantMultiPass_RecordsZeroGcAllocAfterWarmup()
+        {
+            var core = new StateEventHandler();
+            var deferred = new DeferredStateEventHandler(core, StateEventMergeMode.PreserveAll);
+
+            core.Subscribe<CounterState>(Reference.Null, (_, _, _) =>
+            {
+                deferred.Notify(Reference.Null, new CounterState(99));
+            });
+
+            for (int warm = 0; warm < 24; warm++)
+            {
+                using (deferred.BeginDeferScope())
+                {
+                    deferred.Notify(Reference.Null, new CounterState(1));
+                    deferred.Flush();
+                }
+            }
+
+            Recorder rec = Recorder.Get("GC.Alloc");
+            rec.FilterToCurrentThread();
+            rec.enabled = false;
+            _ = rec.sampleBlockCount;
+
+            using (deferred.BeginDeferScope())
+            {
+                deferred.Notify(Reference.Null, new CounterState(1));
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                GC.Collect();
+
+                rec.enabled = true;
+                deferred.Flush();
+                rec.enabled = false;
+                Assert.That(rec.sampleBlockCount, Is.EqualTo(0));
+            }
         }
     }
 }

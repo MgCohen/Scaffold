@@ -17,12 +17,12 @@ namespace Scaffold.Entities.States
             return store.Get<TState>(EntityStateReference.From(entityId));
         }
 
-        public static void Subscribe<TState>(this Store store, InstanceId entityId, System.Action<IReference, TState, StateChangeEvent> action) where TState : BaseState
+        public static void Subscribe<TState>(this Store store, InstanceId entityId, System.Action<Reference, TState, StateChangeEvent> action) where TState : BaseState
         {
             store.Subscribe(EntityStateReference.From(entityId), action);
         }
 
-        public static void Unsubscribe<TState>(this Store store, InstanceId entityId, System.Action<IReference, TState, StateChangeEvent> action) where TState : BaseState
+        public static void Unsubscribe<TState>(this Store store, InstanceId entityId, System.Action<Reference, TState, StateChangeEvent> action) where TState : BaseState
         {
             store.Unsubscribe(EntityStateReference.From(entityId), action);
         }

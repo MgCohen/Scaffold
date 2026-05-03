@@ -15,16 +15,13 @@ namespace Scaffold.States
         private readonly IStateEventHandler inner;
         private readonly StateEventMergeMode mergeMode;
         private int deferralDepth;
-        private readonly List<(IReference Reference, BaseState State, StateChangeEvent Change)> preserveAll = new();
-        private readonly List<(IReference Reference, Type StateType)> latestKeyOrder = new();
-        private readonly Dictionary<(IReference Reference, Type StateType), (BaseState State, StateChangeEvent Change)> latestByKey = new();
+        private List<(Reference Reference, BaseState State, StateChangeEvent Change)> preserveDeferred = new();
+        private List<(Reference Reference, BaseState State, StateChangeEvent Change)> preserveScratch = new();
+        private List<(Reference Reference, Type StateType)> latestOrder = new();
+        private List<(Reference Reference, Type StateType)> latestScratch = new();
+        private readonly Dictionary<(Reference Reference, Type StateType), (BaseState State, StateChangeEvent Change)> latestByKey = new();
 
-        public void Notify(IReference reference, BaseState state)
-        {
-            Notify(reference, state, StateChangeEvent.Updated);
-        }
-
-        public void Notify(IReference reference, BaseState state, StateChangeEvent changeEvent)
+        public void Notify(Reference reference, BaseState state, StateChangeEvent changeEvent)
         {
             if (state is null)
             {
@@ -42,22 +39,47 @@ namespace Scaffold.States
             BufferDeferred(r, state, changeEvent);
         }
 
-        public void Subscribe<TState>(IReference reference, Action<IReference, TState, StateChangeEvent> action) where TState : BaseState
+        public void Subscribe<TState>(Reference reference, Action<Reference, TState, StateChangeEvent> action) where TState : BaseState
         {
             inner.Subscribe(reference, action);
         }
 
-        public void Unsubscribe<TState>(IReference reference, Action<IReference, TState, StateChangeEvent> action) where TState : BaseState
+        public void Subscribe<TState>(Reference reference, Action<TState, StateChangeEvent> action) where TState : BaseState
+        {
+            inner.Subscribe(reference, action);
+        }
+
+        public void Subscribe<TState>(Reference reference, Action<TState> action) where TState : BaseState
+        {
+            inner.Subscribe(reference, action);
+        }
+
+        public void Unsubscribe<TState>(Reference reference, Action<Reference, TState, StateChangeEvent> action) where TState : BaseState
         {
             inner.Unsubscribe(reference, action);
         }
 
-        public void SubscribeAllReferences<TState>(Action<IReference, TState, StateChangeEvent> action) where TState : BaseState
+        public void Unsubscribe<TState>(Reference reference, Action<TState, StateChangeEvent> action) where TState : BaseState
+        {
+            inner.Unsubscribe(reference, action);
+        }
+
+        public void Unsubscribe<TState>(Reference reference, Action<TState> action) where TState : BaseState
+        {
+            inner.Unsubscribe(reference, action);
+        }
+
+        public void SubscribeAllReferences<TState>(Action<Reference, TState, StateChangeEvent> action) where TState : BaseState
         {
             inner.SubscribeAllReferences(action);
         }
 
-        public void SubscribeAny(Action<IReference, BaseState, StateChangeEvent> action)
+        public void UnsubscribeAllReferences<TState>(Action<Reference, TState, StateChangeEvent> action) where TState : BaseState
+        {
+            inner.UnsubscribeAllReferences(action);
+        }
+
+        public void SubscribeAny(Action<Reference, BaseState, StateChangeEvent> action)
         {
             inner.SubscribeAny(action);
         }
@@ -79,18 +101,18 @@ namespace Scaffold.States
             return new DeferScope(this);
         }
 
-        private void BufferDeferred(IReference r, BaseState state, StateChangeEvent changeEvent)
+        private void BufferDeferred(Reference r, BaseState state, StateChangeEvent changeEvent)
         {
             if (mergeMode == StateEventMergeMode.PreserveAll)
             {
-                preserveAll.Add((r, state, changeEvent));
+                preserveDeferred.Add((r, state, changeEvent));
                 return;
             }
 
             var key = (r, state.GetType());
             if (!latestByKey.ContainsKey(key))
             {
-                latestKeyOrder.Add(key);
+                latestOrder.Add(key);
             }
 
             latestByKey[key] = (state, changeEvent);
@@ -98,24 +120,30 @@ namespace Scaffold.States
 
         private void FlushPreserveAll()
         {
-            while (preserveAll.Count > 0)
+            while (preserveDeferred.Count > 0)
             {
-                var snapshot = preserveAll.ToArray();
-                preserveAll.Clear();
-                foreach (var (reference, st, ev) in snapshot)
+                var swap = preserveDeferred;
+                preserveDeferred = preserveScratch;
+                preserveScratch = swap;
+
+                foreach (var (reference, st, ev) in preserveScratch)
                 {
                     inner.Notify(reference, st, ev);
                 }
+
+                preserveScratch.Clear();
             }
         }
 
         private void FlushLatestPerKey()
         {
-            while (latestKeyOrder.Count > 0)
+            while (latestOrder.Count > 0)
             {
-                var snapshot = latestKeyOrder.ToArray();
-                latestKeyOrder.Clear();
-                foreach (var key in snapshot)
+                var swap = latestOrder;
+                latestOrder = latestScratch;
+                latestScratch = swap;
+
+                foreach (var key in latestScratch)
                 {
                     if (latestByKey.TryGetValue(key, out var entry))
                     {
@@ -123,6 +151,8 @@ namespace Scaffold.States
                         inner.Notify(key.Reference, entry.State, entry.Change);
                     }
                 }
+
+                latestScratch.Clear();
             }
         }
 

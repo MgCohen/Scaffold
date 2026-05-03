@@ -37,7 +37,7 @@ namespace Scaffold.Entities.States
         private readonly Dictionary<Variable, List<Action<VariableValue>>> perVariableSubscribers = new();
         private readonly List<Action<VariableStructuralChange, Variable, VariableValue?>> structuralSubscribers = new();
         private readonly HashSet<Variable> lastKeySnapshot = new();
-        private readonly Action<IReference, EntityVariableState, StateChangeEvent> onStateChangedHandler;
+        private readonly Action<Reference, EntityVariableState, StateChangeEvent> onStateChangedHandler;
 
         private Store store = default!;
         private InstanceId entityId = default!;
@@ -173,7 +173,7 @@ namespace Scaffold.Entities.States
             }
         }
 
-        private void OnStateChanged(IReference _, EntityVariableState newState, StateChangeEvent ev)
+        private void OnStateChanged(Reference _, EntityVariableState newState, StateChangeEvent ev)
         {
             if (disposed)
             {

@@ -4,7 +4,6 @@
     "references": [
         "Scaffold.States",
         "Scaffold.Maps",
-        "Scaffold.States.Samples",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

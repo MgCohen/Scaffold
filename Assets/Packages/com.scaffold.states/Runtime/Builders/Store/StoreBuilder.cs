@@ -9,12 +9,18 @@ namespace Scaffold.States
         private IStateEventHandler? eventHandler;
         private List<BaseSlice> entries = new List<BaseSlice>();
         private MutatorRegistry? mutatorRegistry;
-        private readonly HashSet<(IReference Reference, Type StateType)> registeredAggregates = new();
-        private readonly HashSet<(IReference Reference, Type StateType)> registeredCanonical = new();
+        private IMutatorDispatcher? mutatorDispatcher;
+        private readonly HashSet<(Reference Reference, Type StateType)> registeredAggregates = new();
+        private readonly HashSet<(Reference Reference, Type StateType)> registeredCanonical = new();
 
         public void AddEventHandler(IStateEventHandler eventHandler)
         {
             this.eventHandler = eventHandler;
+        }
+
+        public void UseMutatorDispatcher(IMutatorDispatcher dispatcher)
+        {
+            mutatorDispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
         }
 
         public void RegisterMutator<TState, TPayload>(Mutator<TState, TPayload> mutator) where TState : State
@@ -33,7 +39,7 @@ namespace Scaffold.States
             RegisterAggregate(Reference.Null, provider);
         }
 
-        public void RegisterAggregate(IReference key, IAggregateProvider provider)
+        public void RegisterAggregate(Reference key, IAggregateProvider provider)
         {
             if (provider is null)
             {
@@ -48,7 +54,7 @@ namespace Scaffold.States
             RegisterAggregate(Reference.Null, aggregateSlice);
         }
 
-        public void RegisterAggregate(IReference key, AggregateSlice aggregateSlice)
+        public void RegisterAggregate(Reference key, AggregateSlice aggregateSlice)
         {
             if (aggregateSlice is null)
             {
@@ -75,11 +81,11 @@ namespace Scaffold.States
             AddState(Reference.Null, state);
         }
 
-        public void AddState(IReference reference, State state)
+        public void AddState(Reference reference, State state)
         {
             var slice = Slice.Create(reference, state);
             Type stateType = slice.StateType;
-            IReference key = slice.Reference;
+            Reference key = slice.Reference;
             if (!registeredCanonical.Add((key, stateType)))
             {
                 throw new InvalidOperationException(
@@ -92,7 +98,7 @@ namespace Scaffold.States
         public Store Build()
         {
             IStateEventHandler stateHandler = eventHandler ?? GetDefaultStateEventHandler();
-            return new Store(stateHandler, mutatorRegistry ?? new MutatorRegistry(), entries.ToArray());
+            return new Store(stateHandler, mutatorRegistry ?? new MutatorRegistry(), mutatorDispatcher, entries.ToArray());
         }
 
         private IStateEventHandler GetDefaultStateEventHandler()

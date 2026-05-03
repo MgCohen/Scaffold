@@ -15,16 +15,16 @@ namespace Scaffold.States
 
         private readonly Mutator<TState, TPayload> mutator;
 
-        public void Apply(object payload, MutatorRunner runner, IReference executeReference)
+        public void Apply(object payload, MutatorRunner runner, Reference executeReference)
         {
             var p = (TPayload)payload;
-            IReference r = FromPayload(payload, executeReference);
+            Reference r = FromPayload(payload, executeReference);
             TState stateIn = runner.Get<TState>(r);
             TState stateOut = mutator.Change(stateIn, p, runner);
             runner.SetPending(r, stateOut);
         }
 
-        private static IReference FromPayload(object payload, IReference executeReference)
+        private static Reference FromPayload(object payload, Reference executeReference)
         {
             if (!ReferenceEquals(executeReference, Reference.Null))
             {

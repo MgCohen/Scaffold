@@ -8,7 +8,7 @@ namespace Scaffold.States
     {
         Type AggregateStateType { get; }
 
-        void Wire(IStoreScope scope, IAggregateRebuild rebuild);
+        IDisposable Wire(IStoreScope scope, IAggregateRebuild rebuild);
 
         BaseState Build(IStateScope scope);
     }

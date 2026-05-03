@@ -8,17 +8,17 @@ namespace Scaffold.Benchmarks.States
     /// Phase 0 baseline for the equality contract used by <c>RegisteredMutator.Apply</c>
     /// (audit §4.13). Today the dispatcher calls <c>executeReference.Equals(Reference.Null)</c>;
     /// Phase 1 swaps to <c>ReferenceEquals(executeReference, Reference.Null)</c>. Measures both
-    /// against a deliberately-misbehaving <see cref="IReference.Equals"/> override to expose
-    /// the cliff in the audit's "≥10× faster" success criterion.
+    /// against a deliberately-misbehaving <see cref="object.Equals(object?)"/> override on a
+    /// helper type to expose the cliff in the audit's "≥10× faster" success criterion.
     /// </summary>
     public sealed class ReferenceEqualityBenchmarks
     {
         [SetUp]
         public void SetUp() => BenchSetup.RearmPerTest();
 
-        sealed class SlowEqualsReference : IReference
+        sealed class SlowEqualsProbe
         {
-            public override bool Equals(object obj)
+            public override bool Equals(object? obj)
             {
                 // Deliberately quadratic-ish work in Equals to expose the cliff.
                 int sum = 0;
@@ -31,22 +31,25 @@ namespace Scaffold.Benchmarks.States
                 return ReferenceEquals(this, obj);
             }
 
-            public override int GetHashCode() => 0;
+            public override int GetHashCode()
+            {
+                return 0;
+            }
         }
 
         [Test, Performance]
         public void Equals_VirtualDispatch_VsReferenceNull()
         {
-            IReference probe = new SlowEqualsReference();
-            IReference rNull = Reference.Null;
+            SlowEqualsProbe probe = new SlowEqualsProbe();
+            Reference rNull = Reference.Null;
             Bench.Measure(() => _ = probe.Equals(rNull), iterationsPer: 1_000_000);
         }
 
         [Test, Performance]
         public void ReferenceEquals_VsReferenceNull()
         {
-            IReference probe = new SlowEqualsReference();
-            IReference rNull = Reference.Null;
+            SlowEqualsProbe probe = new SlowEqualsProbe();
+            Reference rNull = Reference.Null;
             Bench.Measure(() => _ = ReferenceEquals(probe, rNull), iterationsPer: 1_000_000);
         }
     }

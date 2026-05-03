@@ -3,7 +3,7 @@
 using System;
 using NUnit.Framework;
 using Scaffold.States;
-using Scaffold.States.Samples;
+using Scaffold.States.Tests.Fixtures;
 
 namespace Scaffold.States.Tests
 {

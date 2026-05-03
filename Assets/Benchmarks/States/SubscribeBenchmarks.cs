@@ -21,7 +21,7 @@ namespace Scaffold.Benchmarks.States
             builder.AddState(new CounterState(0));
             Store store = builder.Build();
 
-            System.Action<IReference, CounterState, StateChangeEvent> handler =
+            System.Action<Reference, CounterState, StateChangeEvent> handler =
                 static (_, _, _) => { };
 
             // Each iteration registers a fresh subscription instance.

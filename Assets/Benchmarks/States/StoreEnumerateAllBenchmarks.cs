@@ -6,7 +6,7 @@ namespace Scaffold.Benchmarks.States
 {
     /// <summary>
     /// Phase 0 baseline for <see cref="Store.EnumerateAll{TState}"/> over a single state-type bucket.
-    /// Today walks <c>Map&lt;IReference, Type, Slice&gt;.GetAll</c> and yields through the shared
+    /// Today walks <c>Map&lt;Reference, Type, Slice&gt;.GetAll</c> and yields through the shared
     /// <c>sliceBuffer</c> instance. After Phase 3 (audit §7.3 indexed slice store + struct enumerator)
     /// this should drop to zero allocations and ≥3× ns/op.
     /// </summary>
@@ -33,7 +33,7 @@ namespace Scaffold.Benchmarks.States
             Bench.Measure(() =>
             {
                 int sum = 0;
-                foreach ((IReference _, CounterState s) in store.EnumerateAll<CounterState>())
+                foreach ((Reference _, CounterState s) in store.EnumerateAll<CounterState>())
                 {
                     sum += s.Value;
                 }

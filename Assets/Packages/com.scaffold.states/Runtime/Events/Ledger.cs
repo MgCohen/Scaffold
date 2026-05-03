@@ -14,6 +14,7 @@ namespace Scaffold.States
             {
                 return list;
             }
+
             return Enumerable.Empty<ISubscription>();
         }
 
@@ -25,10 +26,11 @@ namespace Scaffold.States
                 list = new List<ISubscription>();
                 Lookup[type] = list;
             }
+
             list.Add(sub);
         }
 
-        public bool RemoveSubscription<TState>(Action<IReference, TState, StateChangeEvent> action) where TState : BaseState
+        public bool RemoveSubscription<TState>(object removalKey) where TState : BaseState
         {
             Type stateType = typeof(TState);
             if (!Lookup.TryGetValue(stateType, out List<ISubscription>? list))
@@ -36,28 +38,21 @@ namespace Scaffold.States
                 return false;
             }
 
-            int idx = FindLastMatchIndex(list, action);
-            if (idx < 0) return false;
-            list.RemoveAt(idx);
-            if (list.Count == 0)
-            {
-                Lookup.Remove(stateType);
-            }
-
-            return true;
-        }
-
-        private int FindLastMatchIndex<TState>(List<ISubscription> list, Action<IReference, TState, StateChangeEvent> action) where TState : BaseState
-        {
             for (int i = list.Count - 1; i >= 0; i--)
             {
-                if (list[i] is TypedSubscription<TState> typed && typed.Matches(action))
+                if (list[i] is TypedSubscription<TState> typed && typed.MatchesRemoval(removalKey))
                 {
-                    return i;
+                    list.RemoveAt(i);
+                    if (list.Count == 0)
+                    {
+                        Lookup.Remove(stateType);
+                    }
+
+                    return true;
                 }
             }
 
-            return -1;
+            return false;
         }
     }
 }

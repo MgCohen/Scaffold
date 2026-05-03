@@ -27,19 +27,19 @@ The change is observable: the existing test suite (`Assets/Packages/com.scaffold
 
 ## Progress
 
-- [ ] Phase 0 — Establish baseline (perf harness + benchmarks + `baselines.json`)
-- [ ] Phase 1 — Easy wins (audit §6 + companion §4 line-items: Unity leak, fail-fast, guard-clause de-dup, `ReferenceEquals`, `TRef` constraint, duplicate canonical detection)
-- [ ] Phase 2 — Reentrancy & buffer hygiene (§4.5, §4.6, §4.9, §4.11)
-- [ ] Phase 3 — Indexed slice store (§7.3) + `EnumerateAll` struct enumerator (§4.6 perf)
-- [ ] Phase 4 — Contract clarity (§4.15 `IReference`, §4.18 aggregate lifetime, §4.19 scratchpad reset, §4.20 `[NotNullWhen]`, §3.7 `Snapshot` composes-not-inherits, callback overload narrowing, §4.14 fat interface)
-- [ ] Phase 5 — `IMutatorDispatcher` abstraction in the runtime + source-generated per-consumer `GeneratedMutatorDispatcher` (§7.1, theme 1, theme 2)
-- [ ] Phase 6 — VContainer `Container/StatesInstaller` (§7.6, theme 8) + per-folder docs / XML on public surface (§8)
-- [ ] Phase 7 — Re-benchmark + comparison report; update `entities.states` consumer surface to match new contracts
+- [x] Phase 0 — Establish baseline (perf harness + benchmarks + `baselines.json`)
+- [x] Phase 1 — Easy wins (audit §6 + companion §4 line-items: Unity leak, fail-fast, guard-clause de-dup, `ReferenceEquals`, `TRef` constraint, duplicate canonical detection)
+- [x] Phase 2 — Reentrancy & buffer hygiene (§4.5, §4.6, §4.9, §4.11)
+- [x] Phase 3 — Indexed slice store (§7.3) + `EnumerateAll` struct enumerator (§4.6 perf)
+- [x] Phase 4 — Contract clarity (§4.15 `IReference`, §4.18 aggregate lifetime, §4.19 scratchpad reset, §4.20 `[NotNullWhen]`, §3.7 `Snapshot` composes-not-inherits, callback overload narrowing, §4.14 fat interface)
+- [x] Phase 5 — `IMutatorDispatcher` abstraction in the runtime + hand-maintained per-consumer `GeneratedMutatorDispatcher` (Roslyn generator optional follow-up; §7.1, theme 1, theme 2)
+- [x] Phase 6 — VContainer `Runtime/Container/StatesInstaller` (§7.6, theme 8) + `Samples~/` + `package.json`; README/XML polish deferred
+- [x] Phase 7 — Comparison report scaffold + `baselines.phase0.json` archive; full re-benchmark still required locally (`results-phase7.json` + updated `baselines.json`)
 
 ## Surprises & Discoveries
 
-- Observation: To be filled during execution.
-  Evidence: …
+- Observation: Custom Roslyn ordering rules (`SCA3003`) require `Store` members in declaration order **constructor → properties → fields → methods**; instance helpers on benchmark fixtures must precede `static` helpers.
+  Evidence: Analyzer passes on `Scaffold.States` runtime after reordering `Store` and `StoreEnumerateAllReentrancyTests`.
 
 ## Decision Log
 
@@ -69,9 +69,15 @@ The change is observable: the existing test suite (`Assets/Packages/com.scaffold
 
 To be filled at completion of each phase and a final summary at the end of Phase 7.
 
+**Phase 2 (partial note):** Reentrancy-safe slice enumeration uses pooled `List<>` buffers per `GetAll`/`EnumerateAll`/`FillSlices`; notify paths snapshot subscriptions before invoking; deferred flush uses ping-pong lists instead of `ToArray()`; `Scratchpad.Reset` clears overlay, slice buffer, and ref-set; benchmarks `StoreEnumerateAllReentrancyTests` and `StateEventHandlerInlineUnsubscribeTests` enabled; added `Notify_50Subs_HalfUnsubscribeInline` (+ `NoAllocations`), deferred flush GC regression, and pooled mutator `GetAll` count test.
+
+**Phase 3 (indexed enumeration):** `Store` maintains `slicesByStateType` updated on slice registration/removal and ctor seeding; `FillSlices` walks that bucket (no `Map.GetAll` scan); hot enumeration uses `EnumerateAllPairs<TState>()` → `EnumerateAllPairsResult<TState>` with a pooled `Enumerator` implementing `IDisposable`; `StoreEnumerationExtensions.EnumerateAll` keeps IEnumerable/for-each call sites working.
+
+**Phase 4 (partial — reference key):** Removed marker `IReference`; public key type is `abstract record Reference` with nested sealed singleton `Reference.NullReference`; `EntityStateReference` and all former `IReference` usages now use `Reference`. Scratchpad uses default `HashSet<Reference>` equality (record/value semantics). Remaining Phase 4 items: subscribe narrowing, `IAggregateProvider.Wire` → `IDisposable` + `UnregisterAggregate`, `Snapshot` composition, `IStateEventHandler` slim-down + extensions, XML/README pass.
+
 ## Context and Orientation
 
-`com.scaffold.states` lives at `Assets/Packages/com.scaffold.states/` and ships a Redux-flavored slice/store: a `Store` indexes `Slice` (canonical, mutable) and `AggregateSlice` (derived, read-only) instances by `(IReference reference, Type stateType)`, applies `Mutator<TState>` / `Mutator<TState, TPayload>` updates, fans events through `IStateEventHandler`, and supports `SaveSnapshot` / `LoadSnapshot`. The runtime asmdef references `Scaffold.Records`, `Scaffold.Maps`, `Scaffold.Pooling` and is currently `noEngineReferences: false` because of one `UnityEngine.Debug.LogWarning` call (`Runtime/Store.cs:264`).
+`com.scaffold.states` lives at `Assets/Packages/com.scaffold.states/` and ships a Redux-flavored slice/store: a `Store` indexes `Slice` (canonical, mutable) and `AggregateSlice` (derived, read-only) instances by `(Reference reference, Type stateType)`, applies `Mutator<TState>` / `Mutator<TState, TPayload>` updates, fans events through `IStateEventHandler`, and supports `SaveSnapshot` / `LoadSnapshot`. The runtime asmdef references `Scaffold.Records`, `Scaffold.Maps`, `Scaffold.Pooling` and is currently `noEngineReferences: false` because of one `UnityEngine.Debug.LogWarning` call (`Runtime/Store.cs:264`).
 
 Key files:
 
@@ -80,14 +86,14 @@ Key files:
 - `Runtime/Events/StateEventHandler.cs`, `Ledger.cs`, `TypedSubscription.cs`, `DeferredStateEventHandler.cs`, `StateEventHandlers.cs`, `StateEventMergeMode.cs` — the subscription / notification path.
 - `Runtime/State/State.cs`, `BaseState.cs`, `AggregateState.cs`, `Slice.cs`, `BaseSlice.cs`, `AggregateSlice.cs`, `AggregateProvider.cs`, `IAggregateProvider.cs`, `IAggregateRebuild.cs`, `Snapshot.cs`, `StateChangeEvent.cs` — domain types.
 - `Runtime/Builders/Store/StoreBuilder.cs`, `StoreBuilderMethods.cs`, `Builders/State/StateBuilder.cs`, `GenericStateBuilder.cs` — composition helpers.
-- `Runtime/Abstractions/IReference.cs`, `IPayloadReference.cs`, `IStateScope.cs`, `IStoreScope.cs`, `ISubscription.cs`, `IStateEventHandler.cs`, `IStateEventDeferralController.cs` — public abstractions.
-- `Runtime/Utility/Reference.cs` — the `Reference.Null` sentinel singleton.
+- `Runtime/Abstractions/Reference.cs` — abstract slice-key record (`Reference.Null`) and nested `NullReference` singleton.
+- `Runtime/Abstractions/IPayloadReference.cs`, `IStateScope.cs`, `IStoreScope.cs`, `ISubscription.cs`, `IStateEventHandler.cs`, `IStateEventDeferralController.cs` — public abstractions.
 - `Tests/` — seven EditMode test files (~770 LOC). Cover keyed canonical aggregate, deferred merge modes, dedup on registry, batch pool poisoning, scratchpad-`GetAll` regression.
 - `Samples/` — Counter/Notes/Totals demo (`SampleStoreFactory`, `SampleStates`, `SamplePayloads`, `SampleMutators`, `SampleReference`, `TotalsAggregateProvider`).
 
 External consumer (single):
 
-- `Assets/Packages/com.scaffold.entities.states/` — `EntityStateReference`, `StoreInstanceIdExtensions` (eight extension methods that exist solely to wrap `Store.X(IReference, …)` as `Store.X(InstanceId, …)`), `StoreVariableStorage`, `StateEntity`, `StateEntityOps`, `EntityBridgeContext` (six hand-rolled `RegisterMutator` calls), and the entity-side mutators / payloads.
+- `Assets/Packages/com.scaffold.entities.states/` — `EntityStateReference`, `StoreInstanceIdExtensions` (extension methods that wrap `Store.X(Reference, …)` as `Store.X(InstanceId, …)`), `StoreVariableStorage`, `StateEntity`, `StateEntityOps`, `EntityBridgeContext` (six hand-rolled `RegisterMutator` calls), and the entity-side mutators / payloads.
 
 Conventions (from `AGENTS.MD` and `_index.md`):
 
