@@ -3,5 +3,17 @@
   "version": "0.1.0",
   "displayName": "Scaffold GraphFlow",
   "description": "Graph package attributes and Roslyn source generator for ExecPlan v2 tooling.",
-  "unity": "6000.3"
+  "unity": "6000.3",
+  "samples": [
+    {
+      "displayName": "M0 Smoke Sandbox",
+      "description": "Smoke-test sandbox: dispatcher, payloads, and the .gfmsmoke graph asset that exercises the M0 runtime end-to-end.",
+      "path": "Samples/M0Sandbox"
+    },
+    {
+      "displayName": "Card Sandbox",
+      "description": "M3-prep CardSandbox stand-in for the Mode-2 loop.",
+      "path": "Samples~/CardSandbox"
+    }
+  ]
 }

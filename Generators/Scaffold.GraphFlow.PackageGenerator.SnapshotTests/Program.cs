@@ -49,7 +49,7 @@ else
 {
     GeneratorDll = Path.Combine(repoRoot, "Assets", "Packages", "com.scaffold.graphflow", "Generators", "Scaffold.GraphFlow.PackageGenerator.dll");
     AttrDll = Path.Combine(repoRoot, "Assets", "Packages", "com.scaffold.graphflow", "Runtime", "Attributes", "Scaffold.GraphFlow.AttributesLib.dll");
-    // M0 sandbox runtime asm; phase 5 demotes it to Samples~/. Keep the Library path until then.
+    // M0 sandbox runtime asm; phase 5 demoted to Samples/M0Sandbox/ (no tilde, kept compiling for harness use).
     RuntimeDll = Path.Combine(repoRoot, "Library", "ScriptAssemblies", "Scaffold.GraphFlow.M0.dll");
 }
 
