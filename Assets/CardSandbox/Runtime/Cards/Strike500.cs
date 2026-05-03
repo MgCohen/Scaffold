@@ -35,7 +35,7 @@ namespace Scaffold.GraphFlow.CardSandbox.Cards
     /// Hand-written entry runtime for <see cref="Strike500"/>. Stamps the card's base damage onto
     /// an <see cref="OutputPort{Int32}"/> the dispatcher node reads via Connection.Bind.
     /// </summary>
-    public sealed class Strike500EntryRuntime : EntryRuntimeNode<Strike500, CardEffectRunner>
+    public sealed class Strike500EntryRuntime : EntryRuntimeNode<Strike500, CardEffectRunner, Unit>
     {
         public const int FlowOutPortId  = unchecked((int)0xC0010001u);
         public const int BaseDamagePort = unchecked((int)0xC0010002u);

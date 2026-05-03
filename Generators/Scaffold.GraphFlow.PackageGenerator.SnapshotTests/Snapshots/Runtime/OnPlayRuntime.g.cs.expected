@@ -2,11 +2,11 @@
 #nullable enable
 using System;
 using System.Threading.Tasks;
-using Scaffold.GraphFlow.M0;
+using Scaffold.GraphFlow;
 
 namespace Scaffold.GraphFlow.M0.Smoke
 {
-    public sealed partial class OnPlayRuntime : EntryRuntimeNode<OnPlay, MySmokeRunner>
+    public sealed partial class OnPlayRuntime : EntryRuntimeNode<OnPlay, MySmokeRunner, global::Scaffold.GraphFlow.Unit>
     {
         public OutputPort<int> CardId = null!;
 

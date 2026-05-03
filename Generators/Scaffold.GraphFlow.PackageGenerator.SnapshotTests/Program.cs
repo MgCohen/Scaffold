@@ -11,10 +11,6 @@ using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 
-const string GeneratorDll = @"C:\Unity\Scaffold\Assets\Packages\com.scaffold.graphflow\Generators\Scaffold.GraphFlow.PackageGenerator.dll";
-const string AttrDll = @"C:\Unity\Scaffold\Assets\Packages\com.scaffold.graphflow\Runtime\Scaffold.GraphFlow.AttributesLib.dll";
-const string RuntimeDll = @"C:\Unity\Scaffold\Library\ScriptAssemblies\Scaffold.GraphFlow.M0.dll";
-
 var update = args.Any(a => a == "--update");
 var here = Path.GetDirectoryName(Path.GetFullPath(Environment.ProcessPath ?? "")) ?? Directory.GetCurrentDirectory();
 // climb out of bin/Debug/netX.0/ to project root
@@ -30,6 +26,36 @@ if (here == null)
 }
 
 var snapshotsRoot = Path.Combine(here, "Snapshots");
+// Repo root = parent of Generators/.
+var repoRoot = Path.GetFullPath(Path.Combine(here, "..", ".."));
+
+// Resolve DLLs relative to the repo. Allow SCAFFOLD_GRAPHFLOW_DLLS env override (semicolon-delimited
+// "generator;attributes;runtime") for CI / out-of-tree harness use.
+string GeneratorDll, AttrDll, RuntimeDll;
+var envOverride = Environment.GetEnvironmentVariable("SCAFFOLD_GRAPHFLOW_DLLS");
+if (!string.IsNullOrEmpty(envOverride))
+{
+    var parts = envOverride.Split(';');
+    if (parts.Length != 3)
+    {
+        Console.Error.WriteLine("SCAFFOLD_GRAPHFLOW_DLLS must be three ';'-separated paths: generator;attributes;runtime");
+        return 2;
+    }
+    GeneratorDll = parts[0];
+    AttrDll = parts[1];
+    RuntimeDll = parts[2];
+}
+else
+{
+    GeneratorDll = Path.Combine(repoRoot, "Assets", "Packages", "com.scaffold.graphflow", "Generators", "Scaffold.GraphFlow.PackageGenerator.dll");
+    AttrDll = Path.Combine(repoRoot, "Assets", "Packages", "com.scaffold.graphflow", "Runtime", "Attributes", "Scaffold.GraphFlow.AttributesLib.dll");
+    // M0 sandbox runtime asm; phase 5 demotes it to Samples~/. Keep the Library path until then.
+    RuntimeDll = Path.Combine(repoRoot, "Library", "ScriptAssemblies", "Scaffold.GraphFlow.M0.dll");
+}
+
+// Add the package's runtime DLL to the references so the new D5 markers (IGraphEntry<,>, Unit, etc.)
+// resolve. The package runtime asm is named Scaffold.GraphFlow.dll.
+var PackageRuntimeDll = Path.Combine(repoRoot, "Library", "ScriptAssemblies", "Scaffold.GraphFlow.dll");
 
 const string PackageAttr = @"
 using Scaffold.GraphFlow;
@@ -67,6 +93,10 @@ void RunFixture(string fixtureName, string asmName, string snapshotsRoot, bool u
         MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
         MetadataReference.CreateFromFile(typeof(System.Threading.Tasks.Task).Assembly.Location),
     };
+    if (File.Exists(PackageRuntimeDll))
+    {
+        refs.Add(MetadataReference.CreateFromFile(PackageRuntimeDll));
+    }
     var corelibDir = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
     foreach (var n in new[] { "System.Runtime.dll", "netstandard.dll", "System.Collections.dll" })
     {

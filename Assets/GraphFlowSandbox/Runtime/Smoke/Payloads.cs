@@ -5,7 +5,7 @@ namespace Scaffold.GraphFlow.M0.Smoke
 {
     /// <summary>Entry payload for M0 slice (Mode 1).</summary>
     [GraphEntry(FlowOutPortId = unchecked((int)0xF001_0001u))]
-    public sealed class OnPlay : IGraphEntry<MySmokeRunner>
+    public sealed class OnPlay : IGraphEntry<OnPlay>
     {
         [GraphPort(Id = unchecked((int)0x4F2A_8B17u))]
         public int CardId;

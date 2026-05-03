@@ -22,6 +22,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             Compilation compilation,
             GraphPackageModel package,
             ImmutableArray<GenericNodeModel> nodes,
+            System.Collections.Generic.HashSet<string> sourcedInCurrentCompilation,
             List<string>? registrationBlocks,
             bool editorAssembly)
         {
@@ -40,8 +41,14 @@ namespace Scaffold.GraphFlow.PackageGenerator
                 else
                 {
                     // Runtime partial completes the hand-written class with the default ctor + dict
-                    // population. Emitted only in the runtime asm pass (where the runtime class lives).
-                    EmitRuntimePartial(spc, package, node);
+                    // population. Only emit when the source class lives in the *current* compilation —
+                    // emitting `partial class Foo` in a consumer asm where Foo lives in a referenced
+                    // asm declares a brand-new empty Foo, breaking everything.
+                    var key = (node.TypeNamespace ?? "") + "." + node.TypeName;
+                    if (sourcedInCurrentCompilation.Contains(key))
+                    {
+                        EmitRuntimePartial(spc, package, node);
+                    }
                 }
             }
         }

@@ -16,9 +16,12 @@ namespace Scaffold.GraphFlow.PackageGenerator
                 return;
             }
 
-            // Marker interfaces live in the same namespace as the runner's GraphRunner base (e.g. M0 uses Scaffold.GraphFlow.M0).
+            // D5 markers live in the package runtime asm (Scaffold.GraphFlow), the same namespace where
+            // GraphRunner lives. IGraphEntry is now 2-arg (TPayload, TResult); the 1-arg sugar inherits
+            // from IGraphEntry<TPayload, Unit>. We detect entries by the 2-arg base interface and read
+            // TResult off it. (IGraphAction stays runner-typed.)
             var markerNs = string.IsNullOrEmpty(package.GraphFrameworkNamespace) ? "Scaffold.GraphFlow" : package.GraphFrameworkNamespace;
-            var iEntry = compilation.GetTypeByMetadataName(markerNs + ".IGraphEntry`1");
+            var iEntry2 = compilation.GetTypeByMetadataName(markerNs + ".IGraphEntry`2");
             var iAction = compilation.GetTypeByMetadataName(markerNs + ".IGraphAction`1");
             var iExec = compilation.GetTypeByMetadataName(markerNs + ".IExecutable`1");
             var graphEntryAttr = compilation.GetTypeByMetadataName("Scaffold.GraphFlow.GraphEntryAttribute");
@@ -26,12 +29,11 @@ namespace Scaffold.GraphFlow.PackageGenerator
             var graphPortAttr = compilation.GetTypeByMetadataName("Scaffold.GraphFlow.GraphPortAttribute");
             var inAttr = compilation.GetTypeByMetadataName("Scaffold.GraphFlow.InAttribute");
             var outAttr = compilation.GetTypeByMetadataName("Scaffold.GraphFlow.OutAttribute");
-            if (iEntry == null || iAction == null || graphEntryAttr == null || graphPortAttr == null)
+            if (iEntry2 == null || iAction == null || graphEntryAttr == null || graphPortAttr == null)
             {
                 return;
             }
 
-            var entryIface = iEntry.Construct(runner);
             var actionIface = iAction.Construct(runner);
             var execIface = iExec?.Construct(runner);
             var payloadAssembly = runner.ContainingAssembly;
@@ -49,12 +51,14 @@ namespace Scaffold.GraphFlow.PackageGenerator
                     continue;
                 }
 
-                if (PayloadDiscovery.Implements(type, entryIface))
+                if (PayloadDiscovery.TryGetEntryResultType(type, iEntry2, out var resultTypeSymbol))
                 {
                     if (!PayloadDiscovery.TryGetGraphEntryFlowOut(type, graphEntryAttr, out var flowOut, out var validateFlowOut))
                     {
                         continue;
                     }
+
+                    var resultFq = resultTypeSymbol!.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
 
                     if (editorAssembly)
                     {
@@ -66,7 +70,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
                     }
                     else
                     {
-                        EmitEntryRuntime(spc, type, package.RunnerTypeName, flowOut, graphPortAttr);
+                        EmitEntryRuntime(spc, type, package.RunnerTypeName, resultFq, flowOut, graphPortAttr);
                     }
 
                     continue;
@@ -295,7 +299,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
 
         static string EditorGtPortMethod(ITypeSymbol t) => TypeFmt.IsInt(t) ? "<int>" : TypeFmt.IsString(t) ? "<string>" : "";
 
-        static void EmitEntryRuntime(SourceProductionContext spc, INamedTypeSymbol payload, string runnerName, int flowOut, INamedTypeSymbol graphPortAttr)
+        static void EmitEntryRuntime(SourceProductionContext spc, INamedTypeSymbol payload, string runnerName, string resultTypeFq, int flowOut, INamedTypeSymbol graphPortAttr)
         {
             var sb = new StringBuilder();
             var leaf = payload.Name;
@@ -309,7 +313,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine();
             sb.AppendLine($"namespace {typeNs}");
             sb.AppendLine("{");
-            sb.AppendLine($"    public sealed partial class {leaf}Runtime : EntryRuntimeNode<{leaf}, {runnerName}>");
+            sb.AppendLine($"    public sealed partial class {leaf}Runtime : EntryRuntimeNode<{leaf}, {runnerName}, {resultTypeFq}>");
             sb.AppendLine("    {");
             // OutputPort handles + their backing fields. Port-id lookup lives in the inherited Ports dict;
             // no static Ports class needed.
@@ -646,6 +650,31 @@ namespace Scaffold.GraphFlow.PackageGenerator
     {
         internal static bool IsCandidateType(INamedTypeSymbol type) =>
             (type.TypeKind == TypeKind.Class || type.TypeKind == TypeKind.Struct) && type.DeclaredAccessibility == Accessibility.Public;
+
+        /// <summary>
+        /// Looks for an <c>IGraphEntry&lt;TPayload, TResult&gt;</c> implementation on <paramref name="type"/>
+        /// and returns the <c>TResult</c> type. Both the 1-arg sugar and the 2-arg base satisfy this —
+        /// the sugar inherits from <c>IGraphEntry&lt;TPayload, Unit&gt;</c>.
+        /// </summary>
+        internal static bool TryGetEntryResultType(INamedTypeSymbol type, INamedTypeSymbol iEntry2OpenGeneric, out INamedTypeSymbol? resultType)
+        {
+            foreach (var i in type.AllInterfaces)
+            {
+                if (!SymbolEqualityComparer.Default.Equals(i.OriginalDefinition, iEntry2OpenGeneric))
+                {
+                    continue;
+                }
+
+                if (i.TypeArguments.Length == 2 && i.TypeArguments[1] is INamedTypeSymbol tr)
+                {
+                    resultType = tr;
+                    return true;
+                }
+            }
+
+            resultType = null;
+            return false;
+        }
 
         internal static bool Implements(INamedTypeSymbol type, INamedTypeSymbol ifaceConstructed)
         {

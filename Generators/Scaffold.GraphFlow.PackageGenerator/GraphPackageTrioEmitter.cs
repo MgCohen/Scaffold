@@ -29,9 +29,10 @@ namespace Scaffold.GraphFlow.PackageGenerator
 
         // EFG008: a payload that satisfies IGraphAction<R1> AND IGraphAction<R2> for two declared packages is ambiguous.
         // Reported once from the editor pass (avoids duplicate diagnostics across runtime+editor compiles).
+        // (D5: entries are no longer runner-typed and can't be per-package-ambiguous; only IGraphAction<R> stays runner-typed.)
         static void ReportMultiPackageBindings(SourceProductionContext spc, Compilation compilation, ImmutableArray<GraphPackageModel> packages, CancellationToken ct)
         {
-            var perRunner = new System.Collections.Generic.List<(string runner, INamedTypeSymbol entryIface, INamedTypeSymbol actionIface, IAssemblySymbol asm)>();
+            var perRunner = new System.Collections.Generic.List<(string runner, INamedTypeSymbol actionIface, IAssemblySymbol asm)>();
             foreach (var p in packages)
             {
                 var runner = GraphCompilationNames.TypeFromFullyQualified(compilation, p.RunnerFullyQualified);
@@ -41,14 +42,13 @@ namespace Scaffold.GraphFlow.PackageGenerator
                 }
 
                 var markerNs = string.IsNullOrEmpty(p.GraphFrameworkNamespace) ? "Scaffold.GraphFlow" : p.GraphFrameworkNamespace;
-                var iEntry = compilation.GetTypeByMetadataName(markerNs + ".IGraphEntry`1");
                 var iAction = compilation.GetTypeByMetadataName(markerNs + ".IGraphAction`1");
-                if (iEntry == null || iAction == null)
+                if (iAction == null)
                 {
                     continue;
                 }
 
-                perRunner.Add((p.RunnerTypeName, iEntry.Construct(runner), iAction.Construct(runner), runner.ContainingAssembly));
+                perRunner.Add((p.RunnerTypeName, iAction.Construct(runner), runner.ContainingAssembly));
             }
 
             // Collect distinct payload assemblies once so we don't walk the same assembly N times.
@@ -69,9 +69,9 @@ namespace Scaffold.GraphFlow.PackageGenerator
                     }
 
                     string? firstRunner = null;
-                    foreach (var (runnerName, entryIface, actionIface, _) in perRunner)
+                    foreach (var (runnerName, actionIface, _) in perRunner)
                     {
-                        if (!PayloadDiscovery.Implements(type, entryIface) && !PayloadDiscovery.Implements(type, actionIface))
+                        if (!PayloadDiscovery.Implements(type, actionIface))
                         {
                             continue;
                         }
@@ -117,10 +117,12 @@ namespace Scaffold.GraphFlow.PackageGenerator
             System.Threading.CancellationToken ct,
             bool editorAssembly)
         {
-            // Generic-node hand-written classes live in the runner's own assembly. The runtime pass
-            // emits the partial class completing each [GraphNode]; the editor pass emits the editor
-            // mirror + appends a registry entry. M2 supports a single source assembly per package;
-            // consumer-authored nodes in other referenced assemblies are a v2 follow-up.
+            // D6: walk every assembly that references the GraphFlow runtime asm, plus the runner's
+            // own asm, plus the current compilation's asm. The "references the GraphFlow runtime"
+            // filter is the firewall — only asms that already reference the package can possibly
+            // *define* [GraphNode]-attributed types, so this excludes Unity engine asms / 3rd-party
+            // SDKs without any consumer ceremony. Built-in nodes in the package light up
+            // automatically (the package runtime asm references itself trivially).
             var runner = GraphCompilationNames.TypeFromFullyQualified(compilation, p.RunnerFullyQualified);
             var runnerAsm = runner?.ContainingAssembly;
             if (runnerAsm == null)
@@ -128,8 +130,67 @@ namespace Scaffold.GraphFlow.PackageGenerator
                 return;
             }
 
-            var nodes = GenericNodeParser.Parse(compilation, runnerAsm, ct);
-            GraphGenericNodeEmitter.EmitForPackage(spc, compilation, p, nodes, registrations, editorAssembly);
+            const string GraphFlowRuntimeAsmName = "Scaffold.GraphFlow";
+            var seen = new System.Collections.Generic.HashSet<IAssemblySymbol>(SymbolEqualityComparer.Default);
+            var asms = new System.Collections.Generic.List<IAssemblySymbol>();
+
+            void Consider(IAssemblySymbol asm)
+            {
+                if (asm == null || !seen.Add(asm)) return;
+                // Always include runnerAsm and the current compilation asm (which IS the runner asm
+                // for the package's own consumers), plus the package runtime asm itself. For other
+                // asms, only include them if they reference Scaffold.GraphFlow.
+                if (SymbolEqualityComparer.Default.Equals(asm, runnerAsm) ||
+                    SymbolEqualityComparer.Default.Equals(asm, compilation.Assembly) ||
+                    asm.Name == GraphFlowRuntimeAsmName)
+                {
+                    asms.Add(asm);
+                    return;
+                }
+                foreach (var refName in asm.Modules)
+                {
+                    foreach (var refAsm in refName.ReferencedAssemblySymbols)
+                    {
+                        if (refAsm.Name == GraphFlowRuntimeAsmName)
+                        {
+                            asms.Add(asm);
+                            return;
+                        }
+                    }
+                }
+            }
+
+            Consider(compilation.Assembly);
+            Consider(runnerAsm);
+            foreach (var refAsm in compilation.SourceModule.ReferencedAssemblySymbols)
+            {
+                Consider(refAsm);
+            }
+
+            // Aggregate + deduplicate parsed nodes across asms. Keys are (ns, type-name) since the
+            // type-name is unique within the package built-ins / consumer asms in practice. We tag
+            // each model with whether it was sourced from the *current* compilation so the runtime
+            // emit pass only emits the partial-class completion in the asm where the source actually
+            // lives — emitting it into a consumer asm declares a *new* (empty) class in that asm.
+            var dedupe = new System.Collections.Generic.HashSet<string>();
+            var allNodes = ImmutableArray.CreateBuilder<GenericNodeModel>();
+            var inCurrentCompilation = new System.Collections.Generic.HashSet<string>();
+            foreach (var asm in asms)
+            {
+                var parsed = GenericNodeParser.Parse(compilation, asm, ct);
+                var isCurrent = SymbolEqualityComparer.Default.Equals(asm, compilation.Assembly);
+                foreach (var n in parsed)
+                {
+                    var key = (n.TypeNamespace ?? "") + "." + n.TypeName;
+                    if (dedupe.Add(key))
+                    {
+                        allNodes.Add(n);
+                        if (isCurrent) inCurrentCompilation.Add(key);
+                    }
+                }
+            }
+
+            GraphGenericNodeEmitter.EmitForPackage(spc, compilation, p, allNodes.ToImmutable(), inCurrentCompilation, registrations, editorAssembly);
         }
 
         static bool IsEditorAssembly(Compilation compilation)
@@ -218,6 +279,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine("            }");
             sb.AppendLine("            ValidateEdgePairings(registrations, logger);");
             sb.AppendLine("            ValidateRunFlowTerminates(registrations, logger);");
+            sb.AppendLine("            ValidateReturnTypeAgreement(registrations, logger);");
             sb.AppendLine("        }");
             sb.AppendLine();
             sb.AppendLine("        static void ValidateEdgePairings(Dictionary<INode, GraphPackageRegistry<" + p.RunnerTypeName + ">.NodeRegistration> registrations, GraphLogger logger)");
@@ -284,6 +346,42 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine("                            if (nextNode != null) queue.Enqueue(nextNode);");
             sb.AppendLine("                        }");
             sb.AppendLine("                    }");
+            sb.AppendLine("                }");
+            sb.AppendLine("            }");
+            sb.AppendLine("        }");
+            sb.AppendLine();
+            sb.AppendLine("        // EFG-V07: walk all Return<,> nodes reachable from each entry and ensure their TResult");
+            sb.AppendLine("        // type arguments match the entry's TResult. (One TResult per graph constraint, D5.)");
+            sb.AppendLine("        // This rule reflects on the runtime factory's produced type rather than the editor mirror,");
+            sb.AppendLine("        // since multi-T [GraphNode] (Return<TRunner, TResult>) isn't yet emitted with an editor mirror.");
+            sb.AppendLine("        // When the multi-T emission lands in M4, the same rule continues to apply with no changes.");
+            sb.AppendLine("        static void ValidateReturnTypeAgreement(Dictionary<INode, GraphPackageRegistry<" + p.RunnerTypeName + ">.NodeRegistration> registrations, GraphLogger logger)");
+            sb.AppendLine("        {");
+            sb.AppendLine("            string? entryResult = null;");
+            sb.AppendLine("            INode? entryNode = null;");
+            sb.AppendLine("            foreach (var kv in registrations)");
+            sb.AppendLine("            {");
+            sb.AppendLine("                if (kv.Value.EntryTypeId == null) continue;");
+            sb.AppendLine("                var rt = kv.Value.Factory(kv.Key);");
+            sb.AppendLine("                var t = rt?.GetType();");
+            sb.AppendLine("                while (t != null && (!t.IsGenericType || t.GetGenericTypeDefinition().Name != \"EntryRuntimeNode`3\"))");
+            sb.AppendLine("                    t = t.BaseType;");
+            sb.AppendLine("                if (t == null) continue;");
+            sb.AppendLine("                entryResult = t.GetGenericArguments()[2].FullName;");
+            sb.AppendLine("                entryNode = kv.Key;");
+            sb.AppendLine("                break;");
+            sb.AppendLine("            }");
+            sb.AppendLine("            if (entryResult == null) return;");
+            sb.AppendLine("            foreach (var kv in registrations)");
+            sb.AppendLine("            {");
+            sb.AppendLine("                var rt = kv.Value.Factory(kv.Key);");
+            sb.AppendLine("                var t = rt?.GetType();");
+            sb.AppendLine("                if (t == null || !t.IsGenericType) continue;");
+            sb.AppendLine("                if (t.GetGenericTypeDefinition().Name != \"Return`2\") continue;");
+            sb.AppendLine("                var rResult = t.GetGenericArguments()[1].FullName;");
+            sb.AppendLine("                if (rResult != entryResult)");
+            sb.AppendLine("                {");
+            sb.AppendLine("                    logger.LogError($\"[EFG-V07] Conflicting Return types: entry expects {entryResult}, found Return<{rResult}> at node {kv.Key.GetType().Name}.\", kv.Key);");
             sb.AppendLine("                }");
             sb.AppendLine("            }");
             sb.AppendLine("        }");

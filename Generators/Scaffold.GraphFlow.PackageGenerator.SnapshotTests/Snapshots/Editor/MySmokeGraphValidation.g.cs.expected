@@ -3,7 +3,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Unity.GraphToolkit.Editor;
-using Scaffold.GraphFlow.M0.Editor;
+using Scaffold.GraphFlow.Editor;
 using Scaffold.GraphFlow.M0.Smoke;
 using Scaffold.GraphFlow.M0.Generated;
 
@@ -44,6 +44,7 @@ namespace Scaffold.GraphFlow.M0.Editor.GToolkit
             }
             ValidateEdgePairings(registrations, logger);
             ValidateRunFlowTerminates(registrations, logger);
+            ValidateReturnTypeAgreement(registrations, logger);
         }
 
         static void ValidateEdgePairings(Dictionary<INode, GraphPackageRegistry<MySmokeRunner>.NodeRegistration> registrations, GraphLogger logger)
@@ -110,6 +111,42 @@ namespace Scaffold.GraphFlow.M0.Editor.GToolkit
                             if (nextNode != null) queue.Enqueue(nextNode);
                         }
                     }
+                }
+            }
+        }
+
+        // EFG-V07: walk all Return<,> nodes reachable from each entry and ensure their TResult
+        // type arguments match the entry's TResult. (One TResult per graph constraint, D5.)
+        // This rule reflects on the runtime factory's produced type rather than the editor mirror,
+        // since multi-T [GraphNode] (Return<TRunner, TResult>) isn't yet emitted with an editor mirror.
+        // When the multi-T emission lands in M4, the same rule continues to apply with no changes.
+        static void ValidateReturnTypeAgreement(Dictionary<INode, GraphPackageRegistry<MySmokeRunner>.NodeRegistration> registrations, GraphLogger logger)
+        {
+            string? entryResult = null;
+            INode? entryNode = null;
+            foreach (var kv in registrations)
+            {
+                if (kv.Value.EntryTypeId == null) continue;
+                var rt = kv.Value.Factory(kv.Key);
+                var t = rt?.GetType();
+                while (t != null && (!t.IsGenericType || t.GetGenericTypeDefinition().Name != "EntryRuntimeNode`3"))
+                    t = t.BaseType;
+                if (t == null) continue;
+                entryResult = t.GetGenericArguments()[2].FullName;
+                entryNode = kv.Key;
+                break;
+            }
+            if (entryResult == null) return;
+            foreach (var kv in registrations)
+            {
+                var rt = kv.Value.Factory(kv.Key);
+                var t = rt?.GetType();
+                if (t == null || !t.IsGenericType) continue;
+                if (t.GetGenericTypeDefinition().Name != "Return`2") continue;
+                var rResult = t.GetGenericArguments()[1].FullName;
+                if (rResult != entryResult)
+                {
+                    logger.LogError($"[EFG-V07] Conflicting Return types: entry expects {entryResult}, found Return<{rResult}> at node {kv.Key.GetType().Name}.", kv.Key);
                 }
             }
         }

@@ -31,7 +31,7 @@ namespace Scaffold.GraphFlow.M0.PlayerSmoke
             int id = Random.Range(0, 50);
             Debug.Log($"[M0] Player smoke: Id ={id}");
             before.text = id.ToString();
-            await controller.Run(new OnPlay { CardId = id });
+            await controller.RunFlow(new OnPlay { CardId = id });
             PlayerPrefs.SetString(PrefsKey, runner.LastLogMessage);
             PlayerPrefs.Save();
             after.text = runner.LastLogMessage;
