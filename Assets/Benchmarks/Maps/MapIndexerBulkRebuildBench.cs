@@ -31,7 +31,7 @@ namespace Scaffold.Benchmarks.Maps
             }
         }
 
-        [Test, Performance]
+        [Test, Performance, Category("PerformanceBenchmark")]
         public void BulkAdd_AfterFiveIndexers_Count_10()
         {
             Bench.Measure(() =>
@@ -41,7 +41,7 @@ namespace Scaffold.Benchmarks.Maps
             }, iterationsPer: 100);
         }
 
-        [Test, Performance]
+        [Test, Performance, Category("PerformanceBenchmark")]
         public void BulkAdd_AfterFiveIndexers_Count_100()
         {
             Bench.Measure(() =>
@@ -51,7 +51,7 @@ namespace Scaffold.Benchmarks.Maps
             }, iterationsPer: 50);
         }
 
-        [Test, Performance]
+        [Test, Performance, Category("PerformanceBenchmark")]
         public void BulkAdd_AfterFiveIndexers_Count_1000()
         {
             Bench.Measure(() =>

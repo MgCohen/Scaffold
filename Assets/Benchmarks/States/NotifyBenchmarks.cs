@@ -13,7 +13,7 @@ namespace Scaffold.Benchmarks.States
             BenchSetup.RearmPerTest();
         }
 
-        [Test, Performance]
+        [Test, Performance, Category("PerformanceBenchmark")]
         public void Notify_50Subs_NoMutation()
         {
             var builder = new StoreBuilder();
@@ -33,7 +33,7 @@ namespace Scaffold.Benchmarks.States
             VolatileSink.Use(sum);
         }
 
-        [Test, Performance]
+        [Test, Performance, Category("PerformanceBenchmark")]
         public void Notify_50Subs_HalfUnsubscribeInline()
         {
             var scenario = new HalfUnsubscribeInlineScenario();

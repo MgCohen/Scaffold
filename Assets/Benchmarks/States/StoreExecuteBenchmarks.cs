@@ -32,7 +32,7 @@ namespace Scaffold.Benchmarks.States
             return builder.Build();
         }
 
-        [Test, Performance]
+        [Test, Performance, Category("PerformanceBenchmark")]
         public void Execute_SingleMutator_OneSlice()
         {
             Store store = BuildStoreWithCounter();
@@ -40,7 +40,7 @@ namespace Scaffold.Benchmarks.States
             Bench.Measure(() => store.Execute(payload), iterationsPer: 10_000);
         }
 
-        [Test, Performance]
+        [Test, Performance, Category("PerformanceBenchmark")]
         public void Execute_TypedMutator_OneSlice_NoRegistry()
         {
             // Direct ExecuteMutator path skips MutatorRegistry lookup entirely; useful as a floor
@@ -51,7 +51,7 @@ namespace Scaffold.Benchmarks.States
             Bench.Measure(() => store.ExecuteMutator(mutator, payload), iterationsPer: 10_000);
         }
 
-        [Test, Performance]
+        [Test, Performance, Category("PerformanceBenchmark")]
         public void Execute_ValuePayload_OneSlice()
         {
             // Value-type payload: today's path boxes via Execute<TPayload>(TPayload) → object payload.
@@ -62,7 +62,7 @@ namespace Scaffold.Benchmarks.States
             Bench.Measure(() => store.Execute(payload), iterationsPer: 10_000);
         }
 
-        [Test, Performance]
+        [Test, Performance, Category("PerformanceBenchmark")]
         public void Execute_TypedMutator_ValuePayload_OneSlice_NoRegistry()
         {
             // Direct ExecuteMutator on the value-type payload — the floor Phase 5's dispatcher

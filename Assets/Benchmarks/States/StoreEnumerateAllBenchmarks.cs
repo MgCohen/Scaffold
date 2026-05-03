@@ -26,7 +26,7 @@ namespace Scaffold.Benchmarks.States
             return builder.Build();
         }
 
-        [Test, Performance]
+        [Test, Performance, Category("PerformanceBenchmark")]
         public void EnumerateAll_OneTypeBucket_1k()
         {
             Store store = BuildStoreWith(1000);
@@ -42,7 +42,7 @@ namespace Scaffold.Benchmarks.States
             }, iterationsPer: 100);
         }
 
-        [Test, Performance]
+        [Test, Performance, Category("PerformanceBenchmark")]
         public void GetAll_OneTypeBucket_1k()
         {
             Store store = BuildStoreWith(1000);

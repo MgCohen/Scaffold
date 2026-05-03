@@ -37,7 +37,7 @@ namespace Scaffold.Benchmarks.States
             }
         }
 
-        [Test, Performance]
+        [Test, Performance, Category("PerformanceBenchmark")]
         public void Equals_VirtualDispatch_VsReferenceNull()
         {
             SlowEqualsProbe probe = new SlowEqualsProbe();
@@ -45,7 +45,7 @@ namespace Scaffold.Benchmarks.States
             Bench.Measure(() => _ = probe.Equals(rNull), iterationsPer: 1_000_000);
         }
 
-        [Test, Performance]
+        [Test, Performance, Category("PerformanceBenchmark")]
         public void ReferenceEquals_VsReferenceNull()
         {
             SlowEqualsProbe probe = new SlowEqualsProbe();

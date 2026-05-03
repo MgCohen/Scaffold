@@ -14,7 +14,7 @@ namespace Scaffold.Benchmarks.States
         [SetUp]
         public void SetUp() => BenchSetup.RearmPerTest();
 
-        [Test, Performance]
+        [Test, Performance, Category("PerformanceBenchmark")]
         public void Subscribe_PerCall_CachedDelegate()
         {
             var builder = new StoreBuilder();

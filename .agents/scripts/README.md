@@ -33,6 +33,8 @@ pwsh -NoProfile -File .agents/scripts/validate-changes.ps1 -SkipTests
 pwsh -NoProfile -File .agents/scripts/run-unity-tests.ps1 -TestPlatform EditMode
 ```
 
+By default this skips NUnit category **`PerformanceBenchmark`** (heavy `[Unity.PerformanceTesting.Performance]` microbenchmarks under `Assets/Benchmarks/`). Add **`-IncludePerformanceBenchmarks`** to run them with everything else, **`-PerformanceBenchmarksOnly`** to run only that category, or pass **`-PerformanceTestResultsPath`** (benchmarks run automatically so JSON is useful).
+
 **Performance JSON** (`com.unity.test-framework.performance`): pass **`-PerformanceTestResultsPath`** (absolute path or repo-relative). Unity receives **`-perfTestResults`** and writes structured JSON suitable for tooling or [PerformanceBenchmarkReporter](https://github.com/Unity-Technologies/PerformanceBenchmarkReporter).
 
 Example — Maps perf assembly only, JSON next to the package:
