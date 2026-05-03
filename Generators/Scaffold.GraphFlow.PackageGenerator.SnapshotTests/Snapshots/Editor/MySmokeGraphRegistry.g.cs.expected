@@ -88,24 +88,6 @@ namespace Scaffold.GraphFlow.M0.Generated
                     ["Message"] = Scaffold.GraphFlow.M0.Smoke.LogDispatcherRuntime.Ports.Message,
                 },
             });
-            r.Register(new GraphPackageRegistry<Scaffold.GraphFlow.M0.Smoke.MySmokeRunner>.NodeRegistration
-            {
-                EditorNodeType = typeof(Scaffold.GraphFlow.M0.Editor.GToolkit.BranchEditorNode),
-                Factory = _ => new Scaffold.GraphFlow.M0.Nodes.Branch<Scaffold.GraphFlow.M0.Smoke.MySmokeRunner>(),
-                FlowInputPortIds = new System.Collections.Generic.Dictionary<string, int>(System.StringComparer.Ordinal)
-                {
-                    ["FlowIn"] = unchecked((int)0xF0F00001u),
-                },
-                FlowOutputPortIds = new System.Collections.Generic.Dictionary<string, int>(System.StringComparer.Ordinal)
-                {
-                    ["True"] = unchecked((int)0xF0F00002u),
-                    ["False"] = unchecked((int)0xF0F00003u),
-                },
-                DataInputPortIds = new System.Collections.Generic.Dictionary<string, int>(System.StringComparer.Ordinal)
-                {
-                    ["Condition"] = unchecked((int)0xC0F00001u),
-                },
-            });
         }
     }
 }
