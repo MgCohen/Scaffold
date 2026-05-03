@@ -50,13 +50,13 @@ namespace Scaffold.GraphFlow.CardSandbox.Cards
             Ports.Add(BaseDamagePort, BaseDamage);
         }
 
-        public override Task<FlowContinuation> Execute(CardEffectRunner runner)
+        public override Task Execute(CardEffectRunner runner, Flow flow)
         {
             if (Payload != null)
             {
                 _baseDamageValue = Payload.BaseDamage;
             }
-            return Task.FromResult(FlowContinuation.Next(FlowOutPortId));
+            return flow.GoTo(FlowOutPortId);
         }
     }
 

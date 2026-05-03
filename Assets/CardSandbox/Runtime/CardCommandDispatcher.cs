@@ -27,12 +27,12 @@ namespace Scaffold.GraphFlow.CardSandbox
         protected abstract TCmd BuildPayload(CardEffectRunner runner);
         protected abstract void WriteOutputs(TResult result);
 
-        public sealed override async Task<FlowContinuation> Execute(CardEffectRunner runner)
+        public sealed override async Task Execute(CardEffectRunner runner, Flow flow)
         {
             var cmd = BuildPayload(runner);
             var result = await runner.Send<TCmd, TResult>(cmd).ConfigureAwait(false);
             WriteOutputs(result);
-            return FlowContinuation.Next(FlowOutPortId);
+            await flow.GoTo(FlowOutPortId);
         }
     }
 }

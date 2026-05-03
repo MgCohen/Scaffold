@@ -46,7 +46,7 @@ namespace Scaffold.GraphFlow
             }
         }
 
-        public Task Run<TEntry>(TEntry payload) where TEntry : class
+        public Task<Flow> Run<TEntry>(TEntry payload, System.Threading.CancellationToken ct = default) where TEntry : class
         {
             if (_entryRoots == null)
                 throw new InvalidOperationException("Initialize must be called first.");
@@ -58,7 +58,7 @@ namespace Scaffold.GraphFlow
             if (root is EntryRuntimeNode<TEntry, TRunner> entryRoot)
                 entryRoot.SetPayload(payload);
 
-            return _executor.RunFlow(root, _runner, _asset);
+            return _executor.RunFlow(root, _runner, _asset, ct);
         }
 
         public void Dispose()

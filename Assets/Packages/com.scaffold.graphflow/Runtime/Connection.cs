@@ -80,10 +80,15 @@ namespace Scaffold.GraphFlow
         }
     }
 
-    /// <summary>Flow-bearing runtime node — adds <see cref="Execute"/> over a typed runner.</summary>
+    /// <summary>
+    /// Flow-bearing runtime node — adds <see cref="Execute"/> over a typed runner. The per-run
+    /// <see cref="Flow"/> is plumbed through every Execute call along the walk; routing decisions
+    /// live on Flow (<see cref="Flow.GoTo"/> / <see cref="Flow.Stop"/> / <see cref="Flow.Return"/> /
+    /// <see cref="Flow.Cancel"/>). Default-on-no-call is Stop.
+    /// </summary>
     [Serializable]
     public abstract class RuntimeNode<TRunner> : RuntimeNode where TRunner : GraphRunner
     {
-        public abstract Task<FlowContinuation> Execute(TRunner runner);
+        public abstract Task Execute(TRunner runner, Flow flow);
     }
 }

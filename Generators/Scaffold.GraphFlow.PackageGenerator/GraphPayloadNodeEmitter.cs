@@ -335,7 +335,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
 
             sb.AppendLine("        }");
             sb.AppendLine();
-            sb.AppendLine($"        public override Task<FlowContinuation> Execute({runnerName} runner)");
+            sb.AppendLine($"        public override Task Execute({runnerName} runner, Flow flow)");
             sb.AppendLine("        {");
             sb.AppendLine("            if (Payload != null)");
             sb.AppendLine("            {");
@@ -345,7 +345,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             }
 
             sb.AppendLine("            }");
-            sb.AppendLine($"            return Task.FromResult(FlowContinuation.Next({GraphRegistryEmitter.PortIdLiteral(flowOut)}));");
+            sb.AppendLine($"            return flow.GoTo({GraphRegistryEmitter.PortIdLiteral(flowOut)});");
             sb.AppendLine("        }");
             sb.AppendLine("    }");
             sb.AppendLine("}");
@@ -449,7 +449,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
 
             sb.AppendLine("        }");
             sb.AppendLine();
-            sb.AppendLine($"        public override async Task<FlowContinuation> Execute({runnerName} runner)");
+            sb.AppendLine($"        public override async Task Execute({runnerName} runner, Flow flow)");
             sb.AppendLine("        {");
             sb.AppendLine($"            var payload = new {leaf}");
             sb.AppendLine("            {");
@@ -460,7 +460,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
 
             sb.AppendLine("            };");
             sb.AppendLine("            await payload.Execute(runner).ConfigureAwait(false);");
-            sb.AppendLine("            return FlowContinuation.Stop;");
+            sb.AppendLine("            // No flow.GoTo → default-on-no-call is Stop (terminal action).");
             sb.AppendLine("        }");
             sb.AppendLine("    }");
             sb.AppendLine("}");

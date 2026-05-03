@@ -18,13 +18,13 @@ namespace Scaffold.GraphFlow.M0.Smoke
             Ports.Add(unchecked((int)0x4F2A8B17u), CardId);
         }
 
-        public override Task<FlowContinuation> Execute(MySmokeRunner runner)
+        public override Task Execute(MySmokeRunner runner, Flow flow)
         {
             if (Payload != null)
             {
                 _cardIdValue = Payload.CardId;
             }
-            return Task.FromResult(FlowContinuation.Next(unchecked((int)0xF0010001u)));
+            return flow.GoTo(unchecked((int)0xF0010001u));
         }
     }
 }

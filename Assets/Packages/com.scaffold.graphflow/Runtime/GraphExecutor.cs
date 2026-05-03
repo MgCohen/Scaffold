@@ -1,21 +1,25 @@
-using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Scaffold.GraphFlow
 {
     public sealed class GraphExecutor<TRunner> where TRunner : GraphRunner
     {
-        public async Task RunFlow(RuntimeNode<TRunner> start, TRunner runner, GraphAsset<TRunner> asset)
+        public async Task<Flow> RunFlow(RuntimeNode<TRunner> start, TRunner runner, GraphAsset<TRunner> asset, CancellationToken ct = default)
         {
+            var flow = new Flow(ct);
             RuntimeNode<TRunner>? current = start;
             while (current != null)
             {
-                var cont = await current.Execute(runner).ConfigureAwait(false);
-                if (!cont.HasNext)
+                await current.Execute(runner, flow).ConfigureAwait(false);
+                var nextPortId = flow.ConsumeNext();
+                if (nextPortId == null)
                     break;
 
-                current = TryGetFlowTarget(current.nodeId, cont.OutFlowPortId, asset);
+                current = TryGetFlowTarget(current.nodeId, nextPortId.Value, asset);
             }
+
+            return flow;
         }
 
         static RuntimeNode<TRunner>? TryGetFlowTarget(int fromNodeId, int fromFlowPortId, GraphAsset<TRunner> asset)

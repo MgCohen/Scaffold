@@ -66,19 +66,7 @@ namespace Scaffold.GraphFlow
         public T Read() => _read();
     }
 
-    /// <summary>
-    /// Flow-output marker — the only port that carries an id at runtime, because
-    /// <c>RuntimeNode&lt;TRunner&gt;.Execute</c> returns a <see cref="FlowContinuation"/> that names
-    /// which flow-out the executor should follow. Flow inputs are editor-only metadata and have no
-    /// runtime <see cref="Port"/> object: the executor calls <c>Execute</c> on the destination node
-    /// directly, walking <c>flowEdges</c>.
-    /// </summary>
-    public readonly struct FlowOut
-    {
-        readonly int _portId;
-
-        public FlowOut(int portId) => _portId = portId;
-
-        public FlowContinuation Continue() => FlowContinuation.Next(_portId);
-    }
+    // FlowOut struct removed in M3 (per D3): authoring nodes now call <c>flow.GoTo(portId)</c> directly.
+    // Flow inputs remain editor-only metadata (no runtime Port object); the executor calls Execute on
+    // the destination node walked from <c>flowEdges</c>.
 }

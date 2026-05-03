@@ -75,12 +75,11 @@ namespace Scaffold.GraphFlow.PackageGenerator
                 sb.AppendLine($"            {p.FieldName} = new InputPort<{p.CSharpType}>();");
             }
 
-            // FlowOut handles carry their port id (the only port that does, because Execute returns
-            // FlowContinuation referencing it).
-            foreach (var p in node.FlowOuts)
-            {
-                sb.AppendLine($"            {p.FieldName} = new FlowOut({GraphRegistryEmitter.PortIdLiteral(p.PortId)});");
-            }
+            // FlowOut struct was removed in M3 (D3). Authoring nodes now call `flow.GoTo(portId)`
+            // directly with the int port id. If a [GraphNode] still declares `FlowOut` fields we
+            // emit nothing for them here — the field type itself is gone, so author code referring
+            // to it won't compile, which is the desired loud failure.
+            // (Generator scaffolding for FlowOut emission removed alongside the struct.)
 
             // OutputPort assignment is the user's responsibility (the reader closes over typed inputs)
             // — invoked through the partial method hook. If the class has no OutputPort fields and the
