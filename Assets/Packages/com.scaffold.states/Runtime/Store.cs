@@ -396,6 +396,19 @@ namespace Scaffold.States
             return (TState)slice.State;
         }
 
+        public bool TryGet<TState>(IReference? reference, out TState state) where TState : BaseState
+        {
+            var r = reference ?? Reference.Null;
+            if (TryGetSlice(r, typeof(TState), out BaseSlice slice))
+            {
+                state = (TState)slice.State;
+                return true;
+            }
+
+            state = default!;
+            return false;
+        }
+
         public IEnumerable<TState> GetAll<TState>() where TState : BaseState
         {
             Type stateType = typeof(TState);
@@ -549,6 +562,30 @@ namespace Scaffold.States
                 }
 
                 return owner.Get<TState>(r);
+            }
+
+            public bool TryGet<TState>(IReference? reference, out TState state) where TState : BaseState
+            {
+                var r = reference ?? Reference.Null;
+                if (overlay.TryGetValue(r, typeof(TState), out var fromOverlay))
+                {
+                    state = (TState)(object)fromOverlay!;
+                    return true;
+                }
+
+                if (owner.TryGetSlice(r, typeof(TState), out BaseSlice slice))
+                {
+                    if (slice is AggregateSlice aSlice)
+                    {
+                        state = (TState)aSlice.BuildForScope(this);
+                        return true;
+                    }
+                    state = (TState)(object)slice.State!;
+                    return true;
+                }
+
+                state = default!;
+                return false;
             }
 
             private sealed class ReferenceByValueEqualityComparer : IEqualityComparer<IReference>

@@ -25,8 +25,7 @@ namespace Scaffold.States.Samples.CardGame
         {
             CardRuntimeState runtime = scope.Get<CardRuntimeState>(id);
 
-            CardKnowledgeState? knowledge = TryGet<CardKnowledgeState>(scope, id);
-            if (knowledge is null)
+            if (!scope.TryGet<CardKnowledgeState>(id, out CardKnowledgeState knowledge))
             {
                 return new CardView(id, IsKnown: false, Name: null, Cost: null, Attack: null, CurrentHealth: null, MaxHealth: null);
             }
@@ -36,18 +35,6 @@ namespace Scaffold.States.Samples.CardGame
             int max = def.Hp;
             int current = max - runtime.Damage;
             return new CardView(id, IsKnown: true, def.Name, def.Cost, attack, current, max);
-        }
-
-        private static T? TryGet<T>(IStateScope scope, IReference reference) where T : BaseState
-        {
-            try
-            {
-                return scope.Get<T>(reference);
-            }
-            catch (KeyNotFoundException)
-            {
-                return null;
-            }
         }
     }
 

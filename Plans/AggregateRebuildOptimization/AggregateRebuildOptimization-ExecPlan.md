@@ -25,7 +25,7 @@ The supporting non-functional outcome: existing tests in `Scaffold.States.Tests`
 ## Progress
 
 - [ ] Milestone 0 — Audit findings frozen and acceptance tests authored as red baselines.
-- [ ] Milestone 1 — `IStateScope.TryGet<T>(...)` and `Store.TryGet<T>(...)` added; sample `CardGameProviders` migrated off exception-driven absence checks.
+- [x] Milestone 1 — `IStateScope.TryGet<T>(...)` and `Store.TryGet<T>(...)` added; sample `CardGameProviders` migrated off exception-driven absence checks.
 - [ ] Milestone 2 — `AggregateSlice` short-circuits notification when the rebuilt state equals the cached state (record value equality).
 - [ ] Milestone 3 — `Scratchpad` caches aggregate rebuilds for the duration of one commit.
 - [ ] Milestone 4 — Commit-batch coalescing: aggregate rebuilds during a single `Execute` / `ExecuteBatch` collapse to one rebuild per affected aggregate, fired after all canonical Notify calls land.
@@ -36,7 +36,7 @@ The supporting non-functional outcome: existing tests in `Scaffold.States.Tests`
 
 Document unexpected behaviors, bugs, optimizations, or insights discovered during implementation. Provide concise evidence.
 
-- (none recorded yet)
+- M1 surfaced that `IStoreScratchpad : IStateScope` — adding `TryGet` to `IStateScope` automatically forced the inner `Scratchpad` and `MutatorRunner` to implement it. No external implementer of `IStateScope` exists outside the package, so the interface change is contained.
 
 ## Decision Log
 

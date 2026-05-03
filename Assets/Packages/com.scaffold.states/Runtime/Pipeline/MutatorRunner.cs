@@ -73,5 +73,10 @@ namespace Scaffold.States
         {
             return scratchpad.Get<TState>(reference);
         }
+
+        public bool TryGet<TState>(IReference? reference, out TState state) where TState : BaseState
+        {
+            return scratchpad.TryGet<TState>(reference, out state);
+        }
     }
 }

@@ -333,5 +333,43 @@ namespace Scaffold.States.Tests
             store.Execute(new RoutedCounterPayload(keyA, 2));
             Assert.That(count, Is.EqualTo(1));
         }
+
+        [Test]
+        public void TryGet_AbsentSlice_ReturnsFalseAndDoesNotThrow()
+        {
+            var builder = new StoreBuilder();
+            Store store = builder.Build();
+
+            bool found = store.TryGet<CounterState>(new SampleKey("missing"), out CounterState state);
+
+            Assert.That(found, Is.False);
+            Assert.That(state, Is.Null);
+        }
+
+        [Test]
+        public void TryGet_PresentCanonicalSlice_ReturnsTrueAndState()
+        {
+            var key = new SampleKey("present");
+            var builder = new StoreBuilder();
+            builder.AddState(key, new CounterState(7));
+            Store store = builder.Build();
+
+            bool found = store.TryGet<CounterState>(key, out CounterState state);
+
+            Assert.That(found, Is.True);
+            Assert.That(state.Value, Is.EqualTo(7));
+        }
+
+        [Test]
+        public void TryGet_PresentAggregateSlice_ReturnsCachedState()
+        {
+            StoreFeaturesDemo demo = SampleStoreFactory.CreateFullDemo();
+            Store store = demo.Store;
+
+            bool found = store.TryGet<TotalsDashboardState>(Reference.Null, out TotalsDashboardState state);
+
+            Assert.That(found, Is.True);
+            Assert.That(state, Is.Not.Null);
+        }
     }
 }
