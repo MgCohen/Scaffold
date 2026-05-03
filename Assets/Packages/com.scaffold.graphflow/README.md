@@ -47,7 +47,7 @@ Apply these to **each assembly** that declares `[assembly: GraphPackage(...)]`:
 1. **References**
    - Reference assembly **`Scaffold.GraphFlow.PackageAttributes`** (add **`Scaffold.GraphFlow.PackageAttributes.asmdef`** or equivalent).
    - Add an asmdef reference to the **Roslyn generator** plugin: the **GUID** of `Scaffold.GraphFlow.PackageGenerator.dll` in `.meta` (label: Roslyn analyzer, **Run Only On Assemblies With Reference**, explicitly referenced).  
-     *Reference: `Assets/GraphFlowM0/Runtime/Scaffold.GraphFlow.M0.asmdef`.*
+     *Reference: `Assets/GraphFlowSandbox/Runtime/Scaffold.GraphFlow.M0.asmdef`.*
 
 2. **Runner type**
    - `Runner = typeof(T)` where **`T` subclasses `GraphRunner`** (from your runtime graph package, e.g. M0).
@@ -95,7 +95,7 @@ Apply these to **each assembly** that declares `[assembly: GraphPackage(...)]`:
 
 ### Minimal assembly declaration (M0 smoke)
 
-Place in `Assets/GraphFlowM0/Runtime/AssemblyInfo.cs` (same folder as `Scaffold.GraphFlow.M0.asmdef`):
+Place in `Assets/GraphFlowSandbox/Runtime/AssemblyInfo.cs` (same folder as `Scaffold.GraphFlow.M0.asmdef`):
 
 ```csharp
 #pragma warning disable SCA0009
@@ -147,12 +147,12 @@ using Scaffold.GraphFlow.M0.Smoke;
 - Generator entry: **`GraphPackageIncrementalGenerator`** in `Generators/Scaffold.GraphFlow.PackageGenerator/`.
 - Attribute metadata name: **`Scaffold.GraphFlow.GraphPackageAttribute`** (full metadata name for Roslyn).
 - Unity wiring mirrors **`com.scaffold.autopacker`** (Roslyn analyzer `.meta` labels, explicit asmdef GUID reference).
-- Full vertical slice reference: **`Assets/GraphFlowM0/`**.
+- Full vertical slice reference: **`Assets/GraphFlowSandbox/`**.
 
 ## Related
 
 - [ExecPlan v2](../../../Plans/GraphFlow/ExecPlan-v2.md)
-- [GraphFlow M0 smoke](../../GraphFlowM0/)
+- [GraphFlow M0 smoke](../../GraphFlowSandbox/)
 
 ## Changelog
 

@@ -12,7 +12,7 @@ namespace Scaffold.GraphFlow.M0.Editor
     /// </summary>
     public static class GraphFlowM0PlayerSmokeBuild
     {
-        const string ScenePath = "Assets/GraphFlowM0/Smoke/M0PlayerSmoke.unity";
+        const string ScenePath = "Assets/GraphFlowSandbox/Smoke/M0PlayerSmoke.unity";
         const string OutputDir = "Build/M0Smoke";
 
         [MenuItem("Tools/GraphFlow M0/Build Linux64 Player Smoke")]

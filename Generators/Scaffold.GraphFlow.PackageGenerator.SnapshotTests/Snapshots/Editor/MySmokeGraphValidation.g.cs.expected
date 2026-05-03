@@ -3,6 +3,8 @@
 using System.Collections.Generic;
 using System.Linq;
 using Unity.GraphToolkit.Editor;
+using Scaffold.GraphFlow.M0.Editor;
+using Scaffold.GraphFlow.M0.Smoke;
 using Scaffold.GraphFlow.M0.Generated;
 
 namespace Scaffold.GraphFlow.M0.Editor.GToolkit
@@ -13,15 +15,17 @@ namespace Scaffold.GraphFlow.M0.Editor.GToolkit
         {
             base.OnGraphChanged(logger);
             var registry = MySmokeGraphRegistry.Instance;
+            var registrations = new Dictionary<INode, GraphPackageRegistry<MySmokeRunner>.NodeRegistration>();
             var entriesByType = new Dictionary<string, List<INode>>();
             foreach (var node in GetNodes())
             {
                 var reg = registry.Lookup(node.GetType());
                 if (reg == null)
                 {
-                    logger.LogError($"Unsupported node type {node.GetType().Name} — no registry entry. Re-baking will fail.", node);
+                    logger.LogError($"[EFG-V01] Unsupported node type {node.GetType().Name} — no registry entry. Re-baking will fail.", node);
                     continue;
                 }
+                registrations[node] = reg;
                 if (reg.EntryTypeId == null) continue;
                 if (!entriesByType.TryGetValue(reg.EntryTypeId, out var list))
                 {
@@ -35,7 +39,77 @@ namespace Scaffold.GraphFlow.M0.Editor.GToolkit
                 if (kv.Value.Count <= 1) continue;
                 foreach (var dup in kv.Value.Skip(1))
                 {
-                    logger.LogWarning($"Duplicate entry node for '{kv.Key}'. The bake step keeps only the first occurrence.", dup);
+                    logger.LogWarning($"[EFG-V02] Duplicate entry node for '{kv.Key}'. The bake step keeps only the first occurrence.", dup);
+                }
+            }
+            ValidateEdgePairings(registrations, logger);
+            ValidateRunFlowTerminates(registrations, logger);
+        }
+
+        static void ValidateEdgePairings(Dictionary<INode, GraphPackageRegistry<MySmokeRunner>.NodeRegistration> registrations, GraphLogger logger)
+        {
+            var connected = new List<IPort>();
+            foreach (var kv in registrations)
+            {
+                var fromNode = kv.Key;
+                var fromReg = kv.Value;
+                foreach (var port in fromNode.GetOutputPorts())
+                {
+                    var fromIsFlow = fromReg.FlowOutputPortIds.ContainsKey(port.name);
+                    var fromIsData = fromReg.DataOutputPortIds.ContainsKey(port.name);
+                    connected.Clear();
+                    port.GetConnectedPorts(connected);
+                    foreach (var other in connected)
+                    {
+                        var toNode = other.GetNode();
+                        if (toNode == null || !registrations.TryGetValue(toNode, out var toReg)) continue;
+                        var toIsFlow = toReg.FlowInputPortIds.ContainsKey(other.name);
+                        var toIsData = toReg.DataInputPortIds.ContainsKey(other.name);
+                        if (fromIsFlow && toIsFlow) continue;
+                        if (fromIsData && toIsData) continue;
+                        logger.LogError($"[EFG-V03] Edge {fromNode.GetType().Name}.{port.name} → {toNode.GetType().Name}.{other.name} pairs incompatible port kinds (flow↔data or unknown port).", fromNode);
+                    }
+                }
+            }
+        }
+
+        static void ValidateRunFlowTerminates(Dictionary<INode, GraphPackageRegistry<MySmokeRunner>.NodeRegistration> registrations, GraphLogger logger)
+        {
+            // Walk forward from every entry node along its flow outputs. A node is a flow
+            // terminator iff its registry entry has zero FlowOutputPortIds (Return/Cancel/
+            // ReturnBool, plus any future custom terminator). Warn when a flow output is
+            // unwired and the owning node is itself not a terminator — that path falls off
+            // the end of the graph instead of reaching an explicit Return/Cancel.
+            var connected = new List<IPort>();
+            var visited = new HashSet<INode>();
+            var queue = new Queue<INode>();
+            foreach (var kv in registrations)
+            {
+                if (kv.Value.EntryTypeId == null) continue;
+                queue.Enqueue(kv.Key);
+                visited.Clear();
+                while (queue.Count > 0)
+                {
+                    var node = queue.Dequeue();
+                    if (!visited.Add(node)) continue;
+                    if (!registrations.TryGetValue(node, out var reg)) continue;
+                    if (reg.FlowOutputPortIds.Count == 0) continue; // terminator
+                    foreach (var port in node.GetOutputPorts())
+                    {
+                        if (!reg.FlowOutputPortIds.ContainsKey(port.name)) continue;
+                        connected.Clear();
+                        port.GetConnectedPorts(connected);
+                        if (connected.Count == 0)
+                        {
+                            logger.LogWarning($"[EFG-V04] Flow path {node.GetType().Name}.{port.name} ends without a Return/Cancel terminator — the executor will simply stop.", node);
+                            continue;
+                        }
+                        foreach (var other in connected)
+                        {
+                            var nextNode = other.GetNode();
+                            if (nextNode != null) queue.Enqueue(nextNode);
+                        }
+                    }
                 }
             }
         }
