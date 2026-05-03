@@ -18,7 +18,7 @@ The reference for the **designer-facing surface** is the existing FlowCanvas-bas
 4. `Validate` + `Run` dual flows on every entry node, native to the graph language.
 5. Trigger listeners can pass-through-with-modifications, cancel, or replace the in-flight command.
 6. Package is game-agnostic — works for Card Framework, FlowCanvas-shaped systems, or any custom convention via configuration.
-7. Zero runtime reflection on hot paths. Per-execution port reads/writes go through typed `Connection<T>` objects wired at hydration via generator-emitted `switch` jump tables — direct delegate invocation, no reflection, no string lookups.
+7. Zero runtime reflection on hot paths. Per-execution port reads go through typed `InputPort<T>` / `OutputPort<T>` handles wired at hydration via the single `Connection.Bind` cast/conversion seam — direct delegate invocation, no reflection, no string lookups. The cast lives once at the type-erased baker→typed-port boundary, and is the architectural place where future converters plug in.
 
 ## Non-goals (v1)
 
@@ -53,12 +53,14 @@ The reference for the **designer-facing surface** is the existing FlowCanvas-bas
 │               │    │  │  • GraphAssetImporterBase<TG, TR, TA>      │
 │ [GraphPackage]│    │  │  • GraphBaker (bake-time translation)      │
 │ [GraphPort]   │    │  │  • Hand-written generic nodes              │
-│ [GraphHidden] │    │  │    (Cancel, Replace, Return*, Branch,      │
-│ [GraphMenu]   │    │  │     predicates, math, conversions)         │
-│ [In] / [Out]  │    │  ├─ Runtime assembly                          │
-│               │    │  │  • GraphRunner (abstract)                  │
-│               │    │  │  • RuntimeNode<TRunner> (abstract)         │
-│               │    │  │  • Connection / Connection<T>              │
+│ [GraphHidden] │    │  │    (Cancel, Return*, Branch — flow;        │
+│ [GraphMenu]   │    │  │     Not, predicates, math — pure data)     │
+│ [GraphNode]   │    │  ├─ Runtime assembly                          │
+│ [In] / [Out]  │    │  │  • GraphRunner (abstract)                  │
+│               │    │  │  • RuntimeNode (data-node base)            │
+│               │    │  │  • RuntimeNode<TRunner> (flow-node base)   │
+│               │    │  │  • InputPort<T> / OutputPort<T> / FlowOut  │
+│               │    │  │  • Connection / Connection<T> (the seam)   │
 │               │    │  │  • IGraphEntry<R> / IGraphAction<R>        │
 │               │    │  │  • IExecutable<R>                          │
 │               │    │  │  • IInitializableNode<R> / IListenerNode<R>│
@@ -82,11 +84,12 @@ The reference for the **designer-facing surface** is the existing FlowCanvas-bas
                   │   • <R>GraphAsset : GraphAsset<R>│
                   │   • <R>GraphImporter             │
                   │                                  │
-                  │  Per payload:                    │
+                  │  Per payload / per [GraphNode]:  │
                   │   • Editor Node subclasses       │
-                  │   • Runtime node + Ports consts  │
-                  │   • BindInput / GetOutputConn    │
-                  │     switch overrides             │
+                  │   • Runtime node ctor + dict     │
+                  │     population (Ports[id]=...)   │
+                  │   • InitializePorts() partial    │
+                  │     for OutputPort assignment    │
                   │   • Registry partial entries     │
                   └──────────────────────────────────┘
 ```
@@ -144,7 +147,7 @@ The generator unions both sources for a given runner R: payloads implementing `I
 
 **Flow vs data (distinct persistence layers).** Graph Toolkit wires flow arrows and data wires through the same editor connection mechanism, but at bake time we split them:
 
-- **`ConnectionRecord`** — **data only**. Hydration builds typed `Connection<T>` handles; `BindInput` / `GetOutputConnection` never carry flow.
+- **`ConnectionRecord`** — **data only**. Hydration builds typed `Connection<T>` handles via `Connection.Bind` and stores them on the destination input port via `RuntimeNode.Bind`; flow is never wired through ports — it's walked by the executor against `flowEdges`.
 - **`FlowEdge`** — **ordering only** (no value). The executor walks flow using `FlowContinuation` returned from `Execute` (which flow output port to follow) plus matching edges in `flowEdges`.
 
 Flow ports are still "typed" in the authoring sense (Validate vs Run, Before vs After, Branch true/false); they are **not** modeled as fake `Connection<int>` carriers at runtime.
@@ -218,18 +221,25 @@ A full FIXED/MANAGED/VARIABLES blackboard with declared shared variables is a v2
 - `OnStrikeListenerNode` — entry-style with Before/After enum dropdown. Validate + Run flow ports. Output data ports for command fields (Before) or command + result fields (After). Registers with the consumer's pipeline through the controller's listener API.
 - `ReturnStrikeNode` — typed terminator for Before-trigger Run flows. Input ports for command fields with "use original" defaults.
 
-**Hand-written, shipped in the package** (finite set):
+**Hand-written, shipped in the package** (finite set). All are `[GraphNode]`-annotated `partial` classes — runtime is hand-written, the generator emits the runtime ctor + editor mirror + registry entry. See "Generic-node emission" in the Source generator section for the full surface.
 
-- `[Cancel]` — generic early-exit. One reason-string input.
-- `[Replace]` — generic early-exit. One typed command reference input.
-- `[Return]` — void terminator. No inputs.
-- `[Return Bool]` — bool terminator. One bool input.
-- `[Branch]` — flow control. Bool input, two flow outputs (true / false).
-- Predicates: `[Equals]`, `[NotEquals]`, `[GreaterThan]`, `[LessThan]`, `[AND]`, `[OR]`, `[NOT]`, `[IsOfType]`.
-- Math: `[Add]`, `[Subtract]`, `[Multiply]`, `[Divide]`, `[Modulo]`. Numeric typing per Graph Toolkit conventions.
-- Conversions: `[ToString]`, `[ToInt]`, etc. — minimal set as needed.
+**Flow-bearing** (extend `RuntimeNode<TRunner>`, have `Execute` and at least one `FlowOut`):
 
-**Host-context accessors** — small set of consumer-defined `RuntimeNode<TRunner>` subclasses that read typed properties off the consumer's runner (e.g., `[Get Owner]` returns `runner.Owner`). The package defines no contract for these; the consumer writes whatever accessor nodes their game needs.
+- `Cancel` — generic early-exit. One reason-string input.
+- `Replace` — generic early-exit. One typed command reference input.
+- `Return` — void terminator. No inputs.
+- `ReturnBool` — bool terminator. One bool input.
+- `Branch` — flow control. Bool input, two `FlowOut` fields (`True` / `False`).
+
+**Pure data** (extend `RuntimeNode` directly, no `Execute`, no `TRunner` — usable in any package):
+
+- Predicates: `Equals<T>`, `NotEquals<T>`, `GreaterThan`, `LessThan`, `And`, `Or`, `Not`, `IsOfType`.
+- Math: `Add`, `Subtract`, `Multiply`, `Divide`, `Modulo`. Numeric typing per Graph Toolkit conventions.
+- Conversions: `ToString`, `ToInt`, etc. — minimal set as needed.
+
+Multi-type-parameter pure data nodes (`Equals<T>` etc.) are deferred to M4 — each closed `T` needs its own editor node since the GraphToolkit picker can't pick at design time.
+
+**Host-context accessors** — small set of consumer-defined `RuntimeNode<TRunner>` subclasses that read typed properties off the consumer's runner (e.g., `GetOwner` returns `runner.Owner`). The package defines no contract for these; the consumer writes whatever accessor nodes their game needs. Authored with the same `[GraphNode]` surface.
 
 **Note on variables / blackboard.** v1 ships **without** a designer-managed blackboard. Designer constants live as inline port values (Graph Toolkit's embedded values). Host references are accessed via the host-context accessor nodes. A full FlowCanvas-style FIXED/MANAGED/VARIABLES blackboard is a v2 follow-up — the GT-native-vs-roll-our-own decision is deferred until we can spike against the real toolkit blackboard API.
 
@@ -323,59 +333,207 @@ For each command-shaped payload (an `IGraphAction<TRunner>` implementer or a des
 
 - 3 editor `Node` subclasses (Dispatcher, Listener, Return)
 - 3 runtime node classes (matching counterparts), each with:
-  - A nested `static class Ports` of `const int` IDs (one per port — stable hash of the field name; `[GraphPort(Id = N)]` overrides for rename-stability)
   - Inline-value fields for designer constants (serialized into the asset by Unity)
-  - `[NonSerialized] Connection<T>` slots for inputs and `[NonSerialized] T` slots for outputs (runtime-only)
-  - Generated `BindInput(int portId, Connection)` and `GetOutputConnection(int portId)` overrides — `switch` jump tables keyed on the constants in `Ports`
+  - Typed port handles: `InputPort<T>` field for each input, `OutputPort<T>` field for each output (constructed in the generated ctor with a reader that reads from the payload's matching member)
+  - Generated default ctor that constructs each port handle and populates the inherited `Ports` dictionary (`Ports[id] = field`). Port id derivation is unchanged (FNV-1a + `[GraphPort(Id = N)]` override); the dict is the runtime lookup the hydration code consults.
 - **`Execute` returns `ValueTask<FlowContinuation>`** — either stop the flow walk or name the **flow output port id** to follow next (Branch returns true/false port ids; linear nodes return their single flow-out id).
-- One registry partial-class entry mapping the payload type id to the runtime node class plus an editor-port-name → port-ID lookup the baker uses when translating editor wires
+- One registry partial-class entry mapping the payload type id to the runtime node class plus an editor-port-name → port-ID lookup the baker uses when translating editor wires.
 
 For each entry-shaped payload (an `IGraphEntry<TRunner>` implementer or a descendant of the package's `EntryBase`): same shape, just 1 editor + 1 runtime node instead of 3.
 
-### Generic-node emission (hand-written runtime, generated editor)
+The pre-M2 emission (with hand-written `BindInput` / `GetOutputConnection` switches and an exposed `static class Ports`) is migrated to this dict-based form during M2; payload runtime emit and generic-node runtime emit share the same `Ports` dict + `Connection.Bind` plumbing through the inherited `RuntimeNode` base, so there is one wiring contract across the system instead of two.
 
-Built-in generic nodes (`Branch`, `Cancel`, `Return`, `ReturnBool`, `Equals<T>`, `Not`, …) and any consumer-authored equivalents are **runtime-hand-written, editor-generated**. The runtime class encodes the actual logic (`Execute`, port wiring, output computation) generically over `TRunner`; the editor mirror is mechanical and would otherwise double the boilerplate per node.
+### Generic-node emission (hand-written runtime, generator-completed partial)
 
-Author surface — one file per node, attributed:
+Built-in generic nodes (`Branch`, `Cancel`, `Return`, `ReturnBool`, `Not`, …) and any consumer-authored equivalents are **runtime-hand-written, editor-generated, runtime-completed**. The author writes only the typed surface — port-handle fields and (for flow nodes) the `Execute` body. The generator emits a partial class completing the runtime + the editor mirror + the registry entry.
+
+Design-iteration log (this section pivoted twice during M2 scoping; the current model is the third pass):
+
+1. **First pass — class-level + field-level attributes.** `[GraphNode]` + `[FlowIn(id)]` / `[FlowOut(id, name)]` (class) + `[Input(id)]` / `[Output(id)]` (field). Author wrote a `static class Ports { public const int … = 0xF0F0_0001u; }` block, declared a `Connection<bool>?` field, and wrote a manual `BindInput` switch with `(Connection<T>)` casts. Rejected: triple bookkeeping (attribute id ↔ Ports const ↔ Execute usage), the cast was visible at every call site, and the `unchecked((int)0x...u)` literals were noise the author had to author.
+2. **Second pass — typed handles + `OnInit` partial + cast in `InputPort<T>.AttachUntyped`.** Better, but the cast-helper was named badly, the `OnInit` example for output readers was hard to read, and a `_PortIds` static class still leaked into the .g.cs.
+3. **Final pass (this section) — typed handles, dict-based dispatch, single `Connection.Bind` seam, `partial void InitializePorts()` for OutputPort assignment, no IDs on Input/Output ports, pure data nodes inherit from `RuntimeNode` (not `RuntimeNode<TRunner>`).**
+
+#### Runtime support types
 
 ```csharp
-[GraphNode(Category = "Flow")]
-public sealed class Branch<TRunner> : RuntimeNode<TRunner> where TRunner : GraphRunner
+namespace Scaffold.GraphFlow
 {
-    public static class Ports {
-        public const int FlowIn   = 0;
-        public const int TrueOut  = 1;
-        public const int FalseOut = 2;
-        public const int Condition = 3;
+    public abstract class Port { }                                // base, no logic
+
+    public sealed class InputPort<T> : Port
+    {
+        Connection<T>? _conn;
+        public T Read() => _conn != null ? _conn.Read() : default!;
+        internal void Attach(Connection<T> c) => _conn = c;
     }
 
-    [FlowIn(Ports.FlowIn)]    // marker, no field
-    [FlowOut(Ports.TrueOut,  "True")]
-    [FlowOut(Ports.FalseOut, "False")]
-    [Input(Ports.Condition)] public Connection<bool>? Condition;
+    public sealed class OutputPort<T> : Port
+    {
+        readonly Func<T> _read;
+        public OutputPort(Func<T> read) { _read = read; }
+        public T Read() => _read();
+    }
 
-    public override ValueTask<FlowContinuation> Execute(TRunner runner) => ...;
+    public readonly struct FlowOut                                // the only port that carries an id
+    {
+        readonly int _id;
+        public FlowOut(int id) { _id = id; }
+        public FlowContinuation Continue() => FlowContinuation.Next(_id);
+    }
 }
 ```
 
-For each `[GraphNode]`-attributed `RuntimeNode<TRunner>` (concrete or open-generic over `TRunner`), the generator emits **per package** that uses the runner:
+Three rules the runtime types enforce:
 
-- **One editor `Node` subclass** with `OnDefinePorts` derived from the attributes — flow-in/out ports as arrowheads, typed data ports from `[Input]`/`[Output]`. Type-name derivation strips the `<TRunner>` suffix.
-- **One registry entry** mapping `EditorNodeType → factory` (closes the open generic at the package's runner: `new Branch<MySmokeRunner>()`) plus the same flow/data port-name → port-ID dictionaries used for payload nodes.
+- **Single responsibility per port.** `InputPort<T>` provides values (`.Read()`). `OutputPort<T>` provides values (`.Read()`). Neither knows about the other side. Wiring is not a port responsibility.
+- **No port IDs on `InputPort` / `OutputPort`.** The dict on the runtime node owns the `id → port` lookup; ports themselves don't carry the id. `FlowOut` is the one exception — it carries its id because `Execute` returns a `FlowContinuation` referencing it, and going through a reverse-lookup dict for that one access would be machinery for no gain.
+- **`FlowIn` is editor-only metadata.** The executor walks `flowEdges` and calls `Execute` on the destination node directly; there is no runtime read at a flow-input. So no `FlowIn` field on the runtime class — the generator implicitly assigns one flow-input port (id 0) per flow-bearing node. Multi-flow-in cases (rare) are deferred to M4+.
 
-The runtime class is **not** emitted — the author wrote it. The registry entry uses the same composer the payload emitter uses; the editor emitter shares the port-emit helpers. Generic-node emission is an additional pass over the shared model, not a parallel pipeline (see "Architecture & reusability principles" above).
+#### `Connection` is the only cast/conversion seam
 
-Attribute set lives in the same attributes-only DLL as `[GraphPackage]`/`[GraphPort]`:
+```csharp
+public abstract class Connection
+{
+    public static Connection Bind(Port input, Port output) { /* the one cast */ }
+}
 
-| Attribute | Target | Purpose |
+public sealed class Connection<T> : Connection
+{
+    public InputPort<T>  Input  { get; }
+    public OutputPort<T> Output { get; }
+    public T Read() => Output.Read();
+}
+```
+
+`Connection.Bind` is the **single** place in the system where untyped ports become typed wires. Future type-conversion (e.g., `int → string` auto-coercion via a registered converter) plugs in here, nowhere else. For M2 this is strict type equality — mismatch throws.
+
+The cast lives at the type-erased boundary because the baker doesn't know `T` — it only has `(srcNodeId, srcPortId, dstNodeId, dstPortId)` ints. Pushing the cast anywhere else (into the port handles, into the generator-emitted partial) just relocates it; concentrating it in `Connection.Bind` makes the conversion seam discoverable and editable.
+
+#### `RuntimeNode` base owns the dispatch
+
+```csharp
+public abstract class RuntimeNode
+{
+    public Dictionary<int, Port> Ports       { get; } = new();   // populated by generated ctor
+    public List<Connection>      Connections { get; } = new();   // appended at hydration
+
+    // Hydration calls this. No per-node override; the dict + Connection.Bind do the work.
+    public Connection Bind(int dstPortId, RuntimeNode src, int srcPortId)
+    {
+        var c = Connection.Bind(Ports[dstPortId], src.Ports[srcPortId]);
+        Connections.Add(c);
+        return c;
+    }
+}
+
+public abstract class RuntimeNode<TRunner> : RuntimeNode where TRunner : GraphRunner
+{
+    public abstract Task<FlowContinuation> Execute(TRunner runner);
+}
+```
+
+Two consequences:
+
+- **Pure data nodes inherit from `RuntimeNode` directly.** `Not`, `Equals<T>`, `IntToString` — no `TRunner`, no `Execute`. They're data transforms, not flow nodes.
+- **Flow nodes inherit from `RuntimeNode<TRunner>`.** `Branch`, `Cancel`, `Return`, `ReturnBool`, entries, dispatchers, listeners. They have `Execute` and may participate in `flowEdges`.
+
+The package's per-runner registry's factory delegate type relaxes from `Func<RuntimeNode<TRunner>>` to `Func<RuntimeNode>` so pure data nodes can register. The executor still only invokes `Execute` on `RuntimeNode<TRunner>` instances — pure data nodes never appear in `flowEdges` and never receive `Execute` calls.
+
+#### Author surface — `Branch` (flow-bearing)
+
+```csharp
+[GraphNode(Category = "Flow")]
+public partial sealed class Branch<TRunner> : RuntimeNode<TRunner>
+    where TRunner : GraphRunner
+{
+    public InputPort<bool> Condition;
+    public FlowOut True;
+    public FlowOut False;
+
+    public override Task<FlowContinuation> Execute(TRunner runner) =>
+        Task.FromResult(Condition.Read() ? True.Continue() : False.Continue());
+}
+```
+
+#### Generator output — `Branch.g.cs`
+
+```csharp
+partial class Branch<TRunner>
+{
+    public Branch()
+    {
+        Condition = new InputPort<bool>();
+        True  = new FlowOut(2);
+        False = new FlowOut(3);
+        Ports.Add(1, Condition);
+    }
+}
+```
+
+#### Author surface — `Not` (pure data)
+
+```csharp
+[GraphNode(Category = "Logic")]
+public partial sealed class Not : RuntimeNode
+{
+    public InputPort<bool> Value;
+    public OutputPort<bool> Result;
+
+    partial void InitializePorts() =>
+        Result = new OutputPort<bool>(() => !Value.Read());
+}
+```
+
+No `Execute`. No `TRunner`. `Result`'s reader closes over `Value` so its computation is driven by whatever upstream node is wired into `Value` at hydration.
+
+#### Generator output — `Not.g.cs`
+
+```csharp
+partial class Not
+{
+    public Not()
+    {
+        Value = new InputPort<bool>();
+        InitializePorts();        // user fills OutputPort lambdas here
+        Ports.Add(1, Value);
+        Ports.Add(2, Result);
+    }
+    partial void InitializePorts();
+}
+```
+
+#### Generator contract for `[GraphNode]` types
+
+For each `[GraphNode]`-annotated class deriving (directly or transitively) from `RuntimeNode` (with an optional single `TRunner` type parameter), the generator emits **per package** that uses the runner:
+
+- **Runtime partial** (`<Name>.g.cs`) — default ctor that constructs `InputPort<T>` and `FlowOut` fields, calls user's `InitializePorts()` partial method (declared in the same partial as a no-body `partial void`), then populates the `Ports` dict with all data ports (Input + Output, not FlowOut). Generator owns the ctor; user owns the typed surface and `Execute`/`InitializePorts` bodies.
+- **Editor mirror** (`<Name>EditorNode.g.cs`) — same shape as today: port-name consts + `OnDefinePorts` declaring flow ports as arrowheads and data ports as typed Graph Toolkit ports. For pure data nodes, no flow ports.
+- **Registry entry** — closes the open generic at the package's runner if needed (`new Branch<MySmokeRunner>()`); pure data nodes get an unparameterized factory (`new Not()`). Flow/data port-name → port-id maps as before.
+
+Port IDs are assigned sequentially in source order: FlowIn = 0 (implicit, flow nodes only); fields are numbered 1, 2, 3 … in declaration order. `[GraphPort(Id = N)]` on a field still pins an id across renames. Port IDs per node only need to be stable across re-bakes; they don't need to be globally unique.
+
+#### Convention summary
+
+| Concept | User writes | Generator emits |
 | --- | --- | --- |
-| `[GraphNode]` | class | Marks a `RuntimeNode<TRunner>` for editor-side emission. Optional `Category` for menu grouping (visual cleanup deferred — see M4). |
-| `[FlowIn(int portId)]` | class (repeatable) | Declares a flow-in port. Marker-only; no field needed since flow-in has no data. |
-| `[FlowOut(int portId, string name)]` | class (repeatable) | Declares a flow-out port. Name shows in the editor; port ID is what `FlowContinuation.Next(...)` returns. |
-| `[Input(int portId)]` | field | Field is a `Connection<T>?` slot the editor exposes as a typed input port. |
-| `[Output(int portId)]` | field | Field is a typed output the editor exposes as a typed output port; runtime writes to it. |
+| Class declaration | `[GraphNode] partial sealed class Foo : RuntimeNode[<TRunner>]` | (nothing — user owns class declaration) |
+| Data input | `public InputPort<T> Foo;` (field) | construction in ctor, `Ports.Add(id, Foo)` |
+| Data output | `public OutputPort<T> Foo;` (field) + reader assignment in `InitializePorts` | construction-call dispatch, `Ports.Add(id, Foo)` |
+| Flow output | `public FlowOut Foo;` (field) | `new FlowOut(id)` in ctor |
+| Flow input | (nothing — implicit at port id 0 for flow nodes) | port id 0 in editor mirror; `flowEdges` references it |
+| Flow logic | `Execute(TRunner)` body | (nothing — user owns) |
+| Output computation | reader lambda in `InitializePorts` body | `partial void InitializePorts();` declaration |
+| Port-id table | (nothing) | implicit in dict-population code |
 
-Consumer-authored generic nodes use the exact same attributes and pipeline — there is no built-in vs. user-written split in the generator. The package ships a finite first set; everything else extends through the same surface.
+Zero casts in either file. Zero port-id literals in the user file. Single source of truth per port: its declared field.
+
+#### Constraints & deferrals
+
+- **Single TRunner type parameter.** The parser accepts non-generic data nodes (`Not`) or flow nodes generic over exactly `TRunner` (`Branch<TRunner>`). Multi-type-parameter nodes (`Equals<T>`, `IsOfType<T>`) need per-T closed instantiations in the editor mirror — **deferred to M4** (each closed T needs its own editor node so the GToolkit picker can offer it; we'll spec the registration shape when we get there).
+- **No multi-flow-in.** One implicit FlowIn per flow node. If a node legitimately needs multiple (e.g., a `Join` that fans flow back together), spec via an explicit `FlowIn` field in M4+.
+- **Connection conversion not implemented.** `Connection.Bind` checks `T == T` and constructs `Connection<T>`; mismatch throws. The architectural seam is in place for converters; the converter mechanism itself is M4+.
+
+Consumer-authored generic nodes use the exact same surface and pipeline — there is no built-in vs. user-written split in the generator. The package ships a finite first set; everything else extends through the same surface.
 
 The runtime node's base class is picked per-payload by the **execution decision tree** (see "Execution" in the Concept layer):
 
@@ -396,7 +554,7 @@ else:
 Three invariants the generator must hold:
 
 1. **Port IDs are stable across source-order changes.** Adding a new field reserves a fresh ID; removing one retires it; an existing field keeps its ID even if the field above it is deleted. Default derivation is FNV-1a of the field name. `[GraphPort(Id = N)]` lets the consumer freeze an ID across a rename.
-2. **The `Ports` constants are the single source of truth.** Both the runtime node's `BindInput`/`GetOutputConnection` switches and the registry's editor-port-name → port-ID lookup the baker reads come from the same generated constants. There's no second list to keep in sync.
+2. **Port IDs in the runtime ctor + editor port-name lookup are the single source of truth.** Both the runtime node's `Ports[id] = field` registration in the generated ctor and the registry's editor-port-name → port-ID lookup the baker reads come from the same id derivation. There's no second list to keep in sync.
 3. **Payload-to-runner partition is enforced.** A payload satisfying bindings for two different `[GraphPackage]` declarations is `EFG008`. Each payload belongs to exactly one package.
 
 ### Per-package emission (the Graph/Asset/Importer trio)
@@ -441,8 +599,10 @@ The naming convention is mechanical: strip a trailing `Runner` suffix, prepend t
 - `EFG006` — Field name conflicts with a generated port label
 - `EFG007` — Payload has no execution path (no `IExecutable<TRunner>`, no `DispatcherBase` declared)
 - `EFG008` — Payload satisfies bindings for two different `[GraphPackage]` declarations
+- `EFG010` — `[GraphNode]` class has an `OutputPort<T>` field but no `InitializePorts` partial method body assigning it (the field would remain null at construction)
+- `EFG011` — `[GraphNode]` class has more than one type parameter, or its single type parameter is not constrained to `GraphRunner` (deferred multi-T case — emit warning, skip emission)
 
-Ship the structural ones (EFG005, EFG007, EFG008); add the rest as friction emerges.
+Ship the structural ones (EFG005, EFG007, EFG008, EFG010, EFG011); add the rest as friction emerges.
 
 ---
 
@@ -548,8 +708,8 @@ If the consumer needs to bump `version: N` or add post-bake steps, they hand-wri
 `GraphBaker` is responsible for **everything that turns an editor graph into a runtime-compliant artifact**:
 
 1. **Node-id assignment (stable across re-bakes).** The baker reads the previous runtime asset at `ctx.assetPath` (if any) and walks its `nodes`, recovering an `editorGuid → nodeId` map from each runtime node's `editorGuid` field. Every editor node Graph Toolkit reports gets translated to a stable `int nodeId`: an existing editor guid keeps its previous id; a new editor node gets the next free monotonic int (highest seen + 1). Removed editor nodes' ids are retired. Each emitted runtime node carries both its new `nodeId` and the source `editorGuid` so the next re-import can recover the map. Runtime hydration ignores `editorGuid`.
-2. **Node translation.** Each editor node maps to one or more typed runtime node instances. The baker reads the registry to find the **generator-emitted factory delegate** (`Func<RuntimeNode<TRunner>>`) for a given editor node type, invokes it to construct the runtime node, populates its inline-value fields from the editor node's port constants (via `port.TryGetValue<T>()` for unwired embedded values, or `port.firstConnectedPort` chasing for variable/constant nodes — same approach as VND's `GetInputPortValue`), and assigns the stable `nodeId` from step 1. No `Activator.CreateInstance`, no reflection — the factory delegate is one of the pieces the source generator emits per payload. Most editor nodes map 1:1 (`StrikeDispatcherNode` → `StrikeDispatcherRuntime`); some may be 1:N if a built-in node compiles to multiple runtime steps.
-3. **Connection resolution (data only).** Editor **data** port-to-port connections are translated into `ConnectionRecord`s of `(fromNodeId, fromPortId, toNodeId, toPortId)` — all four ints. **Flow** connections are translated into `FlowEdge`s of `(fromNodeId, fromFlowPortId, toNodeId, toFlowPortId)` — execution ordering only; no `Connection<T>`.
+2. **Node translation.** Each editor node maps to one or more typed runtime node instances. The baker reads the registry to find the **generator-emitted factory delegate** (`Func<RuntimeNode>` — relaxed from `Func<RuntimeNode<TRunner>>` so pure data nodes can register; flow-bearing nodes still derive from `RuntimeNode<TRunner>` and the executor's typed walker only invokes `Execute` on those), invokes it to construct the runtime node, populates its inline-value fields from the editor node's port constants (via `port.TryGetValue<T>()` for unwired embedded values, or `port.firstConnectedPort` chasing for variable/constant nodes — same approach as VND's `GetInputPortValue`), and assigns the stable `nodeId` from step 1. No `Activator.CreateInstance`, no reflection — the factory delegate is one of the pieces the source generator emits per payload / per `[GraphNode]` class. Most editor nodes map 1:1 (`StrikeDispatcherNode` → `StrikeDispatcherRuntime`); some may be 1:N if a built-in node compiles to multiple runtime steps.
+3. **Connection resolution (data only).** Editor **data** port-to-port connections are translated into `ConnectionRecord`s of `(fromNodeId, fromPortId, toNodeId, toPortId)` — all four ints. **Flow** connections are translated into `FlowEdge`s of `(fromNodeId, fromFlowPortId, toNodeId, toFlowPortId)` — execution ordering only; no `Connection<T>`. The bake step writes only int tuples; **typed `Connection<T>` objects are not built at bake**. They get built at hydration time when the controller calls `dst.Bind(dstPortId, src, srcPortId)` — `RuntimeNode.Bind` looks up both ports through the dict and calls the static `Connection.Bind(input, output)` seam, where the cast happens once and the typed wire gets stored on the input port + appended to the destination's `Connections` list.
 4. **Embedded value extraction.** Each unwired input port's constant value is read via `port.TryGetValue<T>()` and stored into the matching typed field on the runtime node instance.
 5. **Bake-time validation.** Errors that prevent runtime correctness are reported here, even if the editor accepted them:
   - Required ports unwired and lacking a constant
@@ -600,9 +760,15 @@ public abstract class RuntimeNode {
     public string editorGuid;          // GT's stable id for the source editor node — only used by the baker
                                        // on re-import to recover the editorGuid → nodeId mapping. Runtime ignores it.
 
-    // Generated overrides on every concrete runtime node — see "Wiring mechanism" below
-    public abstract Connection GetOutputConnection(int portId);
-    public abstract void       BindInput(int portId, Connection connection);
+    public Dictionary<int, Port> Ports       { get; } = new();   // populated by generated ctor
+    public List<Connection>      Connections { get; } = new();   // appended at hydration
+
+    // Hydration calls this. The cast lives once, inside Connection.Bind. No per-node override.
+    public Connection Bind(int dstPortId, RuntimeNode src, int srcPortId) {
+        var c = Connection.Bind(Ports[dstPortId], src.Ports[srcPortId]);
+        Connections.Add(c);
+        return c;
+    }
 }
 
 [Serializable]
@@ -674,7 +840,7 @@ Two concrete properties of these records:
 This is the core thing that has to work and the thing VND does **not** exercise (VND is a linear sequence with no port-to-port connections). The reference model is FlowCanvas-shaped — stable IDs at both endpoints, no C# pointers in the persisted form, references re-resolved fresh on every load:
 
 - **Stable `nodeId` (int).** Assigned at first bake and persisted across re-imports. The baker maintains an `editorGuid → nodeId` map (Graph Toolkit assigns each editor node a stable guid; the baker translates it to a monotonic int and remembers the mapping by reading the previous runtime asset on re-import). An unchanged editor node keeps its int id forever; a newly-created editor node gets the next free int. Destroying the editor node retires the id permanently.
-- **Stable `portId` (int).** Assigned by the source generator, derived deterministically from the C# field name (e.g. FNV-1a hash) so that source-order changes don't move IDs. An explicit `[GraphPort(Id = N)]` escape hatch lets a consumer freeze an ID across a rename. Adding a new field reserves a fresh ID; removing one retires it. The generator emits the IDs as `const int` constants on a per-payload static class, both for the runtime node's `BindInput`/`GetOutputConnection` switch labels and for the baker to read when translating editor port names to runtime port IDs.
+- **Stable `portId` (int).** Assigned by the source generator, derived deterministically from the C# field name (e.g. FNV-1a hash) so that source-order changes don't move IDs. An explicit `[GraphPort(Id = N)]` escape hatch lets a consumer freeze an ID across a rename. Adding a new field reserves a fresh ID; removing one retires it. The generator uses these IDs as the keys when populating each runtime node's `Ports` dict in its emitted ctor, and the same IDs are what the baker writes into `ConnectionRecord` / `FlowEdge` after translating editor port names. There is no exposed `static class Ports` block; the dict is the single port-id binding the generator and baker share.
 - **`ConnectionRecord` is four ints (data only).** `(fromNodeId, fromPortId, toNodeId, toPortId)`. No strings, no indices. Unity serializes them as plain blittable ints inside the SO.
 - **`FlowEdge` is four ints (flow only).** `(fromNodeId, fromFlowPortId, toNodeId, toFlowPortId)`. Matched after each node's `Execute` returns `FlowContinuation.Next(outFlowPortId)`.
 - **Hydration recovers the references.** A `Dictionary<int, RuntimeNode<TRunner>>` indexes the asset's nodes by id; each connection looks up both endpoints by id and produces a typed `Connection<T>` wiring object. See the "Wiring mechanism" subsection under Hydration for the no-reflection mechanics.
@@ -702,10 +868,9 @@ Hydration steps, in order:
    ```csharp
    var from = byId[c.fromNodeId];
    var to   = byId[c.toNodeId];
-   var conn = from.GetOutputConnection(c.fromPortId);  // virtual call → generated switch on portId
-   to.BindInput(c.toPortId, conn);                     // virtual call → generated switch on portId
+   to.Bind(c.toPortId, from, c.fromPortId);   // base impl: dict lookup → Connection.Bind → store on input port + Connections list
    ```
-   Two virtual calls per **data** edge. Flow never uses `BindInput`.
+   One method call per **data** edge. The cast happens once inside `Connection.Bind`; the input port stores the typed `Connection<T>` and reads through it. Flow is wired separately via `flowEdges` and never goes through ports.
 
 3. **Bind entry payloads at dispatch.** When `Run<TEntry>(payload)` runs, the controller calls `SetPayload` on the root when it inherits `EntryRuntimeNode<TEntry, TRunner>`.
 
@@ -721,60 +886,41 @@ Hydration steps, in order:
 
 #### Wiring mechanism — no reflection
 
-The "lookup" in step 2 is **two virtual calls**, both resolving to switches the source generator wrote at compile time.
+The "lookup" in step 2 is **a dictionary read + a single cast**, both occupying contiguous one-time work at hydration.
 
-For each generated runtime node, the generator emits the wiring scaffolding (port IDs + slots + the two switch overrides) identically regardless of execution path. The `Execute` body is the only piece that varies per the decision tree (`IExecutable` vs `DispatcherBase` — see "Per-payload emission").
+For each generated runtime node (payload-driven or `[GraphNode]`-driven), the generator emits the same wiring scaffolding: a default ctor that constructs typed port handles (`InputPort<T>`, `OutputPort<T>`, `FlowOut`), populates the inherited `Ports` dictionary keyed by port id, and (for nodes with `OutputPort<T>` fields) calls a user-defined `partial void InitializePorts()` body that assigns the output readers.
 
-Wiring scaffolding (every generated runtime node has exactly this shape):
+Wiring scaffolding example (Mode 2 / DispatcherBase path — the same dict/port shape applies to entry, listener, and `[GraphNode]` runtimes):
 
 ```csharp
-// Generated, per payload — example: StrikeDispatcherRuntime (Mode 2 / DispatcherBase path)
-public sealed class StrikeDispatcherRuntime : CardCommandDispatcher<Strike, StrikeResult> {
-    // Stable port-ID constants (FNV-1a of field name, or [GraphPort(Id=N)] override).
-    // Same constants are used by the baker when translating editor port names to runtime IDs.
-    public static class Ports {
-        public const int Magnitude   = 0x9F3A_C12B;   // input
-        public const int Target      = 0x4D81_77E0;   // input
-        public const int DamageDealt = 0x2C5B_AA09;   // output
-    }
-
+// Generated, per payload — example: StrikeDispatcherRuntime
+public sealed partial class StrikeDispatcherRuntime : CardCommandDispatcher<Strike, StrikeResult> {
     // Inline designer constants — serialized into the asset by Unity
     public int  Magnitude;
     public Card Target;
 
-    // Runtime-only — populated at hydration / flow time, NOT serialized
-    [NonSerialized] public Connection<int>  _in_Magnitude;
-    [NonSerialized] public Connection<Card> _in_Target;
-    [NonSerialized] public int              _out_DamageDealt;
+    // Typed port handles — runtime-only, NOT serialized. Port IDs live only in the Ports dict.
+    public InputPort<int>   InMagnitude;
+    public InputPort<Card>  InTarget;
+    public OutputPort<int>  OutDamageDealt;
 
-    // Generated: produce a typed Connection<T> for an output port
-    public override Connection GetOutputConnection(int portId) => portId switch {
-        Ports.DamageDealt => new Connection<int>(this, Ports.DamageDealt, () => _out_DamageDealt),
-        _ => throw new ArgumentOutOfRangeException(nameof(portId)),
-    };
-
-    // Generated: store a typed Connection<T> in the right input slot
-    public override void BindInput(int portId, Connection connection) {
-        switch (portId) {
-            case Ports.Magnitude: _in_Magnitude = (Connection<int>)connection;  return;
-            case Ports.Target:    _in_Target    = (Connection<Card>)connection; return;
-            default: throw new ArgumentOutOfRangeException(nameof(portId));
-        }
+    public StrikeDispatcherRuntime() {
+        InMagnitude    = new InputPort<int>();
+        InTarget       = new InputPort<Card>();
+        OutDamageDealt = new OutputPort<int>(() => _damageDealt);
+        Ports.Add(0x9F3A_C12B, InMagnitude);
+        Ports.Add(0x4D81_77E0, InTarget);
+        Ports.Add(0x2C5B_AA09, OutDamageDealt);
     }
 
-    // ── Execution path varies by [GraphPackage] decision tree ──
+    int _damageDealt;   // backing field for OutDamageDealt's reader
 
-    // Mode 2: inherits Execute from CardCommandDispatcher<Strike, StrikeResult>;
-    // generator only fills in BuildPayload / WriteOutputs:
-
+    // Mode 2: inherits Execute from CardCommandDispatcher; generator fills BuildPayload / WriteOutputs:
     protected override Strike BuildPayload() => new Strike {
-        Magnitude = _in_Magnitude != null ? _in_Magnitude.Read() : this.Magnitude,
-        Target    = _in_Target    != null ? _in_Target.Read()    : this.Target,
+        Magnitude = InMagnitude.Read(),   // returns the wired upstream value, or default(int) if unwired
+        Target    = InTarget.Read(),
     };
-
-    protected override void WriteOutputs(StrikeResult result) {
-        _out_DamageDealt = result.DamageDealt;
-    }
+    protected override void WriteOutputs(StrikeResult result) => _damageDealt = result.DamageDealt;
 
     // Mode 1 (IExecutable on payload) alternative would replace the two methods above with:
     //   public override ValueTask Execute(CardEffectRunner runner) {
@@ -787,10 +933,10 @@ public sealed class StrikeDispatcherRuntime : CardCommandDispatcher<Strike, Stri
 
 Why this works without reflection:
 
-- **`switch` on `int`** compiles to a jump table — O(1), no `Dictionary` lookup at hydration.
-- **`(Connection<T>)connection`** is a reference cast on a sealed generic class. For value-typed ports (`int`, `float`, struct), the typed value lives inside the closure captured by the `Connection<int>`'s `Func<T>`; the cast does not box the underlying value, and `Connection<T>.Read()` JIT-inlines to a direct delegate invoke that returns the typed `T`.
-- **Closure allocation** (`() => _out_DamageDealt`) is one heap allocation per output port per node, paid once at hydration. The hot path is `_in_Magnitude.Read()` — direct typed call.
-- **Stable port IDs in the switch labels** mean a generator change that adds or removes a port in the source order doesn't shift any other port's ID. Existing assets keep wiring correctly. Removed ports become bake-time errors with a clear "port `Magnitude` no longer exists on `Strike`" diagnostic.
+- **`Dictionary<int, Port>` lookup** is O(1) integer-keyed. No string hashing, no per-call allocation.
+- **The cast lives once, inside `Connection.Bind`.** It becomes a single `is Port<TFrom>` / `is Port<TTo>` check (plus a future converter lookup) at hydration. `InputPort<T>.Read()` after that is a direct typed delegate invoke — no cast on the read path.
+- **Closure allocation** (`() => _damageDealt`) is one heap allocation per output port per node, paid once at construction. The hot path is `InMagnitude.Read()` — direct typed call through the stored `Connection<T>`.
+- **Stable port IDs as dict keys** mean a generator change that adds or removes a port in the source order doesn't shift any other port's ID. Existing assets keep wiring correctly. Removed ports become bake-time errors with a clear "port `Magnitude` no longer exists on `Strike`" diagnostic.
 
 #### Re-bake stability
 
@@ -1093,25 +1239,19 @@ namespace MyGame.Graph.Generated
 {
     public sealed class OnPlayEditorNode : Node { /* output port: CardId */ }
 
-    public sealed class OnPlayRuntime : RuntimeNode<MyRunner>
+    public sealed partial class OnPlayRuntime : RuntimeNode<MyRunner>
     {
-        public static class Ports
+        public OutputPort<int> CardId;
+
+        public OnPlayRuntime()
         {
-            public const int CardId = 0x4F2A_8B17;   // FNV-1a("CardId")
+            CardId = new OutputPort<int>(() => _cardId);
+            Ports.Add(0x4F2A_8B17, CardId);   // FNV-1a("CardId")
         }
 
-        [NonSerialized] public int _out_CardId;
+        int _cardId;   // backing field — written when the entry payload is bound at dispatch
 
-        public override Connection GetOutputConnection(int portId) => portId switch
-        {
-            Ports.CardId => new Connection<int>(this, Ports.CardId, () => _out_CardId),
-            _            => throw new ArgumentOutOfRangeException(nameof(portId)),
-        };
-
-        public override void BindInput(int portId, Connection connection) =>
-            throw new ArgumentOutOfRangeException(nameof(portId));   // no inputs
-
-        public override ValueTask Execute(MyRunner runner) { /* write _out_CardId, walk flow */ }
+        public override ValueTask Execute(MyRunner runner) { /* write _cardId from payload, walk flow */ }
     }
 }
 ```
@@ -1123,33 +1263,22 @@ namespace MyGame.Graph.Generated
 {
     public sealed class LogDispatcherEditorNode : Node { /* input port: Message */ }
 
-    public sealed class LogDispatcherRuntime : RuntimeNode<MyRunner>
+    public sealed partial class LogDispatcherRuntime : RuntimeNode<MyRunner>
     {
-        public static class Ports
+        public string Message;                  // inline default (serialized)
+        public InputPort<string> InMessage;     // wired at hydration via Connection.Bind
+
+        public LogDispatcherRuntime()
         {
-            public const int Message = 0x77E1_3C20;   // FNV-1a("Message")
-        }
-
-        public string Message;                                  // inline default (serialized)
-        [NonSerialized] public Connection<string> _in_Message;  // wired at hydration
-
-        public override Connection GetOutputConnection(int portId) =>
-            throw new ArgumentOutOfRangeException(nameof(portId));
-
-        public override void BindInput(int portId, Connection connection)
-        {
-            switch (portId)
-            {
-                case Ports.Message: _in_Message = (Connection<string>)connection; return;
-                default: throw new ArgumentOutOfRangeException(nameof(portId));
-            }
+            InMessage = new InputPort<string>();
+            Ports.Add(0x77E1_3C20, InMessage);   // FNV-1a("Message")
         }
 
         public override ValueTask Execute(MyRunner runner)
         {
             var payload = new Log
             {
-                Message = _in_Message != null ? _in_Message.Read() : this.Message,
+                Message = InMessage.Read() ?? this.Message,   // upstream value or inline default
             };
             return payload.Execute(runner);   // delegates to IExecutable.Execute
         }
@@ -1224,7 +1353,7 @@ public abstract class CardCommandDispatcher<TCmd, TResult> : RuntimeNode<CardEff
 2. **Author.** Designer right-clicks in project → `Create / MyGame / Graph` → `Foo.mygraph` opens in Graph Toolkit. Drops `OnPlay`, drops `LogDispatcher`, wires `OnPlay.CardId` → `[ToString]` (built-in) → `LogDispatcher.Message`. Saves.
 3. **Bake.** Unity re-imports `Foo.mygraph` → `MyGraphImporter.OnImportAsset` → `GraphBaker` walks the editor graph, assigns stable `nodeId`s (`editorGuid → int` map, persisted on each runtime node), resolves port names to `portId`s through `Registry`, emits a `MyGraphAsset` SO with three runtime nodes and two `ConnectionRecord`s. `ctx.SetMainObject(asset)`.
 4. **Reference.** Designer drops `Foo.mygraph` onto `GraphHost.graphAsset` field on a prefab. The reference points at the runtime SO inside the file (the main object).
-5. **Hydrate.** Game runs, `Awake()` builds `MyRunner`, constructs `GraphController<MyRunner>(graphAsset)`, calls `Initialize(runner)`. Hydration indexes nodes by id, walks each `ConnectionRecord` calling `from.GetOutputConnection(fromPortId)` then `to.BindInput(toPortId, conn)` — every `Connection<T>` slot is now populated.
+5. **Hydrate.** Game runs, `Awake()` builds `MyRunner`, constructs `GraphController<MyRunner>(graphAsset)`, calls `Initialize(runner)`. Hydration indexes nodes by id, walks each `ConnectionRecord` calling `to.Bind(toPortId, from, fromPortId)` — the base `RuntimeNode.Bind` looks up both ports through the dict, calls `Connection.Bind(input, output)` (the single cast/conversion seam), stores the typed `Connection<T>` on the input port, and appends it to `to.Connections`.
 6. **Run.** `Play()` calls `controller.Run(new OnPlay { CardId = 42 })`. Executor looks up `typeof(OnPlay)` → root node → runs flow:
    - `OnPlayRuntime.Execute` writes `_out_CardId = 42`, advances flow.
    - `ToStringRuntime` reads `_in_Value.Read()` (= 42), writes `_out_Result = "42"`.
@@ -1310,7 +1439,7 @@ The first two milestones deliberately split the design risk from the meta-toolin
 | --------- | ------ | ----- |
 | **M0** | **Done** | Golden vertical slice under `Assets/GraphFlowM0/` — bake, hydrate, `GraphController`, player smoke; hand-written trio + registry switches in `GraphBaker`. |
 | **M1** | **Done** | Trio + payload-driven editor/runtime nodes, registry-driven generic baker, EFG diagnostics, convention strategy abstraction, snapshot harness — see [Recent generator-stabilization work](#recent-generator-stabilization-work-2026-05-03) and [M1 closeout](#m1-closeout-2026-05-03) below. |
-| **M2** | In progress | Generic-node generation pass + minimum built-in node set (Branch, Cancel, Return, ReturnBool, Equals, Not), Validate/Run flow ports on entry/listener nodes, `OnGraphChanged` validation, smoke graph extension, sandbox folder rename. `[Return Strike]` deferred to M3 (Mode 2 dependency); remainder of generic-node catalog deferred to M4. |
+| **M2** | In progress | Generic-node generation pass on the **typed-port-handle model** (port handles + `Connection.Bind` seam, dict-based dispatch on `RuntimeNode` base, `partial void InitializePorts()` for OutputPort assignment, no port-id leakage to user code, pure-data nodes inherit from `RuntimeNode` directly without `TRunner`/`Execute`); minimum built-in set (Branch, Cancel, Return, ReturnBool, Not); Validate/Run flow ports on entry/listener nodes; `OnGraphChanged` validation; smoke graph extension; sandbox folder rename. `[Return Strike]` deferred to M3 (Mode 2 dependency); multi-T predicates (`Equals<T>` etc.) and remainder of catalog deferred to M4. See "Generic-node emission" subsection (which carries a design-iteration log of the three-pass redesign). |
 | M3+ | Planned | CF integration, M4 polish per sections below. |
 
 #### Recent generator-stabilization work (2026-05-03)
@@ -1369,7 +1498,7 @@ The hand-written code must be **representative**, not corner-cut. Validation hin
 - Roslyn incremental generator skeleton: read `[assembly: GraphPackage]`, partition payloads by runner, locate base-type / marker-interface descendants.
 - Per-package emission: `<R>Graph` (partial), `<R>GraphAsset`, `<R>GraphImporter` trio. Skip emission if the consumer hand-wrote one.
 - Per-payload emission: editor `Node` subclasses (Dispatcher / Listener / Return for actions; one Entry node for entries).
-- Per-payload runtime emission: `static class Ports` constants, `[NonSerialized] Connection<T>` slots, `BindInput` / `GetOutputConnection` switches.
+- Per-payload runtime emission (M1 form): `static class Ports` constants, `[NonSerialized] Connection<T>` slots, `BindInput` / `GetOutputConnection` switches. (M2 migrates this to typed port handles + `Ports` dict + `Connection.Bind` seam — see M2 milestone.)
 - Per-payload execution path: `IExecutable<TRunner>` detection → self-executing `Execute`; otherwise `DispatcherBase` close + `BuildPayload`/`WriteOutputs` emission.
 - Registry partial-class emission (editor type → runtime type + port-name → port-ID).
 - Conventions: `CommandResultPair` and `AttributedFields` (the two that exercise the strategy abstraction).
@@ -1378,15 +1507,21 @@ The hand-written code must be **representative**, not corner-cut. Validation hin
 
 ### Milestone 2 — Editor authoring (1.5 weeks)
 
-**Goal:** Generic nodes exist and work in graphs end-to-end, with the generator extended to emit their editor mirrors so authoring scales (no double boilerplate per node).
+**Goal:** Generic nodes exist and work in graphs end-to-end. Author surface is typed port handles + `Execute` body; the generator owns ctor + dict population + editor mirror + registry entry; the cast/conversion logic lives once in `Connection.Bind`. See "Generic-node emission (hand-written runtime, generator-completed partial)" in the Source generator section for the full design + iteration history.
 
-- **Generic-node generation pass.** New attributes (`[GraphNode]`, `[Input]`, `[Output]`, `[FlowIn]`, `[FlowOut]`) in the attributes DLL. New `GraphGenericNodeEmitter` walks `[GraphNode]`-attributed `RuntimeNode<TRunner>` types and emits the editor mirror + registry entry per package, reusing the shared port-id derivation, registry composer, and snapshot harness from M1. See "Generic-node emission" in the Source generator section.
-- **Built-in generic nodes (minimum set for M2).** Hand-written runtime, generated editor: `Branch`, `Cancel`, `Return`, `ReturnBool`, `Equals<T>`, `Not`. Remainder of the catalog (Replace, GreaterThan/LessThan, And/Or, math, conversions) deferred to M4 polish — add on demand as graphs need them.
+- **Runtime support types.** `InputPort<T>`, `OutputPort<T>`, `FlowOut`, `Connection` / `Connection<T>` (the conversion seam), `Port` base. New types live alongside the existing M0 runtime; existing `Connection<T>`-based payload runtime emit migrates to use them through the same emitter changes (ports get a `Read()` API; payload runtime ctors populate the `Ports` dict). Two-stage type hierarchy: `RuntimeNode` (data nodes — no `TRunner`, no `Execute`, just ports + `Bind`); `RuntimeNode<TRunner>` (flow-bearing nodes — adds `Execute`).
+- **Attribute set in AttributesLib.** Only `[GraphNode]` (with optional `Category`). The earlier `[Input]` / `[Output]` / `[FlowIn]` / `[FlowOut]` attributes from the first redesign pass are dropped — superseded by the typed port-handle fields. `[GraphPort(Id = N)]` survives for explicit port-id pinning across renames.
+- **Generic-node generation pass (new emitter).** `GraphGenericNodeEmitter` walks `[GraphNode]`-attributed classes, emits three artifacts per package: (1) **runtime partial** (`<Name>.g.cs`) — ctor that constructs typed port fields, calls user's `partial void InitializePorts()` body when the class has `OutputPort<T>` fields, populates the `Ports` dict; (2) **editor mirror** (`<Name>EditorNode.g.cs`) — same shape as today (port-name consts + `OnDefinePorts`); (3) **registry entry** — closes the open generic at the package's runner if needed (`new Branch<MySmokeRunner>()`); pure data nodes get an unparameterized factory (`new Not()`). Reuses the shared port-id derivation, registry composer, and snapshot harness from M1.
+- **Registry factory return-type relaxation.** `GraphPackageRegistry<TRunner>.NodeFactory` returns `RuntimeNode` instead of `RuntimeNode<TRunner>`. Pure data nodes register directly. The executor still walks `flowEdges` and only calls `Execute` on `RuntimeNode<TRunner>` instances; data nodes are read-only sinks for `Connection`s, never invoked.
+- **Diagnostics.** EFG010 (OutputPort field with no `InitializePorts` body assigning it). EFG011 (multi-type-parameter `[GraphNode]` class — emit warning, skip emission, defer to M4).
+- **Built-in generic nodes (minimum set for M2).** Flow-bearing: `Branch`, `Cancel`, `Return`, `ReturnBool`. Pure data: `Not`. Remainder of the catalog (Replace, GreaterThan / LessThan, And / Or, math, conversions, `Equals<T>` and other multi-T predicates) deferred to M4 polish — add on demand as graphs need them.
 - **Validate / Run flow ports on generated entry / listener nodes.** Generator change to emit two flow-out ports on entry/listener editor nodes; bake honors both as separate flow edges; `EntryRuntimeNode` exposes both port IDs. Snapshots bumped.
 - **`OnGraphChanged` edit-time validation.** Initial rule set: required-input-unwired, type-mismatch, dangling flow edges, duplicate entries, every Run flow terminates (Return / Cancel). Per-rule diagnostic IDs reserved under the `EFG` series alongside compile-time ones.
-- **Smoke graph extension.** `MySmokeGraph` exercises Branch + Equals + Return + Validate flow path. Snapshot fixtures updated.
-- **Folder rename.** `Assets/GraphFlowM0/` → `Assets/GraphFlowSandbox/` to make it explicit this is the throwaway test bed; final package home is `Assets/Packages/Scaffold.GraphFlow/`.
+- **Smoke graph extension.** `MySmokeGraph` exercises Branch + Not + Return + Validate flow path. The existing M0 `IntToString` migrates from `RuntimeNode<MySmokeRunner>` (with no-op `Execute`) to `RuntimeNode` (no `Execute`) — proves the data-node hierarchy split end-to-end. Snapshot fixtures updated.
+- **Folder rename (last cosmetic commit).** `Assets/GraphFlowM0/` → `Assets/GraphFlowSandbox/` to make it explicit this is the throwaway test bed; final package home is `Assets/Packages/Scaffold.GraphFlow/`. Done last so the substantive commits don't drown in meta-file churn.
 - (Deferred:) `[Return Strike]` typed terminator depends on Mode 2 / `ReturnPayloadNode<TCmd>` — lands with the Card Framework integration in M3.
+- (Deferred:) Multi-type-param predicates (`Equals<T>`, `IsOfType<T>`) — each closed `T` needs a separate editor node; M4 spec'es the registration shape.
+- (Deferred:) `Connection` type-conversion mechanism — architectural seam is in place at `Connection.Bind` for M2; the actual converter registry + conversion logic is M4+.
 - (Deferred:) Blackboard panel — v2.
 
 ### Milestone 3 — Card Framework integration (1 week)
@@ -1406,7 +1541,9 @@ The hand-written code must be **representative**, not corner-cut. Validation hin
 - Per-type escape-hatch attribute handling.
 - Editor menu organization (`[GraphMenu]`).
 - Remaining built-in generic-node catalog deferred from M2: `Replace`, `GreaterThan`, `LessThan`, `And`, `Or`, math (`Add`/`Subtract`/`Multiply`/`Divide`/`Modulo`), conversions (`ToString`, `ToInt`, …) — added on demand when consumer graphs need them.
-- **Editor-visual API pass (single focused review).** Today emitted editor nodes show in the GToolkit picker as their raw type names — `EchoDispatcherEditorNode`, `OnPlayEditorNode`, `BranchEditorNode`. M4 owns a focused pass that surveys what GToolkit's `Node` API actually exposes for visual customization (display name, category, icon, tooltip, port colors, search-menu path) and decides which knobs to surface as attributes vs. derive automatically. Decision points: (a) optional `Name`/`DisplayName` on `[GraphPayload]` and `[GraphNode]` vs. always-derive-from-type-name; (b) `[GraphMenu]` shape and whether it subsumes `Category` from `[GraphNode]`; (c) per-port labels and whether `[Input]`/`[Output]` need a `DisplayName` field; (d) icon/color hooks if GToolkit supports them. Output: one PR that updates attributes + emitters + snapshots together so visuals stay consistent across all emitted node kinds. Don't bolt these on piecemeal across milestones.
+- **Multi-type-parameter `[GraphNode]` classes (`Equals<T>`, `IsOfType<T>`, generic `Add<T>`).** Each closed `T` needs its own editor node since GraphToolkit's picker can't pick a generic parameter at design time. Spec the registration shape: either consumer-driven (consumer authors `[GraphNodeClosure(typeof(int))]` per closed instantiation) or generator-driven (generator emits one editor mirror per `T` it finds in use across the package's payloads). Decision pass alongside the editor-visual API review.
+- **`Connection` type-conversion mechanism.** Wire converters into `Connection.Bind`: registry of `(TFrom, TTo) -> Func<TFrom, TTo>`, looked up when `Connection.Bind` sees mismatched `T`s; produces an adapted `Connection<TTo>` reading through the converter. Diagnostics for ambiguous / missing converters. The architectural seam is in place from M2; M4 fills it in.
+- **Editor-visual API pass (single focused review).** Today emitted editor nodes show in the GToolkit picker as their raw type names — `EchoDispatcherEditorNode`, `OnPlayEditorNode`, `BranchEditorNode`. M4 owns a focused pass that surveys what GToolkit's `Node` API actually exposes for visual customization (display name, category, icon, tooltip, port colors, search-menu path) and decides which knobs to surface as attributes vs. derive automatically. Decision points: (a) optional `Name`/`DisplayName` on `[GraphPayload]` and `[GraphNode]` vs. always-derive-from-type-name; (b) `[GraphMenu]` shape and whether it subsumes `Category` from `[GraphNode]`; (c) per-port labels — currently the field name on a typed port handle (e.g., `InputPort<bool> Condition` → port labeled "Condition") drives the editor; M4 decides whether to add an opt-in attribute for divergent display names; (d) icon/color hooks if GToolkit supports them. Output: one PR that updates attributes + emitters + snapshots together so visuals stay consistent across all emitted node kinds. Don't bolt these on piecemeal across milestones.
 - Documentation: package README, conventions guide, "writing a payload" tutorial, "how to add a graph package" tutorial, "writing a generic node" tutorial.
 
 **Total estimate:** ~7–8 weeks of focused work for v1.
