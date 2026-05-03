@@ -33,7 +33,7 @@ namespace Scaffold.Benchmarks.States
             Bench.Measure(() =>
             {
                 int sum = 0;
-                foreach ((Reference _, CounterState s) in store.EnumerateAll<CounterState>())
+                foreach ((Reference _, CounterState s) in store.EnumerateAllPairs<CounterState>())
                 {
                     sum += s.Value;
                 }

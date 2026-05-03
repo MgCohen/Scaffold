@@ -269,7 +269,11 @@ namespace Scaffold.States.Tests
             builder.AddState(keyB, new CounterState(2));
             Store store = builder.Build();
 
-            var pairs = store.EnumerateAll<CounterState>().ToList();
+            var pairs = new List<(Reference Reference, CounterState State)>();
+            foreach (var pair in store.EnumerateAllPairs<CounterState>())
+            {
+                pairs.Add(pair);
+            }
             Assert.That(pairs.Count, Is.EqualTo(2));
             Assert.That(pairs.Sum(p => p.State.Value), Is.EqualTo(3));
         }

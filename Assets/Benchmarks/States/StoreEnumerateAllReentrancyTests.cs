@@ -31,7 +31,7 @@ namespace Scaffold.Benchmarks.States
         private void AssertOuterEnumerateMatchesExpected(Store store)
         {
             List<int> seen = new();
-            foreach ((Reference _, CounterState s) in store.EnumerateAll<CounterState>())
+            foreach ((Reference _, CounterState s) in store.EnumerateAllPairs<CounterState>())
             {
                 store.Events.Notify(Reference.Null, s, StateChangeEvent.Updated);
                 seen.Add(s.Value);

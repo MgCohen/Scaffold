@@ -110,12 +110,14 @@ namespace Scaffold.States
             }
 
             var key = (r, state.GetType());
-            if (!latestByKey.ContainsKey(key))
+            if (latestByKey.TryAdd(key, (state, changeEvent)))
             {
                 latestOrder.Add(key);
             }
-
-            latestByKey[key] = (state, changeEvent);
+            else
+            {
+                latestByKey[key] = (state, changeEvent);
+            }
         }
 
         private void FlushPreserveAll()

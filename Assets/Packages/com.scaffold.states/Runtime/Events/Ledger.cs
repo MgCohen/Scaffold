@@ -1,6 +1,6 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace Scaffold.States
 {
@@ -8,14 +8,9 @@ namespace Scaffold.States
     {
         public Dictionary<Type, List<ISubscription>> Lookup = new();
 
-        public IEnumerable<ISubscription> Get(Type stateType)
+        public List<ISubscription>? Get(Type stateType)
         {
-            if (Lookup.TryGetValue(stateType, out var list))
-            {
-                return list;
-            }
-
-            return Enumerable.Empty<ISubscription>();
+            return Lookup.TryGetValue(stateType, out var list) ? list : null;
         }
 
         public void Add(ISubscription sub)

@@ -21,6 +21,8 @@ namespace Scaffold.States
 
             this.map = new Map<Reference, Type, Slice>();
             this.aggregates = new Map<Reference, Type, AggregateSlice>();
+            mutatorRunnerPool = new Pool<MutatorRunner>(() => new MutatorRunner(new Scratchpad(this)), null, initialSize: 2);
+            baseSliceListPool = new Pool<List<BaseSlice>>(static () => new List<BaseSlice>(), null, initialSize: 2);
 
             foreach (var baseSlice in slices)
             {
@@ -39,9 +41,6 @@ namespace Scaffold.States
                     }
                 }
             }
-
-            mutatorRunnerPool = new Pool<MutatorRunner>(() => new MutatorRunner(new Scratchpad(this)), null, initialSize: 2);
-            baseSliceListPool = new Pool<List<BaseSlice>>(static () => new List<BaseSlice>(), null, initialSize: 2);
         }
 
         public IStateEventHandler Events => eventHandler;
@@ -158,8 +157,7 @@ namespace Scaffold.States
             Snapshot snapshot = new Snapshot();
             foreach (var entry in map)
             {
-                var state = entry.Value.State as State;
-                snapshot.Add(entry.Key.Primary, entry.Key.Secondary, state);
+                snapshot.Add(entry.Key.Primary, entry.Key.Secondary, (State)entry.Value.State);
             }
             return snapshot;
         }
@@ -336,15 +334,10 @@ namespace Scaffold.States
 
         private void ApplyBatchWithoutCommit(MutatorRunner runner, IReadOnlyList<object> payloads)
         {
-            foreach (object payload in payloads)
+            for (int i = 0; i < payloads.Count; i++)
             {
-                ApplyOnePayloadToOverlay(runner, payload, payloads);
+                RunRegisteredMutatorsWithoutCommit(runner, payloads[i], Reference.Null);
             }
-        }
-
-        private void ApplyOnePayloadToOverlay(MutatorRunner runner, object payload, IReadOnlyList<object> payloads)
-        {
-            RunRegisteredMutatorsWithoutCommit(runner, payload, Reference.Null);
         }
 
         private void RunRegisteredMutatorsWithoutCommit(MutatorRunner runner, object payload, Reference executeReference)
@@ -497,7 +490,11 @@ namespace Scaffold.States
         #region Setters
         private void Set(Reference reference, State state)
         {
-            BaseSlice slice = GetSlice(reference, state.GetType());
+            if (!TryGetSlice(reference, state.GetType(), out BaseSlice slice))
+            {
+                throw new KeyNotFoundException($"No slice registered for state type {state.GetType().Name} at the given reference.");
+            }
+
             slice.Set(state);
             eventHandler.Notify(reference, state, StateChangeEvent.Updated);
         }
@@ -528,6 +525,11 @@ namespace Scaffold.States
         public EnumerateAllPairsResult<TState> EnumerateAllPairs<TState>() where TState : BaseState
         {
             return new EnumerateAllPairsResult<TState>(this);
+        }
+
+        public EnumerateAllResult<TState> EnumerateAll<TState>() where TState : BaseState
+        {
+            return new EnumerateAllResult<TState>(this);
         }
 
         private IEnumerable<TState> IterateSlicesAsStates<TState>(Type stateType) where TState : BaseState
@@ -609,12 +611,6 @@ namespace Scaffold.States
             {
                 slicesByStateType.Remove(t);
             }
-        }
-
-        private BaseSlice GetSlice(Reference reference, Type type)
-        {
-            TryGetSlice(reference, type, out BaseSlice slice);
-            return slice;
         }
 
         private bool TryGetSlice(Reference reference, Type type, out BaseSlice slice)

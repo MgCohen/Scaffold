@@ -41,11 +41,15 @@ namespace Scaffold.States
 
         private void NotifyKeyedSubscriptions(Ledger ledger, Reference reference, BaseState state, StateChangeEvent changeEvent)
         {
+            List<ISubscription>? keyedSubs = ledger.Get(state.GetType());
+            if (keyedSubs is null || keyedSubs.Count == 0)
+            {
+                return;
+            }
+
             List<ISubscription> snapshot = subscriptionNotifyPool.Take();
             try
             {
-                Type runtimeStateType = state.GetType();
-                IEnumerable<ISubscription> keyedSubs = ledger.Get(runtimeStateType);
                 CopySubscriptions(keyedSubs, snapshot);
                 DispatchSubscriptionNotifications(snapshot, reference, state, changeEvent);
             }
@@ -76,6 +80,11 @@ namespace Scaffold.States
 
         private void NotifyAnySubscriptions(Reference reference, BaseState state, StateChangeEvent changeEvent)
         {
+            if (anySubscriptions.Count == 0)
+            {
+                return;
+            }
+
             List<Action<Reference, BaseState, StateChangeEvent>> snapshot = anyNotifyPool.Take();
             try
             {
@@ -111,31 +120,16 @@ namespace Scaffold.States
 
         public void Unsubscribe<TState>(Reference reference, Action<Reference, TState, StateChangeEvent> action) where TState : BaseState
         {
-            if (action is null)
-            {
-                throw new ArgumentNullException(nameof(action));
-            }
-
             AttemptRemoveSubscription<TState>(reference ?? Reference.Null, action);
         }
 
         public void Unsubscribe<TState>(Reference reference, Action<TState, StateChangeEvent> action) where TState : BaseState
         {
-            if (action is null)
-            {
-                throw new ArgumentNullException(nameof(action));
-            }
-
             AttemptRemoveSubscription<TState>(reference ?? Reference.Null, action);
         }
 
         public void Unsubscribe<TState>(Reference reference, Action<TState> action) where TState : BaseState
         {
-            if (action is null)
-            {
-                throw new ArgumentNullException(nameof(action));
-            }
-
             AttemptRemoveSubscription<TState>(reference ?? Reference.Null, action);
         }
 
@@ -164,11 +158,6 @@ namespace Scaffold.States
 
         public void UnsubscribeAllReferences<TState>(Action<Reference, TState, StateChangeEvent> action) where TState : BaseState
         {
-            if (action is null)
-            {
-                throw new ArgumentNullException(nameof(action));
-            }
-
             Type t = typeof(TState);
             if (!typeWideSubscriptions.TryGetValue(t, out List<ISubscription>? list))
             {
@@ -238,12 +227,12 @@ namespace Scaffold.States
             list.Add(new TypedSubscription<TState>(action));
         }
 
-        private void CopySubscriptions(IEnumerable<ISubscription> source, List<ISubscription> snapshot)
+        private void CopySubscriptions(List<ISubscription> source, List<ISubscription> snapshot)
         {
             snapshot.Clear();
-            foreach (ISubscription item in source)
+            for (int i = 0; i < source.Count; i++)
             {
-                snapshot.Add(item);
+                snapshot.Add(source[i]);
             }
         }
 

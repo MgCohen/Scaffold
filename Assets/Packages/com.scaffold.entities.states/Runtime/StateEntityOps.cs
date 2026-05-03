@@ -26,7 +26,7 @@ namespace Scaffold.Entities.States
         private static List<object> BuildRemoveModifiersBySourcePayloads(Store store, ModifierSource source)
         {
             var payloads = new List<object>();
-            foreach ((Reference reference, EntityVariableState state) in store.EnumerateAll<EntityVariableState>())
+            foreach ((Reference reference, EntityVariableState state) in store.EnumerateAllPairs<EntityVariableState>())
             {
                 TryAppendPayloadForSlice(reference, state, source, payloads);
             }
