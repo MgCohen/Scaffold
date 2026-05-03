@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Scaffold.GraphFlow.M0;
 using Scaffold.GraphFlow.M0.Editor.GToolkit;
 using Scaffold.GraphFlow.M0.Smoke;
 using Unity.GraphToolkit.Editor;
@@ -18,10 +19,10 @@ namespace Scaffold.GraphFlow.M0.Editor
         public void LogError(string msg) => _diagnostics.Add(msg);
     }
 
-    /// <summary>M0 bake — editor graph → typed runtime asset (hand-written registry).</summary>
+    /// <summary>M0 bake — editor graph → typed runtime asset (hand-written switches until M1 registry).</summary>
     public static class GraphBaker
     {
-        const int SchemaVersion = 1;
+        const int SchemaVersion = 2;
 
         public static GraphBakeResult Bake(MySmokeGraph editorGraph, MySmokeGraphAsset? previousRuntime)
         {
@@ -68,12 +69,20 @@ namespace Scaffold.GraphFlow.M0.Editor
                     case OnPlayEditorNode:
                         editorToRuntime[n] = new OnPlayRuntime { nodeId = nodeId, editorGuid = guid };
                         break;
+                    case EchoDispatcherEditorNode echoEd:
+                        editorToRuntime[n] = new EchoDispatcherRuntime
+                        {
+                            nodeId = nodeId,
+                            editorGuid = guid,
+                            Magnitude = GetIntEmbeddedOrDefault(echoEd, EchoDispatcherEditorNode.MagnitudePortName),
+                        };
+                        break;
                     case LogDispatcherEditorNode logEd:
                         editorToRuntime[n] = new LogDispatcherRuntime
                         {
                             nodeId = nodeId,
                             editorGuid = guid,
-                            Message = GetStringInput(logEd, LogDispatcherEditorNode.MessagePortName),
+                            Message = GetStringEmbeddedOrDefault(logEd, LogDispatcherEditorNode.MessagePortName),
                         };
                         break;
                     case IntToStringEditorNode:
@@ -86,7 +95,9 @@ namespace Scaffold.GraphFlow.M0.Editor
                 }
             }
 
-            var connections = new List<ConnectionRecord>();
+            var dataConnections = new List<ConnectionRecord>();
+            var flowEdges = new List<FlowEdge>();
+
             foreach (var pair in editorToRuntime)
             {
                 var editorNode = pair.Key;
@@ -102,15 +113,24 @@ namespace Scaffold.GraphFlow.M0.Editor
                         if (toEditor == null || !editorToRuntime.TryGetValue(toEditor, out var toRuntime))
                             continue;
 
-                        var fromPortId = MapOutputPortId(editorNode, port.name);
-                        var toPortId = MapInputPortId(toEditor, other.name);
+                        if (IsFlowEdge(editorNode, port.name, toEditor, other.name))
+                        {
+                            flowEdges.Add(new FlowEdge
+                            {
+                                fromNodeId = fromRuntime.nodeId,
+                                fromFlowPortId = MapFlowOutputPortId(editorNode, port.name),
+                                toNodeId = toRuntime.nodeId,
+                                toFlowPortId = MapFlowInputPortId(toEditor, other.name),
+                            });
+                            continue;
+                        }
 
-                        connections.Add(new ConnectionRecord
+                        dataConnections.Add(new ConnectionRecord
                         {
                             fromNodeId = fromRuntime.nodeId,
-                            fromPortId = fromPortId,
+                            fromPortId = MapDataOutputPortId(editorNode, port.name),
                             toNodeId = toRuntime.nodeId,
-                            toPortId = toPortId,
+                            toPortId = MapDataInputPortId(toEditor, other.name),
                         });
                     }
                 }
@@ -139,7 +159,8 @@ namespace Scaffold.GraphFlow.M0.Editor
 
             var asset = ScriptableObject.CreateInstance<MySmokeGraphAsset>();
             asset.nodes = new List<RuntimeNode<MySmokeRunner>>(editorToRuntime.Values);
-            asset.connections = connections;
+            asset.connections = dataConnections;
+            asset.flowEdges = flowEdges;
             asset.entries = entries;
             asset.schemaVersion = SchemaVersion;
 
@@ -184,43 +205,111 @@ namespace Scaffold.GraphFlow.M0.Editor
             }
         }
 
-        static int MapOutputPortId(INode editorNode, string portName)
+        static bool IsFlowEdge(INode fromEditor, string fromPortName, INode toEditor, string toPortName)
+        {
+            var fromFlow = IsFlowOutputPort(fromEditor, fromPortName);
+            var toFlow = IsFlowInputPort(toEditor, toPortName);
+            return fromFlow && toFlow;
+        }
+
+        static bool IsFlowOutputPort(INode editorNode, string portName)
+        {
+            return editorNode switch
+            {
+                OnPlayEditorNode when portName == OnPlayEditorNode.FlowOutPortName => true,
+                EchoDispatcherEditorNode when portName == EchoDispatcherEditorNode.FlowOutPortName => true,
+                _ => false,
+            };
+        }
+
+        static bool IsFlowInputPort(INode editorNode, string portName)
+        {
+            return editorNode switch
+            {
+                EchoDispatcherEditorNode when portName == EchoDispatcherEditorNode.FlowInPortName => true,
+                LogDispatcherEditorNode when portName == LogDispatcherEditorNode.FlowInPortName => true,
+                _ => false,
+            };
+        }
+
+        static int MapFlowOutputPortId(INode editorNode, string portName)
         {
             switch (editorNode)
             {
                 case OnPlayEditorNode when portName == OnPlayEditorNode.FlowOutPortName:
                     return OnPlayRuntime.Ports.FlowOut;
-                case OnPlayEditorNode when portName == OnPlayEditorNode.CardIdPortName:
-                    return OnPlayRuntime.Ports.CardId;
-                case IntToStringEditorNode when portName == IntToStringEditorNode.OutResultPortName:
-                    return IntToStringRuntime.Ports.OutString;
+                case EchoDispatcherEditorNode when portName == EchoDispatcherEditorNode.FlowOutPortName:
+                    return EchoDispatcherRuntime.Ports.FlowOut;
                 default:
-                    throw new InvalidOperationException($"Unknown output port {portName} on {editorNode.GetType().Name}");
+                    throw new InvalidOperationException($"Unknown flow output port {portName} on {editorNode.GetType().Name}");
             }
         }
 
-        static int MapInputPortId(INode editorNode, string portName)
+        static int MapFlowInputPortId(INode editorNode, string portName)
         {
             switch (editorNode)
             {
+                case EchoDispatcherEditorNode when portName == EchoDispatcherEditorNode.FlowInPortName:
+                    return EchoDispatcherRuntime.Ports.FlowIn;
                 case LogDispatcherEditorNode when portName == LogDispatcherEditorNode.FlowInPortName:
-                    return LogDispatcherRuntime.Ports.FlowIn;
+                    return LogDispatcherRuntime.FlowInSlotId;
+                default:
+                    throw new InvalidOperationException($"Unknown flow input port {portName} on {editorNode.GetType().Name}");
+            }
+        }
+
+        static int MapDataOutputPortId(INode editorNode, string portName)
+        {
+            switch (editorNode)
+            {
+                case OnPlayEditorNode when portName == OnPlayEditorNode.CardIdPortName:
+                    return OnPlayRuntime.Ports.CardId;
+                case EchoDispatcherEditorNode when portName == EchoDispatcherEditorNode.SummaryPortName:
+                    return EchoDispatcherRuntime.Ports.Summary;
+                case IntToStringEditorNode when portName == IntToStringEditorNode.OutResultPortName:
+                    return IntToStringRuntime.Ports.OutString;
+                default:
+                    throw new InvalidOperationException($"Unknown data output port {portName} on {editorNode.GetType().Name}");
+            }
+        }
+
+        static int MapDataInputPortId(INode editorNode, string portName)
+        {
+            switch (editorNode)
+            {
+                case EchoDispatcherEditorNode when portName == EchoDispatcherEditorNode.MagnitudePortName:
+                    return EchoDispatcherRuntime.Ports.Magnitude;
                 case LogDispatcherEditorNode when portName == LogDispatcherEditorNode.MessagePortName:
                     return LogDispatcherRuntime.Ports.Message;
                 case IntToStringEditorNode when portName == IntToStringEditorNode.InValuePortName:
                     return IntToStringRuntime.Ports.InValue;
                 default:
-                    throw new InvalidOperationException($"Unknown input port {portName} on {editorNode.GetType().Name}");
+                    throw new InvalidOperationException($"Unknown data input port {portName} on {editorNode.GetType().Name}");
             }
         }
 
-        static string GetStringInput(LogDispatcherEditorNode node, string portName)
+        static int GetIntEmbeddedOrDefault(EchoDispatcherEditorNode node, string portName)
+        {
+            var port = node.GetInputPortByName(portName);
+            if (port == null)
+                return 0;
+
+            if (port.isConnected)
+                return 0;
+
+            if (port.TryGetValue(out int embedded))
+                return embedded;
+
+            return 0;
+        }
+
+        static string GetStringEmbeddedOrDefault(LogDispatcherEditorNode node, string portName)
         {
             var port = node.GetInputPortByName(portName);
             if (port == null)
                 return "";
 
-            if (port.isConnected && port.firstConnectedPort != null)
+            if (port.isConnected)
                 return "";
 
             if (port.TryGetValue(out string embedded))

@@ -41,6 +41,6 @@ namespace Scaffold.GraphFlow.M0
     [Serializable]
     public abstract class RuntimeNode<TRunner> : RuntimeNode where TRunner : GraphRunner
     {
-        public abstract System.Threading.Tasks.ValueTask Execute(TRunner runner);
+        public abstract System.Threading.Tasks.ValueTask<FlowContinuation> Execute(TRunner runner);
     }
 }

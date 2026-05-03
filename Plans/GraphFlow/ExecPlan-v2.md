@@ -142,6 +142,13 @@ The generator unions both sources for a given runner R: payloads implementing `I
 
 ### Flows are typed functions
 
+**Flow vs data (distinct persistence layers).** Graph Toolkit wires flow arrows and data wires through the same editor connection mechanism, but at bake time we split them:
+
+- **`ConnectionRecord`** — **data only**. Hydration builds typed `Connection<T>` handles; `BindInput` / `GetOutputConnection` never carry flow.
+- **`FlowEdge`** — **ordering only** (no value). The executor walks flow using `FlowContinuation` returned from `Execute` (which flow output port to follow) plus matching edges in `flowEdges`.
+
+Flow ports are still "typed" in the authoring sense (Validate vs Run, Before vs After, Branch true/false); they are **not** modeled as fake `Connection<int>` carriers at runtime.
+
 Every flow output port on an entry/listener node is a function with a known signature:
 
 
@@ -309,6 +316,7 @@ For each command-shaped payload (an `IGraphAction<TRunner>` implementer or a des
   - Inline-value fields for designer constants (serialized into the asset by Unity)
   - `[NonSerialized] Connection<T>` slots for inputs and `[NonSerialized] T` slots for outputs (runtime-only)
   - Generated `BindInput(int portId, Connection)` and `GetOutputConnection(int portId)` overrides — `switch` jump tables keyed on the constants in `Ports`
+- **`Execute` returns `ValueTask<FlowContinuation>`** — either stop the flow walk or name the **flow output port id** to follow next (Branch returns true/false port ids; linear nodes return their single flow-out id).
 - One registry partial-class entry mapping the payload type id to the runtime node class plus an editor-port-name → port-ID lookup the baker uses when translating editor wires
 
 For each entry-shaped payload (an `IGraphEntry<TRunner>` implementer or a descendant of the package's `EntryBase`): same shape, just 1 editor + 1 runtime node instead of 3.
@@ -485,7 +493,7 @@ If the consumer needs to bump `version: N` or add post-bake steps, they hand-wri
 
 1. **Node-id assignment (stable across re-bakes).** The baker reads the previous runtime asset at `ctx.assetPath` (if any) and walks its `nodes`, recovering an `editorGuid → nodeId` map from each runtime node's `editorGuid` field. Every editor node Graph Toolkit reports gets translated to a stable `int nodeId`: an existing editor guid keeps its previous id; a new editor node gets the next free monotonic int (highest seen + 1). Removed editor nodes' ids are retired. Each emitted runtime node carries both its new `nodeId` and the source `editorGuid` so the next re-import can recover the map. Runtime hydration ignores `editorGuid`.
 2. **Node translation.** Each editor node maps to one or more typed runtime node instances. The baker reads the registry to find the **generator-emitted factory delegate** (`Func<RuntimeNode<TRunner>>`) for a given editor node type, invokes it to construct the runtime node, populates its inline-value fields from the editor node's port constants (via `port.TryGetValue<T>()` for unwired embedded values, or `port.firstConnectedPort` chasing for variable/constant nodes — same approach as VND's `GetInputPortValue`), and assigns the stable `nodeId` from step 1. No `Activator.CreateInstance`, no reflection — the factory delegate is one of the pieces the source generator emits per payload. Most editor nodes map 1:1 (`StrikeDispatcherNode` → `StrikeDispatcherRuntime`); some may be 1:N if a built-in node compiles to multiple runtime steps.
-3. **Connection resolution.** Editor port-to-port connections are translated into `ConnectionRecord`s of `(fromNodeId, fromPortId, toNodeId, toPortId)` — all four ints. The baker resolves each editor-port-name to its stable `portId` by looking up the registry's per-payload `editor-port-name → port-ID` table (emitted by the generator from the same `Ports` constants the runtime switches use). Connections involving editor-only helper nodes are inlined; the resulting `ConnectionRecord` binds directly to the upstream non-helper source.
+3. **Connection resolution (data only).** Editor **data** port-to-port connections are translated into `ConnectionRecord`s of `(fromNodeId, fromPortId, toNodeId, toPortId)` — all four ints. **Flow** connections are translated into `FlowEdge`s of `(fromNodeId, fromFlowPortId, toNodeId, toFlowPortId)` — execution ordering only; no `Connection<T>`.
 4. **Embedded value extraction.** Each unwired input port's constant value is read via `port.TryGetValue<T>()` and stored into the matching typed field on the runtime node instance.
 5. **Bake-time validation.** Errors that prevent runtime correctness are reported here, even if the editor accepted them:
   - Required ports unwired and lacking a constant
@@ -506,7 +514,7 @@ The runtime asset is a real Unity `ScriptableObject` — added as a sub-asset an
 
 Serialization is **plain Unity ScriptableObject serialization** — we ride Unity's machinery, we do not layer a custom one on top.
 
-The package ships abstract, runner-typed base classes (`RuntimeNode`, `RuntimeNode<TRunner>`, `GraphAsset<TRunner>`) plus the wiring object (`Connection`/`Connection<T>`) and serializable record types (`ConnectionRecord`, `EntryIndex`). The package is game-agnostic; it never names "effect" or anything domain-specific. The concrete `GraphAsset<TRunner>` subclass per package is **generator-emitted** from `[GraphPackage]` (see "Per-package emission" in the source generator section); the consumer doesn't write it:
+The package ships abstract, runner-typed base classes (`RuntimeNode`, `RuntimeNode<TRunner>`, `GraphAsset<TRunner>`) plus the wiring object (`Connection`/`Connection<T>`) and serializable record types (`ConnectionRecord`, `FlowEdge`, `EntryIndex`). **Entry nodes** use a typed base `EntryRuntimeNode<TEntry, TRunner>` so `GraphController.Run<TEntry>(payload)` can call `SetPayload` without ad-hoc interfaces. The package is game-agnostic; it never names "effect" or anything domain-specific. The concrete `GraphAsset<TRunner>` subclass per package is **generator-emitted** from `[GraphPackage]` (see "Per-package emission" in the source generator section); the consumer doesn't write it:
 
 ```csharp
 // PACKAGE — game-agnostic
@@ -543,10 +551,10 @@ public abstract class RuntimeNode {
 
 [Serializable]
 public abstract class RuntimeNode<TRunner> : RuntimeNode where TRunner : GraphRunner {
-    public abstract ValueTask Execute(TRunner runner);
+    public abstract ValueTask<FlowContinuation> Execute(TRunner runner);
 }
 
-// All four fields are IDs — never list indices. Stable across re-bakes.
+// Data edges — typed values via Connection<T> at hydration.
 [Serializable]
 public struct ConnectionRecord {
     public int fromNodeId;
@@ -555,15 +563,26 @@ public struct ConnectionRecord {
     public int toPortId;
 }
 
+// Flow edges — ordering only; executor walks using Execute's FlowContinuation.
+[Serializable]
+public struct FlowEdge {
+    public int fromNodeId;
+    public int fromFlowPortId;
+    public int toNodeId;
+    public int toFlowPortId;
+}
+
 [Serializable]
 public struct EntryIndex {
-    public string entryTypeId;         // payload type id from the registry (string — registry-stable)
-    public int    rootNodeId;          // stable integer id of the runtime root for that entry
+    public string entryTypeId;
+    public int    rootNodeId;
 }
 
 public abstract class GraphAsset<TRunner> : ScriptableObject where TRunner : GraphRunner {
-    [SerializeReference] public List<RuntimeNode<TRunner>> nodes;          // typed, polymorphic
-    public                List<ConnectionRecord>           connections;
+    [SerializeReference] public List<RuntimeNode<TRunner>> nodes;
+          // typed, polymorphic
+    public                List<ConnectionRecord>           connections; // data
+    public                List<FlowEdge>                   flowEdges;     // execution order
     public                List<EntryIndex>                 entries;
     public                int                              schemaVersion;
 }
@@ -600,7 +619,8 @@ This is the core thing that has to work and the thing VND does **not** exercise 
 
 - **Stable `nodeId` (int).** Assigned at first bake and persisted across re-imports. The baker maintains an `editorGuid → nodeId` map (Graph Toolkit assigns each editor node a stable guid; the baker translates it to a monotonic int and remembers the mapping by reading the previous runtime asset on re-import). An unchanged editor node keeps its int id forever; a newly-created editor node gets the next free int. Destroying the editor node retires the id permanently.
 - **Stable `portId` (int).** Assigned by the source generator, derived deterministically from the C# field name (e.g. FNV-1a hash) so that source-order changes don't move IDs. An explicit `[GraphPort(Id = N)]` escape hatch lets a consumer freeze an ID across a rename. Adding a new field reserves a fresh ID; removing one retires it. The generator emits the IDs as `const int` constants on a per-payload static class, both for the runtime node's `BindInput`/`GetOutputConnection` switch labels and for the baker to read when translating editor port names to runtime port IDs.
-- **`ConnectionRecord` is four ints.** `(fromNodeId, fromPortId, toNodeId, toPortId)`. No strings, no indices. Unity serializes them as plain blittable ints inside the SO.
+- **`ConnectionRecord` is four ints (data only).** `(fromNodeId, fromPortId, toNodeId, toPortId)`. No strings, no indices. Unity serializes them as plain blittable ints inside the SO.
+- **`FlowEdge` is four ints (flow only).** `(fromNodeId, fromFlowPortId, toNodeId, toFlowPortId)`. Matched after each node's `Execute` returns `FlowContinuation.Next(outFlowPortId)`.
 - **Hydration recovers the references.** A `Dictionary<int, RuntimeNode<TRunner>>` indexes the asset's nodes by id; each connection looks up both endpoints by id and produces a typed `Connection<T>` wiring object. See the "Wiring mechanism" subsection under Hydration for the no-reflection mechanics.
 
 That's the durable artifact: the connection between A's port X and B's port Y is **four ints** in the SO. Unity's serializer handles it without any custom pipeline. References get re-resolved fresh on every load.
@@ -614,29 +634,34 @@ This is the step the implementer needs to execute exactly right, because it's wh
 Pre-condition when `Initialize` is called: the consumer has loaded a `GraphAsset<TRunner>` (Resources, Addressables, direct reference — doesn't matter to the controller). Unity has already deserialized the asset, so:
 
 - `asset.nodes` is a `List<RuntimeNode<TRunner>>` of **live, typed instances** with their inline-value fields populated. No factory step needed.
-- `asset.connections` is a `List<ConnectionRecord>` of `(fromNodeId, fromPortId, toNodeId, toPortId)` int tuples.
+- `asset.connections` is a `List<ConnectionRecord>` (data wiring only).
+- `asset.flowEdges` is a `List<FlowEdge>` (execution order — no `Connection<T>`).
 - `asset.entries` is a `List<EntryIndex>` mapping payload type id → root `nodeId` (int).
 
 Hydration steps, in order:
 
 1. **Index nodes by id.** Build `var byId = new Dictionary<int, RuntimeNode<TRunner>>(asset.nodes.Count);` then `foreach (var n in asset.nodes) byId.Add(n.nodeId, n);`. Int-keyed dictionary, fast hash, no string allocation.
 
-2. **Wire connections.** For each `ConnectionRecord c`:
+2. **Wire data connections.** For each `ConnectionRecord c` (data ports only):
    ```csharp
    var from = byId[c.fromNodeId];
    var to   = byId[c.toNodeId];
    var conn = from.GetOutputConnection(c.fromPortId);  // virtual call → generated switch on portId
    to.BindInput(c.toPortId, conn);                     // virtual call → generated switch on portId
    ```
-   Two virtual calls per connection, each resolving to a compile-time `switch` (hand-written in M0, generator-emitted from M1 onward — same shape either way). No reflection, no string lookups. Mechanics in "Wiring mechanism" below.
+   Two virtual calls per **data** edge. Flow never uses `BindInput`.
 
-3. **Build the entry index.** `var entryByType = new Dictionary<Type, RuntimeNode<TRunner>>();` Walk `asset.entries`, look up the payload `Type` for each `entryTypeId` in the registry, look up the root node in `byId` by `rootNodeId`, populate the dictionary. This is what `Run<TEntry>(payload)` and `Validate<TEntry>(payload)` look up at dispatch time.
+3. **Bind entry payloads at dispatch.** When `Run<TEntry>(payload)` runs, the controller calls `SetPayload` on the root when it inherits `EntryRuntimeNode<TEntry, TRunner>`.
 
-4. **Lifecycle pass.** Walk `asset.nodes` once and:
+4. **Flow execution (separate from hydration).** The executor starts at the entry root, runs `Execute`, reads `FlowContinuation`, and follows `flowEdges` by matching `(fromNodeId, fromFlowPortId)` — then repeats on the target node. Pure data nodes reached only via flow may run when flow enters them (linear graphs); Branch (M2) selects among multiple outgoing flow ports via `FlowContinuation`.
+
+5. **Build the entry index.** `var entryByType = new Dictionary<Type, RuntimeNode<TRunner>>();` Walk `asset.entries`, resolve `entryTypeId` to `Type` (registry / `AssemblyQualifiedName` in M0), look up the root node in `byId` by `rootNodeId`, populate the dictionary.
+
+6. **Lifecycle pass.** Walk `asset.nodes` once and:
    - For any node implementing `IInitializableNode<TRunner>`, call `Initialize(runner)`. Nodes can cache typed services off the runner here.
    - For any node implementing `IListenerNode<TRunner>`, collect it into `CommandListeners` for the consumer to register with their pipeline.
 
-5. **Done.** The controller now holds: `byId` (retained for diagnostics / v2 macros — cheap), every input slot on every node populated with a typed `Connection<T>`, the entry-type dictionary, the listener list. After this point the executor walks live C# references and invokes typed delegates. Zero string-keyed lookups, zero reflection, zero dictionary access in the hot path.
+7. **Done.** The controller holds hydrated data wiring (`Connection<T>` on inputs), entry lookup, and listener hooks. The executor walks flow separately using `flowEdges` + `FlowContinuation`.
 
 #### Wiring mechanism — no reflection
 
@@ -1231,13 +1256,13 @@ The hand-written code must be **representative**, not corner-cut. Validation hin
 
 - Project structure: package layout, asmdefs, package manifest. Attributes-only DLL is empty/stubbed.
 - Package runtime base classes: `GraphRunner`, `RuntimeNode<TRunner>`, `Connection`/`Connection<T>`, `IGraphEntry<TRunner>`, `IGraphAction<TRunner>`, `IExecutable<TRunner>`, `IInitializableNode<TRunner>`, `IListenerNode<TRunner>`.
-- Package asset/import: `GraphAsset<TRunner>`, `GraphAssetImporterBase<TGraph, TRunner, TAsset>`, `GraphBaker` (real implementation: walks nodes/edges, assigns stable nodeIds, resolves port names → port IDs, emits `ConnectionRecord`s, validates).
+- Package asset/import: `GraphAsset<TRunner>` (with **`connections` + `flowEdges`**), `GraphAssetImporterBase<TGraph, TRunner, TAsset>`, `GraphBaker` (real implementation: walks nodes/edges, assigns stable nodeIds, resolves port names → port IDs, emits **`ConnectionRecord`s (data) and `FlowEdge`s (flow)**, validates).
 - Package execution: `GraphExecutor<TRunner>`, `GraphController<TRunner>` (sealed).
 - A test consumer (smoke project): one runner + one entry payload + one action payload, plus the per-package trio (`<R>Graph`, `<R>GraphAsset`, `<R>GraphImporter`) and per-payload nodes — **all hand-written**.
 - The runtime nodes have the real shape: `static class Ports` with `const int` IDs, `[NonSerialized] Connection<T>` slots, `BindInput` / `GetOutputConnection` switches with the `Delegate → Connection<T>` casts. No "I'll just call setters directly for now."
 - The asset is a real `[SerializeReference] List<RuntimeNode<TRunner>>` SO stored as a sub-asset via `ctx.SetMainObject`.
-- The connection records are the real four-int form `(fromNodeId, fromPortId, toNodeId, toPortId)`.
-- Hydration does the real two-virtual-call wiring: `from.GetOutputConnection(portId)` then `to.BindInput(portId, conn)`.
+- The connection records are the real four-int **data** form `(fromNodeId, fromPortId, toNodeId, toPortId)`; flow ordering uses **`FlowEdge`** separately.
+- Hydration does the real two-virtual-call wiring for **data** edges only: `from.GetOutputConnection(portId)` then `to.BindInput(portId, conn)`. Flow uses `flowEdges` + `Execute` → `FlowContinuation`.
 - End-to-end test: file on disk → reimport → load asset in **a built player** (not just edit-mode) → `controller.Run` → assert side effect. Validates the build path, not just the editor path.
 
 **Discipline note:** the temptation during M0 will be to keep adding payloads manually because it works. The line is sharp — exactly one of each shape (one entry, one action via `IExecutable`, one action via `DispatcherBase` if we want to validate Mode 2 too), then stop and start M1.
@@ -1361,7 +1386,7 @@ Specific notes to keep v2 cheap:
 | Linear-flow-only with no branching                  | `Branch` node and Validate flow are first-class                                                                                        |
 | Dead `IGraphTickService`                            | No tick service; consumer drives lifecycle                                                                                             |
 | Vague blackboard inheritance for sub-graphs         | No sub-graphs in v1; v2 design starts from explicit semantics                                                                          |
-| Source generator that doesn't ship                  | M0 ships zero-generator hand-written slice; M1 ships the generator with M0 as the golden output                                       |
+| Flow modeled as data connections with dummy values | Separate **`FlowEdge`** list + **`FlowContinuation`** from `Execute`; data stays in `ConnectionRecord` only |
 
 
 ---

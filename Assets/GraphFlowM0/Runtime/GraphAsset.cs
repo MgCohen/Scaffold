@@ -4,6 +4,7 @@ using UnityEngine;
 
 namespace Scaffold.GraphFlow.M0
 {
+    /// <summary>Data edges only — typed values via <see cref="Connection{T}"/> at hydration.</summary>
     [Serializable]
     public struct ConnectionRecord
     {
@@ -11,6 +12,16 @@ namespace Scaffold.GraphFlow.M0
         public int fromPortId;
         public int toNodeId;
         public int toPortId;
+    }
+
+    /// <summary>Execution ordering — no payload; interpreted only by <see cref="GraphExecutor{TRunner}"/>.</summary>
+    [Serializable]
+    public struct FlowEdge
+    {
+        public int fromNodeId;
+        public int fromFlowPortId;
+        public int toNodeId;
+        public int toFlowPortId;
     }
 
     [Serializable]
@@ -25,6 +36,7 @@ namespace Scaffold.GraphFlow.M0
     {
         [SerializeReference] public List<RuntimeNode<TRunner>> nodes = new();
         public List<ConnectionRecord> connections = new();
+        public List<FlowEdge> flowEdges = new();
         public List<EntryIndex> entries = new();
         public int schemaVersion;
     }

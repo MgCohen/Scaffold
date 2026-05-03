@@ -1,4 +1,5 @@
 using System;
+using Scaffold.GraphFlow.M0.Smoke;
 using Unity.GraphToolkit.Editor;
 using UnityEditor;
 
@@ -7,7 +8,7 @@ namespace Scaffold.GraphFlow.M0.Editor.GToolkit
     /// <summary>M0 smoke authoring graph — ExecPlan v2 vertical slice.</summary>
     [Serializable]
     [Graph(AssetExtension)]
-    public sealed class MySmokeGraph : Graph
+    public sealed class MySmokeGraph : Graph<MySmokeRunner>
     {
         internal const string AssetExtension = "gfmsmoke";
 

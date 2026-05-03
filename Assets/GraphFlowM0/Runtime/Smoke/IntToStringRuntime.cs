@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using Scaffold.GraphFlow.M0;
 
 namespace Scaffold.GraphFlow.M0.Smoke
 {
@@ -35,6 +36,7 @@ namespace Scaffold.GraphFlow.M0.Smoke
             }
         }
 
-        public override ValueTask Execute(MySmokeRunner runner) => default;
+        public override ValueTask<FlowContinuation> Execute(MySmokeRunner runner) =>
+            new ValueTask<FlowContinuation>(FlowContinuation.Stop);
     }
 }

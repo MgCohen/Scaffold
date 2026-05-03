@@ -53,10 +53,10 @@ namespace Scaffold.GraphFlow.M0
             if (!_entryRoots.TryGetValue(entryType, out var root))
                 throw new InvalidOperationException($"No baked entry for {entryType.FullName}.");
 
-            if (root is IBindsGraphEntryPayload binder)
-                binder.BindGraphEntryPayload(payload);
+            if (root is EntryRuntimeNode<TEntry, TRunner> entryRoot)
+                entryRoot.SetPayload(payload);
 
-            return _executor.RunChain(root, _runner, _asset);
+            return _executor.RunFlow(root, _runner, _asset);
         }
 
         public void Dispose()
