@@ -243,7 +243,10 @@ Goal: eliminate the runtime `Dictionary<Type, List<IPayloadMutatorBinding>>` loo
         {
             if (typeof(TPayload) == typeof(AddModifierPayload))
             {
-                _addModifier.Apply(store, reference, (AddModifierPayload)(object)payload);
+                // Value-type branch: System.Runtime.CompilerServices.Unsafe.As reinterprets the
+                // generic local without boxing. Safe under the surrounding typeof equality check.
+                ref AddModifierPayload typed = ref Unsafe.As<TPayload, AddModifierPayload>(ref payload);
+                _addModifier.Apply(store, reference, typed);
                 return;
             }
             // … one branch per registered (TState, TPayload) pair …
@@ -251,7 +254,7 @@ Goal: eliminate the runtime `Dictionary<Type, List<IPayloadMutatorBinding>>` loo
         }
     }
 
-JIT specializes the typeof check away for value-type payloads; reference-type payloads keep the cast but skip the dictionary lookup.
+The generator emits the value-type branch shown above for `struct` / `readonly record struct` payloads (uses `Unsafe.As<TPayload, T>(ref payload)` from `System.Runtime.CompilerServices`) and a plain `(T)(object)payload` branch for reference-type payloads. The `Unsafe.As` form is the guaranteed zero-alloc path; the `(object)` cast is technically box-eligible IL even when RyuJIT's specialized generic instantiation usually elides it, so we don't rely on that elision for value types. Reference-type payloads cost one cast and zero box. The `typeof(TPayload) == typeof(...)` guard is constant-folded by the JIT for each generic instantiation, so only the matching branch survives per call site.
 
 **5.3 Store integration.** `Store` gets a constructor overload accepting `MutatorDispatcher`. `Execute<TPayload>` short-circuits to the dispatcher when present; falls back to the registry for hand-registered mutators (so the registry is *not* deleted — it remains the slow-path / runtime registration option). `RegisterMutator<TState, TPayload>` is unchanged; both paths coexist.
 
@@ -427,7 +430,7 @@ End-state public surface that must exist after Phase 6 (paths repository-relativ
 - `Assets/Packages/com.scaffold.states/Runtime/Abstractions/Reference.cs`:
 
        public abstract record Reference;
-       public sealed record NullReference : Reference { public static NullReference Instance { get; } }
+       public sealed record NullReference : Reference { public static NullReference Instance { get; } = new(); }
 
 - `Assets/Packages/com.scaffold.states/Runtime/Abstractions/IStateEventHandler.cs`:
 
