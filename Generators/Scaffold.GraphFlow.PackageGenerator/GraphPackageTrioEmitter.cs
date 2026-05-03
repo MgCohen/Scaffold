@@ -99,12 +99,33 @@ namespace Scaffold.GraphFlow.PackageGenerator
                 AddEditorSources(spc, compilation, p);
                 var registrations = new System.Collections.Generic.List<string>();
                 GraphPayloadNodeEmitter.Emit(spc, compilation, true, p, cancellationToken, registrations);
+                EmitGenericNodeArtifacts(spc, compilation, p, registrations, cancellationToken);
                 GraphRegistryEmitter.EmitRegistryFile(spc, compilation, p, registrations);
             }
             else
             {
                 GraphPayloadNodeEmitter.Emit(spc, compilation, false, p, cancellationToken);
             }
+        }
+
+        static void EmitGenericNodeArtifacts(
+            SourceProductionContext spc,
+            Compilation compilation,
+            GraphPackageModel p,
+            System.Collections.Generic.List<string> registrations,
+            System.Threading.CancellationToken ct)
+        {
+            // Generic nodes live in the runner's own assembly (same as payloads). M2 supports a single source
+            // assembly per package; consumer-authored nodes in other referenced assemblies are a v2 follow-up.
+            var runner = GraphCompilationNames.TypeFromFullyQualified(compilation, p.RunnerFullyQualified);
+            var runnerAsm = runner?.ContainingAssembly;
+            if (runnerAsm == null)
+            {
+                return;
+            }
+
+            var nodes = GenericNodeParser.Parse(compilation, runnerAsm, ct);
+            GraphGenericNodeEmitter.EmitEditorAndRegistrations(spc, compilation, p, nodes, registrations);
         }
 
         static bool IsEditorAssembly(Compilation compilation)
