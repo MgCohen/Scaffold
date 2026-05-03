@@ -251,6 +251,17 @@ Implemented via Graph Toolkit's `OnGraphChanged(GraphLogger)`:
 
 ## Source generator
 
+### Architecture & reusability principles
+
+The generator runs across multiple emission concerns (per-payload editor + runtime + registry entry, per-package trio, per-generic-node editor + registry entry — and more to come). Treat these as **passes layered on a single shared model**, not as independent walkers. Concretely:
+
+- **One symbol walk per compilation.** `GraphPackageAssemblyParser` collects every type the generator cares about (payloads, generic nodes, package declarations) in a single pass and projects them into typed model records (`GraphPackageModel`, `PayloadModel`, `GenericNodeModel`, …). Emitters consume the model — they don't re-walk symbols.
+- **Shared infrastructure, not shared code paths.** Port-ID derivation (FNV-1a + `[GraphPort(Id=…)]` overrides), field classification (`FieldClassifier`), naming (`RunnerStem`, `GraphCompilationNames`), and registry-entry composition live as standalone utilities reused by every emitter. New emitters compose; they don't duplicate.
+- **Emitters are independent and ordered only by data dependency.** The trio emitter produces the registry shell; payload + generic-node emitters append entries to it via the same registry-entry builder. Adding a new emission concern is "new model record + new emitter + plug into registry composer," not "rewire the pipeline."
+- **Snapshots cover every emitter.** Every emission path has at least one fixture in `Generators/Scaffold.GraphFlow.PackageGenerator.SnapshotTests/`. Adding an emitter without a snapshot is incomplete.
+
+This is a hard constraint, not a style preference: per-payload work is already non-trivial, and M2 adds generic-node work that overlaps it. Without shared infra the generator becomes N parallel reflection-style walkers and we lose the compile-time guarantees that justified writing a generator at all.
+
 ### Configuration
 
 A graph package is declared by one assembly-level attribute per runner. `AllowMultiple = true` — multi-package projects just stack them.
@@ -320,6 +331,51 @@ For each command-shaped payload (an `IGraphAction<TRunner>` implementer or a des
 - One registry partial-class entry mapping the payload type id to the runtime node class plus an editor-port-name → port-ID lookup the baker uses when translating editor wires
 
 For each entry-shaped payload (an `IGraphEntry<TRunner>` implementer or a descendant of the package's `EntryBase`): same shape, just 1 editor + 1 runtime node instead of 3.
+
+### Generic-node emission (hand-written runtime, generated editor)
+
+Built-in generic nodes (`Branch`, `Cancel`, `Return`, `ReturnBool`, `Equals<T>`, `Not`, …) and any consumer-authored equivalents are **runtime-hand-written, editor-generated**. The runtime class encodes the actual logic (`Execute`, port wiring, output computation) generically over `TRunner`; the editor mirror is mechanical and would otherwise double the boilerplate per node.
+
+Author surface — one file per node, attributed:
+
+```csharp
+[GraphNode(Category = "Flow")]
+public sealed class Branch<TRunner> : RuntimeNode<TRunner> where TRunner : GraphRunner
+{
+    public static class Ports {
+        public const int FlowIn   = 0;
+        public const int TrueOut  = 1;
+        public const int FalseOut = 2;
+        public const int Condition = 3;
+    }
+
+    [FlowIn(Ports.FlowIn)]    // marker, no field
+    [FlowOut(Ports.TrueOut,  "True")]
+    [FlowOut(Ports.FalseOut, "False")]
+    [Input(Ports.Condition)] public Connection<bool>? Condition;
+
+    public override ValueTask<FlowContinuation> Execute(TRunner runner) => ...;
+}
+```
+
+For each `[GraphNode]`-attributed `RuntimeNode<TRunner>` (concrete or open-generic over `TRunner`), the generator emits **per package** that uses the runner:
+
+- **One editor `Node` subclass** with `OnDefinePorts` derived from the attributes — flow-in/out ports as arrowheads, typed data ports from `[Input]`/`[Output]`. Type-name derivation strips the `<TRunner>` suffix.
+- **One registry entry** mapping `EditorNodeType → factory` (closes the open generic at the package's runner: `new Branch<MySmokeRunner>()`) plus the same flow/data port-name → port-ID dictionaries used for payload nodes.
+
+The runtime class is **not** emitted — the author wrote it. The registry entry uses the same composer the payload emitter uses; the editor emitter shares the port-emit helpers. Generic-node emission is an additional pass over the shared model, not a parallel pipeline (see "Architecture & reusability principles" above).
+
+Attribute set lives in the same attributes-only DLL as `[GraphPackage]`/`[GraphPort]`:
+
+| Attribute | Target | Purpose |
+| --- | --- | --- |
+| `[GraphNode]` | class | Marks a `RuntimeNode<TRunner>` for editor-side emission. Optional `Category` for menu grouping (visual cleanup deferred — see M4). |
+| `[FlowIn(int portId)]` | class (repeatable) | Declares a flow-in port. Marker-only; no field needed since flow-in has no data. |
+| `[FlowOut(int portId, string name)]` | class (repeatable) | Declares a flow-out port. Name shows in the editor; port ID is what `FlowContinuation.Next(...)` returns. |
+| `[Input(int portId)]` | field | Field is a `Connection<T>?` slot the editor exposes as a typed input port. |
+| `[Output(int portId)]` | field | Field is a typed output the editor exposes as a typed output port; runtime writes to it. |
+
+Consumer-authored generic nodes use the exact same attributes and pipeline — there is no built-in vs. user-written split in the generator. The package ships a finite first set; everything else extends through the same surface.
 
 The runtime node's base class is picked per-payload by the **execution decision tree** (see "Execution" in the Concept layer):
 
@@ -1254,7 +1310,8 @@ The first two milestones deliberately split the design risk from the meta-toolin
 | --------- | ------ | ----- |
 | **M0** | **Done** | Golden vertical slice under `Assets/GraphFlowM0/` — bake, hydrate, `GraphController`, player smoke; hand-written trio + registry switches in `GraphBaker`. |
 | **M1** | **Done** | Trio + payload-driven editor/runtime nodes, registry-driven generic baker, EFG diagnostics, convention strategy abstraction, snapshot harness — see [Recent generator-stabilization work](#recent-generator-stabilization-work-2026-05-03) and [M1 closeout](#m1-closeout-2026-05-03) below. |
-| M2+ | Planned | Editor nodes, flow semantics, CF integration per sections below. |
+| **M2** | In progress | Generic-node generation pass + minimum built-in node set (Branch, Cancel, Return, ReturnBool, Equals, Not), Validate/Run flow ports on entry/listener nodes, `OnGraphChanged` validation, smoke graph extension, sandbox folder rename. `[Return Strike]` deferred to M3 (Mode 2 dependency); remainder of generic-node catalog deferred to M4. |
+| M3+ | Planned | CF integration, M4 polish per sections below. |
 
 #### Recent generator-stabilization work (2026-05-03)
 
@@ -1321,11 +1378,16 @@ The hand-written code must be **representative**, not corner-cut. Validation hin
 
 ### Milestone 2 — Editor authoring (1.5 weeks)
 
-- Hand-written generic nodes (Cancel, Replace, Return, Return Bool, Branch, predicates, math, conversions) — generic over `TRunner`.
-- Validate / Run flow port handling on generated entry / listener nodes.
-- `[Return Strike]` (and friends) typed terminator with unwired-default semantics.
-- `OnGraphChanged` edit-time validation rules.
-- (No blackboard panel — deferred to v2.)
+**Goal:** Generic nodes exist and work in graphs end-to-end, with the generator extended to emit their editor mirrors so authoring scales (no double boilerplate per node).
+
+- **Generic-node generation pass.** New attributes (`[GraphNode]`, `[Input]`, `[Output]`, `[FlowIn]`, `[FlowOut]`) in the attributes DLL. New `GraphGenericNodeEmitter` walks `[GraphNode]`-attributed `RuntimeNode<TRunner>` types and emits the editor mirror + registry entry per package, reusing the shared port-id derivation, registry composer, and snapshot harness from M1. See "Generic-node emission" in the Source generator section.
+- **Built-in generic nodes (minimum set for M2).** Hand-written runtime, generated editor: `Branch`, `Cancel`, `Return`, `ReturnBool`, `Equals<T>`, `Not`. Remainder of the catalog (Replace, GreaterThan/LessThan, And/Or, math, conversions) deferred to M4 polish — add on demand as graphs need them.
+- **Validate / Run flow ports on generated entry / listener nodes.** Generator change to emit two flow-out ports on entry/listener editor nodes; bake honors both as separate flow edges; `EntryRuntimeNode` exposes both port IDs. Snapshots bumped.
+- **`OnGraphChanged` edit-time validation.** Initial rule set: required-input-unwired, type-mismatch, dangling flow edges, duplicate entries, every Run flow terminates (Return / Cancel). Per-rule diagnostic IDs reserved under the `EFG` series alongside compile-time ones.
+- **Smoke graph extension.** `MySmokeGraph` exercises Branch + Equals + Return + Validate flow path. Snapshot fixtures updated.
+- **Folder rename.** `Assets/GraphFlowM0/` → `Assets/GraphFlowSandbox/` to make it explicit this is the throwaway test bed; final package home is `Assets/Packages/Scaffold.GraphFlow/`.
+- (Deferred:) `[Return Strike]` typed terminator depends on Mode 2 / `ReturnPayloadNode<TCmd>` — lands with the Card Framework integration in M3.
+- (Deferred:) Blackboard panel — v2.
 
 ### Milestone 3 — Card Framework integration (1 week)
 
@@ -1343,7 +1405,9 @@ The hand-written code must be **representative**, not corner-cut. Validation hin
 - Remaining diagnostics: `EFG002`, `EFG003`, `EFG004`, `EFG006` (EFG005/007/008 shipped in M1).
 - Per-type escape-hatch attribute handling.
 - Editor menu organization (`[GraphMenu]`).
-- Documentation: package README, conventions guide, "writing a payload" tutorial, "how to add a graph package" tutorial.
+- Remaining built-in generic-node catalog deferred from M2: `Replace`, `GreaterThan`, `LessThan`, `And`, `Or`, math (`Add`/`Subtract`/`Multiply`/`Divide`/`Modulo`), conversions (`ToString`, `ToInt`, …) — added on demand when consumer graphs need them.
+- **Editor-visual API pass (single focused review).** Today emitted editor nodes show in the GToolkit picker as their raw type names — `EchoDispatcherEditorNode`, `OnPlayEditorNode`, `BranchEditorNode`. M4 owns a focused pass that surveys what GToolkit's `Node` API actually exposes for visual customization (display name, category, icon, tooltip, port colors, search-menu path) and decides which knobs to surface as attributes vs. derive automatically. Decision points: (a) optional `Name`/`DisplayName` on `[GraphPayload]` and `[GraphNode]` vs. always-derive-from-type-name; (b) `[GraphMenu]` shape and whether it subsumes `Category` from `[GraphNode]`; (c) per-port labels and whether `[Input]`/`[Output]` need a `DisplayName` field; (d) icon/color hooks if GToolkit supports them. Output: one PR that updates attributes + emitters + snapshots together so visuals stay consistent across all emitted node kinds. Don't bolt these on piecemeal across milestones.
+- Documentation: package README, conventions guide, "writing a payload" tutorial, "how to add a graph package" tutorial, "writing a generic node" tutorial.
 
 **Total estimate:** ~7–8 weeks of focused work for v1.
 
