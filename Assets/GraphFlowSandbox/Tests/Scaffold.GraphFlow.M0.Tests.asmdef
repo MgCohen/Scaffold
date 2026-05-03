@@ -2,7 +2,8 @@
     "name": "Scaffold.GraphFlow.M0.Tests",
     "rootNamespace": "Scaffold.GraphFlow.M0.Tests",
     "references": [
-        "Scaffold.GraphFlow.M0"
+        "Scaffold.GraphFlow.M0",
+        "Scaffold.GraphFlow"
     ],
     "includePlatforms": [
         "Editor"

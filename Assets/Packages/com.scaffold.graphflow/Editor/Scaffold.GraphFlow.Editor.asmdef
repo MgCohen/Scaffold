@@ -4,7 +4,8 @@
     "references": [
         "GUID:bab7af28f08a411c9af5ef2f6d191216",
         "GUID:b13665e99cedac1faa8a90387e6163c3",
-        "GUID:70ef9a24f4cfc4aec911c1414e3f90ad"
+        "GUID:70ef9a24f4cfc4aec911c1414e3f90ad",
+        "Unity.GraphToolkit.Common.Editor"
     ],
     "includePlatforms": [
         "Editor"

@@ -7,6 +7,8 @@ using Scaffold.GraphFlow.CardSandbox.Cards;
 using Scaffold.GraphFlow.M0;
 using UnityEngine;
 
+using Scaffold.GraphFlow;
+
 namespace Scaffold.GraphFlow.CardSandbox.Tests
 {
     /// <summary>
