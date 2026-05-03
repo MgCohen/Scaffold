@@ -1,7 +1,7 @@
 #!/usr/bin/env pwsh
 [CmdletBinding()]
 param(
-    [ValidateSet("EditMode", "PlayMode")]
+    [ValidateSet("EditMode", "PlayMode", "StandaloneWindows64")]
     [Parameter(Mandatory = $true)]
     [string]$TestPlatform,
     [string]$ProjectPath = (Get-Location).Path,
@@ -25,11 +25,16 @@ $scriptDir = Split-Path -Parent $PSCommandPath
 $resolvedProjectPath = (Resolve-Path $ProjectPath).Path
 $testingSuiteConfig = Get-TestingSuiteConfig -ProjectPath $resolvedProjectPath
 $resolvedCoveragePath = $null
-$tempPrefix = if ($TestPlatform -eq "EditMode") { "unity-editmode-tests-" } else { "unity-playmode-tests-" }
+$lanePrefix = switch ($TestPlatform) {
+    "EditMode" { "editmode" }
+    "PlayMode" { "playmode" }
+    default    { "standalone" }
+}
+$tempPrefix = "unity-${lanePrefix}-tests-"
 $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ($tempPrefix + [guid]::NewGuid().ToString("N"))
 $null = New-Item -ItemType Directory -Path $tempRoot -Force
-$logName = if ($TestPlatform -eq "EditMode") { "editmode.log" } else { "playmode.log" }
-$resultsName = if ($TestPlatform -eq "EditMode") { "editmode-results.xml" } else { "playmode-results.xml" }
+$logName = "${lanePrefix}.log"
+$resultsName = "${lanePrefix}-results.xml"
 $logPath = Join-Path $tempRoot $logName
 $resultsPath = Join-Path $tempRoot $resultsName
 $scriptExitCode = 1
@@ -78,6 +83,12 @@ try {
         "-testResults", $resultsPath
         "-logFile", $logPath
     )
+
+    if ($TestPlatform -eq "StandaloneWindows64") {
+        # Build a Standalone Player containing the test assemblies and run the tests inside it.
+        # Project's PlayerSettings.scriptingBackend (Standalone) controls Mono vs IL2CPP for this lane.
+        $unityArgs += @("-buildTarget", "StandaloneWindows64")
+    }
 
     if ($resolvedPerfPath) {
         $unityArgs += @("-perfTestResults", $resolvedPerfPath)
