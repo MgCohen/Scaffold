@@ -1,0 +1,21 @@
+{
+    "name": "Scaffold.GraphFlow.M0.Tests",
+    "rootNamespace": "Scaffold.GraphFlow.M0.Tests",
+    "references": [
+        "Scaffold.GraphFlow.M0"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false,
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
+}

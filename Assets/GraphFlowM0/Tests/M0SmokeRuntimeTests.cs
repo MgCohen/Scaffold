@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -61,11 +62,10 @@ namespace Scaffold.GraphFlow.M0.Tests
         {
             var onPlay = new OnPlayRuntime { nodeId = 1, editorGuid = "a" };
             var echo = new EchoDispatcherRuntime { nodeId = 2, editorGuid = "b" };
-            var conv = new IntToStringRuntime { nodeId = 3, editorGuid = "c" };
-            var log = new LogDispatcherRuntime { nodeId = 4, editorGuid = "d" };
+            var log = new LogDispatcherRuntime { nodeId = 3, editorGuid = "c" };
 
             var asset = ScriptableObject.CreateInstance<MySmokeGraphAsset>();
-            asset.nodes = new List<RuntimeNode<MySmokeRunner>> { onPlay, echo, conv, log };
+            asset.nodes = new List<RuntimeNode<MySmokeRunner>> { onPlay, echo, log };
             asset.entries = new List<EntryIndex>
             {
                 new EntryIndex { entryTypeId = typeof(OnPlay).AssemblyQualifiedName!, rootNodeId = 1 },
@@ -83,7 +83,7 @@ namespace Scaffold.GraphFlow.M0.Tests
             {
                 fromNodeId = 2,
                 fromFlowPortId = EchoDispatcherRuntime.Ports.FlowOut,
-                toNodeId = 4,
+                toNodeId = 3,
                 toFlowPortId = LogDispatcherRuntime.FlowInSlotId,
             });
 
@@ -91,14 +91,6 @@ namespace Scaffold.GraphFlow.M0.Tests
             {
                 fromNodeId = 1,
                 fromPortId = OnPlayRuntime.Ports.CardId,
-                toNodeId = 3,
-                toPortId = IntToStringRuntime.Ports.InValue,
-            });
-
-            asset.connections.Add(new ConnectionRecord
-            {
-                fromNodeId = 3,
-                fromPortId = IntToStringRuntime.Ports.OutString,
                 toNodeId = 2,
                 toPortId = EchoDispatcherRuntime.Ports.Magnitude,
             });
@@ -107,7 +99,7 @@ namespace Scaffold.GraphFlow.M0.Tests
             {
                 fromNodeId = 2,
                 fromPortId = EchoDispatcherRuntime.Ports.Summary,
-                toNodeId = 4,
+                toNodeId = 3,
                 toPortId = LogDispatcherRuntime.Ports.Message,
             });
 
@@ -118,6 +110,19 @@ namespace Scaffold.GraphFlow.M0.Tests
             await controller.Run(new OnPlay { CardId = 42 });
 
             Assert.AreEqual("echo:42", runner.LastLogMessage);
+        }
+
+        [Test]
+        public void Map_AppliesConversionLazily()
+        {
+            var onPlay = new OnPlayRuntime { nodeId = 1, editorGuid = "z" };
+            var ok = new Connection<string>(onPlay, 0, () => "42");
+            var coerced = Connection.Map(ok, s => int.TryParse(s, out var v) ? v : -1);
+            Assert.AreEqual(42, coerced.Read());
+
+            var bad = new Connection<string>(onPlay, 0, () => "x");
+            var coerced2 = Connection.Map(bad, s => int.TryParse(s, out var v) ? v : 7);
+            Assert.AreEqual(7, coerced2.Read());
         }
     }
 }

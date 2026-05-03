@@ -24,7 +24,7 @@ namespace Scaffold.GraphFlow.M0.Editor
     {
         const int SchemaVersion = 2;
 
-        public static GraphBakeResult Bake(MySmokeGraph editorGraph, MySmokeGraphAsset? previousRuntime)
+        public static GraphBakeResult Bake(Graph<MySmokeRunner> editorGraph, MySmokeGraphAsset? previousRuntime)
         {
             var result = new GraphBakeResult();
 

@@ -40,4 +40,5 @@ namespace Scaffold.GraphFlow.M0
         public List<EntryIndex> entries = new();
         public int schemaVersion;
     }
+
 }

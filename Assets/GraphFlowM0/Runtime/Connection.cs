@@ -9,6 +9,27 @@ namespace Scaffold.GraphFlow.M0
     {
         public abstract object SourceNodeBoxed { get; }
         public abstract int SourcePortId { get; }
+
+        /// <summary>
+        /// Hydration-time adapter: lazily maps the upstream read through <paramref name="map"/>.
+        /// Keeps port wiring typed; graph/asset-level converter tables can supply the delegate later.
+        /// </summary>
+        public static Connection<TTo> Map<TFrom, TTo>(Connection<TFrom> source, Func<TFrom, TTo> map)
+        {
+            if (source == null)
+            {
+                throw new ArgumentNullException(nameof(source));
+            }
+
+            if (map == null)
+            {
+                throw new ArgumentNullException(nameof(map));
+            }
+
+            var src = source;
+            var m = map;
+            return new Connection<TTo>(src.SourceNode, src.SourcePortId, () => m(src.Read()));
+        }
     }
 
     public sealed class Connection<T> : Connection

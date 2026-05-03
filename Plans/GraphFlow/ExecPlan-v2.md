@@ -1248,6 +1248,14 @@ Implemented via Graph Toolkit's `OnGraphChanged(GraphLogger)` hook on the auto-e
 
 The first two milestones deliberately split the design risk from the meta-tooling risk: M0 hand-writes one of every shape so we validate the architecture against runtime + editor + Unity end-to-end **before** writing a Roslyn generator. M1 then builds the generator with M0 as the golden output. If anything in the design (Connection<T>, [SerializeReference] polymorphism, port-ID switches, hydration, nodeId stability) turns out to be wrong, M0 surfaces it cheaply. M1 inherits a known-good template.
 
+### Implementation status (May 2026)
+
+| Milestone | Status | Notes |
+| --------- | ------ | ----- |
+| **M0** | **Done** | Golden vertical slice under `Assets/GraphFlowM0/` — bake, hydrate, `GraphController`, player smoke; hand-written trio + registry switches in `GraphBaker`. |
+| **M1** | **In progress** | Trio + payload-driven editor/runtime nodes for `IGraphEntry` / `IExecutable` actions / `GraphCommandPair` dispatchers; `[GraphPort]`, `[GraphEntry]`, `DispatcherBase` on `[GraphPackage]`. Remaining: registry emission, EFG diagnostics, convention strategies beyond M0, snapshot tests, analyzer cleanup on generator project. |
+| M2+ | Planned | Editor nodes, flow semantics, CF integration per sections below. |
+
 ### Milestone 0 — Hand-written vertical slice (1.5–2 weeks)
 
 **Goal:** prove the architecture compiles, links, bakes, hydrates, and executes end-to-end with no source generator anywhere in the loop. Real `.ext` file on disk → real bake → real ScriptableObject asset → loaded in a player build → `controller.Run` → assert side effect.
@@ -1268,6 +1276,8 @@ The hand-written code must be **representative**, not corner-cut. Validation hin
 **Discipline note:** the temptation during M0 will be to keep adding payloads manually because it works. The line is sharp — exactly one of each shape (one entry, one action via `IExecutable`, one action via `DispatcherBase` if we want to validate Mode 2 too), then stop and start M1.
 
 ### Milestone 1 — Source generator parity (1.5–2 weeks)
+
+**Bootstrap (started):** attributes and incremental generator projects build under `Generators/Scaffold.GraphFlow.Attributes/` and `Generators/Scaffold.GraphFlow.PackageGenerator/` (`dotnet build` Release). Unity wiring and emitted parity with `Assets/GraphFlowM0/` still to do.
 
 **Goal:** the generator emits exactly what M0 wrote by hand. Delete the M0 hand-written nodes; generator produces them. M0's end-to-end test still passes unchanged.
 

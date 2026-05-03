@@ -2,7 +2,9 @@
     "name": "Scaffold.GraphFlow.M0",
     "rootNamespace": "Scaffold.GraphFlow.M0",
     "references": [
-        "GUID:6055be8ebefd69e48b49212b09b47b2f"
+        "GUID:6055be8ebefd69e48b49212b09b47b2f",
+        "GUID:b13665e99cedac1faa8a90387e6163c3",
+        "GUID:27a1badd3cd9fec2c48b5539d5746add"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
