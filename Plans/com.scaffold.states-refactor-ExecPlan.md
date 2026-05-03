@@ -32,7 +32,7 @@ The change is observable: the existing test suite (`Assets/Packages/com.scaffold
 - [ ] Phase 2 — Reentrancy & buffer hygiene (§4.5, §4.6, §4.9, §4.11)
 - [ ] Phase 3 — Indexed slice store (§7.3) + `EnumerateAll` struct enumerator (§4.6 perf)
 - [ ] Phase 4 — Contract clarity (§4.15 `IReference`, §4.18 aggregate lifetime, §4.19 scratchpad reset, §4.20 `[NotNullWhen]`, §3.7 `Snapshot` composes-not-inherits, callback overload narrowing, §4.14 fat interface)
-- [ ] Phase 5 — Source-generated `MutatorDispatcher` (§7.1, theme 1, theme 2)
+- [ ] Phase 5 — `IMutatorDispatcher` abstraction in the runtime + source-generated per-consumer `GeneratedMutatorDispatcher` (§7.1, theme 1, theme 2)
 - [ ] Phase 6 — VContainer `Container/StatesInstaller` (§7.6, theme 8) + per-folder docs / XML on public surface (§8)
 - [ ] Phase 7 — Re-benchmark + comparison report; update `entities.states` consumer surface to match new contracts
 
@@ -49,8 +49,17 @@ The change is observable: the existing test suite (`Assets/Packages/com.scaffold
 - Decision: The single external consumer (`com.scaffold.entities.states`) is migrated inside this plan, not in a follow-up.
   Rationale: Audit §Consumers documents that ~120 lines of duplication live there because of states-API friction. Doing the migration in-band keeps the contract changes honest — every breaking change is observed in the consumer in the same PR.
   Author: ExecPlan author.
-- Decision: Phase 5 (source-gen `MutatorDispatcher`) is gated on Phases 0–4 landing first.
+- Decision: Phase 5 (source-gen dispatcher) is gated on Phases 0–4 landing first.
   Rationale: It is the largest investment (1–2 days, audit §7.1), and Phases 1–4 already remove enough boxing and guard noise that the source-gen win can be measured cleanly against a stable baseline. Doing it before §4.5 / §4.11 fixes would mix two refactors and confuse the benchmark deltas.
+  Author: ExecPlan author.
+- Decision: The runtime declares `IMutatorDispatcher`; the generator emits a sealed `GeneratedMutatorDispatcher : IMutatorDispatcher` into each consumer assembly. The earlier draft proposed a `partial class MutatorDispatcher` shared between runtime and consumer assemblies — that doesn't compile because C# `partial` declarations only merge within a single compilation unit. The interface is the cross-assembly seam; the generator owns the consumer-assembly impl.
+  Rationale: A consumer-assembly-only generated class can't complete a `partial` declared in the runtime — they're different compilation units. An interface (or delegate) is the only way the runtime `Store` can depend on a type whose implementation lives in a different assembly. `TryDispatch`-returning-`bool` lets the dispatcher cleanly defer to the runtime `MutatorRegistry` slow-path when a payload type wasn't `[Mutator]`-decorated.
+  Author: ExecPlan author.
+- Decision: Phase 0 adds a `readonly record struct` payload baseline (`Execute_ValuePayload_OneSlice`) alongside the record-class baseline.
+  Rationale: Phase 5's "≥3× ns/op for value-type payloads" acceptance needs a like-for-like Phase 0 number. The record-class baseline already pays only one cast (no box), so the source-gen win there is small; the value-type baseline pays a guaranteed box and is where the §7.1 win lands hardest. Without both, the ≥3× target is non-comparable.
+  Author: ExecPlan author.
+- Decision: Benchmarks define their own minimal fixtures (`Assets/Benchmarks/States/BenchFixtures.cs`) instead of referencing `Scaffold.States.Samples`.
+  Rationale: Phase 6 renames `Samples/` to `Samples~/` per Unity convention, which makes the samples assembly invisible to the project. A benchmark suite that depended on it would silently break at that point. Self-contained fixtures keep Phase 0 stable across the entire refactor.
   Author: ExecPlan author.
 - Decision: `IReference` becomes an `abstract record Reference` rather than an interface + analyzer.
   Rationale: Records give value-equality for free, eliminate the `Scratchpad.ReferenceByValueEqualityComparer` workaround (§4.15), and concretely solve the equality footgun. The analyzer route remains as a fallback if breaking the interface is too costly for an unanticipated consumer; resolved in Phase 4 once the consumer migration is in flight.
@@ -83,7 +92,7 @@ External consumer (single):
 Conventions (from `AGENTS.MD` and `_index.md`):
 
 - DI: VContainer per-package `Container/Installer`. States ships none today (theme 8).
-- Source generators live under `Generators/` at repo root. Existing examples: `MVVMCompositionGenerator`, `LiveOpsKeyGenerator`. Phase 5 adds `MutatorDispatcherGenerator` alongside them.
+- Source generators live under `Generators/` at repo root. Existing examples: `MVVMCompositionGenerator`, `LiveOpsKeyGenerator`. Phase 5 adds `Scaffold.States.MutatorDispatcherGenerator` alongside them; the generator emits per-consumer-assembly `GeneratedMutatorDispatcher : IMutatorDispatcher` classes and the runtime owns the `IMutatorDispatcher` interface.
 - Pure-C# packages set `noEngineReferences: true`. States is currently `false` because of one Unity log.
 
 Term-of-art definitions used in this plan:
@@ -104,15 +113,17 @@ Goal: capture the current perf/correctness profile before any refactor, so Phase
 
 **0.1 Perf harness.** Per the project-wide convention captured in `Docs/Audits/Packages/_benchmarking.md`, perf tests live **outside** the package tree under `Assets/Benchmarks/`. The canonical `Bench.Measure` lives at `Assets/Benchmarks/Bench/Bench.cs` (asmdef `Scaffold.Benchmarks`) and is referenced — not copied — by each per-package perf asmdef. For states the layout is:
 
-- `Assets/Benchmarks/States/Scaffold.Benchmarks.States.asmdef` — references `Scaffold.Benchmarks`, `Scaffold.States`, `Scaffold.States.Samples`, `Scaffold.Pooling`, `Scaffold.Maps`, `Unity.PerformanceTesting`. `includePlatforms: [Editor]`.
+- `Assets/Benchmarks/States/Scaffold.Benchmarks.States.asmdef` — references `Scaffold.Benchmarks`, `Scaffold.States`, `Scaffold.Pooling`, `Unity.PerformanceTesting`. `includePlatforms: [Editor]`. Deliberately does **not** reference `Scaffold.States.Samples`: Phase 6 will rename `Samples/` to `Samples~/` (Unity convention — tilde-suffixed folders are imported via Package Manager only and don't compile into the project), and a benchmark assembly that depended on the samples assembly would silently break at that point.
+- `Assets/Benchmarks/States/BenchFixtures.cs` — minimal self-contained types (`CounterState`, `SampleKey`, `CombinedTickPayload`, `ValueCombinedTickPayload`, `ApplyCombinedTickToCounter`, `ApplyValueCombinedTickToCounter`) so the benchmark suite has no dependency on the samples assembly.
 - `Assets/Benchmarks/States/StatesBenchmarksAssemblySetup.cs` — per-assembly `[SetUpFixture]` calling the shared `Scaffold.Benchmarks.BenchSetup` (which save/restores `LogAssert.ignoreFailingMessages`).
 - `Scaffold.States/Runtime/AssemblyInfo.cs` adds `[assembly: InternalsVisibleTo("Scaffold.Benchmarks.States")]` so internal-surface micro-benchmarks (e.g. `MutatorRegistry.TryGet`) can be measured directly without going through the Pool overhead of `Execute<>`.
 
 **0.2 Benchmark suite.** One file per scenario, all using `Scaffold.Benchmarks.Bench.Measure(...)`. The audit `## Benchmark plan` enumerates the canonical set; bind each entry to a file under `Assets/Benchmarks/States/`:
 
-- `StoreExecuteBenchmarks.cs::Execute_SingleMutator_OneSlice` — current path with `record class` payload (audit baseline). Sibling `Execute_TypedMutator_OneSlice_NoRegistry` measures the `ExecuteMutator(mutator, payload)` floor that skips `MutatorRegistry`.
+- `StoreExecuteBenchmarks.cs::Execute_SingleMutator_OneSlice` — current path with reference-type (`record class`) payload (audit baseline). Sibling `Execute_TypedMutator_OneSlice_NoRegistry` measures the `ExecuteMutator(mutator, payload)` floor that skips `MutatorRegistry`.
+- `StoreExecuteBenchmarks.cs::Execute_ValuePayload_OneSlice` — same path but with a `readonly record struct` payload. Today `Execute<TPayload>(TPayload)` boxes value-type payloads at the `(object)payload` boundary inside `RunRegisteredMutatorsWithoutCommit`; this benchmark anchors Phase 5's "≥3× ns/op for value-type payloads" target to a like-for-like Phase 0 number. Sibling `Execute_TypedMutator_ValuePayload_OneSlice_NoRegistry` is the value-type `ExecuteMutator` floor.
 - `StoreEnumerateAllBenchmarks.cs::{EnumerateAll,GetAll}_OneTypeBucket_1k` — 1k slices of one `TState`, 100 iterations per measurement.
-- `NotifyBenchmarks.cs::Notify_50Subs_NoMutation` — 50 subscribers, non-mutating fanout cost.
+- `NotifyBenchmarks.cs::Notify_50Subs_NoMutation` — 50 subscribers, non-mutating fanout cost. The inline-unsubscribe variant (`Notify_50Subs_HalfUnsubscribeInline`) cannot run pre-Phase-2 (the §4.11 throw kills it) — Phase 2 introduces it as a perf test alongside un-ignoring the regression test.
 - `MutatorRegistryBenchmarks.cs::TryGet_{Known,Unknown}Key_50TypesRegistered` — registry preloaded with 50 distinct payload types.
 - `ReferenceEqualityBenchmarks.cs::{Equals_VirtualDispatch,ReferenceEquals}_VsReferenceNull` — mixed `Reference.Null` and a deliberately-misbehaving `IReference.Equals` override; demonstrates the §4.13 cliff.
 - `SubscribeBenchmarks.cs::Subscribe_PerCall_CachedDelegate` — cached delegate so the unavoidable closure alloc is outside the measurement and the harness sees only `Ledger.Add` overhead.
@@ -162,7 +173,7 @@ Decision: use the pool for `mapSliceBuffer`, `aggregateSliceBuffer`, `sliceBuffe
 
 Phase 3's secondary index will further drop allocations; Phase 2 only fixes the correctness bug.
 
-**2.3 `StateEventHandler.NotifyReferenceSubscriptions` snapshot-then-iterate (§4.11).** Take a defensive copy of the `List<ISubscription>` for the (reference, stateType) bucket before invoking; the copy buffer is rented from a `Pool<List<ISubscription>>`. Same treatment for `NotifyTypeWideSubscriptions` and `NotifyAnySubscriptions`. The `InvalidOperationException` regression test from Phase 0 turns green.
+**2.3 `StateEventHandler.NotifyReferenceSubscriptions` snapshot-then-iterate (§4.11).** Take a defensive copy of the `List<ISubscription>` for the (reference, stateType) bucket before invoking; the copy buffer is rented from a `Pool<List<ISubscription>>`. Same treatment for `NotifyTypeWideSubscriptions` and `NotifyAnySubscriptions`. The `InvalidOperationException` regression test from Phase 0 turns green. Once the path no longer throws, add a `NotifyBenchmarks.cs::Notify_50Subs_HalfUnsubscribeInline` `[Test, Performance]` (50 subscribers, half `Unsubscribe` themselves on the first notify) and a companion `Bench.NoAllocations` so the Phase 2 / Phase 7 zero-allocation gate is validated against the actual inline-unsubscribe workload, not just the non-mutating fanout.
 
 **2.4 `DeferredStateEventHandler.Flush*` swap-buffer (§4.9).** Replace `var snapshot = preserveAll.ToArray(); preserveAll.Clear();` (`:103`) and the `latestKeyOrder.ToArray()` mirror at `:116` with two ping-pong `List<>` instances. The flush loop swaps the active buffer pointer atomically per iteration so re-entrant `Notify` calls land in the inactive buffer for the next pass; no per-pass array allocation. Add a regression test that flushes >1 pass and asserts zero allocs after warmup.
 
@@ -203,7 +214,7 @@ Mixed bag of public-API contract hardening. Each item is independently shippable
     void Subscribe<TState>(Reference reference, Action<TState, StateChangeEvent> action) where TState : BaseState;
     void Subscribe<TState>(Reference reference, Action<TState> action) where TState : BaseState;
 
-The old three-arg overload stays; the two new overloads cover the common keyed-subscription case where the consumer already knows its own `Reference`. `TypedSubscription<TState>` gains a `Notify(BaseState, StateChangeEvent)` overload that ignores the redundant reference argument. Audit consumer site `StateEntityIntegrationTests.cs:506–508` (three `(_, _, ev) =>` lambdas) collapses to `(ev) => ...`.
+The old three-arg overload stays; the two new overloads cover the common keyed-subscription case where the consumer already knows its own `Reference`. `TypedSubscription<TState>` gains a `Notify(BaseState, StateChangeEvent)` overload that ignores the redundant reference argument. Audit consumer site `StateEntityIntegrationTests.cs:506–508` (three `(_, _, ev) =>` lambdas) collapses to `(_, ev) => ...` against the new two-arg overload (drops the redundant reference argument; keeps the state argument so the lambda matches the declared `Action<TState, StateChangeEvent>`).
 
 **4.3 Aggregate lifetime API (§4.18, §7.5).** Today `IAggregateProvider.Wire(Store, IAggregateRebuild)` registers subscribers but never returns a teardown handle. Change the contract to:
 
@@ -233,13 +244,26 @@ Exit criteria: `entities.states` package compiles and all its tests pass against
 
 Goal: eliminate the runtime `Dictionary<Type, List<IPayloadMutatorBinding>>` lookup and the `(TPayload)payload` boxing/cast on every `Execute<TPayload>`. Targets §4.4, §7.1, theme 1, theme 2.
 
-**5.1 New generator project.** Add `Generators/Scaffold.States.MutatorDispatcherGenerator/` mirroring the existing `Generators/Scaffold.Mvvm.CompositionGenerator/` and `Generators/Scaffold.LiveOps.KeyGenerator/` shape: `*.csproj`, `MutatorDispatcherGenerator.cs` (`[Generator]`), and a `Tests/` project. Output DLL lands in `Analyzers/Output/` alongside the others; `Directory.Build.props` already wires this.
+**5.1 Runtime abstraction.** A C# source generator can only contribute code to the assembly being compiled, so a `partial class MutatorDispatcher` emitted into a consumer assembly cannot complete a `partial` declared in the `Scaffold.States` runtime — they are different compilation units. The runtime therefore declares an interface, and the generator emits a concrete `IMutatorDispatcher` implementation in each consumer assembly. New file `Runtime/Pipeline/IMutatorDispatcher.cs`:
 
-**5.2 Discovery model.** Decorate `Mutator<TState, TPayload>` subclasses with `[Mutator]` (a marker attribute the generator looks for, similar to `[LiveOpsKey]`). The generator scans every assembly that references `Scaffold.States` for `[Mutator]`-decorated `Mutator<TState, TPayload>` subclasses and emits, per consumer assembly:
-
-    partial class MutatorDispatcher
+    public interface IMutatorDispatcher
     {
-        public void Dispatch<TPayload>(Store store, Reference reference, TPayload payload)
+        bool TryDispatch<TPayload>(Store store, Reference reference, TPayload payload);
+    }
+
+`TryDispatch` returns `false` when no `[Mutator]`-decorated handler exists for `TPayload`, so the `Store` can fall through to the runtime `MutatorRegistry` slow-path. (No `MutatorNotRegisteredException` from inside the dispatcher itself — the throw belongs to `Store.Execute<TPayload>` after both paths miss.)
+
+**5.2 New generator project.** Add `Generators/Scaffold.States.MutatorDispatcherGenerator/` mirroring the existing `Generators/Scaffold.Mvvm.CompositionGenerator/` and `Generators/Scaffold.LiveOps.KeyGenerator/` shape: `*.csproj`, `MutatorDispatcherGenerator.cs` (`[Generator]`), and a `Tests/` project. Output DLL lands in `Analyzers/Output/` alongside the others; `Directory.Build.props` already wires this.
+
+**5.3 Discovery model.** Decorate `Mutator<TState, TPayload>` subclasses with `[Mutator]` (a marker attribute the generator looks for, similar to `[LiveOpsKey]`). The generator scans every assembly that references `Scaffold.States` for `[Mutator]`-decorated `Mutator<TState, TPayload>` subclasses and emits, per consumer assembly, a sealed concrete dispatcher:
+
+    // Generated into the consumer assembly (e.g. Scaffold.EntitiesStates) — not into Scaffold.States.
+    public sealed class GeneratedMutatorDispatcher : IMutatorDispatcher
+    {
+        readonly AddModifierMutator _addModifier = new();
+        // … one field per [Mutator]-decorated handler in this assembly …
+
+        public bool TryDispatch<TPayload>(Store store, Reference reference, TPayload payload)
         {
             if (typeof(TPayload) == typeof(AddModifierPayload))
             {
@@ -247,22 +271,22 @@ Goal: eliminate the runtime `Dictionary<Type, List<IPayloadMutatorBinding>>` loo
                 // generic local without boxing. Safe under the surrounding typeof equality check.
                 ref AddModifierPayload typed = ref Unsafe.As<TPayload, AddModifierPayload>(ref payload);
                 _addModifier.Apply(store, reference, typed);
-                return;
+                return true;
             }
             // … one branch per registered (TState, TPayload) pair …
-            throw new MutatorNotRegisteredException(typeof(TPayload));
+            return false;
         }
     }
 
-The generator emits the value-type branch shown above for `struct` / `readonly record struct` payloads (uses `Unsafe.As<TPayload, T>(ref payload)` from `System.Runtime.CompilerServices`) and a plain `(T)(object)payload` branch for reference-type payloads. The `Unsafe.As` form is the guaranteed zero-alloc path; the `(object)` cast is technically box-eligible IL even when RyuJIT's specialized generic instantiation usually elides it, so we don't rely on that elision for value types. Reference-type payloads cost one cast and zero box. The `typeof(TPayload) == typeof(...)` guard is constant-folded by the JIT for each generic instantiation, so only the matching branch survives per call site.
+The generator emits the value-type branch shown above for `struct` / `readonly record struct` payloads (uses `Unsafe.As<TPayload, T>(ref payload)` from `System.Runtime.CompilerServices`) and a plain `(T)(object)payload` branch for reference-type payloads. The `Unsafe.As` form is the guaranteed zero-alloc path; the `(object)` cast is technically box-eligible IL even when RyuJIT's specialized generic instantiation usually elides it, so we don't rely on that elision for value types. Reference-type payloads cost one cast and zero box. The `typeof(TPayload) == typeof(...)` guard is constant-folded by the JIT for each generic instantiation, so only the matching branch survives per call site. When a consumer's installer wires multiple per-assembly dispatchers, the `Store` can iterate them in registration order (a small `IMutatorDispatcher[]` field); the first non-`false` return wins.
 
-**5.3 Store integration.** `Store` gets a constructor overload accepting `MutatorDispatcher`. `Execute<TPayload>` short-circuits to the dispatcher when present; falls back to the registry for hand-registered mutators (so the registry is *not* deleted — it remains the slow-path / runtime registration option). `RegisterMutator<TState, TPayload>` is unchanged; both paths coexist.
+**5.4 Store integration.** `Store` gets a constructor overload that accepts `IMutatorDispatcher? dispatcher` (or `IMutatorDispatcher[] dispatchers` if multi-assembly composition is in scope). `Execute<TPayload>` short-circuits to `dispatcher.TryDispatch(...)` when present; on `false` (or no dispatcher at all) it falls back to the registry for hand-registered mutators. The registry is *not* deleted — it remains the slow-path / runtime registration option. `RegisterMutator<TState, TPayload>` is unchanged; both paths coexist. The throw on "no path matched" lives inside `Store.Execute<TPayload>`, not inside the dispatcher.
 
-**5.4 Consumer migration.** `EntityBridgeContext.RegisterMutators(store)` (`com.scaffold.entities.states/Runtime/EntityBridgeContext.cs:14–19`) — the six hand-rolled `RegisterMutator` calls — collapses to zero lines. Each existing mutator (`AddModifierMutator`, `RemoveModifiersBySourceMutator`, etc.) gets `[Mutator]` and the generator picks them up.
+**5.5 Consumer migration.** `EntityBridgeContext.RegisterMutators(store)` (`com.scaffold.entities.states/Runtime/EntityBridgeContext.cs:14–19`) — the six hand-rolled `RegisterMutator` calls — collapses to zero lines. Each existing mutator (`AddModifierMutator`, `RemoveModifiersBySourceMutator`, etc.) gets `[Mutator]`, the generator emits `GeneratedMutatorDispatcher` into the `Scaffold.EntitiesStates` assembly, and the consumer's installer (or the new `StatesInstaller` in Phase 6) registers it as the `IMutatorDispatcher` for the `Store`.
 
-**5.5 Regression test for missing-mutator path.** When `Execute<TPayload>` is called with a payload that has no `[Mutator]` and no runtime registration, a typed `MutatorNotRegisteredException` is thrown — same exception as Phase 1 #1. Test in both the dispatcher-present and dispatcher-absent configurations.
+**5.6 Regression test for missing-mutator path.** When `Execute<TPayload>` is called with a payload that has no `[Mutator]` and no runtime registration, a typed `MutatorNotRegisteredException` is thrown — same exception as Phase 1 #1. Test in three configurations: dispatcher-present + handler-known, dispatcher-present + handler-absent (falls through to registry), and dispatcher-absent (registry-only).
 
-Exit criteria: `Execute_SingleMutator_OneSlice` benchmark improves ≥3× ns/op for value-type payloads vs. Phase 0 baseline; AllocCount = 0 on the dispatcher path. `entities.states` `EntityBridgeContext` no longer hand-registers mutators.
+Exit criteria: `Execute_ValuePayload_OneSlice` benchmark improves ≥3× ns/op vs. its Phase 0 baseline (the `readonly record struct` row added in §0.2); `Execute_SingleMutator_OneSlice` (record-class baseline) improves measurably (no precise multiplier — the baseline already pays only one cast); AllocCount = 0 on the dispatcher path for both shapes. `entities.states` `EntityBridgeContext` no longer hand-registers mutators; the per-assembly `GeneratedMutatorDispatcher` is the only registration site.
 
 ### Phase 6 — DI Installer + organization
 
@@ -293,7 +317,7 @@ Exit criteria: `git diff` shows the installer file added; `dotnet build -c Relea
 **7.2 Comparison report.** Author [`Docs/Audits/Packages/Reports/com.scaffold.states.refactor-results.md`](../Docs/Audits/Packages/Reports/com.scaffold.states.refactor-results.md):
 
 - ns/op, bytes/op, AllocCount, Gen0 deltas vs `baselines.json`.
-- Highlight: `Execute_SingleMutator_OneSlice` zero alloc post-Phase 5; `EnumerateAll_OneTypeBucket_1k` ≥3× speedup post-Phase 3; `Notify_50Subs_HalfUnsubscribeInline` zero alloc + zero exceptions post-Phase 2; `ReferenceEquals_Vs_EqualsOverride` ≥10× faster post-Phase 1.
+- Highlight: `Execute_SingleMutator_OneSlice` (record-class) zero alloc post-Phase 5; `Execute_ValuePayload_OneSlice` (`readonly record struct`) ≥3× ns/op + zero alloc post-Phase 5 (the §7.1 source-gen win lands hardest on the value-type path because pre-refactor it pays the box on every call); `EnumerateAll_OneTypeBucket_1k` ≥3× speedup post-Phase 3; `Notify_50Subs_HalfUnsubscribeInline` (added in Phase 2 alongside the un-ignored regression test) zero alloc + zero exceptions; `ReferenceEquals_VsReferenceNull` ≥10× faster than `Equals_VirtualDispatch_VsReferenceNull` post-Phase 1.
 - Note any byte-counter quirks observed (`Bench.ByteSource` choice).
 
 **7.3 Update `baselines.json` post-refactor.** Replace stale Phase 0 medians with the post-refactor numbers; preserve a copy of the originals in `baselines.phase0.json` for historical diffing.
@@ -352,7 +376,7 @@ A novice can demonstrate this refactor works by running, after Phase 7, in the p
 
 - Every test under `Assets/Packages/com.scaffold.states/Tests/` passes (the existing seven files plus the new reentrancy and inline-unsubscribe regressions added in Phase 0).
 - Every test under `Assets/Packages/com.scaffold.entities.states/Tests/` passes against the migrated contracts.
-- The performance suite (`Assets/Benchmarks/States/`) reports zero allocations on the `Execute_SingleMutator_OneSlice`, `EnumerateAll_OneTypeBucket_1k`, and `Notify_50Subs_NoMutation` `Bench.NoAllocations` companion tests.
+- The performance suite (`Assets/Benchmarks/States/`) reports zero allocations on the `Execute_SingleMutator_OneSlice` (record class) + `Execute_ValuePayload_OneSlice` (`readonly record struct`) + `EnumerateAll_OneTypeBucket_1k` + `Notify_50Subs_NoMutation` + `Notify_50Subs_HalfUnsubscribeInline` (added in Phase 2) `Bench.NoAllocations` companion tests.
 
 The refactor-results report at `Docs/Audits/Packages/Reports/com.scaffold.states.refactor-results.md` shows the headline deltas:
 
@@ -418,7 +442,10 @@ Indicative diff for Phase 4.2 (Subscribe overload narrowing):
     -    {
     -        if (ev == StateChangeEvent.Updated) { heroUpdates++; }
     -    });
-    +    store.Subscribe<EntityVariableState>(heroId, ev =>
+    +    // Two-arg overload added in §4.2: Action<TState, StateChangeEvent>.
+    +    // Drops the redundant reference parameter; keeps state + change-event so the lambda
+    +    // matches a declared overload (no Action<StateChangeEvent>-only overload exists).
+    +    store.Subscribe<EntityVariableState>(heroId, (_, ev) =>
     +    {
     +        if (ev == StateChangeEvent.Updated) { heroUpdates++; }
     +    });
@@ -443,14 +470,14 @@ End-state public surface that must exist after Phase 6 (paths repository-relativ
            void SubscribeAny(Action<Reference, BaseState, StateChangeEvent> action);
        }
 
-- `Assets/Packages/com.scaffold.states/Runtime/Store.cs`: keeps the existing `Execute*`, `RegisterSlice`, `RegisterAggregate`, `Save/LoadSnapshot` shape. New: `Subscribe<TState>(Reference, Action<TState, StateChangeEvent>)`, `Subscribe<TState>(Reference, Action<TState>)`, `UnregisterAggregate(Reference, Type)`, optional ctor overload `Store(IStateEventHandler, MutatorRegistry, MutatorDispatcher?, params BaseSlice[])`.
+- `Assets/Packages/com.scaffold.states/Runtime/Store.cs`: keeps the existing `Execute*`, `RegisterSlice`, `RegisterAggregate`, `Save/LoadSnapshot` shape. New: `Subscribe<TState>(Reference, Action<TState, StateChangeEvent>)`, `Subscribe<TState>(Reference, Action<TState>)`, `UnregisterAggregate(Reference, Type)`, optional ctor overload `Store(IStateEventHandler, MutatorRegistry, IMutatorDispatcher?, params BaseSlice[])` (or `IMutatorDispatcher[]` if multi-assembly composition lands).
 - `Assets/Packages/com.scaffold.states/Runtime/State/Snapshot.cs`: composes a `Map<>` privately; public surface is `Set`, `Get<TState>`, `TryGet<TState>`, `Contains`, `Count`, struct enumerator.
 - `Assets/Packages/com.scaffold.states/Runtime/Pipeline/MutatorRegistry.cs`: unchanged contract; `[NotNullWhen(true)]` annotation on `TryGet`.
-- `Assets/Packages/com.scaffold.states/Runtime/Pipeline/MutatorDispatcher.cs` (new, partial; generator-emitted in consumer assemblies): `void Dispatch<TPayload>(Store, Reference, TPayload)`.
+- `Assets/Packages/com.scaffold.states/Runtime/Pipeline/IMutatorDispatcher.cs` (new): `bool TryDispatch<TPayload>(Store, Reference, TPayload)`. Implemented by per-consumer generated classes; declared in the runtime so `Store` can depend on it across compilation boundaries.
 - `Assets/Packages/com.scaffold.states/Runtime/Pipeline/MutatorAttribute.cs` (new): `[AttributeUsage(AttributeTargets.Class)] public sealed class MutatorAttribute : Attribute { }`.
 - `Assets/Packages/com.scaffold.states/Runtime/Pipeline/MutatorNotRegisteredException.cs` (new).
 - `Assets/Packages/com.scaffold.states/Runtime/Container/StatesInstaller.cs` (new): VContainer `IInstaller`.
-- `Generators/Scaffold.States.MutatorDispatcherGenerator/MutatorDispatcherGenerator.cs` (new): `[Generator]` emitting `partial class MutatorDispatcher` per consumer assembly.
+- `Generators/Scaffold.States.MutatorDispatcherGenerator/MutatorDispatcherGenerator.cs` (new): `[Generator]` emitting a sealed `GeneratedMutatorDispatcher : IMutatorDispatcher` into each consumer assembly that contains `[Mutator]`-decorated `Mutator<TState, TPayload>` subclasses.
 
 External consumer (`com.scaffold.entities.states`) end-state changes:
 

@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using NUnit.Framework;
 using Scaffold.States;
-using Scaffold.States.Samples;
 using Unity.PerformanceTesting;
 
 namespace Scaffold.Benchmarks.States
@@ -19,8 +18,7 @@ namespace Scaffold.Benchmarks.States
         public void SetUp() => BenchSetup.RearmPerTest();
 
         // Distinct payload types so the registry's Dictionary<Type, …> has 50 entries to choose from.
-        // Reuses CombinedTickPayload + a generic carrier to avoid touching Scaffold.States internals
-        // beyond MutatorRegistry itself.
+        // PayloadCarrier<T> is a generic carrier that yields a fresh closed Type per type argument.
         sealed record PayloadCarrier<T>(int N);
 
         sealed class CarrierMutator<T> : Mutator<CounterState, PayloadCarrier<T>>

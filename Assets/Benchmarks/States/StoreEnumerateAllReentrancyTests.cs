@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using NUnit.Framework;
 using Scaffold.States;
-using Scaffold.States.Samples;
 
 namespace Scaffold.Benchmarks.States
 {

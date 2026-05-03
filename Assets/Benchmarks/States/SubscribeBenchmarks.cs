@@ -1,6 +1,5 @@
 using NUnit.Framework;
 using Scaffold.States;
-using Scaffold.States.Samples;
 using Unity.PerformanceTesting;
 
 namespace Scaffold.Benchmarks.States

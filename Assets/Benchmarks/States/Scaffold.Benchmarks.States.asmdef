@@ -4,9 +4,7 @@
     "references": [
         "Scaffold.Benchmarks",
         "Scaffold.States",
-        "Scaffold.States.Samples",
         "Scaffold.Pooling",
-        "Scaffold.Maps",
         "Unity.PerformanceTesting"
     ],
     "includePlatforms": [
