@@ -1,10 +1,682 @@
 {
-    "schema": 1,
-    "package": "com.scaffold.states",
-    "phase": 0,
-    "captured_on": null,
-    "runtime": null,
-    "byte_source": null,
-    "note": "Placeholder. Run the Phase 0 perf suite under Editor (Mono) and IL2CPP (when CI supports it) and replace with the captured medians. See Plans/com.scaffold.states-refactor-ExecPlan.md §0.3 and Docs/Audits/Packages/_benchmarking.md.",
-    "results": []
+  "schema": 1,
+  "package": "com.scaffold.states",
+  "phase": 0,
+  "captured_on": "2026-05-03T08:17:05-03:00",
+  "runtime": {
+    "batchmode": true,
+    "scripting_backend": "Mono2x",
+    "editor": "6000.3.11f1",
+    "platform": "WindowsEditor"
+  },
+  "hardware": {
+    "cpu": "AMD Ryzen 9 7945HX with Radeon Graphics",
+    "cores": 32,
+    "memory_mb": 64696,
+    "os": "Windows 11  (10.0.26200)"
+  },
+  "byte_source": "GC.GetAllocatedBytesForCurrentThread (Bench.Measure default; verify per Bench.ByteSource at consumption time)",
+  "note": "Phase 0 baseline. Editor Mono only; IL2CPP lane TBD. See Plans/com.scaffold.states-refactor-ExecPlan.md §0.3. Source results: results-phase0.json.",
+  "results": [
+    {
+      "class": "Scaffold.Benchmarks.States.MutatorRegistryBenchmarks",
+      "method": "TryGet_KnownKey_50TypesRegistered",
+      "groups": [
+        {
+          "name": "TryGet_KnownKey_50TypesRegistered:Time",
+          "unit": 0,
+          "min": 59.119,
+          "max": 63.192,
+          "median": 60.023500000000006,
+          "avg": 60.26174999999999,
+          "stdev": 0.8765060681478472,
+          "n": 20
+        },
+        {
+          "name": "TryGet_KnownKey_50TypesRegistered:Allocated",
+          "unit": 4,
+          "min": 0.0,
+          "max": 0.0,
+          "median": 0.0,
+          "avg": 0.0,
+          "stdev": 0.0,
+          "n": 20
+        },
+        {
+          "name": "TryGet_KnownKey_50TypesRegistered:AllocCount",
+          "unit": 8,
+          "min": 1E-05,
+          "max": 1E-05,
+          "median": 1E-05,
+          "avg": 1E-05,
+          "stdev": 0.0,
+          "n": 20
+        },
+        {
+          "name": "TryGet_KnownKey_50TypesRegistered:Gen0",
+          "unit": 8,
+          "min": 0.0,
+          "max": 0.0,
+          "median": 0.0,
+          "avg": 0.0,
+          "stdev": 0.0,
+          "n": 20
+        },
+        {
+          "name": "TryGet_KnownKey_50TypesRegistered:Gen1",
+          "unit": 8,
+          "min": 0.0,
+          "max": 0.0,
+          "median": 0.0,
+          "avg": 0.0,
+          "stdev": 0.0,
+          "n": 20
+        },
+        {
+          "name": "TryGet_KnownKey_50TypesRegistered:Gen2",
+          "unit": 8,
+          "min": 0.0,
+          "max": 0.0,
+          "median": 0.0,
+          "avg": 0.0,
+          "stdev": 0.0,
+          "n": 20
+        }
+      ]
+    },
+    {
+      "class": "Scaffold.Benchmarks.States.MutatorRegistryBenchmarks",
+      "method": "TryGet_UnknownKey_50TypesRegistered",
+      "groups": [
+        {
+          "name": "TryGet_UnknownKey_50TypesRegistered:Time",
+          "unit": 0,
+          "min": 38.491,
+          "max": 40.581,
+          "median": 38.894000000000005,
+          "avg": 39.1109,
+          "stdev": 0.5235912432422838,
+          "n": 20
+        },
+        {
+          "name": "TryGet_UnknownKey_50TypesRegistered:Allocated",
+          "unit": 4,
+          "min": 0.0,
+          "max": 0.0,
+          "median": 0.0,
+          "avg": 0.0,
+          "stdev": 0.0,
+          "n": 20
+        },
+        {
+          "name": "TryGet_UnknownKey_50TypesRegistered:AllocCount",
+          "unit": 8,
+          "min": 1E-05,
+          "max": 1E-05,
+          "median": 1E-05,
+          "avg": 1E-05,
+          "stdev": 0.0,
+          "n": 20
+        },
+        {
+          "name": "TryGet_UnknownKey_50TypesRegistered:Gen0",
+          "unit": 8,
+          "min": 0.0,
+          "max": 0.0,
+          "median": 0.0,
+          "avg": 0.0,
+          "stdev": 0.0,
+          "n": 20
+        },
+        {
+          "name": "TryGet_UnknownKey_50TypesRegistered:Gen1",
+          "unit": 8,
+          "min": 0.0,
+          "max": 0.0,
+          "median": 0.0,
+          "avg": 0.0,
+          "stdev": 0.0,
+          "n": 20
+        },
+        {
+          "name": "TryGet_UnknownKey_50TypesRegistered:Gen2",
+          "unit": 8,
+          "min": 0.0,
+          "max": 0.0,
+          "median": 0.0,
+          "avg": 0.0,
+          "stdev": 0.0,
+          "n": 20
+        }
+      ]
+    },
+    {
+      "class": "Scaffold.Benchmarks.States.NotifyBenchmarks",
+      "method": "Notify_50Subs_NoMutation",
+      "groups": [
+        {
+          "name": "Notify_50Subs_NoMutation:Time",
+          "unit": 0,
+          "min": 1811.4000000000003,
+          "max": 1935.6,
+          "median": 1829.25,
+          "avg": 1840.6349999999995,
+          "stdev": 31.5575708032161,
+          "n": 20
+        },
+        {
+          "name": "Notify_50Subs_NoMutation:Allocated",
+          "unit": 4,
+          "min": 0.0,
+          "max": 4.0,
+          "median": 0.0,
+          "avg": 0.4,
+          "stdev": 1.2000000000000002,
+          "n": 20
+        },
+        {
+          "name": "Notify_50Subs_NoMutation:AllocCount",
+          "unit": 8,
+          "min": 1.001,
+          "max": 1.001,
+          "median": 1.001,
+          "avg": 1.001,
+          "stdev": 0.0,
+          "n": 20
+        },
+        {
+          "name": "Notify_50Subs_NoMutation:Gen0",
+          "unit": 8,
+          "min": 0.0,
+          "max": 0.0,
+          "median": 0.0,
+          "avg": 0.0,
+          "stdev": 0.0,
+          "n": 20
+        },
+        {
+          "name": "Notify_50Subs_NoMutation:Gen1",
+          "unit": 8,
+          "min": 0.0,
+          "max": 0.0,
+          "median": 0.0,
+          "avg": 0.0,
+          "stdev": 0.0,
+          "n": 20
+        },
+        {
+          "name": "Notify_50Subs_NoMutation:Gen2",
+          "unit": 8,
+          "min": 0.0,
+          "max": 0.0,
+          "median": 0.0,
+          "avg": 0.0,
+          "stdev": 0.0,
+          "n": 20
+        }
+      ]
+    },
+    {
+      "class": "Scaffold.Benchmarks.States.ReferenceEqualityBenchmarks",
+      "method": "Equals_VirtualDispatch_VsReferenceNull",
+      "groups": [
+        {
+          "name": "Equals_VirtualDispatch_VsReferenceNull:Time",
+          "unit": 0,
+          "min": 101.5523,
+          "max": 106.1641,
+          "median": 101.94055,
+          "avg": 102.82719000000002,
+          "stdev": 1.4010877823676882,
+          "n": 20
+        },
+        {
+          "name": "Equals_VirtualDispatch_VsReferenceNull:Allocated",
+          "unit": 4,
+          "min": 0.0,
+          "max": 0.0,
+          "median": 0.0,
+          "avg": 0.0,
+          "stdev": 0.0,
+          "n": 20
+        },
+        {
+          "name": "Equals_VirtualDispatch_VsReferenceNull:AllocCount",
+          "unit": 8,
+          "min": 1E-06,
+          "max": 1E-06,
+          "median": 1E-06,
+          "avg": 1.0000000000000002E-06,
+          "stdev": 2.1175823681357513E-22,
+          "n": 20
+        },
+        {
+          "name": "Equals_VirtualDispatch_VsReferenceNull:Gen0",
+          "unit": 8,
+          "min": 0.0,
+          "max": 0.0,
+          "median": 0.0,
+          "avg": 0.0,
+          "stdev": 0.0,
+          "n": 20
+        },
+        {
+          "name": "Equals_VirtualDispatch_VsReferenceNull:Gen1",
+          "unit": 8,
+          "min": 0.0,
+          "max": 0.0,
+          "median": 0.0,
+          "avg": 0.0,
+          "stdev": 0.0,
+          "n": 20
+        },
+        {
+          "name": "Equals_VirtualDispatch_VsReferenceNull:Gen2",
+          "unit": 8,
+          "min": 0.0,
+          "max": 0.0,
+          "median": 0.0,
+          "avg": 0.0,
+          "stdev": 0.0,
+          "n": 20
+        }
+      ]
+    },
+    {
+      "class": "Scaffold.Benchmarks.States.ReferenceEqualityBenchmarks",
+      "method": "ReferenceEquals_VsReferenceNull",
+      "groups": [
+        {
+          "name": "ReferenceEquals_VsReferenceNull:Time",
+          "unit": 0,
+          "min": 3.1682,
+          "max": 3.3996,
+          "median": 3.2169,
+          "avg": 3.23146,
+          "stdev": 0.06070457478641956,
+          "n": 20
+        },
+        {
+          "name": "ReferenceEquals_VsReferenceNull:Allocated",
+          "unit": 4,
+          "min": 0.0,
+          "max": 0.0,
+          "median": 0.0,
+          "avg": 0.0,
+          "stdev": 0.0,
+          "n": 20
+        },
+        {
+          "name": "ReferenceEquals_VsReferenceNull:AllocCount",
+          "unit": 8,
+          "min": 1E-06,
+          "max": 1E-06,
+          "median": 1E-06,
+          "avg": 1.0000000000000002E-06,
+          "stdev": 2.1175823681357513E-22,
+          "n": 20
+        },
+        {
+          "name": "ReferenceEquals_VsReferenceNull:Gen0",
+          "unit": 8,
+          "min": 0.0,
+          "max": 0.0,
+          "median": 0.0,
+          "avg": 0.0,
+          "stdev": 0.0,
+          "n": 20
+        },
+        {
+          "name": "ReferenceEquals_VsReferenceNull:Gen1",
+          "unit": 8,
+          "min": 0.0,
+          "max": 0.0,
+          "median": 0.0,
+          "avg": 0.0,
+          "stdev": 0.0,
+          "n": 20
+        },
+        {
+          "name": "ReferenceEquals_VsReferenceNull:Gen2",
+          "unit": 8,
+          "min": 0.0,
+          "max": 0.0,
+          "median": 0.0,
+          "avg": 0.0,
+          "stdev": 0.0,
+          "n": 20
+        }
+      ]
+    },
+    {
+      "class": "Scaffold.Benchmarks.States.StoreEnumerateAllBenchmarks",
+      "method": "EnumerateAll_OneTypeBucket_1k",
+      "groups": [
+        {
+          "name": "EnumerateAll_OneTypeBucket_1k:Time",
+          "unit": 0,
+          "min": 241280.0,
+          "max": 249323.0,
+          "median": 243396.5,
+          "avg": 244260.6,
+          "stdev": 2897.9888612622353,
+          "n": 20
+        },
+        {
+          "name": "EnumerateAll_OneTypeBucket_1k:Allocated",
+          "unit": 4,
+          "min": 0.0,
+          "max": 40.0,
+          "median": 0.0,
+          "avg": 8.0,
+          "stdev": 16.0,
+          "n": 20
+        },
+        {
+          "name": "EnumerateAll_OneTypeBucket_1k:AllocCount",
+          "unit": 8,
+          "min": 7.01,
+          "max": 7.01,
+          "median": 7.01,
+          "avg": 7.010000000000001,
+          "stdev": 8.881784197001254E-16,
+          "n": 20
+        },
+        {
+          "name": "EnumerateAll_OneTypeBucket_1k:Gen0",
+          "unit": 8,
+          "min": 0.0,
+          "max": 0.0,
+          "median": 0.0,
+          "avg": 0.0,
+          "stdev": 0.0,
+          "n": 20
+        },
+        {
+          "name": "EnumerateAll_OneTypeBucket_1k:Gen1",
+          "unit": 8,
+          "min": 0.0,
+          "max": 0.0,
+          "median": 0.0,
+          "avg": 0.0,
+          "stdev": 0.0,
+          "n": 20
+        },
+        {
+          "name": "EnumerateAll_OneTypeBucket_1k:Gen2",
+          "unit": 8,
+          "min": 0.0,
+          "max": 0.0,
+          "median": 0.0,
+          "avg": 0.0,
+          "stdev": 0.0,
+          "n": 20
+        }
+      ]
+    },
+    {
+      "class": "Scaffold.Benchmarks.States.StoreEnumerateAllBenchmarks",
+      "method": "GetAll_OneTypeBucket_1k",
+      "groups": [
+        {
+          "name": "GetAll_OneTypeBucket_1k:Time",
+          "unit": 0,
+          "min": 199183.00000000003,
+          "max": 207563.0,
+          "median": 199691.0,
+          "avg": 200835.5,
+          "stdev": 2649.3199221687064,
+          "n": 20
+        },
+        {
+          "name": "GetAll_OneTypeBucket_1k:Allocated",
+          "unit": 4,
+          "min": 0.0,
+          "max": 40.0,
+          "median": 0.0,
+          "avg": 6.0,
+          "stdev": 14.2828568570857,
+          "n": 20
+        },
+        {
+          "name": "GetAll_OneTypeBucket_1k:AllocCount",
+          "unit": 8,
+          "min": 7.01,
+          "max": 7.01,
+          "median": 7.01,
+          "avg": 7.010000000000001,
+          "stdev": 8.881784197001254E-16,
+          "n": 20
+        },
+        {
+          "name": "GetAll_OneTypeBucket_1k:Gen0",
+          "unit": 8,
+          "min": 0.0,
+          "max": 0.0,
+          "median": 0.0,
+          "avg": 0.0,
+          "stdev": 0.0,
+          "n": 20
+        },
+        {
+          "name": "GetAll_OneTypeBucket_1k:Gen1",
+          "unit": 8,
+          "min": 0.0,
+          "max": 0.0,
+          "median": 0.0,
+          "avg": 0.0,
+          "stdev": 0.0,
+          "n": 20
+        },
+        {
+          "name": "GetAll_OneTypeBucket_1k:Gen2",
+          "unit": 8,
+          "min": 0.0,
+          "max": 0.0,
+          "median": 0.0,
+          "avg": 0.0,
+          "stdev": 0.0,
+          "n": 20
+        }
+      ]
+    },
+    {
+      "class": "Scaffold.Benchmarks.States.StoreExecuteBenchmarks",
+      "method": "Execute_SingleMutator_OneSlice",
+      "groups": [
+        {
+          "name": "Execute_SingleMutator_OneSlice:Time",
+          "unit": 0,
+          "min": 2783.38,
+          "max": 2941.39,
+          "median": 2809.8900000000003,
+          "avg": 2841.0445,
+          "stdev": 52.586383739044045,
+          "n": 20
+        },
+        {
+          "name": "Execute_SingleMutator_OneSlice:Allocated",
+          "unit": 4,
+          "min": 0.0,
+          "max": 0.0,
+          "median": 0.0,
+          "avg": 0.0,
+          "stdev": 0.0,
+          "n": 20
+        },
+        {
+          "name": "Execute_SingleMutator_OneSlice:AllocCount",
+          "unit": 8,
+          "min": 5.0001,
+          "max": 5.0001,
+          "median": 5.0001,
+          "avg": 5.0001000000000015,
+          "stdev": 1.776356839400251E-15,
+          "n": 20
+        },
+        {
+          "name": "Execute_SingleMutator_OneSlice:Gen0",
+          "unit": 8,
+          "min": 0.0,
+          "max": 0.0,
+          "median": 0.0,
+          "avg": 0.0,
+          "stdev": 0.0,
+          "n": 20
+        },
+        {
+          "name": "Execute_SingleMutator_OneSlice:Gen1",
+          "unit": 8,
+          "min": 0.0,
+          "max": 0.0,
+          "median": 0.0,
+          "avg": 0.0,
+          "stdev": 0.0,
+          "n": 20
+        },
+        {
+          "name": "Execute_SingleMutator_OneSlice:Gen2",
+          "unit": 8,
+          "min": 0.0,
+          "max": 0.0,
+          "median": 0.0,
+          "avg": 0.0,
+          "stdev": 0.0,
+          "n": 20
+        }
+      ]
+    },
+    {
+      "class": "Scaffold.Benchmarks.States.StoreExecuteBenchmarks",
+      "method": "Execute_TypedMutator_OneSlice_NoRegistry",
+      "groups": [
+        {
+          "name": "Execute_TypedMutator_OneSlice_NoRegistry:Time",
+          "unit": 0,
+          "min": 2464.96,
+          "max": 2611.3,
+          "median": 2480.86,
+          "avg": 2505.764,
+          "stdev": 45.30089484767384,
+          "n": 20
+        },
+        {
+          "name": "Execute_TypedMutator_OneSlice_NoRegistry:Allocated",
+          "unit": 4,
+          "min": 0.0,
+          "max": 0.0,
+          "median": 0.0,
+          "avg": 0.0,
+          "stdev": 0.0,
+          "n": 20
+        },
+        {
+          "name": "Execute_TypedMutator_OneSlice_NoRegistry:AllocCount",
+          "unit": 8,
+          "min": 4.0001,
+          "max": 4.0001,
+          "median": 4.0001,
+          "avg": 4.0001000000000015,
+          "stdev": 1.776356839400251E-15,
+          "n": 20
+        },
+        {
+          "name": "Execute_TypedMutator_OneSlice_NoRegistry:Gen0",
+          "unit": 8,
+          "min": 0.0,
+          "max": 0.0,
+          "median": 0.0,
+          "avg": 0.0,
+          "stdev": 0.0,
+          "n": 20
+        },
+        {
+          "name": "Execute_TypedMutator_OneSlice_NoRegistry:Gen1",
+          "unit": 8,
+          "min": 0.0,
+          "max": 0.0,
+          "median": 0.0,
+          "avg": 0.0,
+          "stdev": 0.0,
+          "n": 20
+        },
+        {
+          "name": "Execute_TypedMutator_OneSlice_NoRegistry:Gen2",
+          "unit": 8,
+          "min": 0.0,
+          "max": 0.0,
+          "median": 0.0,
+          "avg": 0.0,
+          "stdev": 0.0,
+          "n": 20
+        }
+      ]
+    },
+    {
+      "class": "Scaffold.Benchmarks.States.SubscribeBenchmarks",
+      "method": "Subscribe_PerCall_CachedDelegate",
+      "groups": [
+        {
+          "name": "Subscribe_PerCall_CachedDelegate:Time",
+          "unit": 0,
+          "min": 251.63,
+          "max": 284.4200000000001,
+          "median": 265.845,
+          "avg": 265.9885,
+          "stdev": 8.559792214183718,
+          "n": 20
+        },
+        {
+          "name": "Subscribe_PerCall_CachedDelegate:Allocated",
+          "unit": 4,
+          "min": 0.0,
+          "max": 210.0,
+          "median": 0.0,
+          "avg": 21.05,
+          "stdev": 50.2130212196,
+          "n": 20
+        },
+        {
+          "name": "Subscribe_PerCall_CachedDelegate:AllocCount",
+          "unit": 8,
+          "min": 1.0001,
+          "max": 1.0011,
+          "median": 1.0001,
+          "avg": 1.0001699999999998,
+          "stdev": 0.00021702534414213073,
+          "n": 20
+        },
+        {
+          "name": "Subscribe_PerCall_CachedDelegate:Gen0",
+          "unit": 8,
+          "min": 0.0,
+          "max": 0.0,
+          "median": 0.0,
+          "avg": 0.0,
+          "stdev": 0.0,
+          "n": 20
+        },
+        {
+          "name": "Subscribe_PerCall_CachedDelegate:Gen1",
+          "unit": 8,
+          "min": 0.0,
+          "max": 0.0,
+          "median": 0.0,
+          "avg": 0.0,
+          "stdev": 0.0,
+          "n": 20
+        },
+        {
+          "name": "Subscribe_PerCall_CachedDelegate:Gen2",
+          "unit": 8,
+          "min": 0.0,
+          "max": 0.0,
+          "median": 0.0,
+          "avg": 0.0,
+          "stdev": 0.0,
+          "n": 20
+        }
+      ]
+    }
+  ]
 }
