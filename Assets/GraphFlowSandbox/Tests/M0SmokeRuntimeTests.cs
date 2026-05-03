@@ -6,6 +6,7 @@ using Scaffold.GraphFlow.M0;
 using Scaffold.GraphFlow.M0.Nodes;
 using Scaffold.GraphFlow.M0.Smoke;
 using UnityEngine;
+using Scaffold.GraphFlow;
 
 namespace Scaffold.GraphFlow.M0.Tests
 {

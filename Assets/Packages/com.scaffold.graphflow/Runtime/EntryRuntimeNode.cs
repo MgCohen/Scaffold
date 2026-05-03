@@ -1,4 +1,4 @@
-namespace Scaffold.GraphFlow.M0
+namespace Scaffold.GraphFlow
 {
     /// <summary>
     /// Base for generated/hand-written entry runtime nodes — receives the typed dispatch payload from the controller.

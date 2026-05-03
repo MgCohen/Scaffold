@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Scaffold.GraphFlow.M0
+namespace Scaffold.GraphFlow
 {
     /// <summary>Data edges only — typed values via <see cref="Connection{T}"/> at hydration.</summary>
     [Serializable]

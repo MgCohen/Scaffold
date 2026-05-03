@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using Unity.GraphToolkit.Editor;
 
-namespace Scaffold.GraphFlow.M0.Editor
+namespace Scaffold.GraphFlow.Editor
 {
     /// <summary>
     /// Per-package, per-runner lookup tables driven by generator-emitted registrations.

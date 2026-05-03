@@ -1,4 +1,4 @@
-namespace Scaffold.GraphFlow.M0
+namespace Scaffold.GraphFlow
 {
     /// <summary>Optional lifecycle hook — populated when M2/M3 need init/listeners.</summary>
     public interface IInitializableNode<TRunner> where TRunner : GraphRunner

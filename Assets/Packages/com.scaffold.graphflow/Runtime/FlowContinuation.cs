@@ -1,4 +1,4 @@
-namespace Scaffold.GraphFlow.M0
+namespace Scaffold.GraphFlow
 {
     /// <summary>
     /// Result of <see cref="RuntimeNode{TRunner}.Execute"/> — which flow output to follow, if any.

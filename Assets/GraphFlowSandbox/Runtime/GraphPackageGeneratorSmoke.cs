@@ -1,5 +1,6 @@
 using System;
 using Scaffold.GraphFlow.M0.Smoke;
+using Scaffold.GraphFlow;
 
 namespace Scaffold.GraphFlow.M0
 {

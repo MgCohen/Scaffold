@@ -1,6 +1,6 @@
 using System.Threading.Tasks;
 
-namespace Scaffold.GraphFlow.M0
+namespace Scaffold.GraphFlow
 {
     /// <summary>Marker: payload types that belong to this runner package (Mode 1).</summary>
     public interface IGraphEntry<TRunner> where TRunner : GraphRunner { }

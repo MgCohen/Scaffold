@@ -1,9 +1,9 @@
-using Scaffold.GraphFlow.M0.Editor.GToolkit;
+using Scaffold.GraphFlow.Editor.GToolkit;
 using Unity.GraphToolkit.Editor;
 using UnityEditor;
 using UnityEditor.AssetImporters;
 
-namespace Scaffold.GraphFlow.M0.Editor
+namespace Scaffold.GraphFlow.Editor
 {
     /// <summary>
     /// ScriptedImporter pipeline for package graphs. Subclasses close type parameters, apply

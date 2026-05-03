@@ -1,6 +1,7 @@
 using Scaffold.GraphFlow.M0.Smoke;
 using TMPro;
 using UnityEngine;
+using Scaffold.GraphFlow;
 
 namespace Scaffold.GraphFlow.M0.PlayerSmoke
 {

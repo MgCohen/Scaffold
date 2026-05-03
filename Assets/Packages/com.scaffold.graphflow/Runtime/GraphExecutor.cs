@@ -1,7 +1,7 @@
 using System;
 using System.Threading.Tasks;
 
-namespace Scaffold.GraphFlow.M0
+namespace Scaffold.GraphFlow
 {
     public sealed class GraphExecutor<TRunner> where TRunner : GraphRunner
     {

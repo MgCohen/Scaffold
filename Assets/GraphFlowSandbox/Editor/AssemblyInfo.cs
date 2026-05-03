@@ -1,6 +1,7 @@
 #pragma warning disable SCA0009 // Assembly attributes use global namespace by design
 using Scaffold.GraphFlow;
 using Scaffold.GraphFlow.M0.Smoke;
+using Scaffold.GraphFlow.Editor;
 
 [assembly: GraphPackage(
     Runner = typeof(MySmokeRunner),

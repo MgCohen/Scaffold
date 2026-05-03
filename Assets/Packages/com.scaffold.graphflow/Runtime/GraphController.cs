@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace Scaffold.GraphFlow.M0
+namespace Scaffold.GraphFlow
 {
     public sealed class GraphController<TRunner> where TRunner : GraphRunner
     {

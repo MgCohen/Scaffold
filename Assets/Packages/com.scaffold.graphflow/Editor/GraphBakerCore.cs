@@ -1,11 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Scaffold.GraphFlow.M0.Editor.GToolkit;
+using Scaffold.GraphFlow.Editor.GToolkit;
 using Unity.GraphToolkit.Editor;
 using UnityEngine;
 
-namespace Scaffold.GraphFlow.M0.Editor
+namespace Scaffold.GraphFlow.Editor
 {
     public sealed class GraphBakeResult<TAsset> where TAsset : ScriptableObject
     {

@@ -1,6 +1,6 @@
 using System;
 
-namespace Scaffold.GraphFlow.M0
+namespace Scaffold.GraphFlow
 {
     /// <summary>
     /// Base for typed port handles on a <see cref="RuntimeNode"/>. Indexed by port id in the node's

@@ -2,7 +2,7 @@ using System;
 using System.Reflection;
 using Unity.GraphToolkit.Editor;
 
-namespace Scaffold.GraphFlow.M0.Editor
+namespace Scaffold.GraphFlow.Editor
 {
     /// <summary>Stable editor node identity — reads each <see cref="Node"/>&apos;s persisted Unity <c>Hash128</c> GUID from the backing toolkit model.</summary>
     /// <remarks>
