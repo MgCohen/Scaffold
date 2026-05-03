@@ -5,7 +5,7 @@
   "generated": "2026-05-02T22:43:34Z",
   "editor_mono": [
     {
-      "test": "Scaffold.Maps.Tests.Performance.MapIndexerBulkRebuildBench.BulkAdd_AfterFiveIndexers_Count_10",
+      "test": "Scaffold.Benchmarks.Maps.MapIndexerBulkRebuildBench.BulkAdd_AfterFiveIndexers_Count_10",
       "sample_groups": {
         "BulkAdd_AfterFiveIndexers_Count_10:Time": {
           "median": 19204.0,
@@ -34,7 +34,7 @@
       }
     },
     {
-      "test": "Scaffold.Maps.Tests.Performance.MapIndexerBulkRebuildBench.BulkAdd_AfterFiveIndexers_Count_100",
+      "test": "Scaffold.Benchmarks.Maps.MapIndexerBulkRebuildBench.BulkAdd_AfterFiveIndexers_Count_100",
       "sample_groups": {
         "BulkAdd_AfterFiveIndexers_Count_100:Time": {
           "median": 184119.0,
@@ -63,7 +63,7 @@
       }
     },
     {
-      "test": "Scaffold.Maps.Tests.Performance.MapIndexerBulkRebuildBench.BulkAdd_AfterFiveIndexers_Count_1000",
+      "test": "Scaffold.Benchmarks.Maps.MapIndexerBulkRebuildBench.BulkAdd_AfterFiveIndexers_Count_1000",
       "sample_groups": {
         "BulkAdd_AfterFiveIndexers_Count_1000:Time": {
           "median": 6958660.0,
@@ -92,7 +92,7 @@
       }
     },
     {
-      "test": "Scaffold.Maps.Tests.Performance.MapIndexerValuesBench.Indexer_Values_PerRead_Count10",
+      "test": "Scaffold.Benchmarks.Maps.MapIndexerValuesBench.Indexer_Values_PerRead_Count10",
       "sample_groups": {
         "Indexer_Values_PerRead_Count10:Time": {
           "median": 536.9200000000001,
@@ -121,7 +121,7 @@
       }
     },
     {
-      "test": "Scaffold.Maps.Tests.Performance.MapIndexerValuesBench.Indexer_Values_PerRead_Count100",
+      "test": "Scaffold.Benchmarks.Maps.MapIndexerValuesBench.Indexer_Values_PerRead_Count100",
       "sample_groups": {
         "Indexer_Values_PerRead_Count100:Time": {
           "median": 3434.145,
@@ -150,7 +150,7 @@
       }
     },
     {
-      "test": "Scaffold.Maps.Tests.Performance.MapIndexerValuesBench.Indexer_Values_PerRead_Count1000",
+      "test": "Scaffold.Benchmarks.Maps.MapIndexerValuesBench.Indexer_Values_PerRead_Count1000",
       "sample_groups": {
         "Indexer_Values_PerRead_Count1000:Time": {
           "median": 31899.165,
@@ -179,7 +179,7 @@
       }
     },
     {
-      "test": "Scaffold.Maps.Tests.Performance.MapKeyEnumerationBench.GetPrimaryKeys_1000Entries_10000Calls",
+      "test": "Scaffold.Benchmarks.Maps.MapKeyEnumerationBench.GetPrimaryKeys_1000Entries_10000Calls",
       "sample_groups": {
         "GetPrimaryKeys_1000Entries_10000Calls:Time": {
           "median": 77180.68000000001,
@@ -208,7 +208,7 @@
       }
     },
     {
-      "test": "Scaffold.Maps.Tests.Performance.MapKeyEnumerationBench.GetSecondaryKeys_1000Entries_10000Calls",
+      "test": "Scaffold.Benchmarks.Maps.MapKeyEnumerationBench.GetSecondaryKeys_1000Entries_10000Calls",
       "sample_groups": {
         "GetSecondaryKeys_1000Entries_10000Calls:Time": {
           "median": 77335.81,
@@ -237,7 +237,7 @@
       }
     },
     {
-      "test": "Scaffold.Maps.Tests.Performance.MapVsTupleDictBench.Dict_Add_FromEmpty_Count10",
+      "test": "Scaffold.Benchmarks.Maps.MapVsTupleDictBench.Dict_Add_FromEmpty_Count10",
       "sample_groups": {
         "Dict_Add_FromEmpty_Count10:Time": {
           "median": 4801.1,
@@ -266,7 +266,7 @@
       }
     },
     {
-      "test": "Scaffold.Maps.Tests.Performance.MapVsTupleDictBench.Dict_Add_FromEmpty_Count100",
+      "test": "Scaffold.Benchmarks.Maps.MapVsTupleDictBench.Dict_Add_FromEmpty_Count100",
       "sample_groups": {
         "Dict_Add_FromEmpty_Count100:Time": {
           "median": 39534.50000000001,
@@ -295,7 +295,7 @@
       }
     },
     {
-      "test": "Scaffold.Maps.Tests.Performance.MapVsTupleDictBench.Dict_Add_FromEmpty_Count1000",
+      "test": "Scaffold.Benchmarks.Maps.MapVsTupleDictBench.Dict_Add_FromEmpty_Count1000",
       "sample_groups": {
         "Dict_Add_FromEmpty_Count1000:Time": {
           "median": 366772.5,
@@ -324,7 +324,7 @@
       }
     },
     {
-      "test": "Scaffold.Maps.Tests.Performance.MapVsTupleDictBench.Dict_Foreach_Count1000",
+      "test": "Scaffold.Benchmarks.Maps.MapVsTupleDictBench.Dict_Foreach_Count1000",
       "sample_groups": {
         "Dict_Foreach_Count1000:Time": {
           "median": 37731.0,
@@ -353,7 +353,7 @@
       }
     },
     {
-      "test": "Scaffold.Maps.Tests.Performance.MapVsTupleDictBench.Dict_TryGetValue_Hit_Count1000",
+      "test": "Scaffold.Benchmarks.Maps.MapVsTupleDictBench.Dict_TryGetValue_Hit_Count1000",
       "sample_groups": {
         "Dict_TryGetValue_Hit_Count1000:Time": {
           "median": 91.09500000000001,
@@ -382,7 +382,7 @@
       }
     },
     {
-      "test": "Scaffold.Maps.Tests.Performance.MapVsTupleDictBench.Map_Add_FromEmpty_Count10",
+      "test": "Scaffold.Benchmarks.Maps.MapVsTupleDictBench.Map_Add_FromEmpty_Count10",
       "sample_groups": {
         "Map_Add_FromEmpty_Count10:Time": {
           "median": 7897.5,
@@ -411,7 +411,7 @@
       }
     },
     {
-      "test": "Scaffold.Maps.Tests.Performance.MapVsTupleDictBench.Map_Add_FromEmpty_Count100",
+      "test": "Scaffold.Benchmarks.Maps.MapVsTupleDictBench.Map_Add_FromEmpty_Count100",
       "sample_groups": {
         "Map_Add_FromEmpty_Count100:Time": {
           "median": 71280.0,
@@ -440,7 +440,7 @@
       }
     },
     {
-      "test": "Scaffold.Maps.Tests.Performance.MapVsTupleDictBench.Map_Add_FromEmpty_Count1000",
+      "test": "Scaffold.Benchmarks.Maps.MapVsTupleDictBench.Map_Add_FromEmpty_Count1000",
       "sample_groups": {
         "Map_Add_FromEmpty_Count1000:Time": {
           "median": 659457.5,
@@ -469,7 +469,7 @@
       }
     },
     {
-      "test": "Scaffold.Maps.Tests.Performance.MapVsTupleDictBench.Map_Foreach_Count1000",
+      "test": "Scaffold.Benchmarks.Maps.MapVsTupleDictBench.Map_Foreach_Count1000",
       "sample_groups": {
         "Map_Foreach_Count1000:Time": {
           "median": 80327.9,
@@ -498,7 +498,7 @@
       }
     },
     {
-      "test": "Scaffold.Maps.Tests.Performance.MapVsTupleDictBench.Map_TryGetValue_Hit_Count1000",
+      "test": "Scaffold.Benchmarks.Maps.MapVsTupleDictBench.Map_TryGetValue_Hit_Count1000",
       "sample_groups": {
         "Map_TryGetValue_Hit_Count1000:Time": {
           "median": 229.85000000000005,

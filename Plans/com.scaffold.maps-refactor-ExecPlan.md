@@ -4,7 +4,7 @@
 **Goals:** Perf + correctness baseline; mechanical cleanup; remove `Holder<T>`; clearer contracts; indexer test coverage; re-benchmark and document results.  
 **Constraint:** Work in-place; **no consumer migrations** required (audit found zero external `AddIndexer` callers).
 
-Benchmark conventions follow [`Docs/Audits/Packages/_benchmarking.md`](../Docs/Audits/Packages/_benchmarking.md) — Unity.PerformanceTesting + `Bench.Measure`, Editor + IL2CPP lanes where supported, [`Tests/Performance/baselines.json`](../Assets/Packages/com.scaffold.maps/Tests/Performance/baselines.json).
+Benchmark conventions follow [`Docs/Audits/Packages/_benchmarking.md`](../Docs/Audits/Packages/_benchmarking.md) — Unity.PerformanceTesting + `Bench.Measure`, Editor + IL2CPP lanes where supported, [`Assets/Benchmarks/Maps/baselines.json`](../Assets/Benchmarks/Maps/baselines.json). The perf suite was relocated out of the package tree; see the migration note below.
 
 ---
 
@@ -14,7 +14,7 @@ Benchmark conventions follow [`Docs/Audits/Packages/_benchmarking.md`](../Docs/A
 
 ### 0.1 — Perf harness
 
-- `Assets/Packages/com.scaffold.maps/Tests/Performance/` + `Scaffold.Maps.Tests.Performance.asmdef` (references `Unity.PerformanceTesting`, `NUnit`, `Scaffold.Maps`).
+- `Assets/Benchmarks/Maps/` + `Scaffold.Benchmarks.Maps.asmdef` (references `Scaffold.Benchmarks`, `Scaffold.Maps`, `Unity.PerformanceTesting`, `TestAssemblies`). Phase 0 originally placed this under `Assets/Packages/com.scaffold.maps/Tests/Performance/`; it was relocated outside the package tree so the UPM surface stays lean.
 - `Bench.cs`: per-package (no shared `com.scaffold.testing.benchmarks` in this repo) — reuse pattern from `_benchmarking.md`.
 
 ### 0.2 — Benchmark suite (audit §11)
@@ -128,7 +128,7 @@ Target scenarios (names may vary slightly in repo):
 | Step | Artifact |
 |------|-----------|
 | 1 | Re-run Phase 0 perf suite (Editor Mono + IL2CPP if available). |
-| 2 | Optional: **`Tests/Performance/results-phase5.json`** alongside baseline. |
+| 2 | Optional: **`Assets/Benchmarks/Maps/results-phase5.json`** alongside baseline. |
 | 3 | [`Docs/Audits/Packages/Reports/com.scaffold.maps.refactor-results.md`](../Docs/Audits/Packages/Reports/com.scaffold.maps.refactor-results.md) — ns/op, bytes/op, AllocCount, Gen deltas vs baseline; **`MapVsTupleDictBench`** sanity. |
 | 4 | Update **`baselines.json`** post-refactor medians (**remove** stale notes once refreshed). |
 
@@ -144,7 +144,7 @@ Target scenarios (names may vary slightly in repo):
 
 | Topic | Resolution in this effort |
 |--------|----------------------------|
-| `Bench.cs` location | Inline under `Tests/Performance/Bench.cs` in maps package (no shared bench package yet). |
+| `Bench.cs` location | Originally inline under `Tests/Performance/Bench.cs` in the maps package; lifted to a repo-internal canonical at `Assets/Benchmarks/Bench/Bench.cs` (asmdef `Scaffold.Benchmarks`) when authoring the states refactor Phase 0, so future package benchmarks can reference it instead of copying. |
 | `TryGetIndexer` break | Accepted — zero repo callers outside package. |
 | `Indexer.Values` type | **`IndexerValuesView`** — **`IReadOnlyCollection<T>`**, O(1) **`Count`**, struct enumerator avoids list-per-read while keeping countable API. Generic interface uses implementation type for **`Values`** to avoid ambiguity. |
 | IL2CPP / CI | Baseline/report docs allow Editor-only capture when IL2CPP lane unavailable; note in refactor results. |

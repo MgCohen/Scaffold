@@ -1,0 +1,10 @@
+{
+    "schema": 1,
+    "package": "com.scaffold.states",
+    "phase": 0,
+    "captured_on": null,
+    "runtime": null,
+    "byte_source": null,
+    "note": "Placeholder. Run the Phase 0 perf suite under Editor (Mono) and IL2CPP (when CI supports it) and replace with the captured medians. See Plans/com.scaffold.states-refactor-ExecPlan.md §0.3 and Docs/Audits/Packages/_benchmarking.md.",
+    "results": []
+}

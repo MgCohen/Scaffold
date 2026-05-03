@@ -1,9 +1,8 @@
 using NUnit.Framework;
 using Scaffold.Maps;
 using Unity.PerformanceTesting;
-using UnityEngine.TestTools;
 
-namespace Scaffold.Maps.Tests.Performance
+namespace Scaffold.Benchmarks.Maps
 {
     /// <summary>
     /// Measures per-call work for <see cref="Indexer{TPrimary,TSecondary,TValue}.Values"/> <c>.Count</c> (Phase 2+: O(1), no list snapshot).
@@ -11,7 +10,7 @@ namespace Scaffold.Maps.Tests.Performance
     public sealed class MapIndexerValuesBench
     {
         [SetUp]
-        public void SetUp() => LogAssert.ignoreFailingMessages = true;
+        public void SetUp() => BenchSetup.RearmPerTest();
 
         internal static Map<int, int, string> BuildAllMatch(int entryCount)
         {

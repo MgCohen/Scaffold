@@ -2,7 +2,7 @@
 
 **Change set:** Structural indexer rewrite (dictionary-backed `BaseMap` without `Holder<T>`), keyed `HashSet<Index<,>>` indexers, `IReadOnlyIndexer` + clearer exceptions, `IndexerValuesView` for allocation-friendly `Values` / `Count`, `MapIndexerTests` coverage.
 
-**Measured numbers:** Not captured in this workspace (no Unity runner). After you run the perf suite in Unity, replace the qualitative table below with medians and attach or merge `Tests/Performance/results-phase5.json`.
+**Measured numbers:** Not captured in this workspace (no Unity runner). After you run the perf suite in Unity, replace the qualitative table below with medians and attach or merge `Assets/Benchmarks/Maps/results-phase5.json`.
 
 ## Benchmark policy
 
@@ -21,8 +21,8 @@ See `Docs/Audits/Packages/_benchmarking.md`: **Allocated** must not regress >10%
 
 | File | Role |
 |------|------|
-| `Tests/Performance/baselines.json` | Checked-in floor — **update medians** after Unity export |
-| `Tests/Performance/results-phase5.json` | Placeholder for last perf JSON export path |
+| `Assets/Benchmarks/Maps/baselines.json` | Checked-in floor — **update medians** after Unity export |
+| `Assets/Benchmarks/Maps/results-phase5.json` | Placeholder for last perf JSON export path |
 
 ## Tests
 

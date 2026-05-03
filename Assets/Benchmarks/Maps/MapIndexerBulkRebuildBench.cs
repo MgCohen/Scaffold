@@ -1,9 +1,8 @@
 using NUnit.Framework;
 using Scaffold.Maps;
 using Unity.PerformanceTesting;
-using UnityEngine.TestTools;
 
-namespace Scaffold.Maps.Tests.Performance
+namespace Scaffold.Benchmarks.Maps
 {
     /// <summary>
     /// Measures indexer rebuild cost when bulk-adding entries with multiple predicates (audit §11).
@@ -11,7 +10,7 @@ namespace Scaffold.Maps.Tests.Performance
     public sealed class MapIndexerBulkRebuildBench
     {
         [SetUp]
-        public void SetUp() => LogAssert.ignoreFailingMessages = true;
+        public void SetUp() => BenchSetup.RearmPerTest();
 
         internal static Map<int, int, string> BuildMapWithFiveIndexers()
         {

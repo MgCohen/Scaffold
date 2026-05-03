@@ -4,10 +4,12 @@ using System.Runtime.CompilerServices;
 using Unity.PerformanceTesting;
 using UnityEngine.Profiling;
 
-namespace Scaffold.Maps.Tests.Performance
+namespace Scaffold.Benchmarks
 {
     /// <summary>
-    /// Shared harness per Docs/Audits/Packages/_benchmarking.md.
+    /// Canonical benchmark harness shared across Scaffold packages.
+    /// See Docs/Audits/Packages/_benchmarking.md for run policy and pass/fail thresholds.
+    /// Reports six sample groups per measurement (Time, Allocated, AllocCount, Gen0/1/2).
     /// </summary>
     public static class Bench
     {
@@ -35,7 +37,6 @@ namespace Scaffold.Maps.Tests.Performance
 
         static (Func<long>, AllocByteSource) SelectBytesReader()
         {
-            // Per-thread cumulative counter. Works on most .NET runtimes; reports 0 on some Unity Mono configs.
             try
             {
                 if (Probe(static () => GC.GetAllocatedBytesForCurrentThread()))
@@ -45,10 +46,8 @@ namespace Scaffold.Maps.Tests.Performance
             }
             catch
             {
-                // PlatformNotSupportedException on exotic runtimes — try the next option.
             }
 
-            // Last resort: heap-size delta. Only meaningful when no Gen0 fires inside the window.
             try
             {
                 if (Probe(static () => GC.GetTotalMemory(false)))
@@ -137,7 +136,6 @@ namespace Scaffold.Maps.Tests.Performance
                 long bytesDelta = BytesReader() - b0;
                 if (bytesDelta < 0)
                 {
-                    // Heap-size source dipped below baseline because a collection ran inside the window.
                     bytesDelta = 0;
                 }
 
@@ -171,7 +169,6 @@ namespace Scaffold.Maps.Tests.Performance
             Recorder rec = Recorder.Get("GC.Alloc");
             rec.FilterToCurrentThread();
             rec.enabled = false;
-            // Drain whatever the harness/JIT already captured.
             _ = rec.sampleBlockCount;
 
             rec.enabled = true;
@@ -229,7 +226,7 @@ namespace Scaffold.Maps.Tests.Performance
         /// </summary>
         public static void NoAllocations(Action action)
         {
-            action(); // warm JIT, prime statics
+            action();
 
             if (BytesCounterWorks)
             {

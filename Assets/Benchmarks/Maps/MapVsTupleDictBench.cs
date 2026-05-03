@@ -3,9 +3,8 @@ using System.Linq;
 using NUnit.Framework;
 using Scaffold.Maps;
 using Unity.PerformanceTesting;
-using UnityEngine.TestTools;
 
-namespace Scaffold.Maps.Tests.Performance
+namespace Scaffold.Benchmarks.Maps
 {
     /// <summary>
     /// Sanity baseline: Map&lt;int,int,string&gt; vs Dictionary&lt;(int,int),string&gt;.
@@ -13,10 +12,7 @@ namespace Scaffold.Maps.Tests.Performance
     public sealed class MapVsTupleDictBench
     {
         [SetUp]
-        public void SetUp() => LogAssert.ignoreFailingMessages = true;
-
-        [TearDown]
-        public void TearDown() => LogAssert.ignoreFailingMessages = true;
+        public void SetUp() => BenchSetup.RearmPerTest();
 
         internal static Map<int, int, string> BuildMap(int n)
         {

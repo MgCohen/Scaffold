@@ -2,9 +2,8 @@ using System.Linq;
 using NUnit.Framework;
 using Scaffold.Maps;
 using Unity.PerformanceTesting;
-using UnityEngine.TestTools;
 
-namespace Scaffold.Maps.Tests.Performance
+namespace Scaffold.Benchmarks.Maps
 {
     /// <summary>
     /// Measures key enumeration allocations (<see cref="Map{TPrimary,TSecondary,TValue}.GetPrimaryKeys"/> / GetSecondaryKeys).
@@ -13,7 +12,7 @@ namespace Scaffold.Maps.Tests.Performance
     public sealed class MapKeyEnumerationBench
     {
         [SetUp]
-        public void SetUp() => LogAssert.ignoreFailingMessages = true;
+        public void SetUp() => BenchSetup.RearmPerTest();
 
         internal static Map<int, int, string> BuildMap(int entries)
         {

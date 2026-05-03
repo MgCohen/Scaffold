@@ -19,17 +19,28 @@ The convenience gap (`[MemoryDiagnoser]` auto-reports bytes + Gen0/1/2) is close
 
 ## Tests location
 
+Benchmarks live **outside** the per-package UPM tree, under a single repo-internal folder:
+
 ```text
-Assets/Packages/<package-name>/Tests/Performance/
+Assets/Benchmarks/
+  Bench/                                 # canonical Bench.Measure + BenchSetup helper
+    Bench.cs
+    BenchSetup.cs
+    Scaffold.Benchmarks.asmdef           # Editor-only, references Unity.PerformanceTesting + TestAssemblies
+  <PackageShortName>/
+    *Benchmarks.cs                       # one fixture per scenario family
+    Scaffold.Benchmarks.<PackageShortName>.asmdef
+    <PackageShortName>BenchmarksAssemblySetup.cs   # [SetUpFixture] per assembly
+    baselines.json
 ```
 
-Use a separate asmdef from the unit-test asmdef (or a define constraint such as `UNITY_INCLUDE_PERFORMANCE_TESTS`) so the perf suite doesn't run in the regular unit-test pass.
+Why outside the package tree: perf tests are dev/CI artifacts, not consumer code. Putting them under `Assets/Benchmarks/` (instead of `Assets/Packages/<pkg>/Tests/Performance/`) keeps the UPM surface lean — package consumers receive runtime + unit tests + samples and nothing else. Each per-package perf asmdef references the canonical `Scaffold.Benchmarks` plus the package under test plus `Unity.PerformanceTesting`. Each asmdef sets `includePlatforms: [Editor]` so the benches never compile into player builds.
 
 ---
 
 ## The helper (`Bench.Measure`)
 
-Canonical implementation lives in `Assets/Packages/com.scaffold.maps/Tests/Performance/Bench.cs`. Reuse it (or copy the same shape into other packages). The shipped version reports six sample groups per measurement:
+Canonical implementation lives in `Assets/Benchmarks/Bench/Bench.cs` (namespace `Scaffold.Benchmarks`). Reference it from each package's perf asmdef; do **not** copy it. The shipped version reports six sample groups per measurement:
 
 | Sample group   | Source                                                                            | Notes |
 |----------------|-----------------------------------------------------------------------------------|-------|
@@ -130,7 +141,8 @@ If you read a benchmark plan entry citing `BenchmarkDotNet`, `[MemoryDiagnoser]`
 | Old | New |
 |---|---|
 | `BenchmarkDotNet + [MemoryDiagnoser]` | `[Test, Performance]` + `Bench.Measure(() => ...)` |
-| `Tests/Performance/Bdn/` | `Tests/Performance/` |
+| `Tests/Performance/Bdn/` | `Assets/Benchmarks/<PackageShortName>/` |
+| `Assets/Packages/<pkg>/Tests/Performance/` | `Assets/Benchmarks/<PackageShortName>/` |
 | `[Benchmark] public void Foo()` | `[Test, Performance] public void Foo() { Bench.Measure(() => ...); }` |
 | Implicit Gen0/Gen1/Gen2 | Reported automatically by `Bench.Measure` |
 | `Allocated` column | `Allocated` sample group |
@@ -143,4 +155,4 @@ The `entities`, `states`, and `entities.states` audit plans have been updated in
 
 - **Local:** Test Runner → results pane — often **CSV** (or table) export for viewing. For **JSON**, use batchmode **`-perfTestResults <path>.json`** (see [Performance testing command-line arguments](https://docs.unity3d.com/Packages/com.unity.test-framework.performance@3.2/manual/cmd-line-args.html)).
 - **CI:** `unity -batchmode -runTests … -perfTestResults results.json` (and `-testResults` for NUnit XML). Optionally `-testCategory "Performance"`. Feed JSON to [PerformanceBenchmarkReporter](https://github.com/Unity-Technologies/PerformanceBenchmarkReporter) for over-time HTML reports.
-- **Baselines:** keep a checked-in `baselines.json` per package under `Tests/Performance/` and diff against it in CI. PR fails if any sample group exceeds the policy thresholds above.
+- **Baselines:** keep a checked-in `baselines.json` per package under `Assets/Benchmarks/<PackageShortName>/` and diff against it in CI. PR fails if any sample group exceeds the policy thresholds above.

@@ -7,7 +7,7 @@ This ExecPlan is a living document. The sections `Progress`, `Surprises & Discov
 **Project audit context:** [`Docs/Audits/Packages/_index.md`](../Docs/Audits/Packages/_index.md) — themes 1, 3, 4, 6, 8, 10
 **Companion (entities.states):** [`Docs/Audits/Packages/com.scaffold.entities.states.md`](../Docs/Audits/Packages/com.scaffold.entities.states.md). Several findings co-tax this plan; cross-package fixes (e.g. typed-key `Subscribe`) land here, not there.
 
-Benchmark conventions follow [`Docs/Audits/Packages/_benchmarking.md`](../Docs/Audits/Packages/_benchmarking.md) — Unity.PerformanceTesting + the per-package `Bench.Measure` helper, Editor + IL2CPP lanes where supported, baseline JSON per package under `Tests/Performance/baselines.json`.
+Benchmark conventions follow [`Docs/Audits/Packages/_benchmarking.md`](../Docs/Audits/Packages/_benchmarking.md) — Unity.PerformanceTesting + the canonical `Scaffold.Benchmarks` `Bench.Measure` helper at `Assets/Benchmarks/Bench/Bench.cs`, Editor + IL2CPP lanes where supported. Per-package benchmarks and their `baselines.json` live under `Assets/Benchmarks/<PackageShortName>/` (states: [`Assets/Benchmarks/States/baselines.json`](../Assets/Benchmarks/States/baselines.json)) — outside the UPM tree so the package surface stays lean.
 
 ## Purpose / Big Picture
 
@@ -19,9 +19,9 @@ After this refactor, a developer working on `com.scaffold.states` (and on its si
 - A typed slice-key contract. `IReference` becomes a discriminated abstraction (`abstract record Reference` or analyzer-enforced equality contract), so `EntityStateReference` and any future key type cannot silently mis-hash inside the slice map.
 - Source-generated payload→mutator dispatch. `EntityBridgeContext.RegisterMutators` (six hand-edited `RegisterMutator` calls today) and the runtime `Dictionary<Type, List<…>>` lookup both disappear in favor of a `[Mutator]`-attribute discovery generator under `Generators/`.
 - A VContainer `Container/StatesInstaller`, matching the project convention (`AGENTS.MD`).
-- Concrete benchmark numbers proving each claim, recorded in `Tests/Performance/baselines.json` and a sibling refactor-results report.
+- Concrete benchmark numbers proving each claim, recorded in `Assets/Benchmarks/States/baselines.json` and a sibling refactor-results report.
 
-The change is observable: the existing test suite (`Assets/Packages/com.scaffold.states/Tests/`) goes from green-with-known-smells to green-against-stricter-contracts; new tests under `Tests/Reentrancy/` and `Tests/Performance/` actively prove the bugs the audit calls out are no longer reachable.
+The change is observable: the existing test suite (`Assets/Packages/com.scaffold.states/Tests/`) goes from green-with-known-smells to green-against-stricter-contracts; new benchmarks and regression tests under `Assets/Benchmarks/States/` actively prove the bugs the audit calls out are no longer reachable.
 
 **Constraint:** in-place; the only external consumer is `com.scaffold.entities.states`. Migrate that package within the same plan when an API breaks. Audit verified zero other consumers under `Assets/`, `GameModule/`, `LiveOps/`.
 
@@ -102,26 +102,26 @@ The plan is sequenced as seven phases. Each phase has a clear exit criterion. Ph
 
 Goal: capture the current perf/correctness profile before any refactor, so Phase 7 has numbers to diff against. Mirrors the maps Phase 0 setup (`Plans/com.scaffold.maps-refactor-ExecPlan.md` Phase 0).
 
-**0.1 Perf harness.** Create `Assets/Packages/com.scaffold.states/Tests/Performance/` with:
+**0.1 Perf harness.** Per the project-wide convention captured in `Docs/Audits/Packages/_benchmarking.md`, perf tests live **outside** the package tree under `Assets/Benchmarks/`. The canonical `Bench.Measure` lives at `Assets/Benchmarks/Bench/Bench.cs` (asmdef `Scaffold.Benchmarks`) and is referenced — not copied — by each per-package perf asmdef. For states the layout is:
 
-- `Scaffold.States.Tests.Performance.asmdef` — references `Unity.PerformanceTesting`, `NUnit`, `Scaffold.States`, `Scaffold.States.Samples`, `Scaffold.Maps`, `Scaffold.Pooling`. Define constraint `UNITY_INCLUDE_PERFORMANCE_TESTS` so the perf suite is opt-in.
-- `Bench.cs` — copy of the canonical helper from `Assets/Packages/com.scaffold.maps/Tests/Performance/Bench.cs`. No shared `com.scaffold.testing.benchmarks` exists in the repo yet; per-package copy is the documented pattern.
-- `PerformanceAssemblySetup.cs` — `[SetUpFixture]` with `OneTimeSetUp` that calls `GC.Collect()` twice for stable starts, mirroring the maps suite.
+- `Assets/Benchmarks/States/Scaffold.Benchmarks.States.asmdef` — references `Scaffold.Benchmarks`, `Scaffold.States`, `Scaffold.States.Samples`, `Scaffold.Pooling`, `Scaffold.Maps`, `Unity.PerformanceTesting`. `includePlatforms: [Editor]`.
+- `Assets/Benchmarks/States/StatesBenchmarksAssemblySetup.cs` — per-assembly `[SetUpFixture]` calling the shared `Scaffold.Benchmarks.BenchSetup` (which save/restores `LogAssert.ignoreFailingMessages`).
+- `Scaffold.States/Runtime/AssemblyInfo.cs` adds `[assembly: InternalsVisibleTo("Scaffold.Benchmarks.States")]` so internal-surface micro-benchmarks (e.g. `MutatorRegistry.TryGet`) can be measured directly without going through the Pool overhead of `Execute<>`.
 
-**0.2 Benchmark suite.** One file per scenario, all using `Bench.Measure(...)` from §0.1. The audit `## Benchmark plan` enumerates the canonical set; bind each entry to a file:
+**0.2 Benchmark suite.** One file per scenario, all using `Scaffold.Benchmarks.Bench.Measure(...)`. The audit `## Benchmark plan` enumerates the canonical set; bind each entry to a file under `Assets/Benchmarks/States/`:
 
-- `StoreExecuteBenchmarks.cs::Execute_SingleMutator_OneSlice` — current path with `record class` payload (audit baseline).
-- `StoreEnumerateAllBenchmarks.cs::EnumerateAll_OneTypeBucket_1k` — 1k slices of one `TState`, 100 enumerations per measurement.
-- `NotifyBenchmarks.cs::Notify_50Subs_HalfUnsubscribeInline` — 50 subscribers, half `Unsubscribe` themselves on first notify.
-- `MutatorRegistryBenchmarks.cs::TryGet_KnownAndUnknown_50Types` — registry preloaded with 50 payload types, cycling known/unknown lookups.
-- `ReferenceEqualityBenchmarks.cs::ReferenceEquals_Vs_EqualsOverride` — mixed `Reference.Null` and a deliberately-misbehaving `IReference.Equals` impl.
-- `SubscribeBenchmarks.cs::Subscribe_FreshLambda_TypedAndUntyped` — measures only the `Ledger.Add` overhead, not the unavoidable delegate alloc.
-- `StoreEnumerateAllReentrancyTests.cs` (regular `[Test]`, not `[Performance]`) — proves the §4.5 corruption today (a subscriber that calls `EnumerateAll` from inside `Notify` corrupts the shared `sliceBuffer`). This test is **expected to fail** before Phase 2 and is left red until Phase 2 lands.
-- `StateEventHandlerInlineUnsubscribeTests.cs` — proves the §4.11 `InvalidOperationException: Collection was modified` today. Same status: red until Phase 2.
+- `StoreExecuteBenchmarks.cs::Execute_SingleMutator_OneSlice` — current path with `record class` payload (audit baseline). Sibling `Execute_TypedMutator_OneSlice_NoRegistry` measures the `ExecuteMutator(mutator, payload)` floor that skips `MutatorRegistry`.
+- `StoreEnumerateAllBenchmarks.cs::{EnumerateAll,GetAll}_OneTypeBucket_1k` — 1k slices of one `TState`, 100 iterations per measurement.
+- `NotifyBenchmarks.cs::Notify_50Subs_NoMutation` — 50 subscribers, non-mutating fanout cost.
+- `MutatorRegistryBenchmarks.cs::TryGet_{Known,Unknown}Key_50TypesRegistered` — registry preloaded with 50 distinct payload types.
+- `ReferenceEqualityBenchmarks.cs::{Equals_VirtualDispatch,ReferenceEquals}_VsReferenceNull` — mixed `Reference.Null` and a deliberately-misbehaving `IReference.Equals` override; demonstrates the §4.13 cliff.
+- `SubscribeBenchmarks.cs::Subscribe_PerCall_CachedDelegate` — cached delegate so the unavoidable closure alloc is outside the measurement and the harness sees only `Ledger.Add` overhead.
+- `StoreEnumerateAllReentrancyTests.cs` (regular `[Test]`, not `[Performance]`) — proves the §4.5 shared-buffer corruption today: a subscriber that calls `GetAll<CounterState>` from inside `Notify` while the outer caller iterates `EnumerateAll<CounterState>` corrupts the iteration. Marked `[Ignore("Expected red until com.scaffold.states-refactor Phase 2 lands.")]` so CI stays green; un-ignore in Phase 2.
+- `StateEventHandlerInlineUnsubscribeTests.cs` — proves the §4.11 `InvalidOperationException: Collection was modified` today (a subscriber unsubscribes itself from inside `Notify`). Same `[Ignore]` strategy.
 
-**0.3 Run + record baseline.** Editor (Mono) with `-perfTestResults Tests/Performance/baselines.json`; IL2CPP if CI supports it. Maintain a baseline-narrative doc at [`Docs/Audits/Packages/Reports/com.scaffold.states.baseline.md`](../Docs/Audits/Packages/Reports/com.scaffold.states.baseline.md) summarizing the medians and noting any byte-counter availability quirks (`Bench.ByteSource`).
+**0.3 Run + record baseline.** Editor (Mono) with `-perfTestResults Assets/Benchmarks/States/baselines.json`; IL2CPP if CI supports it. Maintain a baseline-narrative doc at [`Docs/Audits/Packages/Reports/com.scaffold.states.baseline.md`](../Docs/Audits/Packages/Reports/com.scaffold.states.baseline.md) summarizing the medians and noting any byte-counter availability quirks (`Bench.ByteSource`).
 
-Exit criteria: perf assembly compiles, all `[Performance]` tests run green, the two reentrancy/inline-unsubscribe regressions are red and tagged with `[Ignore("expected red until Phase 2")]` or held with `Assert.Inconclusive` so CI does not block. `baselines.json` committed.
+Exit criteria: perf assembly compiles, all `[Performance]` tests run green, the two reentrancy/inline-unsubscribe regressions are present but `[Ignore]`-tagged so CI does not block, and a real `baselines.json` (replacing the placeholder) is committed.
 
 ### Phase 1 — Easy wins (mechanical cleanup)
 
@@ -288,7 +288,7 @@ Exit criteria: `git diff` shows the installer file added; `dotnet build -c Relea
 
 ### Phase 7 — Re-benchmark + comparison report
 
-**7.1 Re-run.** Re-run the Phase 0 perf suite (Editor Mono + IL2CPP if available). Save into `Tests/Performance/results-phase7.json`.
+**7.1 Re-run.** Re-run the Phase 0 perf suite (Editor Mono + IL2CPP if available). Save into `Assets/Benchmarks/States/results-phase7.json`.
 
 **7.2 Comparison report.** Author [`Docs/Audits/Packages/Reports/com.scaffold.states.refactor-results.md`](../Docs/Audits/Packages/Reports/com.scaffold.states.refactor-results.md):
 
@@ -326,7 +326,7 @@ Per-phase command sequence (replace `<phase>` with the phase number):
 
 5. **Perf suite (Phase 0 onward):**
 
-       pwsh -NoProfile -File ".agents/scripts/run-unity-tests.ps1" -TestPlatform EditMode -PerformanceTestResultsPath "Assets/Packages/com.scaffold.states/Tests/Performance/results-phase<phase>.json"
+       pwsh -NoProfile -File ".agents/scripts/run-unity-tests.ps1" -TestPlatform EditMode -PerformanceTestResultsPath "Assets/Benchmarks/States/results-phase<phase>.json"
 
 6. **Phase 7 only — write `Reports/com.scaffold.states.refactor-results.md`** with the median table + commentary; commit alongside the updated `baselines.json`.
 
@@ -352,7 +352,7 @@ A novice can demonstrate this refactor works by running, after Phase 7, in the p
 
 - Every test under `Assets/Packages/com.scaffold.states/Tests/` passes (the existing seven files plus the new reentrancy and inline-unsubscribe regressions added in Phase 0).
 - Every test under `Assets/Packages/com.scaffold.entities.states/Tests/` passes against the migrated contracts.
-- The performance suite (`Tests/Performance/`) reports zero allocations on the `Execute_SingleMutator_OneSlice`, `EnumerateAll_OneTypeBucket_1k`, and `Notify_50Subs_HalfUnsubscribeInline` `Bench.NoAllocations` companion tests.
+- The performance suite (`Assets/Benchmarks/States/`) reports zero allocations on the `Execute_SingleMutator_OneSlice`, `EnumerateAll_OneTypeBucket_1k`, and `Notify_50Subs_NoMutation` `Bench.NoAllocations` companion tests.
 
 The refactor-results report at `Docs/Audits/Packages/Reports/com.scaffold.states.refactor-results.md` shows the headline deltas:
 

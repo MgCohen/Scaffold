@@ -2,17 +2,18 @@
 
 ## Status
 
-- **Historic Phase 0** numbers lived in `Tests/Performance/baselines.json` (`editor_mono` from Unity 6000.x Editor Mono). After **Phases 2–5** (indexer refactor, no `Holder<T>`), those medians may **skew** benchmarks that changed allocation behavior — re-export and **replace `editor_mono`** when you have a Unity run.
+- **Historic Phase 0** numbers live in [`Assets/Benchmarks/Maps/baselines.json`](../../../../Assets/Benchmarks/Maps/baselines.json) (`editor_mono` from Unity 6000.x Editor Mono). After **Phases 2–5** (indexer refactor, no `Holder<T>`), those medians may **skew** benchmarks that changed allocation behavior — re-export and **replace `editor_mono`** when you have a Unity run.
+- The perf suite was relocated out of the package tree (`Assets/Packages/com.scaffold.maps/Tests/Performance/` → `Assets/Benchmarks/Maps/`) when the canonical `Scaffold.Benchmarks` harness was extracted; test FullNames in this baseline file were rewritten from `Scaffold.Maps.Tests.Performance.*` to `Scaffold.Benchmarks.Maps.*` so diff tooling continues to match.
 - **IL2CPP** lane remains optional; record in a sibling section or JSON when available.
 
 ## How to capture numbers
 
 1. Open the project in Unity **6000.x** (matches `package.json` unity field).
 2. **Package Manager** — confirm **`com.unity.test-framework.performance`** resolves (`Packages/manifest.json`).
-3. **Test Runner** → **Edit Mode**: **`Scaffold.Maps.Tests`** and **`Scaffold.Maps.Tests.Performance`**.
-4. **Perf JSON**: batchmode **`-perfTestResults`** or `run-unity-tests.ps1` (see `.agents/scripts/README.md`). Merge medians into `Tests/Performance/baselines.json` **`editor_mono`**.
+3. **Test Runner** → **Edit Mode**: **`Scaffold.Maps.Tests`** and **`Scaffold.Benchmarks.Maps`**.
+4. **Perf JSON**: batchmode **`-perfTestResults`** or `run-unity-tests.ps1` (see `.agents/scripts/README.md`). Merge medians into `Assets/Benchmarks/Maps/baselines.json` **`editor_mono`**.
 
-Optional: **`Tests/Performance/results-phase5.json`** — store the raw export beside `Docs/Audits/Packages/Reports/com.scaffold.maps.refactor-results.md`.
+Optional: **`Assets/Benchmarks/Maps/results-phase5.json`** — raw export sits beside the baseline.
 
 ---
 
@@ -41,6 +42,6 @@ Optional: **`Tests/Performance/results-phase5.json`** — store the raw export b
 ## Exit criteria (maintainer checklist)
 
 - [ ] `Scaffold.Maps.Tests` green (Edit Mode).
-- [ ] `Scaffold.Maps.Tests.Performance` green (`Indexer_Values_Count_PerRead_NoAlloc` included).
+- [ ] `Scaffold.Benchmarks.Maps` green (`Indexer_Values_Count_PerRead_NoAlloc` included).
 - [ ] `baselines.json` **`editor_mono`** refreshed from exported JSON after refactor settles.
 - [ ] IL2CPP lane when pipeline supports it.

@@ -3,9 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 using Scaffold.Maps;
-using UnityEngine.TestTools;
 
-namespace Scaffold.Maps.Tests.Performance
+namespace Scaffold.Benchmarks.Maps
 {
     /// <summary>
     /// Validates the harness's allocation signals: paths that must allocate report &gt; 0 here;
@@ -20,7 +19,7 @@ namespace Scaffold.Maps.Tests.Performance
         static readonly Lazy<bool> AllocCountWorks = new(Bench.AllocCountRecorderWorksOnCurrentThread);
 
         [SetUp]
-        public void SuppressUnrelatedLogNoise() => LogAssert.ignoreFailingMessages = true;
+        public void SuppressUnrelatedLogNoise() => BenchSetup.RearmPerTest();
 
         static void RequireBytesCounter()
         {

@@ -1,7 +1,11 @@
 {
-    "name": "Scaffold.Maps.Tests.Performance",
-    "rootNamespace": "Scaffold.Maps.Tests.Performance",
+    "name": "Scaffold.Benchmarks.States",
+    "rootNamespace": "Scaffold.Benchmarks.States",
     "references": [
+        "Scaffold.Benchmarks",
+        "Scaffold.States",
+        "Scaffold.States.Samples",
+        "Scaffold.Pooling",
         "Scaffold.Maps",
         "Unity.PerformanceTesting"
     ],
