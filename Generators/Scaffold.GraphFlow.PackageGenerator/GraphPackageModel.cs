@@ -11,7 +11,8 @@ namespace Scaffold.GraphFlow.PackageGenerator
             string assetMenu,
             string registryNamespace,
             string graphFrameworkNamespace,
-            string? dispatcherBaseMetadataName)
+            string? dispatcherBaseMetadataName,
+            int convention)
         {
             RunnerFullyQualified = runnerFullyQualified;
             RunnerNamespace = runnerNamespace;
@@ -22,6 +23,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             RegistryNamespace = registryNamespace;
             GraphFrameworkNamespace = graphFrameworkNamespace;
             DispatcherBaseMetadataName = dispatcherBaseMetadataName;
+            Convention = convention;
         }
 
         internal string RunnerFullyQualified { get; }
@@ -34,5 +36,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
         internal string GraphFrameworkNamespace { get; }
         /// <summary>Open generic dispatcher base (e.g. <c>MyDispatcherBase`2</c> metadata name including namespace).</summary>
         internal string? DispatcherBaseMetadataName { get; }
+        /// <summary>Mirrors <c>PortConvention</c> enum in <c>Scaffold.GraphFlow.AttributesLib</c>: 0=CommandResultPair, 1=AttributedFields, 2=MutableInReadOnlyOut, 3=AllFieldsIn.</summary>
+        internal int Convention { get; }
     }
 }

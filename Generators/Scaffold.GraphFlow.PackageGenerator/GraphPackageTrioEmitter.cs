@@ -16,9 +16,76 @@ namespace Scaffold.GraphFlow.PackageGenerator
             }
 
             var editorAsm = IsEditorAssembly(compilation);
+            if (editorAsm && packages.Length > 1)
+            {
+                ReportMultiPackageBindings(spc, compilation, packages, cancellationToken);
+            }
+
             foreach (var p in packages)
             {
                 DispatchOnePackage(spc, compilation, editorAsm, p, cancellationToken);
+            }
+        }
+
+        // EFG008: a payload that satisfies IGraphAction<R1> AND IGraphAction<R2> for two declared packages is ambiguous.
+        // Reported once from the editor pass (avoids duplicate diagnostics across runtime+editor compiles).
+        static void ReportMultiPackageBindings(SourceProductionContext spc, Compilation compilation, ImmutableArray<GraphPackageModel> packages, CancellationToken ct)
+        {
+            var perRunner = new System.Collections.Generic.List<(string runner, INamedTypeSymbol entryIface, INamedTypeSymbol actionIface, IAssemblySymbol asm)>();
+            foreach (var p in packages)
+            {
+                var runner = GraphCompilationNames.TypeFromFullyQualified(compilation, p.RunnerFullyQualified);
+                if (runner?.ContainingAssembly == null)
+                {
+                    continue;
+                }
+
+                var markerNs = string.IsNullOrEmpty(p.GraphFrameworkNamespace) ? "Scaffold.GraphFlow" : p.GraphFrameworkNamespace;
+                var iEntry = compilation.GetTypeByMetadataName(markerNs + ".IGraphEntry`1");
+                var iAction = compilation.GetTypeByMetadataName(markerNs + ".IGraphAction`1");
+                if (iEntry == null || iAction == null)
+                {
+                    continue;
+                }
+
+                perRunner.Add((p.RunnerTypeName, iEntry.Construct(runner), iAction.Construct(runner), runner.ContainingAssembly));
+            }
+
+            // Collect distinct payload assemblies once so we don't walk the same assembly N times.
+            var assemblies = new System.Collections.Generic.HashSet<IAssemblySymbol>(SymbolEqualityComparer.Default);
+            foreach (var entry in perRunner)
+            {
+                assemblies.Add(entry.asm);
+            }
+
+            foreach (var asm in assemblies)
+            {
+                foreach (var type in GraphPayloadTypeWalker.AllNamedTypesInAssembly(asm, ct))
+                {
+                    ct.ThrowIfCancellationRequested();
+                    if (!PayloadDiscovery.IsCandidateType(type))
+                    {
+                        continue;
+                    }
+
+                    string? firstRunner = null;
+                    foreach (var (runnerName, entryIface, actionIface, _) in perRunner)
+                    {
+                        if (!PayloadDiscovery.Implements(type, entryIface) && !PayloadDiscovery.Implements(type, actionIface))
+                        {
+                            continue;
+                        }
+
+                        if (firstRunner == null)
+                        {
+                            firstRunner = runnerName;
+                            continue;
+                        }
+
+                        spc.ReportDiagnostic(Diagnostic.Create(Diagnostics.EFG008_MultiPackageBinding, Diagnostics.LocationOf(type), type.Name, firstRunner, runnerName));
+                        break;
+                    }
+                }
             }
         }
 
@@ -30,9 +97,14 @@ namespace Scaffold.GraphFlow.PackageGenerator
             if (editorAsm)
             {
                 AddEditorSources(spc, compilation, p);
+                var registrations = new System.Collections.Generic.List<string>();
+                GraphPayloadNodeEmitter.Emit(spc, compilation, true, p, cancellationToken, registrations);
+                GraphRegistryEmitter.EmitRegistryFile(spc, compilation, p, registrations);
             }
-
-            GraphPayloadNodeEmitter.Emit(spc, compilation, editorAsm, p, cancellationToken);
+            else
+            {
+                GraphPayloadNodeEmitter.Emit(spc, compilation, false, p, cancellationToken);
+            }
         }
 
         static bool IsEditorAssembly(Compilation compilation)
@@ -154,6 +226,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine("#nullable enable");
             sb.AppendLine($"using {EditorGraphToolkitNamespace(compilation)};");
             AppendRunnerUsingIfNeeded(sb, p);
+            sb.AppendLine($"using {GraphRegistryEmitter.ResolveRegistryNamespace(p, compilation)};");
             sb.AppendLine("using UnityEditor.AssetImporters;");
             sb.AppendLine();
             sb.AppendLine($"namespace {EditorImporterNamespace(compilation)}");
@@ -167,9 +240,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine($"    [ScriptedImporter(1, {p.GraphStem}Graph.AssetExtension)]");
             sb.AppendLine($"    public sealed class {p.GraphStem}GraphImporter : GraphAssetImporterBase<{p.GraphStem}Graph, {p.RunnerTypeName}, {p.GraphStem}GraphAsset>");
             sb.AppendLine("    {");
-            sb.AppendLine("        protected override GraphBakeResult Bake(");
-            sb.AppendLine($"            {p.GraphStem}Graph graph, {p.GraphStem}GraphAsset? previousRuntime) =>");
-            sb.AppendLine("            GraphBaker.Bake(graph, previousRuntime);");
+            sb.AppendLine($"        protected override GraphPackageRegistry<{p.RunnerTypeName}> Registry => {GraphRegistryEmitter.RegistryTypeName(p)}.Instance;");
             sb.AppendLine("    }");
         }
     }

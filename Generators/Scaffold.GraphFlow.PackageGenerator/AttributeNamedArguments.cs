@@ -22,6 +22,24 @@ namespace Scaffold.GraphFlow.PackageGenerator
             return null;
         }
 
+        internal static int? TryGetNamedInt(AttributeData attr, string name)
+        {
+            foreach (var kvp in attr.NamedArguments)
+            {
+                if (kvp.Key != name)
+                {
+                    continue;
+                }
+
+                if (kvp.Value.Value is int i)
+                {
+                    return i;
+                }
+            }
+
+            return null;
+        }
+
         internal static void ReadPackageStrings(AttributeData attr, out string extension, out string assetMenu, out string registryNs)
         {
             extension = TryGetNamedString(attr, "Extension") ?? "";

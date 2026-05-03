@@ -7,13 +7,16 @@ namespace Scaffold.GraphFlow.M0.Editor
 {
     /// <summary>
     /// ScriptedImporter pipeline for package graphs. Subclasses close type parameters, apply
-    /// <c>[ScriptedImporter(version, extension)]</c>, and implement <see cref="Bake"/>.
+    /// <c>[ScriptedImporter(version, extension)]</c>, and supply <see cref="Registry"/>.
+    /// The bake itself is generic — driven entirely by the registry.
     /// </summary>
     public abstract class GraphAssetImporterBase<TGraph, TRunner, TAsset> : ScriptedImporter
         where TGraph : Graph<TRunner>
         where TRunner : GraphRunner
         where TAsset : GraphAsset<TRunner>
     {
+        protected abstract GraphPackageRegistry<TRunner> Registry { get; }
+
         public sealed override void OnImportAsset(AssetImportContext ctx)
         {
             var graph = GraphDatabase.LoadGraphForImporter<TGraph>(ctx.assetPath);
@@ -33,7 +36,7 @@ namespace Scaffold.GraphFlow.M0.Editor
                 }
             }
 
-            var bake = Bake(graph, previous);
+            var bake = GraphBakerCore.Bake<TRunner, TAsset>(graph, previous, Registry);
             foreach (var msg in bake.Diagnostics)
                 ctx.LogImportError($"{msg} ({ctx.assetPath})", null);
 
@@ -44,8 +47,5 @@ namespace Scaffold.GraphFlow.M0.Editor
             ctx.AddObjectToAsset("Runtime", bake.Asset);
             ctx.SetMainObject(bake.Asset);
         }
-
-        /// <summary>M0: smoke uses <see cref="GraphBaker"/>. M1: swap for generic baker.</summary>
-        protected abstract GraphBakeResult Bake(TGraph graph, TAsset? previousRuntime);
     }
 }

@@ -1,0 +1,200 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using Scaffold.GraphFlow.M0.Editor.GToolkit;
+using Unity.GraphToolkit.Editor;
+using UnityEngine;
+
+namespace Scaffold.GraphFlow.M0.Editor
+{
+    public sealed class GraphBakeResult<TAsset> where TAsset : ScriptableObject
+    {
+        public TAsset? Asset { get; set; }
+        public bool HasErrors { get; set; }
+        public IReadOnlyList<string> Diagnostics => _diagnostics;
+        readonly List<string> _diagnostics = new();
+
+        public void LogError(string msg)
+        {
+            _diagnostics.Add(msg);
+            HasErrors = true;
+        }
+    }
+
+    /// <summary>
+    /// Generic, registry-driven baker. One implementation translates any GraphFlow package's editor graph
+    /// into its typed runtime asset — the generator emits <c>&lt;Stem&gt;GraphRegistry</c>, which supplies
+    /// per-editor-node factories + port-ID lookups so this code stays free of per-payload switches.
+    /// </summary>
+    public static class GraphBakerCore
+    {
+        public const int SchemaVersion = 2;
+
+        public static GraphBakeResult<TAsset> Bake<TRunner, TAsset>(
+            Graph<TRunner> editorGraph,
+            TAsset? previousRuntime,
+            GraphPackageRegistry<TRunner> registry)
+            where TRunner : GraphRunner
+            where TAsset : GraphAsset<TRunner>
+        {
+            var result = new GraphBakeResult<TAsset>();
+
+            if (editorGraph == null)
+            {
+                result.LogError("Editor graph is null.");
+                return result;
+            }
+
+            var editorNodes = editorGraph.GetNodes().ToList();
+            if (editorNodes.Count == 0)
+            {
+                // Newly-created graph: emit an empty asset so the importer succeeds and the user can author.
+                result.Asset = ScriptableObject.CreateInstance<TAsset>();
+                return result;
+            }
+
+            var guidToNodeId = RecoverGuidMap<TRunner, TAsset>(previousRuntime);
+            var nextId = NextFreeNodeId(guidToNodeId);
+
+            var editorToRuntime = new Dictionary<INode, RuntimeNode<TRunner>>();
+            var editorToRegistration = new Dictionary<INode, GraphPackageRegistry<TRunner>.NodeRegistration>();
+
+            foreach (var n in editorNodes)
+            {
+                var reg = registry.Lookup(n.GetType());
+                if (reg == null)
+                {
+                    result.LogError($"Unsupported editor node: {n.GetType().FullName}");
+                    return result;
+                }
+
+                var guid = EditorNodeIdentity.GetStableGuid(n);
+                if (string.IsNullOrEmpty(guid))
+                {
+                    result.LogError($"Node {n.GetType().Name} has no stable editor guid — cannot bake.");
+                    return result;
+                }
+
+                if (!guidToNodeId.TryGetValue(guid, out var nodeId))
+                {
+                    nodeId = nextId++;
+                    guidToNodeId[guid] = nodeId;
+                }
+
+                var runtime = reg.Factory(n);
+                runtime.nodeId = nodeId;
+                runtime.editorGuid = guid;
+                editorToRuntime[n] = runtime;
+                editorToRegistration[n] = reg;
+            }
+
+            var dataConnections = new List<ConnectionRecord>();
+            var flowEdges = new List<FlowEdge>();
+
+            foreach (var pair in editorToRuntime)
+            {
+                var editorNode = pair.Key;
+                var fromRuntime = pair.Value;
+                var fromReg = editorToRegistration[editorNode];
+
+                foreach (var port in editorNode.GetOutputPorts())
+                {
+                    var connected = new List<IPort>();
+                    port.GetConnectedPorts(connected);
+                    foreach (var other in connected)
+                    {
+                        var toEditor = other.GetNode();
+                        if (toEditor == null || !editorToRuntime.TryGetValue(toEditor, out var toRuntime))
+                            continue;
+
+                        var toReg = editorToRegistration[toEditor];
+                        if (TryRecordFlowEdge(fromReg, port.name, fromRuntime.nodeId, toReg, other.name, toRuntime.nodeId, flowEdges))
+                            continue;
+
+                        if (TryRecordDataEdge(fromReg, port.name, fromRuntime.nodeId, toReg, other.name, toRuntime.nodeId, dataConnections))
+                            continue;
+
+                        result.LogError($"Edge from {editorNode.GetType().Name}.{port.name} to {toEditor.GetType().Name}.{other.name} matches neither flow nor data ports.");
+                        return result;
+                    }
+                }
+            }
+
+            var entries = new List<EntryIndex>();
+            foreach (var pair in editorToRuntime)
+            {
+                var reg = editorToRegistration[pair.Key];
+                if (reg.EntryTypeId == null)
+                    continue;
+
+                entries.Add(new EntryIndex
+                {
+                    entryTypeId = reg.EntryTypeId,
+                    rootNodeId = pair.Value.nodeId,
+                });
+            }
+
+            var asset = ScriptableObject.CreateInstance<TAsset>();
+            asset.nodes = new List<RuntimeNode<TRunner>>(editorToRuntime.Values);
+            asset.connections = dataConnections;
+            asset.flowEdges = flowEdges;
+            asset.entries = entries;
+            asset.schemaVersion = SchemaVersion;
+
+            result.Asset = asset;
+            return result;
+        }
+
+        static bool TryRecordFlowEdge<TRunner>(
+            GraphPackageRegistry<TRunner>.NodeRegistration fromReg, string fromPortName, int fromNodeId,
+            GraphPackageRegistry<TRunner>.NodeRegistration toReg, string toPortName, int toNodeId,
+            List<FlowEdge> into) where TRunner : GraphRunner
+        {
+            if (!fromReg.FlowOutputPortIds.TryGetValue(fromPortName, out var fromId))
+                return false;
+            if (!toReg.FlowInputPortIds.TryGetValue(toPortName, out var toId))
+                return false;
+            into.Add(new FlowEdge { fromNodeId = fromNodeId, fromFlowPortId = fromId, toNodeId = toNodeId, toFlowPortId = toId });
+            return true;
+        }
+
+        static bool TryRecordDataEdge<TRunner>(
+            GraphPackageRegistry<TRunner>.NodeRegistration fromReg, string fromPortName, int fromNodeId,
+            GraphPackageRegistry<TRunner>.NodeRegistration toReg, string toPortName, int toNodeId,
+            List<ConnectionRecord> into) where TRunner : GraphRunner
+        {
+            if (!fromReg.DataOutputPortIds.TryGetValue(fromPortName, out var fromId))
+                return false;
+            if (!toReg.DataInputPortIds.TryGetValue(toPortName, out var toId))
+                return false;
+            into.Add(new ConnectionRecord { fromNodeId = fromNodeId, fromPortId = fromId, toNodeId = toNodeId, toPortId = toId });
+            return true;
+        }
+
+        static Dictionary<string, int> RecoverGuidMap<TRunner, TAsset>(TAsset? previous)
+            where TRunner : GraphRunner
+            where TAsset : GraphAsset<TRunner>
+        {
+            var map = new Dictionary<string, int>(StringComparer.Ordinal);
+            if (previous?.nodes == null)
+                return map;
+
+            foreach (var n in previous.nodes)
+            {
+                if (!string.IsNullOrEmpty(n.editorGuid))
+                    map[n.editorGuid] = n.nodeId;
+            }
+
+            return map;
+        }
+
+        static int NextFreeNodeId(Dictionary<string, int> guidToNodeId)
+        {
+            var max = 0;
+            foreach (var id in guidToNodeId.Values)
+                if (id > max)
+                    max = id;
+            return max + 1;
+        }
+    }
+}

@@ -56,7 +56,8 @@ namespace Scaffold.GraphFlow.PackageGenerator
                     ? ""
                     : dBase.ContainingNamespace.ToDisplayString() + ".") + dBase.MetadataName
                 : null;
-            model = new GraphPackageModel(fq, ns, runner.Name, stem, ext, menu, reg, frameworkNs, dispatcherMeta);
+            var convention = AttributeNamedArguments.TryGetNamedInt(attr, "Convention") ?? 3; // default = AllFieldsIn
+            model = new GraphPackageModel(fq, ns, runner.Name, stem, ext, menu, reg, frameworkNs, dispatcherMeta, convention);
         }
 
         static string GraphFrameworkNamespaceFromRunner(INamedTypeSymbol runner)

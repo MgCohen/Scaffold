@@ -29,7 +29,7 @@ namespace Scaffold.GraphFlow.M0.Tests
                 fromNodeId = 1,
                 fromFlowPortId = OnPlayRuntime.Ports.FlowOut,
                 toNodeId = 3,
-                toFlowPortId = LogDispatcherRuntime.FlowInSlotId,
+                toFlowPortId = LogDispatcherRuntime.Ports.FlowIn,
             });
 
             asset.connections.Add(new ConnectionRecord
@@ -84,7 +84,7 @@ namespace Scaffold.GraphFlow.M0.Tests
                 fromNodeId = 2,
                 fromFlowPortId = EchoDispatcherRuntime.Ports.FlowOut,
                 toNodeId = 3,
-                toFlowPortId = LogDispatcherRuntime.FlowInSlotId,
+                toFlowPortId = LogDispatcherRuntime.Ports.FlowIn,
             });
 
             asset.connections.Add(new ConnectionRecord
