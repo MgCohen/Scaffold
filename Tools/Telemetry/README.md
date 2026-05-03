@@ -38,12 +38,13 @@ session-level totals. This setup gives you per-operation granularity.
 
 ### 3. Configure this folder
 
+From the repo root:
+
 ```bash
-cd Tools/Telemetry
-cp .env.example .env
+cp Tools/Telemetry/.env.example Tools/Telemetry/.env
 ```
 
-Open `.env` in your editor and paste your Honeycomb key into
+Open `Tools/Telemetry/.env` in your editor and paste your Honeycomb key into
 `HONEYCOMB_API_KEY=`.
 
 The `.env` file is gitignored - it won't be committed.

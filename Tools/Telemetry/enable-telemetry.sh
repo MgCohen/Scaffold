@@ -18,11 +18,23 @@ if [[ ! -f "$ENV_FILE" ]]; then
   exit 1
 fi
 
-# Load .env (ignores comments and blank lines).
-set -a
-# shellcheck disable=SC1090
-source "$ENV_FILE"
-set +a
+# Load .env as KEY=VALUE pairs (no shell evaluation, mirrors the .ps1 script).
+while IFS= read -r line || [[ -n "$line" ]]; do
+  line="${line#"${line%%[![:space:]]*}"}"           # strip leading whitespace
+  [[ -z "$line" || "$line" == \#* ]] && continue    # skip blanks and comments
+  [[ "$line" != *=* ]] && continue                  # require an '='
+  key="${line%%=*}"
+  value="${line#*=}"
+  key="${key%"${key##*[![:space:]]}"}"              # trim trailing whitespace
+  if [[ ${#value} -ge 2 ]]; then                    # strip surrounding quotes
+    if [[ "${value:0:1}" == '"' && "${value: -1}" == '"' ]]; then
+      value="${value:1:${#value}-2}"
+    elif [[ "${value:0:1}" == "'" && "${value: -1}" == "'" ]]; then
+      value="${value:1:${#value}-2}"
+    fi
+  fi
+  export "$key=$value"
+done < "$ENV_FILE"
 
 if [[ -z "${HONEYCOMB_API_KEY:-}" || "$HONEYCOMB_API_KEY" == "replace-me" ]]; then
   echo "error: HONEYCOMB_API_KEY is not set in $ENV_FILE." >&2
