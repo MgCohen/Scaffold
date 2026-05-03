@@ -40,12 +40,12 @@ namespace Scaffold.GraphFlow.CardSandbox.Cards
         }
 
         /// <summary>Constructs the GraphAsset with OnPlay → DealDamage wired up.</summary>
-        public static CardSandboxAsset BuildAsset()
+        public static CardEffectGraphAsset BuildAsset()
         {
             var entry = new OnPlayEntry { nodeId = 1, editorGuid = "strike500-entry" };
             var dispatcher = new DealDamageDispatcher { nodeId = 2, editorGuid = "strike500-dispatch" };
 
-            var asset = ScriptableObject.CreateInstance<CardSandboxAsset>();
+            var asset = ScriptableObject.CreateInstance<CardEffectGraphAsset>();
             asset.nodes = new List<RuntimeNode> { entry, dispatcher };
             asset.entries = new List<EntryIndex>
             {
@@ -63,10 +63,23 @@ namespace Scaffold.GraphFlow.CardSandbox.Cards
     /// <summary>
     /// Mode-2 command — publishes Pre/Post damage events around applying damage to the scope's sink.
     /// Triggers on PreDamageDealtEvent (e.g. PlusOneDamage) can mutate Amount before it lands.
+    /// <para>The <see cref="GraphCommandPairAttribute"/> + <see cref="GraphPortAttribute"/> on
+    /// <see cref="Amount"/> opt the type into the generator's Mode-2 emit, producing
+    /// <c>DealDamageCommandDispatcherRuntime : CardCommandDispatcher&lt;DealDamageCommand, Unit&gt;</c>
+    /// (runtime asm) and <c>DealDamageCommandDispatcherEditorNode</c> (editor asm). Result type is
+    /// <see cref="Unit"/> so no output ports are emitted. <see cref="Target"/> has no port id —
+    /// visually authored graphs leave it null; the runtime path through Strike500's hand-authored
+    /// dispatcher still sets it explicitly.</para>
     /// </summary>
+    [GraphCommandPair(
+        ResultType = typeof(Unit),
+        FlowInPortId = unchecked((int)0xC1D0_0001u),
+        FlowOutPortId = unchecked((int)0xC1D0_0002u))]
     public sealed class DealDamageCommand : Command<Unit>
     {
+        [GraphPort(Id = unchecked((int)0xC1D0_1001u))]
         public int Amount;
+
         public object? Target;
 
         public override async Task<Unit> Execute(ICardEffectScope scope, Flow flow)

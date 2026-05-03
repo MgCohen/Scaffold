@@ -23,11 +23,11 @@ namespace Scaffold.GraphFlow.CardSandbox.Cards
             }
         }
 
-        public static CardSandboxAsset BuildAsset()
+        public static CardEffectGraphAsset BuildAsset()
         {
             var entry = new OnPreDamageEntry { nodeId = 1, editorGuid = "plusone-entry" };
 
-            var asset = ScriptableObject.CreateInstance<CardSandboxAsset>();
+            var asset = ScriptableObject.CreateInstance<CardEffectGraphAsset>();
             asset.nodes = new List<RuntimeNode> { entry };
             asset.entries = new List<EntryIndex>
             {

@@ -3,6 +3,7 @@
     "rootNamespace": "Scaffold.GraphFlow.CardSandbox",
     "references": [
         "GUID:b13665e99cedac1faa8a90387e6163c3",
+        "GUID:27a1badd3cd9fec2c48b5539d5746add",
         "GUID:bab7af28f08a411c9af5ef2f6d191216"
     ],
     "includePlatforms": [],
