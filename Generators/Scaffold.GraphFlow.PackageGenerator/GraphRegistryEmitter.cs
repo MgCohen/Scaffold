@@ -335,7 +335,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             {
                 sb.AppendLine($"                    {{");
                 sb.AppendLine($"                        var p = typed.GetInputPortByName(\"{f.Name}\");");
-                sb.AppendLine($"                        if (p != null && !p.isConnected && p.TryGetValue<{f.CSharpType}>(out var v))");
+                sb.AppendLine($"                        if (p != null && {EditorRegistryNamespace}.PortValueResolver.TryResolve<{f.CSharpType}>(p, out var v))");
                 sb.AppendLine($"                            rt.{f.Name} = v{NullableCoalesce(f.CSharpType)};");
                 sb.AppendLine($"                    }}");
             }

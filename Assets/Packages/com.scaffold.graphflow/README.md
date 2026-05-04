@@ -272,6 +272,7 @@ In-graph (validator runs on `OnGraphChanged`):
 | EFG-V02 | Warning | Duplicate entry node of same type |
 | EFG-V03 | Error | Edge pairs incompatible port kinds (flow↔data or unknown) |
 | EFG-V04 | Warning | Flow output unwired and node isn't a terminator |
+| EFG-V05 | Error | Flow output has >1 connection (executor walks one path, drops the rest — use Branch for conditional fan-out) |
 
 ---
 

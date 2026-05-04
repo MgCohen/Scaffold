@@ -43,6 +43,7 @@ namespace HarnessFixture.Editor.GToolkit
                 }
             }
             ValidateEdgePairings(registrations, logger);
+            ValidateFlowOutSingleConnection(registrations, logger);
             ValidateRunFlowTerminates(registrations, logger);
         }
 
@@ -68,6 +69,30 @@ namespace HarnessFixture.Editor.GToolkit
                         if (fromIsFlow && toIsFlow) continue;
                         if (fromIsData && toIsData) continue;
                         logger.LogError($"[EFG-V03] Edge {fromNode.GetType().Name}.{port.name} → {toNode.GetType().Name}.{other.name} pairs incompatible port kinds (flow↔data or unknown port).", fromNode);
+                    }
+                }
+            }
+        }
+
+        static void ValidateFlowOutSingleConnection(Dictionary<INode, GraphPackageRegistry<HarnessRunner>.NodeRegistration> registrations, GraphLogger logger)
+        {
+            // GraphToolkit's UI doesn't expose a per-port connection-cap API, so a flow output
+            // can be dragged into multiple flow inputs. Our hydration overwrites
+            // FlowOutPort.Connection on each pass and the executor walks one path — silently
+            // dropping the others. Error here so the user fixes it before bake.
+            var connected = new List<IPort>();
+            foreach (var kv in registrations)
+            {
+                var node = kv.Key;
+                var reg = kv.Value;
+                foreach (var port in node.GetOutputPorts())
+                {
+                    if (!reg.FlowOutputPortNames.Contains(port.name)) continue;
+                    connected.Clear();
+                    port.GetConnectedPorts(connected);
+                    if (connected.Count > 1)
+                    {
+                        logger.LogError($"[EFG-V05] Flow output {node.GetType().Name}.{port.name} has {connected.Count} connections — flow outputs must connect to exactly one flow input. The executor walks one path and drops the rest. Use a Branch node if you need conditional fan-out.", node);
                     }
                 }
             }

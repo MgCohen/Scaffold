@@ -61,6 +61,9 @@ namespace Scaffold.GraphFlow.Editor
 
             foreach (var n in editorNodes)
             {
+                if (n is IConstantNode || n is IVariableNode)
+                    continue;
+
                 var reg = registry.Lookup(n.GetType());
                 if (reg == null)
                 {
