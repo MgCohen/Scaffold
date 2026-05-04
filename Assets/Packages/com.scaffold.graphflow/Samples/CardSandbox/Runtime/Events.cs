@@ -4,29 +4,18 @@ using Scaffold.GraphFlow;
 namespace Scaffold.GraphFlow.CardSandbox
 {
     /// <summary>
-    /// Fired by <c>DealDamageCommand</c> before damage is applied. Trigger entries on cards may
-    /// mutate <see cref="Amount"/> in flight (e.g. PlusOneDamage adds 1).
+    /// Damage event — published by <c>DealDamageCommand</c> twice per damage application: once with
+    /// <see cref="Timing.Before"/> (so triggers may mutate <see cref="Amount"/>) and once with
+    /// <see cref="Timing.After"/> (reactive triggers).
     /// </summary>
-    [GraphEntry]
-    public sealed class PreDamageDealtEvent : IGraphEntry
+    [GraphEvent]
+    public sealed class DamageDealt
     {
-        [GraphPort]
         public int Amount;
-
         public object? Target;
     }
 
-    /// <summary>Fired after damage was applied; reactive triggers ("when damage dealt, draw a card") subscribe here.</summary>
-    [GraphEntry]
-    public sealed class DamageDealtEvent : IGraphEntry
-    {
-        [GraphPort]
-        public int FinalAmount;
-
-        public object? Target;
-    }
-
-    /// <summary>OnPlay entry payload for cards. Imperative entry — host calls it directly via Run.</summary>
+    /// <summary>OnPlay imperative entry payload for cards. Host calls it directly via <c>controller.Run</c>.</summary>
     [GraphEntry]
     public sealed class OnPlay : IGraphEntry
     {

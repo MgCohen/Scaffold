@@ -763,6 +763,19 @@ namespace Scaffold.GraphFlow.PackageGenerator
 
             return false;
         }
+
+        internal static bool HasGraphEventAttribute(INamedTypeSymbol type, INamedTypeSymbol graphEventAttr)
+        {
+            foreach (var a in type.GetAttributes())
+            {
+                if (SymbolEqualityComparer.Default.Equals(a.AttributeClass, graphEventAttr))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
     }
 
     internal static class TypeFmt

@@ -100,7 +100,8 @@ namespace Scaffold.GraphFlow.PackageGenerator
                 var registrations = new System.Collections.Generic.List<string>();
                 GraphPayloadNodeEmitter.Emit(spc, compilation, true, p, cancellationToken, registrations);
                 EmitGenericNodeArtifacts(spc, compilation, p, registrations, cancellationToken, editorAssembly: true);
-                GraphRegistryEmitter.EmitRegistryFile(spc, compilation, p, registrations);
+                var eventTypes = DiscoverEventTypes(compilation, p, cancellationToken);
+                GraphRegistryEmitter.EmitRegistryFile(spc, compilation, p, registrations, eventTypes);
             }
             else
             {
@@ -191,6 +192,45 @@ namespace Scaffold.GraphFlow.PackageGenerator
             }
 
             GraphGenericNodeEmitter.EmitForPackage(spc, compilation, p, allNodes.ToImmutable(), inCurrentCompilation, registrations, editorAssembly);
+        }
+
+        static System.Collections.Generic.List<GraphRegistryEmitter.EventTypeDescriptor> DiscoverEventTypes(Compilation compilation, GraphPackageModel p, System.Threading.CancellationToken ct)
+        {
+            var result = new System.Collections.Generic.List<GraphRegistryEmitter.EventTypeDescriptor>();
+            var graphEventAttr = compilation.GetTypeByMetadataName("Scaffold.GraphFlow.GraphEventAttribute");
+            if (graphEventAttr == null) return result;
+
+            var runner = GraphCompilationNames.TypeFromFullyQualified(compilation, p.RunnerFullyQualified);
+            var payloadAssembly = runner?.ContainingAssembly;
+            if (payloadAssembly == null) return result;
+
+            foreach (var type in GraphPayloadTypeWalker.AllNamedTypesInAssembly(payloadAssembly, ct))
+            {
+                ct.ThrowIfCancellationRequested();
+                if (!PayloadDiscovery.IsCandidateType(type)) continue;
+                if (!PayloadDiscovery.HasGraphEventAttribute(type, graphEventAttr)) continue;
+
+                var typeFq = type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                if (typeFq.StartsWith("global::", System.StringComparison.Ordinal))
+                {
+                    typeFq = typeFq.Substring(8);
+                }
+
+                var fields = new System.Collections.Generic.List<GraphRegistryEmitter.EventFieldDescriptor>();
+                foreach (var f in PayloadDiscovery.InstanceFields(type))
+                {
+                    var fTypeFq = f.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                    if (fTypeFq.StartsWith("global::", System.StringComparison.Ordinal))
+                    {
+                        fTypeFq = fTypeFq.Substring(8);
+                    }
+                    fields.Add(new GraphRegistryEmitter.EventFieldDescriptor(f.Name, fTypeFq));
+                }
+
+                result.Add(new GraphRegistryEmitter.EventTypeDescriptor(typeFq, fields));
+            }
+
+            return result;
         }
 
         static bool IsEditorAssembly(Compilation compilation)

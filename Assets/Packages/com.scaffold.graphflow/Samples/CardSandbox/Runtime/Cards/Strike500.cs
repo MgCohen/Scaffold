@@ -60,8 +60,9 @@ namespace Scaffold.GraphFlow.CardSandbox.Cards
     }
 
     /// <summary>
-    /// Mode-2 command — publishes Pre/Post damage events around applying damage to the scope's sink.
-    /// Triggers on PreDamageDealtEvent (e.g. PlusOneDamage) can mutate Amount before it lands.
+    /// Mode-2 command — publishes one <see cref="DamageDealt"/> event twice around applying damage:
+    /// once with <see cref="Timing.Before"/> (so triggers may mutate <c>Amount</c>) and once with
+    /// <see cref="Timing.After"/> (reactive triggers).
     /// </summary>
     [GraphCommandPair(ResultType = typeof(Unit))]
     public sealed class DealDamageCommand : Command<Unit>
@@ -73,13 +74,12 @@ namespace Scaffold.GraphFlow.CardSandbox.Cards
 
         public override async Task<Unit> Execute(ICardEffectScope scope, Flow flow)
         {
-            var pre = new PreDamageDealtEvent { Amount = Amount, Target = Target };
-            await scope.Bus.Publish(pre).ConfigureAwait(false);
+            var evt = new DamageDealt { Amount = Amount, Target = Target };
+            await scope.Bus.Publish(evt, Timing.Before).ConfigureAwait(false);
 
-            scope.Damage.Apply(pre.Target, pre.Amount);
+            scope.Damage.Apply(evt.Target, evt.Amount);
 
-            await scope.Bus.Publish(new DamageDealtEvent { FinalAmount = pre.Amount, Target = pre.Target })
-                .ConfigureAwait(false);
+            await scope.Bus.Publish(evt, Timing.After).ConfigureAwait(false);
             return Unit.Default;
         }
     }

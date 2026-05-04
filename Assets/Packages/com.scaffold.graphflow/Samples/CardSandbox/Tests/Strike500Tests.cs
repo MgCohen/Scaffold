@@ -7,9 +7,10 @@ using Scaffold.GraphFlow.CardSandbox.Cards;
 namespace Scaffold.GraphFlow.CardSandbox.Tests
 {
     /// <summary>
-    /// M3 D8/D9 validation: drives hand-built card graphs through the entry-catalog + event-bus model.
-    /// Cross-card command modification happens through events + trigger entries wired by the host
-    /// via <c>controller.EntryNodes</c>.
+    /// Post-M3 phase 3 validation: trigger entries are now <c>OnTrigger&lt;DamageDealt&gt;</c>
+    /// instances (built-in primitive). Host pattern-matches the typed runtime node, reads its
+    /// configured <see cref="Timing"/>, subscribes to the bus accordingly, and on each delivery
+    /// constructs a fresh OnTrigger payload carrying the event reference.
     /// </summary>
     public sealed class Strike500Tests
     {
@@ -41,15 +42,19 @@ namespace Scaffold.GraphFlow.CardSandbox.Tests
             s500.Initialize(runner, () => new CardEffectScope(bus, sink));
             p1d.Initialize(runner, () => new CardEffectScope(bus, sink));
 
-            // Wire triggers via the entry-catalog pattern (D9). Pattern-match the typed entry, subscribe
-            // to the bus. Imperative entries (OnPlay) aren't auto-subscribed — host calls them directly.
+            // Wire triggers via the entry-catalog pattern. Pattern-match the typed
+            // OnTrigger<DamageDealt> entry, read its configured Timing, subscribe to the bus
+            // accordingly. Each delivery constructs a fresh OnTrigger payload carrying the live
+            // event reference + the same Timing.
             foreach (var card in new[] { s500, p1d })
             foreach (var entry in card.EntryNodes)
             {
                 switch (entry)
                 {
-                    case EntryRuntimeNode<PreDamageDealtEvent> trig:
-                        bus.Subscribe<PreDamageDealtEvent>(async e => await trig.Run(e));
+                    case OnTrigger<DamageDealt> trig:
+                        bus.Subscribe<DamageDealt>(
+                            async e => await trig.Run(new OnTrigger<DamageDealt> { Event = e, Timing = trig.Timing }),
+                            trig.Timing);
                         break;
                 }
             }
