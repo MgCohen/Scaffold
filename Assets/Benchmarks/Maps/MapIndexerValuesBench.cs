@@ -24,7 +24,7 @@ namespace Scaffold.Benchmarks.Maps
             return map;
         }
 
-        [Test, Performance]
+        [Test, Performance, Category("PerformanceBenchmark")]
         public void Indexer_Values_PerRead_Count10()
         {
             Map<int, int, string> map = BuildAllMatch(10);
@@ -36,7 +36,7 @@ namespace Scaffold.Benchmarks.Maps
             }, iterationsPer: 10_000);
         }
 
-        [Test, Performance]
+        [Test, Performance, Category("PerformanceBenchmark")]
         public void Indexer_Values_PerRead_Count100()
         {
             Map<int, int, string> map = BuildAllMatch(100);
@@ -48,7 +48,7 @@ namespace Scaffold.Benchmarks.Maps
             }, iterationsPer: 10_000);
         }
 
-        [Test, Performance]
+        [Test, Performance, Category("PerformanceBenchmark")]
         public void Indexer_Values_PerRead_Count1000()
         {
             Map<int, int, string> map = BuildAllMatch(1000);

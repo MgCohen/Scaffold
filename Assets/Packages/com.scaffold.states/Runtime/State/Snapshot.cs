@@ -1,11 +1,54 @@
+#nullable enable
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using Scaffold.Maps;
 
 namespace Scaffold.States
 {
-    public class Snapshot : Map<IReference, Type, State>
+    public sealed class Snapshot : IEnumerable<KeyValuePair<Index<Reference, Type>, State>>
     {
-        public void Set(IReference reference, State state)
+        private readonly Map<Reference, Type, State> entries = new Map<Reference, Type, State>();
+
+        public State this[Reference primary, Type secondary]
+        {
+            get => entries[primary, secondary];
+            set => entries[primary, secondary] = value;
+        }
+
+        public int Count => entries.Count;
+
+        public void Add(Reference primary, Type secondary, State value)
+        {
+            entries.Add(primary, secondary, value);
+        }
+
+        public bool Contains(Reference primary, Type secondary)
+        {
+            return entries.Contains(primary, secondary);
+        }
+
+        public bool TryGetValue(Reference primary, Type secondary, out State value)
+        {
+            return entries.TryGetValue(primary, secondary, out value);
+        }
+
+        public void Clear()
+        {
+            entries.Clear();
+        }
+
+        public IEnumerator<KeyValuePair<Index<Reference, Type>, State>> GetEnumerator()
+        {
+            return entries.GetEnumerator();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
+
+        public void Set(Reference? reference, State state)
         {
             var r = reference ?? Reference.Null;
             var t = state.GetType();
@@ -17,13 +60,27 @@ namespace Scaffold.States
             return Get<TState>(Reference.Null);
         }
 
-        public TState Get<TState>(IReference reference) where TState : State
+        public TState Get<TState>(Reference reference) where TState : State
         {
-            if(TryGetValue(reference, typeof(TState), out var s))
+            if (!TryGet<TState>(reference, out var state))
             {
-                return (TState)s;
+                throw new KeyNotFoundException($"No snapshot entry for state type {typeof(TState).Name} at the given reference.");
             }
-            return null;
+
+            return state;
+        }
+
+        public bool TryGet<TState>(Reference? reference, out TState state) where TState : State
+        {
+            var r = reference ?? Reference.Null;
+            if (TryGetValue(r, typeof(TState), out var s))
+            {
+                state = (TState)s;
+                return true;
+            }
+
+            state = default!;
+            return false;
         }
     }
 }

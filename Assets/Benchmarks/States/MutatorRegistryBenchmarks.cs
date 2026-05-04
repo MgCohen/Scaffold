@@ -84,7 +84,7 @@ namespace Scaffold.Benchmarks.States
             return registry;
         }
 
-        [Test, Performance]
+        [Test, Performance, Category("PerformanceBenchmark")]
         public void TryGet_KnownKey_50TypesRegistered()
         {
             MutatorRegistry registry = BuildRegistryWith50Types();
@@ -94,7 +94,7 @@ namespace Scaffold.Benchmarks.States
                 iterationsPer: 100_000);
         }
 
-        [Test, Performance]
+        [Test, Performance, Category("PerformanceBenchmark")]
         public void TryGet_UnknownKey_50TypesRegistered()
         {
             MutatorRegistry registry = BuildRegistryWith50Types();

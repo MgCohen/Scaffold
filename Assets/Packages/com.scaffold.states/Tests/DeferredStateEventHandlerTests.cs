@@ -3,7 +3,8 @@
 using System;
 using System.Collections.Generic;
 using NUnit.Framework;
-using Scaffold.States.Samples;
+using Scaffold.States;
+using Scaffold.States.Tests.Fixtures;
 
 namespace Scaffold.States.Tests
 {
@@ -20,28 +21,53 @@ namespace Scaffold.States.Tests
 
             public int NotifyCount { get; private set; }
 
-            public void Notify(IReference reference, BaseState state, StateChangeEvent changeEvent)
+            public void Notify(Reference reference, BaseState state, StateChangeEvent changeEvent)
             {
                 NotifyCount++;
                 inner.Notify(reference, state, changeEvent);
             }
 
-            public void Subscribe<TState>(IReference reference, Action<IReference, TState, StateChangeEvent> action) where TState : BaseState
+            public void Subscribe<TState>(Reference reference, Action<Reference, TState, StateChangeEvent> action) where TState : BaseState
             {
                 inner.Subscribe(reference, action);
             }
 
-            public void Unsubscribe<TState>(IReference reference, Action<IReference, TState, StateChangeEvent> action) where TState : BaseState
+            public void Subscribe<TState>(Reference reference, Action<TState, StateChangeEvent> action) where TState : BaseState
+            {
+                inner.Subscribe(reference, action);
+            }
+
+            public void Subscribe<TState>(Reference reference, Action<TState> action) where TState : BaseState
+            {
+                inner.Subscribe(reference, action);
+            }
+
+            public void Unsubscribe<TState>(Reference reference, Action<Reference, TState, StateChangeEvent> action) where TState : BaseState
             {
                 inner.Unsubscribe(reference, action);
             }
 
-            public void SubscribeAllReferences<TState>(Action<IReference, TState, StateChangeEvent> action) where TState : BaseState
+            public void Unsubscribe<TState>(Reference reference, Action<TState, StateChangeEvent> action) where TState : BaseState
+            {
+                inner.Unsubscribe(reference, action);
+            }
+
+            public void Unsubscribe<TState>(Reference reference, Action<TState> action) where TState : BaseState
+            {
+                inner.Unsubscribe(reference, action);
+            }
+
+            public void SubscribeAllReferences<TState>(Action<Reference, TState, StateChangeEvent> action) where TState : BaseState
             {
                 inner.SubscribeAllReferences(action);
             }
 
-            public void SubscribeAny(Action<IReference, BaseState, StateChangeEvent> action)
+            public void UnsubscribeAllReferences<TState>(Action<Reference, TState, StateChangeEvent> action) where TState : BaseState
+            {
+                inner.UnsubscribeAllReferences(action);
+            }
+
+            public void SubscribeAny(Action<Reference, BaseState, StateChangeEvent> action)
             {
                 inner.SubscribeAny(action);
             }
@@ -236,6 +262,43 @@ namespace Scaffold.States.Tests
 
             deferred.Notify(Reference.Null, new CounterState(1));
             Assert.That(counting.NotifyCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void Flush_PreserveAll_ReentrantMultiPass_RemainsStableAfterWarmup()
+        {
+            var core = new StateEventHandler();
+            var deferred = new DeferredStateEventHandler(core, StateEventMergeMode.PreserveAll);
+            var reEntered = false;
+            var values = new List<int>();
+
+            core.Subscribe<CounterState>(Reference.Null, (_, s, _) => values.Add(s.Value));
+
+            core.Subscribe<CounterState>(Reference.Null, (_, _, _) =>
+            {
+                // One-shot only: unrestricted reentrant Notify while a defer scope is active refills
+                // the buffer on every inner Notify, so FlushPreserveAll never terminates (same pattern
+                // as Flush_ReentrantNotifyWhileDeferringBuffersForNextFlushIteration).
+                if (!reEntered)
+                {
+                    reEntered = true;
+                    deferred.Notify(Reference.Null, new CounterState(99));
+                }
+            });
+
+            // Exercise list swaps and multi-pass flush many times; behavior must stay deterministic.
+            // (Unity ProfilerRecorder GC.Alloc totals are unsuitable here: Edit Mode captures host noise.)
+            for (var i = 0; i < 25; i++)
+            {
+                using (deferred.BeginDeferScope())
+                {
+                    reEntered = false;
+                    values.Clear();
+                    deferred.Notify(Reference.Null, new CounterState(1));
+                    deferred.Flush();
+                    Assert.That(values, Is.EqualTo(new[] { 1, 99 }));
+                }
+            }
         }
     }
 }

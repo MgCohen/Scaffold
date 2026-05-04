@@ -1,16 +1,20 @@
 #nullable enable
 
+using System;
 using System.Linq;
 using NUnit.Framework;
-using Scaffold.States.Samples;
+using Scaffold.States;
+using Scaffold.States.Tests.Fixtures;
 
 namespace Scaffold.States.Tests
 {
     public sealed class KeyedCountersSumAggregateProvider : AggregateProvider<KeyedCountersSumState>
     {
-        public override void Wire(IStoreScope scope, IAggregateRebuild rebuild)
+        public override IDisposable Wire(IStoreScope scope, IAggregateRebuild rebuild)
         {
-            scope.Events.SubscribeAllReferences<CounterState>((_, _, _) => rebuild.RequestRebuild());
+            Action<Reference, CounterState, StateChangeEvent> cb = (_, _, _) => rebuild.RequestRebuild();
+            scope.Events.SubscribeAllReferences(cb);
+            return new CallbackDisposable(() => scope.Events.UnsubscribeAllReferences(cb));
         }
 
         protected override KeyedCountersSumState BuildCore(IStateScope scope)

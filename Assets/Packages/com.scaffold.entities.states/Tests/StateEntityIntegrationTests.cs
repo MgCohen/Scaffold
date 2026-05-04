@@ -69,8 +69,9 @@ namespace Scaffold.Entities.States.Tests
         [Test]
         public void EntityStateFactory_AssignsToReadAndMutableHandles()
         {
-            var store = new StoreBuilder().Build();
-            EntityBridgeContext.RegisterMutators(store);
+            var builder = new StoreBuilder();
+            EntityBridgeContext.RegisterMutators(builder);
+            var store = builder.Build();
             var def = new EntityDefinition();
             def.AddVariable(hp, new FloatVariableValue(0f));
             StateEntity<EntityDefinition> entity = EntityStateFactory.Create(def, store, new InstanceId(1));
@@ -144,8 +145,9 @@ namespace Scaffold.Entities.States.Tests
             heroDef.AddVariable(hp, new FloatVariableValue(10f));
             var goblinDef = new EntityDefinition();
             goblinDef.AddVariable(hp, new FloatVariableValue(30f));
-            var store = new StoreBuilder().Build();
-            EntityBridgeContext.RegisterMutators(store);
+            var builder = new StoreBuilder();
+            EntityBridgeContext.RegisterMutators(builder);
+            var store = builder.Build();
             var heroId = new InstanceId(1);
             var goblinId = new InstanceId(2);
             StateEntity<EntityDefinition> hero = EntityStateFactory.Create(heroDef, store, heroId);
@@ -167,8 +169,9 @@ namespace Scaffold.Entities.States.Tests
             heroDef.AddVariable(hp, new FloatVariableValue(10f));
             var goblinDef = new EntityDefinition();
             goblinDef.AddVariable(hp, new FloatVariableValue(30f));
-            var store = new StoreBuilder().Build();
-            EntityBridgeContext.RegisterMutators(store);
+            var builder = new StoreBuilder();
+            EntityBridgeContext.RegisterMutators(builder);
+            var store = builder.Build();
             var heroId = new InstanceId(1);
             var goblinId = new InstanceId(2);
             StateEntity<EntityDefinition> hero = EntityStateFactory.Create(heroDef, store, heroId);
@@ -246,8 +249,9 @@ namespace Scaffold.Entities.States.Tests
             heroDef.AddVariable(hp, new FloatVariableValue(10f));
             var goblinDef = new EntityDefinition();
             goblinDef.AddVariable(hp, new FloatVariableValue(30f));
-            var store = new StoreBuilder().Build();
-            EntityBridgeContext.RegisterMutators(store);
+            var builder = new StoreBuilder();
+            EntityBridgeContext.RegisterMutators(builder);
+            var store = builder.Build();
             var heroId = new InstanceId(1);
             var goblinId = new InstanceId(2);
             StateEntity<EntityDefinition> hero = EntityStateFactory.Create(heroDef, store, heroId);
@@ -352,8 +356,9 @@ namespace Scaffold.Entities.States.Tests
             heroDef.AddVariable(hp, new FloatVariableValue(10f));
             var goblinDef = new EntityDefinition();
             goblinDef.AddVariable(hp, new FloatVariableValue(30f));
-            var store = new StoreBuilder().Build();
-            EntityBridgeContext.RegisterMutators(store);
+            var builder = new StoreBuilder();
+            EntityBridgeContext.RegisterMutators(builder);
+            var store = builder.Build();
             StateEntity<EntityDefinition> hero = EntityStateFactory.Create(heroDef, store, new InstanceId(1));
             StateEntity<EntityDefinition> goblin = EntityStateFactory.Create(goblinDef, store, new InstanceId(2));
             Assert.That(hero.GetVariable<float>(hp), Is.EqualTo(10f));
@@ -454,8 +459,9 @@ namespace Scaffold.Entities.States.Tests
             var goblinDef = new EntityDefinition();
             goblinDef.AddVariable(hp, new FloatVariableValue(30f));
 
-            var store = new StoreBuilder().Build();
-            EntityBridgeContext.RegisterMutators(store);
+            var builder = new StoreBuilder();
+            EntityBridgeContext.RegisterMutators(builder);
+            var store = builder.Build();
 
             var heroId = new InstanceId(1);
             var goblinId = new InstanceId(2);
@@ -486,8 +492,9 @@ namespace Scaffold.Entities.States.Tests
             var elfDef = new EntityDefinition();
             elfDef.AddVariable(hp, new FloatVariableValue(50f));
 
-            var store = new StoreBuilder().Build();
-            EntityBridgeContext.RegisterMutators(store);
+            var builder = new StoreBuilder();
+            EntityBridgeContext.RegisterMutators(builder);
+            var store = builder.Build();
 
             var heroId = new InstanceId(1);
             var goblinId = new InstanceId(2);
@@ -570,8 +577,8 @@ namespace Scaffold.Entities.States.Tests
             var def = new EntityDefinition();
             def.AddVariable(hp, new FloatVariableValue(10f));
             var builder = new StoreBuilder();
+            EntityBridgeContext.RegisterMutators(builder);
             Store store = builder.Build();
-            EntityBridgeContext.RegisterMutators(store);
             var id = new InstanceId(1);
             StateEntity<EntityDefinition> entity = EntityStateFactory.Create(def, store, id);
             return (store, def, entity, id);

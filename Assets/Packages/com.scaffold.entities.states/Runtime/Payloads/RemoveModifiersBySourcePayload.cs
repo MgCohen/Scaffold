@@ -5,7 +5,7 @@ namespace Scaffold.Entities.States
 {
     public sealed record RemoveModifiersBySourcePayload(InstanceId EntityId, ModifierSource Source) : IPayloadReference
     {
-        public IReference GetReference()
+        public Reference GetReference()
         {
             return EntityStateReference.From(EntityId);
         }

@@ -2,7 +2,7 @@
 
 namespace Scaffold.States
 {
-    public static class StateEventHandlers
+    public static class StateEventHandlerFactory
     {
         public static IStateEventHandler CreateDefault()
         {

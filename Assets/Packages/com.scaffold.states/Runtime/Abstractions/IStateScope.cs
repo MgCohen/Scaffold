@@ -8,7 +8,7 @@ namespace Scaffold.States
     {
         TState Get<TState>() where TState : BaseState;
 
-        TState Get<TState>(IReference? reference) where TState : BaseState;
+        TState Get<TState>(Reference? reference) where TState : BaseState;
 
         IEnumerable<TState> GetAll<TState>() where TState : BaseState;
     }

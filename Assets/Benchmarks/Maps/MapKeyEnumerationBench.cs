@@ -25,7 +25,7 @@ namespace Scaffold.Benchmarks.Maps
             return map;
         }
 
-        [Test, Performance]
+        [Test, Performance, Category("PerformanceBenchmark")]
         public void GetPrimaryKeys_1000Entries_10000Calls()
         {
             Map<int, int, string> map = BuildMap(1000);
@@ -36,7 +36,7 @@ namespace Scaffold.Benchmarks.Maps
             }, iterationsPer: 10_000);
         }
 
-        [Test, Performance]
+        [Test, Performance, Category("PerformanceBenchmark")]
         public void GetSecondaryKeys_1000Entries_10000Calls()
         {
             Map<int, int, string> map = BuildMap(1000);

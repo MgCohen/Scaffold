@@ -8,6 +8,10 @@ param(
     [string]$UnityPath,
     [string[]]$AssemblyNames,
     [string]$PerformanceTestResultsPath,
+    # Microbenchmarks tagged [Category("PerformanceBenchmark")] are skipped by default so EditMode runs stay fast.
+    [switch]$IncludePerformanceBenchmarks,
+    # Runs only microbenchmark tests (same category). Often paired with -PerformanceTestResultsPath.
+    [switch]$PerformanceBenchmarksOnly,
     [switch]$EnableCoverage,
     [string]$CoverageResultsPath,
     [string]$CoverageOptions,
@@ -92,6 +96,20 @@ try {
 
     if ($resolvedPerfPath) {
         $unityArgs += @("-perfTestResults", $resolvedPerfPath)
+    }
+
+    $performanceBenchmarkCategory = "PerformanceBenchmark"
+    if ($PerformanceBenchmarksOnly) {
+        $unityArgs += @("-testCategory", $performanceBenchmarkCategory)
+        Write-Host ("Test filter: -testCategory '{0}' (performance microbenchmarks only)" -f $performanceBenchmarkCategory)
+    }
+    elseif (-not $IncludePerformanceBenchmarks.IsPresent -and -not $resolvedPerfPath) {
+        $excludeExpr = ("!{0}" -f $performanceBenchmarkCategory)
+        $unityArgs += @("-testCategory", $excludeExpr)
+        Write-Host ("Test filter: -testCategory '{0}' (skipping performance microbenchmarks; use -IncludePerformanceBenchmarks or -PerformanceTestResultsPath to include them)" -f $excludeExpr)
+    }
+    elseif ($resolvedPerfPath -and -not $IncludePerformanceBenchmarks.IsPresent) {
+        Write-Host "Performance JSON path set: performance microbenchmarks will run (-perfTestResults)."
     }
 
     if ($EnableCoverage) {

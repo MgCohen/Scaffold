@@ -36,7 +36,7 @@ namespace Scaffold.Benchmarks.Maps
             return dict;
         }
 
-        [Test, Performance]
+        [Test, Performance, Category("PerformanceBenchmark")]
         public void Map_Add_FromEmpty_Count10()
         {
             Bench.Measure(() =>
@@ -45,7 +45,7 @@ namespace Scaffold.Benchmarks.Maps
             }, iterationsPer: 500);
         }
 
-        [Test, Performance]
+        [Test, Performance, Category("PerformanceBenchmark")]
         public void Dict_Add_FromEmpty_Count10()
         {
             Bench.Measure(() =>
@@ -54,7 +54,7 @@ namespace Scaffold.Benchmarks.Maps
             }, iterationsPer: 500);
         }
 
-        [Test, Performance]
+        [Test, Performance, Category("PerformanceBenchmark")]
         public void Map_Add_FromEmpty_Count100()
         {
             Bench.Measure(() =>
@@ -63,7 +63,7 @@ namespace Scaffold.Benchmarks.Maps
             }, iterationsPer: 100);
         }
 
-        [Test, Performance]
+        [Test, Performance, Category("PerformanceBenchmark")]
         public void Dict_Add_FromEmpty_Count100()
         {
             Bench.Measure(() =>
@@ -72,7 +72,7 @@ namespace Scaffold.Benchmarks.Maps
             }, iterationsPer: 100);
         }
 
-        [Test, Performance]
+        [Test, Performance, Category("PerformanceBenchmark")]
         public void Map_Add_FromEmpty_Count1000()
         {
             Bench.Measure(() =>
@@ -81,7 +81,7 @@ namespace Scaffold.Benchmarks.Maps
             }, iterationsPer: 20);
         }
 
-        [Test, Performance]
+        [Test, Performance, Category("PerformanceBenchmark")]
         public void Dict_Add_FromEmpty_Count1000()
         {
             Bench.Measure(() =>
@@ -90,7 +90,7 @@ namespace Scaffold.Benchmarks.Maps
             }, iterationsPer: 20);
         }
 
-        [Test, Performance]
+        [Test, Performance, Category("PerformanceBenchmark")]
         public void Map_TryGetValue_Hit_Count1000()
         {
             Map<int, int, string> map = BuildMap(1000);
@@ -101,7 +101,7 @@ namespace Scaffold.Benchmarks.Maps
             }, iterationsPer: 10_000);
         }
 
-        [Test, Performance]
+        [Test, Performance, Category("PerformanceBenchmark")]
         public void Dict_TryGetValue_Hit_Count1000()
         {
             Dictionary<(int, int), string> dict = BuildDict(1000);
@@ -112,7 +112,7 @@ namespace Scaffold.Benchmarks.Maps
             }, iterationsPer: 10_000);
         }
 
-        [Test, Performance]
+        [Test, Performance, Category("PerformanceBenchmark")]
         public void Map_Foreach_Count1000()
         {
             Map<int, int, string> map = BuildMap(1000);
@@ -129,7 +129,7 @@ namespace Scaffold.Benchmarks.Maps
             }, iterationsPer: 500);
         }
 
-        [Test, Performance]
+        [Test, Performance, Category("PerformanceBenchmark")]
         public void Dict_Foreach_Count1000()
         {
             Dictionary<(int, int), string> dict = BuildDict(1000);

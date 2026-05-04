@@ -14,14 +14,14 @@ namespace Scaffold.Benchmarks.States
         [SetUp]
         public void SetUp() => BenchSetup.RearmPerTest();
 
-        [Test, Performance]
+        [Test, Performance, Category("PerformanceBenchmark")]
         public void Subscribe_PerCall_CachedDelegate()
         {
             var builder = new StoreBuilder();
             builder.AddState(new CounterState(0));
             Store store = builder.Build();
 
-            System.Action<IReference, CounterState, StateChangeEvent> handler =
+            System.Action<Reference, CounterState, StateChangeEvent> handler =
                 static (_, _, _) => { };
 
             // Each iteration registers a fresh subscription instance.

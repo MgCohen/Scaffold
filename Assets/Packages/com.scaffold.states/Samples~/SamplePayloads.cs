@@ -8,6 +8,6 @@ namespace Scaffold.States.Samples
 
     public sealed record RoutedCounterPayload(SampleKey Target, int Delta) : IPayloadReference
     {
-        public IReference GetReference() => Target;
+        public Reference GetReference() => Target;
     }
 }

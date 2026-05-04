@@ -3,7 +3,7 @@
     "rootNamespace": "Scaffold.States.Tests",
     "references": [
         "Scaffold.States",
-        "Scaffold.States.Samples",
+        "Scaffold.Maps",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],
