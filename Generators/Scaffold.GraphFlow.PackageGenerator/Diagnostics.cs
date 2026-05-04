@@ -6,20 +6,11 @@ namespace Scaffold.GraphFlow.PackageGenerator
     {
         const string Category = "GraphFlow";
 
-        // EFG005 — Command-shaped payload without paired result type (CommandResultPair / GraphCommandPair-mode).
-        internal static readonly DiagnosticDescriptor EFG005_CommandPairMissingResult = new(
-            id: "EFG005",
-            title: "Command payload missing result type",
-            messageFormat: "Payload '{0}' carries [GraphCommandPair] but no result type could be resolved (attribute decode failed and no concrete dispatcher subclass was found in the runtime assembly)",
-            category: Category,
-            defaultSeverity: DiagnosticSeverity.Warning,
-            isEnabledByDefault: true);
-
         // EFG007 — Action payload has no execution path.
         internal static readonly DiagnosticDescriptor EFG007_NoExecutionPath = new(
             id: "EFG007",
             title: "Action payload has no execution path",
-            messageFormat: "Payload '{0}' implements IGraphAction<{1}> but has no execution path. Either implement IExecutable<{1}>, declare DispatcherBase on [GraphPackage], or annotate the type with [GraphCommandPair].",
+            messageFormat: "Payload '{0}' implements IGraphAction<{1}> but has no execution path. Either implement IExecutable<{1}>, declare DispatcherBase + CommandBase on [GraphPackage] and extend the CommandBase, or hand-author a runtime node.",
             category: Category,
             defaultSeverity: DiagnosticSeverity.Warning,
             isEnabledByDefault: true);

@@ -66,7 +66,8 @@ using Scaffold.GraphFlow.M0.Smoke;
     AssetMenu = ""GraphFlow/M0 Smoke Graph"",
     Convention = PortConvention.AllFieldsIn,
     RegistryNamespace = ""Scaffold.GraphFlow.M0.Generated"",
-    DispatcherBase = typeof(MyDispatcherBase<,>))]
+    DispatcherBase = typeof(MyDispatcherBase<,>),
+    CommandBase = typeof(MyCommand<>))]
 ";
 
 var failures = new List<string>();

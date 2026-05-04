@@ -12,6 +12,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             string registryNamespace,
             string graphFrameworkNamespace,
             string? dispatcherBaseMetadataName,
+            string? commandBaseMetadataName,
             int convention)
         {
             RunnerFullyQualified = runnerFullyQualified;
@@ -23,6 +24,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             RegistryNamespace = registryNamespace;
             GraphFrameworkNamespace = graphFrameworkNamespace;
             DispatcherBaseMetadataName = dispatcherBaseMetadataName;
+            CommandBaseMetadataName = commandBaseMetadataName;
             Convention = convention;
         }
 
@@ -36,6 +38,9 @@ namespace Scaffold.GraphFlow.PackageGenerator
         internal string GraphFrameworkNamespace { get; }
         /// <summary>Open generic dispatcher base (e.g. <c>MyDispatcherBase`2</c> metadata name including namespace).</summary>
         internal string? DispatcherBaseMetadataName { get; }
+        /// <summary>Open generic command base (e.g. <c>MyCommand`1</c>). When set, types extending it are
+        /// discovered as Mode-2 commands and TResult is read from the closed base — no [GraphCommandPair] attribute needed.</summary>
+        internal string? CommandBaseMetadataName { get; }
         /// <summary>Mirrors <c>PortConvention</c> enum in <c>Scaffold.GraphFlow.AttributesLib</c>: 0=CommandResultPair, 1=AttributedFields, 2=MutableInReadOnlyOut, 3=AllFieldsIn.</summary>
         internal int Convention { get; }
     }

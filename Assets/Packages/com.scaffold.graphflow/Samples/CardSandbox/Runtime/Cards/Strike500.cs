@@ -64,7 +64,6 @@ namespace Scaffold.GraphFlow.CardSandbox.Cards
     /// once with <see cref="Timing.Before"/> (so triggers may mutate <c>Amount</c>) and once with
     /// <see cref="Timing.After"/> (reactive triggers).
     /// </summary>
-    [GraphCommandPair(ResultType = typeof(Unit))]
     public sealed class DealDamageCommand : Command<Unit>
     {
         [GraphPort]

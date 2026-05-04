@@ -56,8 +56,13 @@ namespace Scaffold.GraphFlow.PackageGenerator
                     ? ""
                     : dBase.ContainingNamespace.ToDisplayString() + ".") + dBase.MetadataName
                 : null;
+            var commandMeta = AttributeNamedArguments.TryGetNamedType(attr, "CommandBase") is { } cBase
+                ? (cBase.ContainingNamespace.IsGlobalNamespace
+                    ? ""
+                    : cBase.ContainingNamespace.ToDisplayString() + ".") + cBase.MetadataName
+                : null;
             var convention = AttributeNamedArguments.TryGetNamedInt(attr, "Convention") ?? 3; // default = AllFieldsIn
-            model = new GraphPackageModel(fq, ns, runner.Name, stem, ext, menu, reg, frameworkNs, dispatcherMeta, convention);
+            model = new GraphPackageModel(fq, ns, runner.Name, stem, ext, menu, reg, frameworkNs, dispatcherMeta, commandMeta, convention);
         }
 
         static string GraphFrameworkNamespaceFromRunner(INamedTypeSymbol runner)

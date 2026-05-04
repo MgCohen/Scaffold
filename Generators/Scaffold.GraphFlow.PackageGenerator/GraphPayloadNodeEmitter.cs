@@ -21,7 +21,11 @@ namespace Scaffold.GraphFlow.PackageGenerator
             var iAction = compilation.GetTypeByMetadataName(markerNs + ".IGraphAction`1");
             var iExec = compilation.GetTypeByMetadataName(markerNs + ".IExecutable`1");
             var graphEntryAttr = compilation.GetTypeByMetadataName("Scaffold.GraphFlow.GraphEntryAttribute");
-            var graphCmdAttr = compilation.GetTypeByMetadataName("Scaffold.GraphFlow.GraphCommandPairAttribute");
+            // Mode-2 commands now discovered by walking the package's CommandBase (decision #2).
+            // [GraphCommandPair] attribute deleted in phase 4.
+            var openCmdBase = package.CommandBaseMetadataName != null
+                ? compilation.GetTypeByMetadataName(package.CommandBaseMetadataName)
+                : null;
             var graphPortAttr = compilation.GetTypeByMetadataName("Scaffold.GraphFlow.GraphPortAttribute");
             var inAttr = compilation.GetTypeByMetadataName("Scaffold.GraphFlow.InAttribute");
             var outAttr = compilation.GetTypeByMetadataName("Scaffold.GraphFlow.OutAttribute");
@@ -70,32 +74,19 @@ namespace Scaffold.GraphFlow.PackageGenerator
                     continue;
                 }
 
-                // Mode 2 command/result pairs.
-                if (graphCmdAttr != null &&
-                    PayloadDiscovery.TryReadCommandPairAttribute(type, graphCmdAttr, out var resultType))
+                // Mode 2 command/result pairs — discover by walking the type's base chain for the
+                // package's CommandBase. Result type read from the closed Command<TResult> base.
+                // No attribute required.
+                if (openCmdBase != null && package.DispatcherBaseMetadataName != null
+                    && PayloadDiscovery.TryGetCommandResultTypeFromBase(type, openCmdBase, out var resultType))
                 {
-                    if (package.DispatcherBaseMetadataName == null)
-                    {
-                        continue;
-                    }
-
                     var openDisp = compilation.GetTypeByMetadataName(package.DispatcherBaseMetadataName);
                     if (openDisp is not INamedTypeSymbol { TypeParameters.Length: 2 } openNamed)
                     {
                         continue;
                     }
 
-                    if (resultType == null)
-                    {
-                        resultType = PayloadDiscovery.FindResultTypeFromDispatcherSubclass(payloadAssembly, openNamed, type, ct);
-                        if (resultType == null)
-                        {
-                            spc.ReportDiagnostic(Diagnostic.Create(Diagnostics.EFG005_CommandPairMissingResult, Diagnostics.LocationOf(type), type.Name));
-                            continue;
-                        }
-                    }
-
-                    var closedDisp = openNamed.Construct(type, resultType);
+                    var closedDisp = openNamed.Construct(type, resultType!);
                     if (editorAssembly)
                     {
                         EmitCommandEditor(spc, type, resultType, compilation, graphPortAttr);
@@ -674,67 +665,29 @@ namespace Scaffold.GraphFlow.PackageGenerator
             return false;
         }
 
-        internal static bool TryReadCommandPairAttribute(
+        /// <summary>
+        /// Walk the type's base chain for the package's open CommandBase generic; if found, extract
+        /// TResult from the closed base. No attribute required (decision #2).
+        /// </summary>
+        internal static bool TryGetCommandResultTypeFromBase(
             INamedTypeSymbol type,
-            INamedTypeSymbol graphCmdAttr,
+            INamedTypeSymbol openCommandBase,
             out INamedTypeSymbol? resultType)
         {
-            foreach (var a in type.GetAttributes())
+            for (var b = type.BaseType; b != null; b = b.BaseType)
             {
-                if (!SymbolEqualityComparer.Default.Equals(a.AttributeClass, graphCmdAttr))
+                if (!b.IsGenericType) continue;
+                if (!SymbolEqualityComparer.Default.Equals(b.OriginalDefinition, openCommandBase)) continue;
+                if (b.TypeArguments.Length != 1) continue;
+                if (b.TypeArguments[0] is INamedTypeSymbol r)
                 {
-                    continue;
+                    resultType = r;
+                    return true;
                 }
-
-                resultType = null;
-                foreach (var na in a.NamedArguments)
-                {
-                    if (na.Key == "ResultType" && na.Value.Value is INamedTypeSymbol r)
-                    {
-                        resultType = r;
-                    }
-                }
-
-                return true;
             }
 
             resultType = null;
             return false;
-        }
-
-        internal static INamedTypeSymbol? FindResultTypeFromDispatcherSubclass(
-            IAssemblySymbol payloadAssembly,
-            INamedTypeSymbol openDispatcher,
-            INamedTypeSymbol commandType,
-            System.Threading.CancellationToken ct)
-        {
-            foreach (var t in GraphPayloadTypeWalker.AllNamedTypesInAssembly(payloadAssembly, ct))
-            {
-                for (var b = t.BaseType; b != null; b = b.BaseType)
-                {
-                    if (!SymbolEqualityComparer.Default.Equals(b.OriginalDefinition, openDispatcher))
-                    {
-                        continue;
-                    }
-
-                    if (b.TypeArguments.Length != 2)
-                    {
-                        continue;
-                    }
-
-                    if (!SymbolEqualityComparer.Default.Equals(b.TypeArguments[0], commandType))
-                    {
-                        continue;
-                    }
-
-                    if (b.TypeArguments[1] is INamedTypeSymbol r)
-                    {
-                        return r;
-                    }
-                }
-            }
-
-            return null;
         }
 
         internal static ImmutableArray<IFieldSymbol> InstanceFields(INamedTypeSymbol type)
