@@ -517,6 +517,24 @@ namespace Scaffold.States
             return (TState)slice.State;
         }
 
+        public bool TryGet<TState>(Reference? reference, out TState state) where TState : BaseState
+        {
+            Reference r = FromReference(reference);
+            if (TryGetSlice(r, typeof(TState), out BaseSlice slice))
+            {
+                if (slice is AggregateSlice aSlice)
+                {
+                    state = (TState)aSlice.BuildForScope(this);
+                    return true;
+                }
+                state = (TState)slice.State;
+                return true;
+            }
+
+            state = default!;
+            return false;
+        }
+
         public IEnumerable<TState> GetAll<TState>() where TState : BaseState
         {
             return IterateSlicesAsStates<TState>(typeof(TState));
@@ -718,6 +736,30 @@ namespace Scaffold.States
                 }
 
                 return owner.Get<TState>(r);
+            }
+
+            public bool TryGet<TState>(Reference? reference, out TState state) where TState : BaseState
+            {
+                Reference r = owner.FromReference(reference);
+                if (overlay.TryGetValue(r, typeof(TState), out var fromOverlay))
+                {
+                    state = (TState)(object)fromOverlay!;
+                    return true;
+                }
+
+                if (owner.TryGetSlice(r, typeof(TState), out BaseSlice slice))
+                {
+                    if (slice is AggregateSlice aSlice)
+                    {
+                        state = (TState)aSlice.BuildForScope(this);
+                        return true;
+                    }
+                    state = (TState)(object)slice.State!;
+                    return true;
+                }
+
+                state = default!;
+                return false;
             }
         }
     }
