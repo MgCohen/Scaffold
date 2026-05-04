@@ -27,7 +27,7 @@ namespace Scaffold.Ads.Levelplay
         private LevelPlayInterstitialAdService interstitialService;
         private LevelPlayBannerAdService bannerService;
 
-        public async Awaitable Initialize(string userId)
+        public async Task Initialize(string userId)
         {
             UserId = userId;
             if (isInitialized)

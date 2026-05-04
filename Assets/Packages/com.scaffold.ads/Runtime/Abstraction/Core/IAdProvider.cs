@@ -1,11 +1,11 @@
 using System;
-using UnityEngine;
+using System.Threading.Tasks;
 
 namespace Scaffold.Ads
 {
     public interface IAdProvider : IDisposable
     {
-        Awaitable Initialize(string userId);
+        Task Initialize(string userId);
         void SetMuted(bool mute);
         string UserId { get; set; }
         IRewardedAdService RewardedAdService { get; }
