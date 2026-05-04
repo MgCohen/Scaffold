@@ -6,43 +6,15 @@ using UnityEngine;
 
 namespace Scaffold.GraphFlow.CardSandbox.Cards
 {
-    /// <summary>
-    /// "Strike 5" card. OnPlay entry → DealDamageDispatcher with Amount = 5.
-    /// </summary>
+    /// <summary>"Strike 5" — OnPlay → DealDamage(5).</summary>
     public static class Strike500
     {
         public const int BaseDamage = 5;
 
-        /// <summary>Entry runtime — emits <see cref="OnPlay"/> walks into the dispatcher.</summary>
-        public sealed class OnPlayEntry : EntryRuntimeNode<OnPlay>
-        {
-            public const string FlowOutPortName = "FlowOut";
-
-            public override Task Execute(Flow flow) =>
-                flow.GoTo(FlowOutPortName);
-        }
-
-        /// <summary>Dispatcher runtime — runs the DealDamageCommand with a fixed Amount.</summary>
-        public sealed class DealDamageDispatcher : RuntimeNode<CardEffectRunner>
-        {
-            public const string FlowInPortName = "FlowIn";
-
-            public int Amount = BaseDamage;
-
-            public override async Task Execute(CardEffectRunner runner, Flow flow)
-            {
-                var scope = (ICardEffectScope)flow.Scope!;
-                var cmd = new DealDamageCommand { Amount = Amount, Target = (flow.Scope as ICardEffectScope)?.Damage };
-                await cmd.Execute(scope, flow).ConfigureAwait(false);
-                await flow.Stop().ConfigureAwait(false);
-            }
-        }
-
-        /// <summary>Constructs the GraphAsset with OnPlay → DealDamage wired up.</summary>
         public static CardEffectGraphAsset BuildAsset()
         {
-            var entry = new OnPlayEntry { nodeId = 1, editorGuid = "strike500-entry" };
-            var dispatcher = new DealDamageDispatcher { nodeId = 2, editorGuid = "strike500-dispatch" };
+            var entry = new OnPlayRuntime { nodeId = 1, editorGuid = "strike500-entry" };
+            var dispatcher = new Strike500Dispatcher { nodeId = 2, editorGuid = "strike500-dispatch" };
 
             var asset = ScriptableObject.CreateInstance<CardEffectGraphAsset>();
             asset.nodes = new List<RuntimeNode> { entry, dispatcher };
@@ -52,34 +24,22 @@ namespace Scaffold.GraphFlow.CardSandbox.Cards
             };
             asset.flowEdges.Add(new FlowEdge
             {
-                fromNodeId = 1, fromFlowPortName = OnPlayEntry.FlowOutPortName,
-                toNodeId = 2, toFlowPortName = DealDamageDispatcher.FlowInPortName,
+                fromNodeId = 1, fromFlowPortName = "FlowOut",
+                toNodeId = 2, toFlowPortName = "FlowIn",
             });
             return asset;
         }
     }
 
-    /// <summary>
-    /// Mode-2 command — publishes one <see cref="DamageDealt"/> event twice around applying damage:
-    /// once with <see cref="Timing.Before"/> (so triggers may mutate <c>Amount</c>) and once with
-    /// <see cref="Timing.After"/> (reactive triggers).
-    /// </summary>
-    public sealed class DealDamageCommand : Command<Unit>
+    /// <summary>Strike500's effect node — runs DealDamageCommand with the card's BaseDamage.</summary>
+    public sealed class Strike500Dispatcher : RuntimeNode<CardEffectRunner>
     {
-        [GraphPort]
-        public int Amount;
-
-        public object? Target;
-
-        public override async Task<Unit> Execute(ICardEffectScope scope, Flow flow)
+        public override async Task Execute(CardEffectRunner runner, Flow flow)
         {
-            var evt = new DamageDealt { Amount = Amount, Target = Target };
-            await scope.Bus.Publish(evt, Timing.Before).ConfigureAwait(false);
-
-            scope.Damage.Apply(evt.Target, evt.Amount);
-
-            await scope.Bus.Publish(evt, Timing.After).ConfigureAwait(false);
-            return Unit.Default;
+            var scope = (ICardEffectScope)flow.Scope!;
+            var cmd = new DealDamageCommand { Amount = Strike500.BaseDamage };
+            await cmd.Execute(scope, flow).ConfigureAwait(false);
+            await flow.Stop().ConfigureAwait(false);
         }
     }
 }
