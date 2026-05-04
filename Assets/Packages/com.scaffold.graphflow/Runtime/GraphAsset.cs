@@ -9,9 +9,9 @@ namespace Scaffold.GraphFlow
     public struct ConnectionRecord
     {
         public int fromNodeId;
-        public int fromPortId;
+        public string fromPortName;
         public int toNodeId;
-        public int toPortId;
+        public string toPortName;
     }
 
     /// <summary>Execution ordering — no payload; interpreted only by <see cref="GraphExecutor{TRunner}"/>.</summary>
@@ -19,9 +19,9 @@ namespace Scaffold.GraphFlow
     public struct FlowEdge
     {
         public int fromNodeId;
-        public int fromFlowPortId;
+        public string fromFlowPortName;
         public int toNodeId;
-        public int toFlowPortId;
+        public string toFlowPortName;
     }
 
     [Serializable]
@@ -36,8 +36,8 @@ namespace Scaffold.GraphFlow
     /// <para>The node list is typed as <see cref="RuntimeNode"/> (not <c>RuntimeNode&lt;TRunner&gt;</c>)
     /// so pure data nodes — which inherit from <see cref="RuntimeNode"/> directly without a
     /// <c>TRunner</c> — can serialize alongside flow-bearing nodes. The executor only invokes
-    /// <c>Execute</c> on <c>RuntimeNode&lt;TRunner&gt;</c> instances reached through <c>flowEdges</c>;
-    /// data nodes are read-only sinks for connections and never participate in flow.</para>
+    /// <c>Execute</c> on the nodes reached through <c>flowEdges</c>; data nodes are read-only sinks
+    /// for connections and never participate in flow.</para>
     /// </summary>
     public abstract class GraphAsset<TRunner> : ScriptableObject where TRunner : GraphRunner
     {

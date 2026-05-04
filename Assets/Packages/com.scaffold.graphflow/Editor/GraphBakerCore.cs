@@ -24,11 +24,11 @@ namespace Scaffold.GraphFlow.Editor
     /// <summary>
     /// Generic, registry-driven baker. One implementation translates any GraphFlow package's editor graph
     /// into its typed runtime asset — the generator emits <c>&lt;Stem&gt;GraphRegistry</c>, which supplies
-    /// per-editor-node factories + port-ID lookups so this code stays free of per-payload switches.
+    /// per-editor-node factories + port-name lookups so this code stays free of per-payload switches.
     /// </summary>
     public static class GraphBakerCore
     {
-        public const int SchemaVersion = 2;
+        public const int SchemaVersion = 3;
 
         public static GraphBakeResult<TAsset> Bake<TRunner, TAsset>(
             Graph<TRunner> editorGraph,
@@ -150,11 +150,11 @@ namespace Scaffold.GraphFlow.Editor
             GraphPackageRegistry<TRunner>.NodeRegistration toReg, string toPortName, int toNodeId,
             List<FlowEdge> into) where TRunner : GraphRunner
         {
-            if (!fromReg.FlowOutputPortIds.TryGetValue(fromPortName, out var fromId))
+            if (!fromReg.FlowOutputPortNames.Contains(fromPortName))
                 return false;
-            if (!toReg.FlowInputPortIds.TryGetValue(toPortName, out var toId))
+            if (!toReg.FlowInputPortNames.Contains(toPortName))
                 return false;
-            into.Add(new FlowEdge { fromNodeId = fromNodeId, fromFlowPortId = fromId, toNodeId = toNodeId, toFlowPortId = toId });
+            into.Add(new FlowEdge { fromNodeId = fromNodeId, fromFlowPortName = fromPortName, toNodeId = toNodeId, toFlowPortName = toPortName });
             return true;
         }
 
@@ -163,11 +163,11 @@ namespace Scaffold.GraphFlow.Editor
             GraphPackageRegistry<TRunner>.NodeRegistration toReg, string toPortName, int toNodeId,
             List<ConnectionRecord> into) where TRunner : GraphRunner
         {
-            if (!fromReg.DataOutputPortIds.TryGetValue(fromPortName, out var fromId))
+            if (!fromReg.DataOutputPortNames.Contains(fromPortName))
                 return false;
-            if (!toReg.DataInputPortIds.TryGetValue(toPortName, out var toId))
+            if (!toReg.DataInputPortNames.Contains(toPortName))
                 return false;
-            into.Add(new ConnectionRecord { fromNodeId = fromNodeId, fromPortId = fromId, toNodeId = toNodeId, toPortId = toId });
+            into.Add(new ConnectionRecord { fromNodeId = fromNodeId, fromPortName = fromPortName, toNodeId = toNodeId, toPortName = toPortName });
             return true;
         }
 

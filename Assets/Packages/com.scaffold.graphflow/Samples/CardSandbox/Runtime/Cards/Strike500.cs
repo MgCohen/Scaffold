@@ -8,25 +8,24 @@ namespace Scaffold.GraphFlow.CardSandbox.Cards
 {
     /// <summary>
     /// "Strike 5" card. OnPlay entry → DealDamageDispatcher with Amount = 5.
-    /// Hand-authored runtime nodes; no .gfasset / generator involvement (sample is runtime-only).
     /// </summary>
     public static class Strike500
     {
         public const int BaseDamage = 5;
 
         /// <summary>Entry runtime — emits <see cref="OnPlay"/> walks into the dispatcher.</summary>
-        public sealed class OnPlayEntry : EntryRuntimeNode<OnPlay, CardEffectRunner>
+        public sealed class OnPlayEntry : EntryRuntimeNode<OnPlay>
         {
-            public const int FlowOutPortId = unchecked((int)0xC0010001u);
+            public const string FlowOutPortName = "FlowOut";
 
-            public override Task Execute(CardEffectRunner runner, Flow flow) =>
-                flow.GoTo(FlowOutPortId);
+            public override Task Execute(Flow flow) =>
+                flow.GoTo(FlowOutPortName);
         }
 
         /// <summary>Dispatcher runtime — runs the DealDamageCommand with a fixed Amount.</summary>
         public sealed class DealDamageDispatcher : RuntimeNode<CardEffectRunner>
         {
-            public const int FlowInPortId = 0;
+            public const string FlowInPortName = "FlowIn";
 
             public int Amount = BaseDamage;
 
@@ -53,8 +52,8 @@ namespace Scaffold.GraphFlow.CardSandbox.Cards
             };
             asset.flowEdges.Add(new FlowEdge
             {
-                fromNodeId = 1, fromFlowPortId = OnPlayEntry.FlowOutPortId,
-                toNodeId = 2, toFlowPortId = DealDamageDispatcher.FlowInPortId,
+                fromNodeId = 1, fromFlowPortName = OnPlayEntry.FlowOutPortName,
+                toNodeId = 2, toFlowPortName = DealDamageDispatcher.FlowInPortName,
             });
             return asset;
         }
@@ -63,21 +62,11 @@ namespace Scaffold.GraphFlow.CardSandbox.Cards
     /// <summary>
     /// Mode-2 command — publishes Pre/Post damage events around applying damage to the scope's sink.
     /// Triggers on PreDamageDealtEvent (e.g. PlusOneDamage) can mutate Amount before it lands.
-    /// <para>The <see cref="GraphCommandPairAttribute"/> + <see cref="GraphPortAttribute"/> on
-    /// <see cref="Amount"/> opt the type into the generator's Mode-2 emit, producing
-    /// <c>DealDamageCommandDispatcherRuntime : CardCommandDispatcher&lt;DealDamageCommand, Unit&gt;</c>
-    /// (runtime asm) and <c>DealDamageCommandDispatcherEditorNode</c> (editor asm). Result type is
-    /// <see cref="Unit"/> so no output ports are emitted. <see cref="Target"/> has no port id —
-    /// visually authored graphs leave it null; the runtime path through Strike500's hand-authored
-    /// dispatcher still sets it explicitly.</para>
     /// </summary>
-    [GraphCommandPair(
-        ResultType = typeof(Unit),
-        FlowInPortId = unchecked((int)0xC1D0_0001u),
-        FlowOutPortId = unchecked((int)0xC1D0_0002u))]
+    [GraphCommandPair(ResultType = typeof(Unit))]
     public sealed class DealDamageCommand : Command<Unit>
     {
-        [GraphPort(Id = unchecked((int)0xC1D0_1001u))]
+        [GraphPort]
         public int Amount;
 
         public object? Target;

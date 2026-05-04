@@ -5,23 +5,27 @@ using System.Threading.Tasks;
 namespace Scaffold.GraphFlow
 {
     /// <summary>
-    /// Non-generic-on-payload base. Controller dispatches on this to create per-payload
-    /// <see cref="IEntryBridge"/> instances without reflection.
+    /// Non-generic base for entry runtime nodes — used as the controller's dispatch surface for
+    /// payload-typed bridges, without exposing TPayload to the controller's loop.
     /// </summary>
-    public abstract class EntryRuntimeNodeBase<TRunner> : RuntimeNode<TRunner> where TRunner : GraphRunner
+    public abstract class EntryRuntimeNodeBase : RuntimeNode
     {
-        public abstract IEntryBridge CreateBridge(TRunner runner, GraphAsset<TRunner> asset, GraphExecutor<TRunner> executor, Func<IEffectScope?>? scopeFactory);
+        public abstract IEntryBridge CreateBridge<TRunner>(TRunner runner, GraphAsset<TRunner> asset, GraphExecutor<TRunner> executor, Func<IEffectScope?>? scopeFactory)
+            where TRunner : GraphRunner;
     }
 
     /// <summary>
-    /// Base for generated/hand-written entry runtime nodes. Carries <c>TPayload</c> for routing
-    /// and <c>TRunner</c> for the executor binding. Provides a default <see cref="CreateBridge"/>
-    /// that constructs a typed <see cref="EntryBridge{TEntry, TRunner}"/> — generator-emitted entries
-    /// inherit it for free; hand-authored entries do too.
+    /// Base for generated/hand-written entry runtime nodes. Carries <c>TPayload</c> for routing only —
+    /// the runner reference is plumbed into the bridge at <see cref="CreateBridge"/> time, not into
+    /// the Execute body. Entries that genuinely need typed runner access cast <c>flow.Runner</c> in
+    /// their <see cref="RuntimeNode.Execute"/> override (same pattern Mode-2 dispatchers use for
+    /// <c>flow.Scope</c>).
+    ///
+    /// <para>Post-M3 phase 2 (decision #5 + finish of decision #1): TRunner dropped. Single-T form
+    /// only — the prior 2-arg <c>EntryRuntimeNode&lt;TEntry, TRunner&gt;</c> is removed.</para>
     /// </summary>
-    public abstract class EntryRuntimeNode<TEntry, TRunner> : EntryRuntimeNodeBase<TRunner>
+    public abstract class EntryRuntimeNode<TEntry> : EntryRuntimeNodeBase
         where TEntry : class
-        where TRunner : GraphRunner
     {
         protected TEntry? Payload { get; private set; }
         public void SetPayload(TEntry payload) => Payload = payload;
@@ -35,27 +39,27 @@ namespace Scaffold.GraphFlow
             return _runFromHere(payload);
         }
 
-        public override IEntryBridge CreateBridge(TRunner runner, GraphAsset<TRunner> asset, GraphExecutor<TRunner> executor, Func<IEffectScope?>? scopeFactory)
+        public override IEntryBridge CreateBridge<TRunner>(TRunner runner, GraphAsset<TRunner> asset, GraphExecutor<TRunner> executor, Func<IEffectScope?>? scopeFactory)
             => new EntryBridge<TEntry, TRunner>(this, runner, asset, executor, scopeFactory);
     }
 
     /// <summary>
     /// Generic per-payload bridge. Closes over the entry node + executor + asset + runner so the
     /// controller can dispatch by payload type without reflection. The closure also wires
-    /// <see cref="EntryRuntimeNode{TEntry, TRunner}.BindRunner"/> so hosts that pattern-match the
-    /// entry can call <c>Run(payload)</c> directly.
+    /// <see cref="EntryRuntimeNode{TEntry}.BindRunner"/> so hosts that pattern-match the entry can
+    /// call <c>Run(payload)</c> directly.
     /// </summary>
     public sealed class EntryBridge<TEntry, TRunner> : IEntryBridge
         where TEntry : class
         where TRunner : GraphRunner
     {
-        readonly EntryRuntimeNode<TEntry, TRunner> _node;
+        readonly EntryRuntimeNode<TEntry> _node;
         readonly TRunner _runner;
         readonly GraphAsset<TRunner> _asset;
         readonly GraphExecutor<TRunner> _executor;
         readonly Func<IEffectScope?>? _scopeFactory;
 
-        public EntryBridge(EntryRuntimeNode<TEntry, TRunner> node, TRunner runner, GraphAsset<TRunner> asset, GraphExecutor<TRunner> executor, Func<IEffectScope?>? scopeFactory)
+        public EntryBridge(EntryRuntimeNode<TEntry> node, TRunner runner, GraphAsset<TRunner> asset, GraphExecutor<TRunner> executor, Func<IEffectScope?>? scopeFactory)
         {
             _node = node;
             _runner = runner;

@@ -18,8 +18,8 @@ namespace Scaffold.GraphFlow
 
         /// <summary>
         /// All entry nodes discovered in the asset (anything assignable to
-        /// <see cref="EntryRuntimeNode{TEntry, TRunner}"/>). Hosts pattern-match
-        /// concrete generic types here to wire trigger entries into their event bus.
+        /// <see cref="EntryRuntimeNode{TEntry}"/>). Hosts pattern-match concrete generic types here
+        /// to wire trigger entries into their event bus.
         /// </summary>
         public IReadOnlyList<RuntimeNode> EntryNodes => _entryNodes;
 
@@ -44,21 +44,30 @@ namespace Scaffold.GraphFlow
                 if (!_byId.TryGetValue(c.fromNodeId, out var from) || !_byId.TryGetValue(c.toNodeId, out var to))
                     continue;
 
-                to.Bind(c.toPortId, from, c.fromPortId);
+                to.Bind(c.toPortName, from, c.fromPortName);
             }
 
-            // Build EntryNodes catalog + per-payload bridges. The generator emits a CreateBridge
-            // override per concrete EntryRuntimeNode; we dispatch via the non-generic
-            // EntryRuntimeNodeBase<TRunner> abstract — zero reflection.
+            // Bind runner reference onto every typed RuntimeNode<TRunner> so per-Execute dispatch is
+            // a direct field read (no cast). Runner-agnostic nodes (Branch, Cancel, etc.) skip this
+            // since they don't carry a runner field.
+            foreach (var n in _asset.nodes)
+            {
+                if (n is RuntimeNode<TRunner> typed)
+                    typed.BindRunner(_runner);
+            }
+
+            // Build EntryNodes catalog + per-payload bridges. CreateBridge closes the runner type
+            // through a generic method, so the dispatch surface stays runner-agnostic but the bridge
+            // itself is fully typed.
             _entryNodes = new List<RuntimeNode>();
             _bridges.Clear();
             foreach (var n in _asset.nodes)
             {
-                if (n is not EntryRuntimeNodeBase<TRunner> entry)
+                if (n is not EntryRuntimeNodeBase entry)
                     continue;
 
                 _entryNodes.Add(n);
-                var bridge = entry.CreateBridge(_runner, _asset, _executor, _scopeFactory);
+                var bridge = entry.CreateBridge<TRunner>(_runner, _asset, _executor, _scopeFactory);
                 _bridges[bridge.PayloadType] = bridge;
             }
         }

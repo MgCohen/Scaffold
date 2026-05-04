@@ -15,7 +15,7 @@ namespace Scaffold.GraphFlow.M0.Smoke
         public LogDispatcherRuntime()
         {
             InMessage = new InputPort<string>(() => Message);
-            Ports.Add(unchecked((int)0x77E13C20u), InMessage);
+            Ports.Add("Message", InMessage);
         }
 
         public override async Task Execute(MySmokeRunner runner, Flow flow)

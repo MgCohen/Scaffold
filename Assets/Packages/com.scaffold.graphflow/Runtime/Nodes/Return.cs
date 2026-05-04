@@ -4,23 +4,23 @@ namespace Scaffold.GraphFlow.Nodes
 {
     /// <summary>
     /// Typed flow terminator — reads <see cref="Value"/> and writes it to the run's
-    /// <see cref="Flow.Result"/> with <see cref="FlowOutcome.Returned"/>. Replaces the M2 untyped
-    /// <c>Return</c> + <c>ReturnBool</c>; one TResult per graph (M3 validation EFG-V07).
+    /// <see cref="Flow.Result"/> with <see cref="FlowOutcome.Returned"/>.
+    /// Runner-agnostic (decision #5).
     /// </summary>
     [GraphNode(Category = "Flow")]
-    public sealed class Return<TRunner, TResult> : RuntimeNode<TRunner> where TRunner : GraphRunner
+    public sealed class Return<TResult> : RuntimeNode
     {
-        public const int FlowInPortId = 0;
-        public const int ValuePortId  = unchecked((int)0x00000001u);
+        public const string FlowInPortName = "FlowIn";
+        public const string ValuePortName  = "Value";
 
         public InputPort<TResult> Value = null!;
 
         public Return()
         {
             Value = new InputPort<TResult>();
-            Ports.Add(ValuePortId, Value);
+            Ports.Add(ValuePortName, Value);
         }
 
-        public override Task Execute(TRunner runner, Flow flow) => flow.Return(Value.Read());
+        public override Task Execute(Flow flow) => flow.Return(Value.Read());
     }
 }

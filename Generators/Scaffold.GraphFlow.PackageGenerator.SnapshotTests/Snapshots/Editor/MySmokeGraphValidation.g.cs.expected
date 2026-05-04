@@ -55,16 +55,16 @@ namespace Scaffold.GraphFlow.M0.Editor.GToolkit
                 var fromReg = kv.Value;
                 foreach (var port in fromNode.GetOutputPorts())
                 {
-                    var fromIsFlow = fromReg.FlowOutputPortIds.ContainsKey(port.name);
-                    var fromIsData = fromReg.DataOutputPortIds.ContainsKey(port.name);
+                    var fromIsFlow = fromReg.FlowOutputPortNames.Contains(port.name);
+                    var fromIsData = fromReg.DataOutputPortNames.Contains(port.name);
                     connected.Clear();
                     port.GetConnectedPorts(connected);
                     foreach (var other in connected)
                     {
                         var toNode = other.GetNode();
                         if (toNode == null || !registrations.TryGetValue(toNode, out var toReg)) continue;
-                        var toIsFlow = toReg.FlowInputPortIds.ContainsKey(other.name);
-                        var toIsData = toReg.DataInputPortIds.ContainsKey(other.name);
+                        var toIsFlow = toReg.FlowInputPortNames.Contains(other.name);
+                        var toIsData = toReg.DataInputPortNames.Contains(other.name);
                         if (fromIsFlow && toIsFlow) continue;
                         if (fromIsData && toIsData) continue;
                         logger.LogError($"[EFG-V03] Edge {fromNode.GetType().Name}.{port.name} → {toNode.GetType().Name}.{other.name} pairs incompatible port kinds (flow↔data or unknown port).", fromNode);
@@ -93,10 +93,10 @@ namespace Scaffold.GraphFlow.M0.Editor.GToolkit
                     var node = queue.Dequeue();
                     if (!visited.Add(node)) continue;
                     if (!registrations.TryGetValue(node, out var reg)) continue;
-                    if (reg.FlowOutputPortIds.Count == 0) continue; // terminator
+                    if (reg.FlowOutputPortNames.Count == 0) continue; // terminator
                     foreach (var port in node.GetOutputPorts())
                     {
-                        if (!reg.FlowOutputPortIds.ContainsKey(port.name)) continue;
+                        if (!reg.FlowOutputPortNames.Contains(port.name)) continue;
                         connected.Clear();
                         port.GetConnectedPorts(connected);
                         if (connected.Count == 0)

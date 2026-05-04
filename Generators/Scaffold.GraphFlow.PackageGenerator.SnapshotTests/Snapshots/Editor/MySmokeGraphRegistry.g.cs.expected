@@ -34,34 +34,34 @@ namespace Scaffold.GraphFlow.M0.Generated
                     }
                     return rt;
                 },
-                FlowInputPortIds = new System.Collections.Generic.Dictionary<string, int>(System.StringComparer.Ordinal)
+                FlowInputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal)
                 {
-                    ["FlowIn"] = unchecked((int)0xF0030001u),
+                    "FlowIn",
                 },
-                FlowOutputPortIds = new System.Collections.Generic.Dictionary<string, int>(System.StringComparer.Ordinal)
+                FlowOutputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal)
                 {
-                    ["FlowOut"] = unchecked((int)0xF0030002u),
+                    "FlowOut",
                 },
-                DataInputPortIds = new System.Collections.Generic.Dictionary<string, int>(System.StringComparer.Ordinal)
+                DataInputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal)
                 {
-                    ["Magnitude"] = unchecked((int)0xC0030001u),
+                    "Magnitude",
                 },
-                DataOutputPortIds = new System.Collections.Generic.Dictionary<string, int>(System.StringComparer.Ordinal)
+                DataOutputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal)
                 {
-                    ["Summary"] = unchecked((int)0xC0030002u),
+                    "Summary",
                 },
             });
             r.Register(new GraphPackageRegistry<Scaffold.GraphFlow.M0.Smoke.MySmokeRunner>.NodeRegistration
             {
                 EditorNodeType = typeof(Scaffold.GraphFlow.M0.Editor.GToolkit.OnPlayEditorNode),
                 Factory = _ => new Scaffold.GraphFlow.M0.Smoke.OnPlayRuntime(),
-                FlowOutputPortIds = new System.Collections.Generic.Dictionary<string, int>(System.StringComparer.Ordinal)
+                FlowOutputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal)
                 {
-                    ["FlowOut"] = unchecked((int)0xF0010001u),
+                    "FlowOut",
                 },
-                DataOutputPortIds = new System.Collections.Generic.Dictionary<string, int>(System.StringComparer.Ordinal)
+                DataOutputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal)
                 {
-                    ["CardId"] = unchecked((int)0x4F2A8B17u),
+                    "CardId",
                 },
                 EntryTypeId = typeof(Scaffold.GraphFlow.M0.Smoke.OnPlay).AssemblyQualifiedName,
             });
@@ -79,61 +79,61 @@ namespace Scaffold.GraphFlow.M0.Generated
                     }
                     return rt;
                 },
-                FlowInputPortIds = new System.Collections.Generic.Dictionary<string, int>(System.StringComparer.Ordinal)
+                FlowInputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal)
                 {
-                    ["FlowIn"] = unchecked((int)0x00000000u),
+                    "FlowIn",
                 },
-                DataInputPortIds = new System.Collections.Generic.Dictionary<string, int>(System.StringComparer.Ordinal)
+                DataInputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal)
                 {
-                    ["Message"] = unchecked((int)0x77E13C20u),
+                    "Message",
                 },
             });
             r.Register(new GraphPackageRegistry<Scaffold.GraphFlow.M0.Smoke.MySmokeRunner>.NodeRegistration
             {
                 EditorNodeType = typeof(Scaffold.GraphFlow.M0.Editor.GToolkit.IntToStringRuntimeEditorNode),
                 Factory = _ => new Scaffold.GraphFlow.M0.Smoke.IntToStringRuntime(),
-                DataInputPortIds = new System.Collections.Generic.Dictionary<string, int>(System.StringComparer.Ordinal)
+                DataInputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal)
                 {
-                    ["Value"] = unchecked((int)0x00000001u),
+                    "Value",
                 },
-                DataOutputPortIds = new System.Collections.Generic.Dictionary<string, int>(System.StringComparer.Ordinal)
+                DataOutputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal)
                 {
-                    ["Result"] = unchecked((int)0x00000002u),
+                    "Result",
                 },
             });
             r.Register(new GraphPackageRegistry<Scaffold.GraphFlow.M0.Smoke.MySmokeRunner>.NodeRegistration
             {
                 EditorNodeType = typeof(Scaffold.GraphFlow.M0.Editor.GToolkit.BranchEditorNode),
-                Factory = _ => new Scaffold.GraphFlow.Nodes.Branch<Scaffold.GraphFlow.M0.Smoke.MySmokeRunner>(),
-                FlowInputPortIds = new System.Collections.Generic.Dictionary<string, int>(System.StringComparer.Ordinal)
+                Factory = _ => new Scaffold.GraphFlow.Nodes.Branch(),
+                FlowInputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal)
                 {
-                    ["FlowIn"] = unchecked((int)0x00000000u),
+                    "FlowIn",
                 },
-                DataInputPortIds = new System.Collections.Generic.Dictionary<string, int>(System.StringComparer.Ordinal)
+                DataInputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal)
                 {
-                    ["Condition"] = unchecked((int)0x00000001u),
+                    "Condition",
                 },
             });
             r.Register(new GraphPackageRegistry<Scaffold.GraphFlow.M0.Smoke.MySmokeRunner>.NodeRegistration
             {
                 EditorNodeType = typeof(Scaffold.GraphFlow.M0.Editor.GToolkit.CancelEditorNode),
-                Factory = _ => new Scaffold.GraphFlow.Nodes.Cancel<Scaffold.GraphFlow.M0.Smoke.MySmokeRunner>(),
-                FlowInputPortIds = new System.Collections.Generic.Dictionary<string, int>(System.StringComparer.Ordinal)
+                Factory = _ => new Scaffold.GraphFlow.Nodes.Cancel(),
+                FlowInputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal)
                 {
-                    ["FlowIn"] = unchecked((int)0x00000000u),
+                    "FlowIn",
                 },
             });
             r.Register(new GraphPackageRegistry<Scaffold.GraphFlow.M0.Smoke.MySmokeRunner>.NodeRegistration
             {
                 EditorNodeType = typeof(Scaffold.GraphFlow.M0.Editor.GToolkit.NotEditorNode),
                 Factory = _ => new Scaffold.GraphFlow.Nodes.Not(),
-                DataInputPortIds = new System.Collections.Generic.Dictionary<string, int>(System.StringComparer.Ordinal)
+                DataInputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal)
                 {
-                    ["Value"] = unchecked((int)0x00000001u),
+                    "Value",
                 },
-                DataOutputPortIds = new System.Collections.Generic.Dictionary<string, int>(System.StringComparer.Ordinal)
+                DataOutputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal)
                 {
-                    ["Result"] = unchecked((int)0x00000002u),
+                    "Result",
                 },
             });
         }

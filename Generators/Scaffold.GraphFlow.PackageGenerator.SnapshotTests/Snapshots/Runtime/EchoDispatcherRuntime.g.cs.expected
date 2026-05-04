@@ -20,11 +20,11 @@ namespace Scaffold.GraphFlow.M0.Smoke
         {
             InMagnitude = new InputPort<int>(() => Magnitude);
             Summary = new OutputPort<string>(() => _summaryValue);
-            Ports.Add(unchecked((int)0xC0030001u), InMagnitude);
-            Ports.Add(unchecked((int)0xC0030002u), Summary);
+            Ports.Add("Magnitude", InMagnitude);
+            Ports.Add("Summary", Summary);
         }
 
-        protected override int FlowOutPortId => unchecked((int)0xF0030002u);
+        protected override string FlowOutPortName => "FlowOut";
 
         protected override Echo BuildPayload() => new Echo { Magnitude = InMagnitude.Read() };
 

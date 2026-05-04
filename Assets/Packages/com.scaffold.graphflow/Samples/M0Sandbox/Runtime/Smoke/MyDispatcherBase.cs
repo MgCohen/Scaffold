@@ -9,14 +9,14 @@ namespace Scaffold.GraphFlow.M0.Smoke
         where TCmd : new()
     {
         /// <summary>Flow output after dispatch — matches editor <c>FlowOut</c> / baker.</summary>
-        protected abstract int FlowOutPortId { get; }
+        protected abstract string FlowOutPortName { get; }
 
         public sealed override async Task Execute(MySmokeRunner runner, Flow flow)
         {
             var cmd = BuildPayload();
             var result = await DispatchAsync(runner, cmd).ConfigureAwait(false);
             WriteOutputs(result);
-            await flow.GoTo(FlowOutPortId);
+            await flow.GoTo(FlowOutPortName);
         }
 
         protected abstract TCmd BuildPayload();

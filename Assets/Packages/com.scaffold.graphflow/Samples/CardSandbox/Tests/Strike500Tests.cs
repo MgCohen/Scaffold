@@ -8,8 +8,8 @@ namespace Scaffold.GraphFlow.CardSandbox.Tests
 {
     /// <summary>
     /// M3 D8/D9 validation: drives hand-built card graphs through the entry-catalog + event-bus model.
-    /// Replaces the M2-prep CommandPipeline-based tests. Cross-card command modification now happens
-    /// through events + trigger entries wired by the host via <c>controller.EntryNodes</c>.
+    /// Cross-card command modification happens through events + trigger entries wired by the host
+    /// via <c>controller.EntryNodes</c>.
     /// </summary>
     public sealed class Strike500Tests
     {
@@ -48,7 +48,7 @@ namespace Scaffold.GraphFlow.CardSandbox.Tests
             {
                 switch (entry)
                 {
-                    case EntryRuntimeNode<PreDamageDealtEvent, CardEffectRunner> trig:
+                    case EntryRuntimeNode<PreDamageDealtEvent> trig:
                         bus.Subscribe<PreDamageDealtEvent>(async e => await trig.Run(e));
                         break;
                 }

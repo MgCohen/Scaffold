@@ -5,15 +5,13 @@ namespace Scaffold.GraphFlow.PackageGenerator
     /// <summary>One typed input field on a <c>[GraphNode]</c> class.</summary>
     internal readonly struct GenericNodeInputField
     {
-        internal GenericNodeInputField(string fieldName, int portId, string csharpType)
+        internal GenericNodeInputField(string fieldName, string csharpType)
         {
             FieldName = fieldName;
-            PortId = portId;
             CSharpType = csharpType;
         }
 
         internal string FieldName { get; }
-        internal int PortId { get; }
         /// <summary>Display string for the type argument T in <c>InputPort&lt;T&gt;</c>.</summary>
         internal string CSharpType { get; }
     }
@@ -21,29 +19,25 @@ namespace Scaffold.GraphFlow.PackageGenerator
     /// <summary>One typed output field on a <c>[GraphNode]</c> class.</summary>
     internal readonly struct GenericNodeOutputField
     {
-        internal GenericNodeOutputField(string fieldName, int portId, string csharpType)
+        internal GenericNodeOutputField(string fieldName, string csharpType)
         {
             FieldName = fieldName;
-            PortId = portId;
             CSharpType = csharpType;
         }
 
         internal string FieldName { get; }
-        internal int PortId { get; }
         internal string CSharpType { get; }
     }
 
     /// <summary>One flow-out field on a <c>[GraphNode]</c> class.</summary>
     internal readonly struct GenericNodeFlowOut
     {
-        internal GenericNodeFlowOut(string fieldName, int portId)
+        internal GenericNodeFlowOut(string fieldName)
         {
             FieldName = fieldName;
-            PortId = portId;
         }
 
         internal string FieldName { get; }
-        internal int PortId { get; }
     }
 
     /// <summary>
@@ -51,6 +45,10 @@ namespace Scaffold.GraphFlow.PackageGenerator
     /// (flow) annotated with <c>[GraphNode]</c>. The generator emits a partial completing the runtime
     /// (default ctor that constructs port handles + populates the <c>Ports</c> dict) plus the editor
     /// mirror + registry entry per package whose runner closes <c>TRunner</c>.
+    ///
+    /// <para>Post-M3 phase 2 (decision #5): nodes can now derive from RuntimeNode (non-generic flow,
+    /// runner-agnostic Execute) as well — IsGenericOverRunner=false, IsFlowNode=true means the node
+    /// extends RuntimeNode and overrides the virtual Execute(Flow).</para>
     /// </summary>
     internal readonly struct GenericNodeModel
     {
@@ -60,7 +58,6 @@ namespace Scaffold.GraphFlow.PackageGenerator
             bool isFlowNode,
             bool isGenericOverRunner,
             string? category,
-            int implicitFlowInPortId,
             ImmutableArray<GenericNodeFlowOut> flowOuts,
             ImmutableArray<GenericNodeInputField> inputs,
             ImmutableArray<GenericNodeOutputField> outputs,
@@ -71,7 +68,6 @@ namespace Scaffold.GraphFlow.PackageGenerator
             IsFlowNode = isFlowNode;
             IsGenericOverRunner = isGenericOverRunner;
             Category = category;
-            ImplicitFlowInPortId = implicitFlowInPortId;
             FlowOuts = flowOuts;
             Inputs = inputs;
             Outputs = outputs;
@@ -80,13 +76,11 @@ namespace Scaffold.GraphFlow.PackageGenerator
 
         internal string TypeNamespace { get; }
         internal string TypeName { get; }
-        /// <summary>True when the class derives from <c>RuntimeNode&lt;TRunner&gt;</c>; false for pure data nodes deriving from <c>RuntimeNode</c>.</summary>
+        /// <summary>True when the node extends a flow-bearing base (overrides Execute). False for pure data nodes.</summary>
         internal bool IsFlowNode { get; }
         /// <summary>True for <c>Foo&lt;TRunner&gt;</c>; false for non-generic <c>Foo</c>.</summary>
         internal bool IsGenericOverRunner { get; }
         internal string? Category { get; }
-        /// <summary>Port id 0 for the implicit flow-in (only meaningful when <see cref="IsFlowNode"/>).</summary>
-        internal int ImplicitFlowInPortId { get; }
         internal ImmutableArray<GenericNodeFlowOut> FlowOuts { get; }
         internal ImmutableArray<GenericNodeInputField> Inputs { get; }
         internal ImmutableArray<GenericNodeOutputField> Outputs { get; }

@@ -16,8 +16,6 @@ namespace Scaffold.GraphFlow.PackageGenerator
                 return;
             }
 
-            // Post-M3 phase 1 (decisions #1 + #3): IGraphEntry is now a non-generic empty marker.
-            // Entries are discovered by the marker; TResult on entries is gone. (IGraphAction stays runner-typed.)
             var markerNs = string.IsNullOrEmpty(package.GraphFrameworkNamespace) ? "Scaffold.GraphFlow" : package.GraphFrameworkNamespace;
             var iEntry = compilation.GetTypeByMetadataName(markerNs + ".IGraphEntry");
             var iAction = compilation.GetTypeByMetadataName(markerNs + ".IGraphAction`1");
@@ -51,30 +49,30 @@ namespace Scaffold.GraphFlow.PackageGenerator
 
                 if (PayloadDiscovery.IsGraphEntry(type, iEntry))
                 {
-                    if (!PayloadDiscovery.TryGetGraphEntryFlowOut(type, graphEntryAttr, out var flowOut, out var validateFlowOut))
+                    if (!PayloadDiscovery.HasGraphEntryAttribute(type, graphEntryAttr))
                     {
                         continue;
                     }
 
                     if (editorAssembly)
                     {
-                        EmitEntryEditor(spc, type, validateFlowOut, compilation, graphPortAttr);
+                        EmitEntryEditor(spc, type, compilation, graphPortAttr);
                         if (editorRegistrations != null)
                         {
-                            editorRegistrations.Add(BuildEntryRegistration(type, flowOut, validateFlowOut, package, compilation, graphPortAttr));
+                            editorRegistrations.Add(BuildEntryRegistration(type, package, compilation, graphPortAttr));
                         }
                     }
                     else
                     {
-                        EmitEntryRuntime(spc, type, package.RunnerTypeName, package.RunnerFullyQualified, flowOut, graphPortAttr);
+                        EmitEntryRuntime(spc, type, package.RunnerTypeName, graphPortAttr);
                     }
 
                     continue;
                 }
 
-                // Mode 2 command/result pairs must win over IExecutable-shaped emission so DispatcherBase (partial + overrides) is consistent.
+                // Mode 2 command/result pairs.
                 if (graphCmdAttr != null &&
-                    PayloadDiscovery.TryReadCommandPairAttribute(type, graphCmdAttr, out var resultType, out var fi, out var fo))
+                    PayloadDiscovery.TryReadCommandPairAttribute(type, graphCmdAttr, out var resultType))
                 {
                     if (package.DispatcherBaseMetadataName == null)
                     {
@@ -87,9 +85,6 @@ namespace Scaffold.GraphFlow.PackageGenerator
                         continue;
                     }
 
-                    // typeof(...) args in attributes serialized into a referenced assembly's metadata can come back Kind=Error
-                    // because the C# compiler omits the assembly qualifier for same-assembly type names. When that happens,
-                    // recover the result type by finding a concrete dispatcher subclass closed over this command.
                     if (resultType == null)
                     {
                         resultType = PayloadDiscovery.FindResultTypeFromDispatcherSubclass(payloadAssembly, openNamed, type, ct);
@@ -103,10 +98,10 @@ namespace Scaffold.GraphFlow.PackageGenerator
                     var closedDisp = openNamed.Construct(type, resultType);
                     if (editorAssembly)
                     {
-                        EmitCommandEditor(spc, type, resultType, fi, fo, compilation, graphPortAttr);
+                        EmitCommandEditor(spc, type, resultType, compilation, graphPortAttr);
                         if (editorRegistrations != null)
                         {
-                            editorRegistrations.Add(BuildCommandRegistration(type, resultType, fi, fo, package, compilation, graphPortAttr));
+                            editorRegistrations.Add(BuildCommandRegistration(type, resultType, package, compilation, graphPortAttr));
                         }
                     }
                     else
@@ -115,8 +110,6 @@ namespace Scaffold.GraphFlow.PackageGenerator
                             spc,
                             type,
                             resultType,
-                            fi,
-                            fo,
                             closedDisp.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
                             package.RunnerTypeName,
                             graphPortAttr);
@@ -149,7 +142,6 @@ namespace Scaffold.GraphFlow.PackageGenerator
                     continue;
                 }
 
-                // Action with no IExecutable, no [GraphCommandPair] hit, and (already) no DispatcherBase fit — surface EFG007 once per payload (editor pass only to dedupe across runtime+editor compiles).
                 if (editorAssembly)
                 {
                     spc.ReportDiagnostic(Diagnostic.Create(Diagnostics.EFG007_NoExecutionPath, Diagnostics.LocationOf(type), type.Name, package.RunnerTypeName));
@@ -157,21 +149,21 @@ namespace Scaffold.GraphFlow.PackageGenerator
             }
         }
 
-        static System.Collections.Generic.IReadOnlyList<(string Name, int Id, string CSharpType)> FieldsWithPortIds(INamedTypeSymbol payload, INamedTypeSymbol graphPortAttr)
+        static System.Collections.Generic.IReadOnlyList<(string Name, string CSharpType)> FieldsWithPort(INamedTypeSymbol payload, INamedTypeSymbol graphPortAttr)
         {
-            var result = new System.Collections.Generic.List<(string, int, string)>();
+            var result = new System.Collections.Generic.List<(string, string)>();
             foreach (var f in PayloadDiscovery.InstanceFields(payload))
             {
-                if (PayloadDiscovery.TryGetGraphPortId(f, graphPortAttr, out var pid))
+                if (PayloadDiscovery.HasGraphPort(f, graphPortAttr))
                 {
-                    result.Add((f.Name, pid, TypeFmt.Simple(f.Type)));
+                    result.Add((f.Name, TypeFmt.Simple(f.Type)));
                 }
             }
 
             return result;
         }
 
-        static string BuildEntryRegistration(INamedTypeSymbol payload, int flowOutPortId, int validateFlowOutPortId, GraphPackageModel package, Compilation compilation, INamedTypeSymbol graphPortAttr)
+        static string BuildEntryRegistration(INamedTypeSymbol payload, GraphPackageModel package, Compilation compilation, INamedTypeSymbol graphPortAttr)
         {
             var leaf = payload.Name;
             var editorTypeFq = GraphCompilationNames.EditorGraphToolkitNamespace(compilation) + "." + leaf + "EditorNode";
@@ -179,18 +171,14 @@ namespace Scaffold.GraphFlow.PackageGenerator
             var runtimeTypeFq = string.IsNullOrEmpty(typeNs) ? leaf + "Runtime" : typeNs + "." + leaf + "Runtime";
             var payloadTypeFq = string.IsNullOrEmpty(typeNs) ? leaf : typeNs + "." + leaf;
             var runnerFq = GraphRegistryEmitter.TrimGlobal(package.RunnerFullyQualified);
-            var fields = FieldsWithPortIds(payload, graphPortAttr);
-            var dataOuts = new System.Collections.Generic.List<(string, int)>();
+            var fields = FieldsWithPort(payload, graphPortAttr);
+            var dataOuts = new System.Collections.Generic.List<string>();
             foreach (var f in fields)
             {
-                dataOuts.Add((f.Name, f.Id));
+                dataOuts.Add(f.Name);
             }
 
-            var extraFlowOuts = validateFlowOutPortId != 0
-                ? new System.Collections.Generic.List<(string, int)> { ("Validate", validateFlowOutPortId) }
-                : null;
-
-            return GraphRegistryEmitter.BuildEntryRegistrationBlock(runnerFq, editorTypeFq, runtimeTypeFq, payloadTypeFq, "FlowOut", flowOutPortId, dataOuts, extraFlowOuts);
+            return GraphRegistryEmitter.BuildEntryRegistrationBlock(runnerFq, editorTypeFq, runtimeTypeFq, payloadTypeFq, "FlowOut", dataOuts, null);
         }
 
         static string BuildExecutableActionRegistration(INamedTypeSymbol payload, System.Collections.Generic.IReadOnlyList<IFieldSymbol> inputs, GraphPackageModel package, Compilation compilation, INamedTypeSymbol graphPortAttr)
@@ -200,58 +188,51 @@ namespace Scaffold.GraphFlow.PackageGenerator
             var typeNs = payload.ContainingNamespace.IsGlobalNamespace ? "" : payload.ContainingNamespace.ToDisplayString();
             var runtimeTypeFq = string.IsNullOrEmpty(typeNs) ? leaf + "DispatcherRuntime" : typeNs + "." + leaf + "DispatcherRuntime";
             var runnerFq = GraphRegistryEmitter.TrimGlobal(package.RunnerFullyQualified);
-            var dataIns = FieldsWithPortIdsFiltered(inputs, graphPortAttr);
-            // IExecutable actions get an implicit FlowIn at port id 0; no FlowOut (terminal — Execute returns Stop).
-            return GraphRegistryEmitter.BuildExecutableActionRegistrationBlock(runnerFq, editorTypeFq, runtimeTypeFq, "FlowIn", 0, dataIns);
+            var dataIns = FieldsWithPortFiltered(inputs, graphPortAttr);
+            return GraphRegistryEmitter.BuildExecutableActionRegistrationBlock(runnerFq, editorTypeFq, runtimeTypeFq, "FlowIn", dataIns);
         }
 
-        static System.Collections.Generic.IReadOnlyList<(string Name, int Id, string CSharpType)> FieldsWithPortIdsFiltered(System.Collections.Generic.IReadOnlyList<IFieldSymbol> fields, INamedTypeSymbol graphPortAttr)
+        static System.Collections.Generic.IReadOnlyList<(string Name, string CSharpType)> FieldsWithPortFiltered(System.Collections.Generic.IReadOnlyList<IFieldSymbol> fields, INamedTypeSymbol graphPortAttr)
         {
-            var result = new System.Collections.Generic.List<(string, int, string)>();
+            var result = new System.Collections.Generic.List<(string, string)>();
             foreach (var f in fields)
             {
-                if (PayloadDiscovery.TryGetGraphPortId(f, graphPortAttr, out var pid))
+                if (PayloadDiscovery.HasGraphPort(f, graphPortAttr))
                 {
-                    result.Add((f.Name, pid, TypeFmt.Simple(f.Type)));
+                    result.Add((f.Name, TypeFmt.Simple(f.Type)));
                 }
             }
 
             return result;
         }
 
-        static string BuildCommandRegistration(INamedTypeSymbol cmd, INamedTypeSymbol result, int flowInPortId, int flowOutPortId, GraphPackageModel package, Compilation compilation, INamedTypeSymbol graphPortAttr)
+        static string BuildCommandRegistration(INamedTypeSymbol cmd, INamedTypeSymbol result, GraphPackageModel package, Compilation compilation, INamedTypeSymbol graphPortAttr)
         {
             var leaf = cmd.Name;
             var editorTypeFq = GraphCompilationNames.EditorGraphToolkitNamespace(compilation) + "." + leaf + "DispatcherEditorNode";
             var typeNs = cmd.ContainingNamespace.IsGlobalNamespace ? "" : cmd.ContainingNamespace.ToDisplayString();
             var runtimeTypeFq = string.IsNullOrEmpty(typeNs) ? leaf + "DispatcherRuntime" : typeNs + "." + leaf + "DispatcherRuntime";
             var runnerFq = GraphRegistryEmitter.TrimGlobal(package.RunnerFullyQualified);
-            var dataIns = FieldsWithPortIds(cmd, graphPortAttr);
-            var resultFields = FieldsWithPortIds(result, graphPortAttr);
-            var dataOuts = new System.Collections.Generic.List<(string, int)>();
+            var dataIns = FieldsWithPort(cmd, graphPortAttr);
+            var resultFields = FieldsWithPort(result, graphPortAttr);
+            var dataOuts = new System.Collections.Generic.List<string>();
             foreach (var f in resultFields)
             {
-                dataOuts.Add((f.Name, f.Id));
+                dataOuts.Add(f.Name);
             }
 
-            return GraphRegistryEmitter.BuildCommandRegistrationBlock(runnerFq, editorTypeFq, runtimeTypeFq, "FlowIn", flowInPortId, "FlowOut", flowOutPortId, dataIns, dataOuts);
+            return GraphRegistryEmitter.BuildCommandRegistrationBlock(runnerFq, editorTypeFq, runtimeTypeFq, "FlowIn", "FlowOut", dataIns, dataOuts);
         }
 
-        static void EmitEntryEditor(SourceProductionContext spc, INamedTypeSymbol payload, int validateFlowOut, Compilation compilation, INamedTypeSymbol graphPortAttr)
+        static void EmitEntryEditor(SourceProductionContext spc, INamedTypeSymbol payload, Compilation compilation, INamedTypeSymbol graphPortAttr)
         {
             var sb = new StringBuilder();
             var leaf = payload.Name;
             var ns = GraphCompilationNames.EditorGraphToolkitNamespace(compilation);
-            var hasValidate = validateFlowOut != 0;
-            // Only fields with [GraphPort(Id = ...)] become editor-visible ports — matches the registry,
-            // which only registers port-name → port-id entries for tagged fields. Untagged public fields
-            // are runtime-only data; visually authored graphs can't wire them. Without this filter the
-            // editor would expose ports the registry doesn't know about, and any wired edge to such a
-            // port fires EFG-V03 ("unknown port") at bake time.
             var portFields = new System.Collections.Generic.List<IFieldSymbol>();
             foreach (var f in PayloadDiscovery.InstanceFields(payload))
             {
-                if (PayloadDiscovery.TryGetGraphPortId(f, graphPortAttr, out _))
+                if (PayloadDiscovery.HasGraphPort(f, graphPortAttr))
                 {
                     portFields.Add(f);
                 }
@@ -267,10 +248,6 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine($"    public sealed class {leaf}EditorNode : Node");
             sb.AppendLine("    {");
             sb.AppendLine($"        public const string FlowOutPortName = \"FlowOut\";");
-            if (hasValidate)
-            {
-                sb.AppendLine($"        public const string ValidatePortName = \"Validate\";");
-            }
 
             foreach (var f in portFields)
             {
@@ -284,15 +261,6 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine("                .WithDisplayName(string.Empty)");
             sb.AppendLine("                .WithConnectorUI(PortConnectorUI.Arrowhead)");
             sb.AppendLine("                .Build();");
-            if (hasValidate)
-            {
-                // Validate flow-out is a second arrowhead output, labeled. Editor authors connect it
-                // to a [ReturnBool] terminator chain; controller-side dispatch through Validate is M3+.
-                sb.AppendLine("            context.AddOutputPort(ValidatePortName)");
-                sb.AppendLine("                .WithDisplayName(\"Validate\")");
-                sb.AppendLine("                .WithConnectorUI(PortConnectorUI.Arrowhead)");
-                sb.AppendLine("                .Build();");
-            }
 
             foreach (var f in portFields)
             {
@@ -308,12 +276,12 @@ namespace Scaffold.GraphFlow.PackageGenerator
 
         static string EditorGtPortMethod(ITypeSymbol t) => TypeFmt.IsInt(t) ? "<int>" : TypeFmt.IsString(t) ? "<string>" : "";
 
-        static void EmitEntryRuntime(SourceProductionContext spc, INamedTypeSymbol payload, string runnerName, string runnerFullyQualified, int flowOut, INamedTypeSymbol graphPortAttr)
+        static void EmitEntryRuntime(SourceProductionContext spc, INamedTypeSymbol payload, string runnerName, INamedTypeSymbol graphPortAttr)
         {
             var sb = new StringBuilder();
             var leaf = payload.Name;
             var typeNs = payload.ContainingNamespace.IsGlobalNamespace ? "" : payload.ContainingNamespace.ToDisplayString();
-            var fields = FieldsWithPortIds(payload, graphPortAttr);
+            var fields = FieldsWithPort(payload, graphPortAttr);
             sb.AppendLine("// <auto-generated />");
             sb.AppendLine("#nullable enable");
             sb.AppendLine("using System;");
@@ -322,10 +290,8 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine();
             sb.AppendLine($"namespace {typeNs}");
             sb.AppendLine("{");
-            sb.AppendLine($"    public sealed partial class {leaf}Runtime : EntryRuntimeNode<{leaf}, {runnerName}>");
+            sb.AppendLine($"    public sealed partial class {leaf}Runtime : EntryRuntimeNode<{leaf}>");
             sb.AppendLine("    {");
-            // OutputPort handles + their backing fields. Port-id lookup lives in the inherited Ports dict;
-            // no static Ports class needed.
             foreach (var f in fields)
             {
                 sb.AppendLine($"        public OutputPort<{f.CSharpType}> {f.Name} = null!;");
@@ -343,12 +309,12 @@ namespace Scaffold.GraphFlow.PackageGenerator
 
             foreach (var f in fields)
             {
-                sb.AppendLine($"            Ports.Add({GraphRegistryEmitter.PortIdLiteral(f.Id)}, {f.Name});");
+                sb.AppendLine($"            Ports.Add(\"{f.Name}\", {f.Name});");
             }
 
             sb.AppendLine("        }");
             sb.AppendLine();
-            sb.AppendLine($"        public override Task Execute({runnerName} runner, Flow flow)");
+            sb.AppendLine($"        public override Task Execute(Flow flow)");
             sb.AppendLine("        {");
             sb.AppendLine("            if (Payload != null)");
             sb.AppendLine("            {");
@@ -358,7 +324,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             }
 
             sb.AppendLine("            }");
-            sb.AppendLine($"            return flow.GoTo({GraphRegistryEmitter.PortIdLiteral(flowOut)});");
+            sb.AppendLine($"            return flow.GoTo(\"FlowOut\");");
             sb.AppendLine("        }");
             sb.AppendLine("    }");
             sb.AppendLine("}");
@@ -427,7 +393,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             var sb = new StringBuilder();
             var leaf = payload.Name;
             var typeNs = payload.ContainingNamespace.IsGlobalNamespace ? "" : payload.ContainingNamespace.ToDisplayString();
-            var inputFields = FieldsWithPortIdsFiltered(inputs, graphPortAttr);
+            var inputFields = FieldsWithPortFiltered(inputs, graphPortAttr);
             sb.AppendLine("// <auto-generated />");
             sb.AppendLine("#nullable enable");
             sb.AppendLine("using System;");
@@ -438,8 +404,6 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine("{");
             sb.AppendLine($"    public sealed partial class {leaf}DispatcherRuntime : RuntimeNode<{runnerName}>");
             sb.AppendLine("    {");
-            // Inline default fields (serialized by Unity) + typed input port handles. Port-id lookup
-            // lives in the inherited Ports dict; no static Ports class needed.
             foreach (var f in inputFields)
             {
                 sb.AppendLine($"        public {f.CSharpType} {f.Name} = {TypeFmt.DefaultLiteral(GetFieldType(payload, f.Name))};");
@@ -457,7 +421,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
 
             foreach (var f in inputFields)
             {
-                sb.AppendLine($"            Ports.Add({GraphRegistryEmitter.PortIdLiteral(f.Id)}, In{f.Name});");
+                sb.AppendLine($"            Ports.Add(\"{f.Name}\", In{f.Name});");
             }
 
             sb.AppendLine("        }");
@@ -484,21 +448,16 @@ namespace Scaffold.GraphFlow.PackageGenerator
             SourceProductionContext spc,
             INamedTypeSymbol cmd,
             INamedTypeSymbol result,
-            int flowIn,
-            int flowOut,
             Compilation compilation,
             INamedTypeSymbol graphPortAttr)
         {
             var sb = new StringBuilder();
             var leaf = cmd.Name;
             var ns = GraphCompilationNames.EditorGraphToolkitNamespace(compilation);
-            // Filter command + result fields by [GraphPort(Id = ...)] for the same reason as
-            // EmitEntryEditor: only tagged fields appear in the registry's port-id dicts, and edges
-            // wired to untagged fields fire EFG-V03 ("unknown port") at bake time.
             var cmdPortFields = new System.Collections.Generic.List<IFieldSymbol>();
             foreach (var f in PayloadDiscovery.InstanceFields(cmd))
             {
-                if (PayloadDiscovery.TryGetGraphPortId(f, graphPortAttr, out _))
+                if (PayloadDiscovery.HasGraphPort(f, graphPortAttr))
                 {
                     cmdPortFields.Add(f);
                 }
@@ -506,7 +465,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             var resultPortFields = new System.Collections.Generic.List<IFieldSymbol>();
             foreach (var f in PayloadDiscovery.InstanceFields(result))
             {
-                if (PayloadDiscovery.TryGetGraphPortId(f, graphPortAttr, out _))
+                if (PayloadDiscovery.HasGraphPort(f, graphPortAttr))
                 {
                     resultPortFields.Add(f);
                 }
@@ -566,8 +525,6 @@ namespace Scaffold.GraphFlow.PackageGenerator
             SourceProductionContext spc,
             INamedTypeSymbol cmd,
             INamedTypeSymbol result,
-            int flowIn,
-            int flowOut,
             string closedDispatcherFq,
             string runnerName,
             INamedTypeSymbol graphPortAttr)
@@ -575,8 +532,8 @@ namespace Scaffold.GraphFlow.PackageGenerator
             var sb = new StringBuilder();
             var leaf = cmd.Name;
             var typeNs = cmd.ContainingNamespace.IsGlobalNamespace ? "" : cmd.ContainingNamespace.ToDisplayString();
-            var cmdFields = FieldsWithPortIds(cmd, graphPortAttr);
-            var resultFields = FieldsWithPortIds(result, graphPortAttr);
+            var cmdFields = FieldsWithPort(cmd, graphPortAttr);
+            var resultFields = FieldsWithPort(result, graphPortAttr);
             sb.AppendLine("// <auto-generated />");
             sb.AppendLine("#nullable enable");
             sb.AppendLine("using System;");
@@ -587,7 +544,6 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine("{");
             sb.AppendLine($"    public sealed partial class {leaf}DispatcherRuntime : {closedDispatcherFq}");
             sb.AppendLine("    {");
-            // Inline default fields (serialized) + typed InputPort handles for the command's fields.
             foreach (var f in cmdFields)
             {
                 sb.AppendLine($"        public {f.CSharpType} {f.Name};");
@@ -596,7 +552,6 @@ namespace Scaffold.GraphFlow.PackageGenerator
                 sb.AppendLine();
             }
 
-            // OutputPort handles for result fields, with backing storage written by WriteOutputs.
             foreach (var f in resultFields)
             {
                 sb.AppendLine($"        public OutputPort<{f.CSharpType}> {f.Name} = null!;");
@@ -619,17 +574,17 @@ namespace Scaffold.GraphFlow.PackageGenerator
 
             foreach (var f in cmdFields)
             {
-                sb.AppendLine($"            Ports.Add({GraphRegistryEmitter.PortIdLiteral(f.Id)}, In{f.Name});");
+                sb.AppendLine($"            Ports.Add(\"{f.Name}\", In{f.Name});");
             }
 
             foreach (var f in resultFields)
             {
-                sb.AppendLine($"            Ports.Add({GraphRegistryEmitter.PortIdLiteral(f.Id)}, {f.Name});");
+                sb.AppendLine($"            Ports.Add(\"{f.Name}\", {f.Name});");
             }
 
             sb.AppendLine("        }");
             sb.AppendLine();
-            sb.AppendLine($"        protected override int FlowOutPortId => {GraphRegistryEmitter.PortIdLiteral(flowOut)};");
+            sb.AppendLine($"        protected override string FlowOutPortName => \"FlowOut\";");
             sb.AppendLine();
             sb.AppendLine($"        protected override {cmd.Name} BuildPayload() => new {cmd.Name} {{ {BuildPayloadInputs(cmdFields)} }};");
             sb.AppendLine();
@@ -639,7 +594,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             spc.AddSource($"{leaf}DispatcherRuntime.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
         }
 
-        static void AppendWriteOutputsBody(StringBuilder sb, INamedTypeSymbol result, System.Collections.Generic.IReadOnlyList<(string Name, int Id, string CSharpType)> fields)
+        static void AppendWriteOutputsBody(StringBuilder sb, INamedTypeSymbol result, System.Collections.Generic.IReadOnlyList<(string Name, string CSharpType)> fields)
         {
             if (fields.Count == 1)
             {
@@ -658,7 +613,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine("        }");
         }
 
-        static string BuildPayloadInputs(System.Collections.Generic.IReadOnlyList<(string Name, int Id, string CSharpType)> cmdFields)
+        static string BuildPayloadInputs(System.Collections.Generic.IReadOnlyList<(string Name, string CSharpType)> cmdFields)
         {
             var sb = new StringBuilder();
             foreach (var f in cmdFields)
@@ -680,10 +635,6 @@ namespace Scaffold.GraphFlow.PackageGenerator
         internal static bool IsCandidateType(INamedTypeSymbol type) =>
             (type.TypeKind == TypeKind.Class || type.TypeKind == TypeKind.Struct) && type.DeclaredAccessibility == Accessibility.Public;
 
-        /// <summary>
-        /// True iff <paramref name="type"/> implements the non-generic <c>IGraphEntry</c> marker.
-        /// Post-M3 phase 1: TResult on entries is gone; entries are pure marker-based discovery.
-        /// </summary>
         internal static bool IsGraphEntry(INamedTypeSymbol type, INamedTypeSymbol iEntry)
         {
             foreach (var i in type.AllInterfaces)
@@ -710,30 +661,14 @@ namespace Scaffold.GraphFlow.PackageGenerator
             return false;
         }
 
-        internal static bool TryGetGraphEntryFlowOut(INamedTypeSymbol type, INamedTypeSymbol graphEntryAttr, out int flowOut, out int validateFlowOut)
+        internal static bool HasGraphEntryAttribute(INamedTypeSymbol type, INamedTypeSymbol graphEntryAttr)
         {
-            flowOut = 0;
-            validateFlowOut = 0;
             foreach (var a in type.GetAttributes())
             {
-                if (!SymbolEqualityComparer.Default.Equals(a.AttributeClass, graphEntryAttr))
+                if (SymbolEqualityComparer.Default.Equals(a.AttributeClass, graphEntryAttr))
                 {
-                    continue;
+                    return true;
                 }
-
-                foreach (var na in a.NamedArguments)
-                {
-                    if (na.Key == "FlowOutPortId" && na.Value.Value is int i)
-                    {
-                        flowOut = i;
-                    }
-                    else if (na.Key == "ValidateFlowOutPortId" && na.Value.Value is int v)
-                    {
-                        validateFlowOut = v;
-                    }
-                }
-
-                return flowOut != 0;
             }
 
             return false;
@@ -742,9 +677,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
         internal static bool TryReadCommandPairAttribute(
             INamedTypeSymbol type,
             INamedTypeSymbol graphCmdAttr,
-            out INamedTypeSymbol? resultType,
-            out int flowIn,
-            out int flowOut)
+            out INamedTypeSymbol? resultType)
         {
             foreach (var a in type.GetAttributes())
             {
@@ -754,21 +687,11 @@ namespace Scaffold.GraphFlow.PackageGenerator
                 }
 
                 resultType = null;
-                flowIn = 0;
-                flowOut = 0;
                 foreach (var na in a.NamedArguments)
                 {
                     if (na.Key == "ResultType" && na.Value.Value is INamedTypeSymbol r)
                     {
                         resultType = r;
-                    }
-                    else if (na.Key == "FlowInPortId" && na.Value.Value is int fi)
-                    {
-                        flowIn = fi;
-                    }
-                    else if (na.Key == "FlowOutPortId" && na.Value.Value is int fo)
-                    {
-                        flowOut = fo;
                     }
                 }
 
@@ -776,8 +699,6 @@ namespace Scaffold.GraphFlow.PackageGenerator
             }
 
             resultType = null;
-            flowIn = 0;
-            flowOut = 0;
             return false;
         }
 
@@ -830,26 +751,16 @@ namespace Scaffold.GraphFlow.PackageGenerator
             return b.ToImmutable();
         }
 
-        internal static bool TryGetGraphPortId(IFieldSymbol field, INamedTypeSymbol graphPortAttr, out int id)
+        internal static bool HasGraphPort(IFieldSymbol field, INamedTypeSymbol graphPortAttr)
         {
             foreach (var a in field.GetAttributes())
             {
-                if (!SymbolEqualityComparer.Default.Equals(a.AttributeClass, graphPortAttr))
+                if (SymbolEqualityComparer.Default.Equals(a.AttributeClass, graphPortAttr))
                 {
-                    continue;
-                }
-
-                foreach (var na in a.NamedArguments)
-                {
-                    if (na.Key == "Id" && na.Value.Value is int i)
-                    {
-                        id = i;
-                        return true;
-                    }
+                    return true;
                 }
             }
 
-            id = 0;
             return false;
         }
     }

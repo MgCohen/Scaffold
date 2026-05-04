@@ -15,13 +15,13 @@ namespace Scaffold.GraphFlow
 
     /// <summary>
     /// Per-run state object. Constructed at the start of each <c>controller.Run</c>, plumbed through
-    /// every <c>RuntimeNode&lt;TRunner&gt;.Execute</c> on the walk, and discarded when the walk ends.
-    /// Two concurrent <c>Run</c> calls produce two <see cref="Flow"/> instances and never share state —
+    /// every <c>RuntimeNode.Execute</c> on the walk, and discarded when the walk ends. Two concurrent
+    /// <c>Run</c> calls produce two <see cref="Flow"/> instances and never share state — the
     /// <see cref="GraphRunner"/> is the long-lived services carrier and stays clean across runs.
     ///
     /// <para>Authors mutate the flow via <see cref="GoTo"/> / <see cref="Stop"/> / <see cref="Return"/> /
     /// <see cref="Cancel"/>; all four return <see cref="Task.CompletedTask"/> so a one-line
-    /// <c>Execute</c> body reads <c>return flow.GoTo(MyOutPortId);</c>.</para>
+    /// <c>Execute</c> body reads <c>return flow.GoTo("MyOutPort");</c>.</para>
     /// </summary>
     public sealed class Flow
     {
@@ -30,7 +30,7 @@ namespace Scaffold.GraphFlow
 
         public FlowOutcome Outcome { get; private set; }
         internal object? Result { get; private set; }
-        int? _nextPortId;
+        string? _nextPortName;
 
         /// <summary>
         /// Per-run host-services bag. Mode-2 runners (e.g. CardEffectRunner) populate this in
@@ -39,15 +39,23 @@ namespace Scaffold.GraphFlow
         /// </summary>
         public IEffectScope? Scope { get; internal set; }
 
+        /// <summary>
+        /// Runner-agnostic access to the active <see cref="GraphRunner"/>. Set by <c>GraphExecutor</c>
+        /// at run start (mirror of <see cref="Scope"/>). Typed-runner nodes prefer the cached
+        /// <c>RuntimeNode&lt;TRunner&gt;._runner</c> field — this property is for runner-agnostic
+        /// nodes that need untyped access during Execute.
+        /// </summary>
+        public GraphRunner? Runner { get; internal set; }
+
         public Flow(CancellationToken cancellationToken = default)
         {
             CancellationToken = cancellationToken;
         }
 
-        /// <summary>Follow the flow-out port with the given id. The executor reads this after Execute returns.</summary>
-        public Task GoTo(int outFlowPortId)
+        /// <summary>Follow the flow-out port with the given name. The executor reads this after Execute returns.</summary>
+        public Task GoTo(string outFlowPortName)
         {
-            _nextPortId = outFlowPortId;
+            _nextPortName = outFlowPortName;
             return Task.CompletedTask;
         }
 
@@ -55,7 +63,7 @@ namespace Scaffold.GraphFlow
         public Task Stop()
         {
             Outcome = FlowOutcome.Stopped;
-            _nextPortId = null;
+            _nextPortName = null;
             return Task.CompletedTask;
         }
 
@@ -64,7 +72,7 @@ namespace Scaffold.GraphFlow
         {
             Outcome = FlowOutcome.Returned;
             Result = value;
-            _nextPortId = null;
+            _nextPortName = null;
             return Task.CompletedTask;
         }
 
@@ -72,14 +80,14 @@ namespace Scaffold.GraphFlow
         public Task Cancel()
         {
             Outcome = FlowOutcome.Cancelled;
-            _nextPortId = null;
+            _nextPortName = null;
             return Task.CompletedTask;
         }
 
-        internal int? ConsumeNext()
+        internal string? ConsumeNext()
         {
-            var n = _nextPortId;
-            _nextPortId = null;
+            var n = _nextPortName;
+            _nextPortName = null;
             return n;
         }
 

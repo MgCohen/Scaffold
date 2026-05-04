@@ -6,7 +6,7 @@ using Scaffold.GraphFlow;
 
 namespace Scaffold.GraphFlow.M0.Smoke
 {
-    public sealed partial class OnPlayRuntime : EntryRuntimeNode<OnPlay, MySmokeRunner>
+    public sealed partial class OnPlayRuntime : EntryRuntimeNode<OnPlay>
     {
         public OutputPort<int> CardId = null!;
 
@@ -15,16 +15,16 @@ namespace Scaffold.GraphFlow.M0.Smoke
         public OnPlayRuntime()
         {
             CardId = new OutputPort<int>(() => _cardIdValue);
-            Ports.Add(unchecked((int)0x4F2A8B17u), CardId);
+            Ports.Add("CardId", CardId);
         }
 
-        public override Task Execute(MySmokeRunner runner, Flow flow)
+        public override Task Execute(Flow flow)
         {
             if (Payload != null)
             {
                 _cardIdValue = Payload.CardId;
             }
-            return flow.GoTo(unchecked((int)0xF0010001u));
+            return flow.GoTo("FlowOut");
         }
     }
 }

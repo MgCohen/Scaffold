@@ -9,11 +9,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
     /// <summary>
     /// Emits the runtime partial (default ctor that constructs typed port handles + populates the
     /// <c>Ports</c> dict) plus the editor mirror + per-package registry entry for hand-written
-    /// <c>[GraphNode]</c> classes. Author writes only the typed surface — port-handle fields and
-    /// (for flow nodes) the <c>Execute</c> body, plus an optional <c>partial void InitializePorts()</c>
-    /// for OutputPort assignment.
-    ///
-    /// <para>See ExecPlan-v2.md "Generic-node emission" for the full surface + design-iteration log.</para>
+    /// <c>[GraphNode]</c> classes.
     /// </summary>
     internal static class GraphGenericNodeEmitter
     {
@@ -22,7 +18,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             Compilation compilation,
             GraphPackageModel package,
             ImmutableArray<GenericNodeModel> nodes,
-            System.Collections.Generic.HashSet<string> sourcedInCurrentCompilation,
+            HashSet<string> sourcedInCurrentCompilation,
             List<string>? registrationBlocks,
             bool editorAssembly)
         {
@@ -40,10 +36,6 @@ namespace Scaffold.GraphFlow.PackageGenerator
                 }
                 else
                 {
-                    // Runtime partial completes the hand-written class with the default ctor + dict
-                    // population. Only emit when the source class lives in the *current* compilation —
-                    // emitting `partial class Foo` in a consumer asm where Foo lives in a referenced
-                    // asm declares a brand-new empty Foo, breaking everything.
                     var key = (node.TypeNamespace ?? "") + "." + node.TypeName;
                     if (sourcedInCurrentCompilation.Contains(key))
                     {
@@ -75,43 +67,28 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine($"        public {node.TypeName}()");
             sb.AppendLine("        {");
 
-            // Construct InputPort<T> fields with no fallback (defaults to default(T)). Author can
-            // override defaults via field initializers in their hand-written file if needed.
             foreach (var p in node.Inputs)
             {
                 sb.AppendLine($"            {p.FieldName} = new InputPort<{p.CSharpType}>();");
             }
 
-            // FlowOut struct was removed in M3 (D3). Authoring nodes now call `flow.GoTo(portId)`
-            // directly with the int port id. If a [GraphNode] still declares `FlowOut` fields we
-            // emit nothing for them here — the field type itself is gone, so author code referring
-            // to it won't compile, which is the desired loud failure.
-            // (Generator scaffolding for FlowOut emission removed alongside the struct.)
-
-            // OutputPort assignment is the user's responsibility (the reader closes over typed inputs)
-            // — invoked through the partial method hook. If the class has no OutputPort fields and the
-            // user didn't declare InitializePorts, the hook is absent and we skip the call.
             if (node.HasInitializePortsHook || node.Outputs.Length > 0)
             {
                 sb.AppendLine("            InitializePorts();");
             }
 
-            // Populate Ports dict — input + output handles only. FlowOut and the implicit FlowIn
-            // (for flow nodes) are not in the data-port dict; flow wiring goes through flowEdges.
             foreach (var p in node.Inputs)
             {
-                sb.AppendLine($"            Ports.Add({GraphRegistryEmitter.PortIdLiteral(p.PortId)}, {p.FieldName});");
+                sb.AppendLine($"            Ports.Add(\"{p.FieldName}\", {p.FieldName});");
             }
 
             foreach (var p in node.Outputs)
             {
-                sb.AppendLine($"            Ports.Add({GraphRegistryEmitter.PortIdLiteral(p.PortId)}, {p.FieldName});");
+                sb.AppendLine($"            Ports.Add(\"{p.FieldName}\", {p.FieldName});");
             }
 
             sb.AppendLine("        }");
 
-            // Declare InitializePorts as partial when there are output ports (the user implements it).
-            // Skip when the user has no outputs to wire — keeps the .g.cs minimal.
             if (node.Outputs.Length > 0)
             {
                 sb.AppendLine();
@@ -141,7 +118,6 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine("    [Serializable]");
             sb.AppendLine($"    public sealed class {node.TypeName}EditorNode : Node");
             sb.AppendLine("    {");
-            // Port-name consts (used by the registry's port-name → port-id maps).
             if (node.IsFlowNode)
             {
                 sb.AppendLine("        public const string FlowInPortName = \"FlowIn\";");
@@ -205,20 +181,20 @@ namespace Scaffold.GraphFlow.PackageGenerator
             var runtimeTypeFq = ClosedRuntimeTypeFq(package, node);
 
             var dataInputs = ToInputTriples(node.Inputs);
-            var dataOutputs = ToOutputPairs(node.Outputs);
+            var dataOutputs = ToOutputNames(node.Outputs);
 
             if (!node.IsFlowNode)
             {
                 return GraphRegistryEmitter.BuildDataNodeRegistrationBlock(runnerFq, editorTypeFq, runtimeTypeFq, dataInputs, dataOutputs);
             }
 
-            var flowOutPairs = new List<(string, int)>();
+            var flowOutNames = new List<string>();
             foreach (var p in node.FlowOuts)
             {
-                flowOutPairs.Add((p.FieldName, p.PortId));
+                flowOutNames.Add(p.FieldName);
             }
 
-            return GraphRegistryEmitter.BuildFlowNodeRegistrationBlock(runnerFq, editorTypeFq, runtimeTypeFq, node.ImplicitFlowInPortId, flowOutPairs, dataInputs, dataOutputs);
+            return GraphRegistryEmitter.BuildFlowNodeRegistrationBlock(runnerFq, editorTypeFq, runtimeTypeFq, flowOutNames, dataInputs, dataOutputs);
         }
 
         static string ClosedRuntimeTypeFq(GraphPackageModel package, GenericNodeModel node)
@@ -229,23 +205,23 @@ namespace Scaffold.GraphFlow.PackageGenerator
                 : fqNoGeneric;
         }
 
-        static List<(string Name, int Id, string CSharpType)> ToInputTriples(ImmutableArray<GenericNodeInputField> inputs)
+        static List<(string Name, string CSharpType)> ToInputTriples(ImmutableArray<GenericNodeInputField> inputs)
         {
-            var list = new List<(string, int, string)>();
+            var list = new List<(string, string)>();
             foreach (var p in inputs)
             {
-                list.Add((p.FieldName, p.PortId, p.CSharpType));
+                list.Add((p.FieldName, p.CSharpType));
             }
 
             return list;
         }
 
-        static List<(string Name, int Id)> ToOutputPairs(ImmutableArray<GenericNodeOutputField> outputs)
+        static List<string> ToOutputNames(ImmutableArray<GenericNodeOutputField> outputs)
         {
-            var list = new List<(string, int)>();
+            var list = new List<string>();
             foreach (var p in outputs)
             {
-                list.Add((p.FieldName, p.PortId));
+                list.Add(p.FieldName);
             }
 
             return list;

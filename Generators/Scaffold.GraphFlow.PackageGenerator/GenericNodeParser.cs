@@ -8,22 +8,15 @@ namespace Scaffold.GraphFlow.PackageGenerator
     /// <summary>
     /// Walks an assembly for hand-written <c>[GraphNode]</c> classes and projects them into
     /// <see cref="GenericNodeModel"/> records the <see cref="GraphGenericNodeEmitter"/> consumes.
-    ///
-    /// <para>Single TRunner type parameter (or none for pure data nodes); multi-T cases (Equals&lt;T&gt;)
-    /// are deferred to M4 — see EFG011 in <see cref="Diagnostics"/>.</para>
     /// </summary>
     internal static class GenericNodeParser
     {
         const string GraphNodeAttrFqn = "Scaffold.GraphFlow.GraphNodeAttribute";
         const string GraphPortAttrFqn = "Scaffold.GraphFlow.GraphPortAttribute";
 
-        /// <summary>Implicit FlowIn port id assigned to every flow-bearing <c>[GraphNode]</c>.</summary>
-        internal const int ImplicitFlowInPortId = 0;
-
         internal static ImmutableArray<GenericNodeModel> Parse(Compilation compilation, IAssemblySymbol assembly, CancellationToken ct)
         {
             var graphNodeAttr = compilation.GetTypeByMetadataName(GraphNodeAttrFqn);
-            var graphPortAttr = compilation.GetTypeByMetadataName(GraphPortAttrFqn);
             if (graphNodeAttr == null)
             {
                 return ImmutableArray<GenericNodeModel>.Empty;
@@ -45,23 +38,31 @@ namespace Scaffold.GraphFlow.PackageGenerator
 
                 if (type.TypeParameters.Length > 1)
                 {
-                    // EFG011 — multi-T deferred to M4. Skip emission silently for now.
+                    // Multi-T deferred. Skip silently.
                     continue;
                 }
 
                 var (isFlowNode, isGenericOverRunner) = ClassifyHierarchy(type);
+
+                // Skip generic types that are NOT generic-over-runner (e.g. Return<TResult>) —
+                // their dynamic-options editor lands in phase 3. Until then, the runtime class
+                // ships hand-written and the registry doesn't try to close them.
+                if (type.TypeParameters.Length == 1 && !isGenericOverRunner)
+                {
+                    continue;
+                }
                 if (!isFlowNode && !DerivesFromRuntimeNodeBase(type))
                 {
                     continue;
                 }
 
-                var (inputs, outputs, flowOuts) = ParseFields(type, graphPortAttr);
+                var (inputs, outputs, flowOuts) = ParseFields(type);
                 var hasInitHook = HasInitializePortsHook(type);
 
                 var ns = type.ContainingNamespace.IsGlobalNamespace ? string.Empty : type.ContainingNamespace.ToDisplayString();
                 builder.Add(new GenericNodeModel(
                     ns, type.Name, isFlowNode, isGenericOverRunner,
-                    category, ImplicitFlowInPortId, flowOuts, inputs, outputs, hasInitHook));
+                    category, flowOuts, inputs, outputs, hasInitHook));
             }
 
             return builder.ToImmutable();
@@ -91,15 +92,27 @@ namespace Scaffold.GraphFlow.PackageGenerator
             return false;
         }
 
-        /// <summary>Walks the base chain. Returns (isFlowNode, isGenericOverRunner) — flow nodes derive from <c>RuntimeNode`1</c>, data nodes derive from <c>RuntimeNode</c> directly.</summary>
+        /// <summary>
+        /// Walks the base chain. Returns (isFlowNode, isGenericOverRunner). Flow-bearing nodes derive
+        /// either from <c>RuntimeNode`1</c> (typed runner) or override <c>Execute(Flow)</c> on
+        /// <c>RuntimeNode</c> directly (runner-agnostic, post-M3 phase 2).
+        /// </summary>
         static (bool isFlowNode, bool isGenericOverRunner) ClassifyHierarchy(INamedTypeSymbol type)
         {
             for (var current = type.BaseType; current != null; current = current.BaseType)
             {
                 if (current.MetadataName == "RuntimeNode`1")
                 {
-                    // Flow node. The current concrete type is generic over TRunner if it has a type parameter.
                     return (true, type.TypeParameters.Length == 1);
+                }
+            }
+
+            // Non-typed runtime node: check whether it overrides the virtual Execute(Flow).
+            if (DerivesFromRuntimeNodeBase(type))
+            {
+                if (OverridesExecuteFlow(type))
+                {
+                    return (true, false);
                 }
             }
 
@@ -119,14 +132,25 @@ namespace Scaffold.GraphFlow.PackageGenerator
             return false;
         }
 
+        static bool OverridesExecuteFlow(INamedTypeSymbol type)
+        {
+            foreach (var member in type.GetMembers("Execute"))
+            {
+                if (member is not IMethodSymbol m) continue;
+                if (m.Parameters.Length != 1) continue;
+                if (m.Parameters[0].Type.Name != "Flow") continue;
+                return true;
+            }
+            return false;
+        }
+
         static (ImmutableArray<GenericNodeInputField> inputs,
                 ImmutableArray<GenericNodeOutputField> outputs,
-                ImmutableArray<GenericNodeFlowOut> flowOuts) ParseFields(INamedTypeSymbol type, INamedTypeSymbol? graphPortAttr)
+                ImmutableArray<GenericNodeFlowOut> flowOuts) ParseFields(INamedTypeSymbol type)
         {
             var inputs = ImmutableArray.CreateBuilder<GenericNodeInputField>();
             var outputs = ImmutableArray.CreateBuilder<GenericNodeOutputField>();
             var flowOuts = ImmutableArray.CreateBuilder<GenericNodeFlowOut>();
-            int nextSequential = 1;
 
             foreach (var member in type.GetMembers())
             {
@@ -140,48 +164,23 @@ namespace Scaffold.GraphFlow.PackageGenerator
                     continue;
                 }
 
-                int portId = TryGetExplicitPortId(field, graphPortAttr) ?? nextSequential++;
-
                 if (typed.Name == "InputPort" && typed.TypeArguments.Length == 1)
                 {
-                    inputs.Add(new GenericNodeInputField(field.Name, portId, TypeFmt.Simple(typed.TypeArguments[0])));
+                    inputs.Add(new GenericNodeInputField(field.Name, TypeFmt.Simple(typed.TypeArguments[0])));
                 }
                 else if (typed.Name == "OutputPort" && typed.TypeArguments.Length == 1)
                 {
-                    outputs.Add(new GenericNodeOutputField(field.Name, portId, TypeFmt.Simple(typed.TypeArguments[0])));
+                    outputs.Add(new GenericNodeOutputField(field.Name, TypeFmt.Simple(typed.TypeArguments[0])));
                 }
                 else if (typed.Name == "FlowOut")
                 {
-                    flowOuts.Add(new GenericNodeFlowOut(field.Name, portId));
+                    flowOuts.Add(new GenericNodeFlowOut(field.Name));
                 }
             }
 
             return (inputs.ToImmutable(), outputs.ToImmutable(), flowOuts.ToImmutable());
         }
 
-        static int? TryGetExplicitPortId(IFieldSymbol field, INamedTypeSymbol? graphPortAttr)
-        {
-            if (graphPortAttr == null) return null;
-            foreach (var a in field.GetAttributes())
-            {
-                if (!SymbolEqualityComparer.Default.Equals(a.AttributeClass, graphPortAttr))
-                {
-                    continue;
-                }
-
-                foreach (var na in a.NamedArguments)
-                {
-                    if (na.Key == "Id" && na.Value.Value is int i)
-                    {
-                        return i;
-                    }
-                }
-            }
-
-            return null;
-        }
-
-        /// <summary>True if the class declares <c>InitializePorts()</c> as a partial method (with or without body).</summary>
         static bool HasInitializePortsHook(INamedTypeSymbol type)
         {
             foreach (var member in type.GetMembers("InitializePorts"))
@@ -196,8 +195,6 @@ namespace Scaffold.GraphFlow.PackageGenerator
                 }
             }
 
-            // Fallback: presence of any method named InitializePorts on the type triggers the hook
-            // (covers cases where the symbol model doesn't expose IsPartialDefinition cleanly).
             foreach (var member in type.GetMembers("InitializePorts"))
             {
                 if (member is IMethodSymbol)
