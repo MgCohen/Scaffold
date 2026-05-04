@@ -8,16 +8,14 @@ namespace Scaffold.GraphFlow.M0.Editor.GToolkit
     [Serializable]
     public sealed class LogDispatcherEditorNode : Node
     {
-        public const string FlowInPortName = "FlowIn";
-        public const string MessagePortName = "Message";
 
         protected override void OnDefinePorts(IPortDefinitionContext context)
         {
-            context.AddInputPort(FlowInPortName)
+            context.AddInputPort("FlowIn")
                 .WithDisplayName(string.Empty)
                 .WithConnectorUI(PortConnectorUI.Arrowhead)
                 .Build();
-            context.AddInputPort<string>(MessagePortName).Build();
+            context.AddInputPort<string>("Message").Build();
         }
     }
 }

@@ -1,14 +1,3 @@
-#pragma warning disable SCA0009 // Assembly attributes use global namespace by design
-using Scaffold.GraphFlow;
-using Scaffold.GraphFlow.M0.Smoke;
-using Scaffold.GraphFlow.Editor;
-
-[assembly: GraphPackage(
-    Runner = typeof(MySmokeRunner),
-    Extension = "gfmsmoke",
-    AssetMenu = "GraphFlow/M0 Smoke Graph",
-    Convention = PortConvention.AllFieldsIn,
-    RegistryNamespace = "Scaffold.GraphFlow.M0.Generated",
-    DispatcherBase = typeof(MyDispatcherBase<,>),
-    CommandBase = typeof(MyCommand<>))]
-#pragma warning restore SCA0009
+// [assembly: GraphPackage(...)] is declared once on the runtime asm
+// (Samples/M0Sandbox/Runtime/AssemblyInfo.cs). The generator walks the editor asm's
+// references, finds the runtime sibling, and picks up the declaration from there.

@@ -15,7 +15,7 @@ MonoBehaviour:
   m_DefaultGroup: 0bdbf61a5d37c41ee95db94752ea759c
   m_currentHash:
     serializedVersion: 2
-    Hash: 8e002fe46dc2380e6c7a1ba2b2b41385
+    Hash: a55cf694cc053804b5a1636f50e1f9af
   m_OptimizeCatalogSize: 0
   m_BuildRemoteCatalog: 1
   m_CatalogRequestsTimeout: 0
@@ -35,6 +35,8 @@ MonoBehaviour:
   m_NonRecursiveBuilding: 1
   m_AllowNestedBundleFolders: 0
   m_CCDEnabled: 0
+  m_CcdLogRequests: 0
+  m_CcdLogRequestHeaders: 0
   m_maxConcurrentWebRequests: 3
   m_UseUWRForLocalBundles: 0
   m_BundleTimeout: 0
@@ -42,6 +44,7 @@ MonoBehaviour:
   m_BundleRedirectLimit: -1
   m_SharedBundleSettings: 0
   m_SharedBundleSettingsCustomGroupIndex: 0
+  m_simulatedLoadDelay: 0.1
   m_ContiguousBundles: 1
   m_StripUnityVersionFromBundleBuild: 0
   m_DisableVisibleSubAssetRepresentations: 0

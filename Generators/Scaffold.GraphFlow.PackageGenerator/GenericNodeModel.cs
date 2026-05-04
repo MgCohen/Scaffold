@@ -29,7 +29,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
         internal string CSharpType { get; }
     }
 
-    /// <summary>One flow-out field on a <c>[GraphNode]</c> class.</summary>
+    /// <summary>One <c>FlowOutPort</c> field on a <c>[GraphNode]</c> class.</summary>
     internal readonly struct GenericNodeFlowOut
     {
         internal GenericNodeFlowOut(string fieldName)
@@ -59,6 +59,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             bool isGenericOverRunner,
             string? category,
             ImmutableArray<GenericNodeFlowOut> flowOuts,
+            bool hasFlowIn,
             ImmutableArray<GenericNodeInputField> inputs,
             ImmutableArray<GenericNodeOutputField> outputs,
             bool hasInitializePortsHook)
@@ -69,6 +70,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             IsGenericOverRunner = isGenericOverRunner;
             Category = category;
             FlowOuts = flowOuts;
+            HasFlowIn = hasFlowIn;
             Inputs = inputs;
             Outputs = outputs;
             HasInitializePortsHook = hasInitializePortsHook;
@@ -82,6 +84,8 @@ namespace Scaffold.GraphFlow.PackageGenerator
         internal bool IsGenericOverRunner { get; }
         internal string? Category { get; }
         internal ImmutableArray<GenericNodeFlowOut> FlowOuts { get; }
+        /// <summary>True when the node declares a <c>FlowInPort</c> field — the editor mirror should emit a flow input port.</summary>
+        internal bool HasFlowIn { get; }
         internal ImmutableArray<GenericNodeInputField> Inputs { get; }
         internal ImmutableArray<GenericNodeOutputField> Outputs { get; }
         /// <summary>True if the class declares <c>partial void InitializePorts()</c> with a body — the generated ctor calls it after constructing inputs.</summary>

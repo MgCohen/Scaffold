@@ -7,7 +7,7 @@ namespace Scaffold.GraphFlow
     /// <summary>
     /// Terminal state of a single <c>controller.Run</c> invocation. Read off the <see cref="Flow"/>
     /// returned by the executor. <see cref="Stopped"/> = walked to a leaf (or a node that called
-    /// <see cref="Flow.Stop"/>); <see cref="Returned"/> = a <c>Return&lt;,&gt;</c> terminator wrote a
+    /// <see cref="Flow.Stop"/>); <see cref="Returned"/> = a <c>Return&lt;T&gt;</c> terminator wrote a
     /// value into <see cref="Flow.Result"/>; <see cref="Cancelled"/> = a <c>Cancel</c> terminator
     /// (or any other node that called <see cref="Flow.Cancel"/>) halted the walk.
     /// </summary>
@@ -21,7 +21,7 @@ namespace Scaffold.GraphFlow
     ///
     /// <para>Authors mutate the flow via <see cref="GoTo"/> / <see cref="Stop"/> / <see cref="Return"/> /
     /// <see cref="Cancel"/>; all four return <see cref="Task.CompletedTask"/> so a one-line
-    /// <c>Execute</c> body reads <c>return flow.GoTo("MyOutPort");</c>.</para>
+    /// <c>Execute</c> body reads <c>return flow.GoTo(MyOutPort);</c>.</para>
     /// </summary>
     public sealed class Flow
     {
@@ -30,7 +30,7 @@ namespace Scaffold.GraphFlow
 
         public FlowOutcome Outcome { get; private set; }
         internal object? Result { get; private set; }
-        string? _nextPortName;
+        FlowOutPort? _nextPort;
 
         /// <summary>
         /// Per-run host-services bag. Mode-2 runners (e.g. CardEffectRunner) populate this in
@@ -52,10 +52,12 @@ namespace Scaffold.GraphFlow
             CancellationToken = cancellationToken;
         }
 
-        /// <summary>Follow the flow-out port with the given name. The executor reads this after Execute returns.</summary>
-        public Task GoTo(string outFlowPortName)
+        /// <summary>Follow the given flow-out port. The executor reads this after Execute returns
+        /// and walks directly via <see cref="FlowOutPort.Connection"/>'s destination — no edge
+        /// metadata lookup.</summary>
+        public Task GoTo(FlowOutPort port)
         {
-            _nextPortName = outFlowPortName;
+            _nextPort = port;
             return Task.CompletedTask;
         }
 
@@ -63,7 +65,7 @@ namespace Scaffold.GraphFlow
         public Task Stop()
         {
             Outcome = FlowOutcome.Stopped;
-            _nextPortName = null;
+            _nextPort = null;
             return Task.CompletedTask;
         }
 
@@ -72,7 +74,7 @@ namespace Scaffold.GraphFlow
         {
             Outcome = FlowOutcome.Returned;
             Result = value;
-            _nextPortName = null;
+            _nextPort = null;
             return Task.CompletedTask;
         }
 
@@ -80,14 +82,14 @@ namespace Scaffold.GraphFlow
         public Task Cancel()
         {
             Outcome = FlowOutcome.Cancelled;
-            _nextPortName = null;
+            _nextPort = null;
             return Task.CompletedTask;
         }
 
-        internal string? ConsumeNext()
+        internal FlowOutPort? ConsumeNext()
         {
-            var n = _nextPortName;
-            _nextPortName = null;
+            var n = _nextPort;
+            _nextPort = null;
             return n;
         }
 

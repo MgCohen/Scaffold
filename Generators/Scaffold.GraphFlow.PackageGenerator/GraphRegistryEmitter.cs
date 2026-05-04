@@ -54,9 +54,9 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine("{");
             sb.AppendLine($"    public static partial class {typeName}");
             sb.AppendLine("    {");
+            AppendEventTypesTable(sb, eventTypes);
             sb.AppendLine($"        public static readonly {EditorRegistryTypeName}<{runnerFq}> Instance = Build();");
             sb.AppendLine();
-            AppendEventTypesTable(sb, eventTypes);
             sb.AppendLine($"        static {EditorRegistryTypeName}<{runnerFq}> Build()");
             sb.AppendLine("        {");
             sb.AppendLine($"            var r = new {EditorRegistryTypeName}<{runnerFq}>();");
@@ -279,6 +279,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             string runnerFq,
             string editorTypeFq,
             string runtimeTypeFq,
+            bool hasFlowIn,
             IReadOnlyList<string> flowOutputs,
             IReadOnlyList<(string Name, string CSharpType)> dataInputs,
             IReadOnlyList<string> dataOutputs)
@@ -288,10 +289,14 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine("            {");
             sb.AppendLine($"                EditorNodeType = typeof({editorTypeFq}),");
             sb.AppendLine($"                Factory = _ => new {runtimeTypeFq}(),");
-            sb.AppendLine("                FlowInputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal)");
-            sb.AppendLine("                {");
-            sb.AppendLine($"                    \"FlowIn\",");
-            sb.AppendLine("                },");
+            if (hasFlowIn)
+            {
+                sb.AppendLine("                FlowInputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal)");
+                sb.AppendLine("                {");
+                sb.AppendLine($"                    \"FlowIn\",");
+                sb.AppendLine("                },");
+            }
+
             if (flowOutputs.Count > 0)
             {
                 sb.AppendLine("                FlowOutputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal)");
@@ -329,7 +334,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             foreach (var f in dataInputs)
             {
                 sb.AppendLine($"                    {{");
-                sb.AppendLine($"                        var p = typed.GetInputPortByName({editorTypeFq}.{f.Name}PortName);");
+                sb.AppendLine($"                        var p = typed.GetInputPortByName(\"{f.Name}\");");
                 sb.AppendLine($"                        if (p != null && !p.isConnected && p.TryGetValue<{f.CSharpType}>(out var v))");
                 sb.AppendLine($"                            rt.{f.Name} = v{NullableCoalesce(f.CSharpType)};");
                 sb.AppendLine($"                    }}");

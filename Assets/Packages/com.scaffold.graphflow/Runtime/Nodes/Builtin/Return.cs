@@ -10,15 +10,15 @@ namespace Scaffold.GraphFlow.Nodes
     [GraphNode(Category = "Flow")]
     public sealed class Return<TResult> : RuntimeNode
     {
-        public const string FlowInPortName = "FlowIn";
-        public const string ValuePortName  = "Value";
-
+        public FlowInPort In = null!;
         public InputPort<TResult> Value = null!;
 
         public Return()
         {
+            In = new FlowInPort(this);
             Value = new InputPort<TResult>();
-            Ports.Add(ValuePortName, Value);
+            Ports.Add(In.Name, In);
+            Ports.Add(nameof(Value), Value);
         }
 
         public override Task Execute(Flow flow) => flow.Return(Value.Read());

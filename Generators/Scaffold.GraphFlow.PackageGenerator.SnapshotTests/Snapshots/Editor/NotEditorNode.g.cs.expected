@@ -8,13 +8,11 @@ namespace Scaffold.GraphFlow.M0.Editor.GToolkit
     [Serializable]
     public sealed class NotEditorNode : Node
     {
-        public const string ValuePortName = "Value";
-        public const string ResultPortName = "Result";
 
         protected override void OnDefinePorts(IPortDefinitionContext context)
         {
-            context.AddInputPort<bool>(ValuePortName).Build();
-            context.AddOutputPort<bool>(ResultPortName).Build();
+            context.AddInputPort<bool>("Value").Build();
+            context.AddOutputPort<bool>("Result").Build();
         }
     }
 }

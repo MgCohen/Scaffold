@@ -56,13 +56,13 @@ namespace Scaffold.GraphFlow.PackageGenerator
                     continue;
                 }
 
-                var (inputs, outputs, flowOuts) = ParseFields(type);
+                var (inputs, outputs, flowOuts, hasFlowIn) = ParseFields(type);
                 var hasInitHook = HasInitializePortsHook(type);
 
                 var ns = type.ContainingNamespace.IsGlobalNamespace ? string.Empty : type.ContainingNamespace.ToDisplayString();
                 builder.Add(new GenericNodeModel(
                     ns, type.Name, isFlowNode, isGenericOverRunner,
-                    category, flowOuts, inputs, outputs, hasInitHook));
+                    category, flowOuts, hasFlowIn, inputs, outputs, hasInitHook));
             }
 
             return builder.ToImmutable();
@@ -146,11 +146,13 @@ namespace Scaffold.GraphFlow.PackageGenerator
 
         static (ImmutableArray<GenericNodeInputField> inputs,
                 ImmutableArray<GenericNodeOutputField> outputs,
-                ImmutableArray<GenericNodeFlowOut> flowOuts) ParseFields(INamedTypeSymbol type)
+                ImmutableArray<GenericNodeFlowOut> flowOuts,
+                bool hasFlowIn) ParseFields(INamedTypeSymbol type)
         {
             var inputs = ImmutableArray.CreateBuilder<GenericNodeInputField>();
             var outputs = ImmutableArray.CreateBuilder<GenericNodeOutputField>();
             var flowOuts = ImmutableArray.CreateBuilder<GenericNodeFlowOut>();
+            var hasFlowIn = false;
 
             foreach (var member in type.GetMembers())
             {
@@ -172,13 +174,17 @@ namespace Scaffold.GraphFlow.PackageGenerator
                 {
                     outputs.Add(new GenericNodeOutputField(field.Name, TypeFmt.Simple(typed.TypeArguments[0])));
                 }
-                else if (typed.Name == "FlowOut")
+                else if (typed.Name == "FlowOutPort")
                 {
                     flowOuts.Add(new GenericNodeFlowOut(field.Name));
                 }
+                else if (typed.Name == "FlowInPort")
+                {
+                    hasFlowIn = true;
+                }
             }
 
-            return (inputs.ToImmutable(), outputs.ToImmutable(), flowOuts.ToImmutable());
+            return (inputs.ToImmutable(), outputs.ToImmutable(), flowOuts.ToImmutable(), hasFlowIn);
         }
 
         static bool HasInitializePortsHook(INamedTypeSymbol type)

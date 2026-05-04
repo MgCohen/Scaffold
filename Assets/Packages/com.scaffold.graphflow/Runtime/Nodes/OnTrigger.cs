@@ -20,8 +20,6 @@ namespace Scaffold.GraphFlow
     public sealed class OnTrigger<TEvent> : EntryRuntimeNode<OnTrigger<TEvent>>
         where TEvent : class
     {
-        public const string FlowOutPortName = "FlowOut";
-
         /// <summary>The event reference. Set by the host on the per-event payload passed to
         /// <see cref="EntryRuntimeNode{TEntry}.Run"/>; the configured asset-instance leaves it
         /// null.</summary>
@@ -31,6 +29,15 @@ namespace Scaffold.GraphFlow
         /// reads at wiring; on the per-event payload it's whatever phase the host is delivering.</summary>
         public Timing Timing;
 
+        /// <summary>Single flow exit — drives the body of the trigger graph.</summary>
+        public FlowOutPort FlowOut = null!;
+
+        public OnTrigger()
+        {
+            FlowOut = new FlowOutPort(this, nameof(FlowOut));
+            Ports.Add(FlowOut.Name, FlowOut);
+        }
+
         public override Task Execute(Flow flow)
         {
             // Copy the per-event payload's Event reference onto this asset-instance node so
@@ -38,7 +45,7 @@ namespace Scaffold.GraphFlow
             // .Event during the flow walk. The configured Timing on the asset-instance is what
             // hosts read at wiring; the per-event Payload.Timing is for telemetry only.
             if (Payload != null) Event = Payload.Event;
-            return flow.GoTo(FlowOutPortName);
+            return flow.GoTo(FlowOut);
         }
     }
 }

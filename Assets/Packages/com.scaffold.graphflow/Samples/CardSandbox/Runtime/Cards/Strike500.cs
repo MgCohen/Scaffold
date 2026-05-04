@@ -18,14 +18,10 @@ namespace Scaffold.GraphFlow.CardSandbox.Cards
 
             var asset = ScriptableObject.CreateInstance<CardEffectGraphAsset>();
             asset.nodes = new List<RuntimeNode> { entry, dispatcher };
-            asset.entries = new List<EntryIndex>
+            asset.flowEdges.Add(new Edge
             {
-                new EntryIndex { entryTypeId = typeof(OnPlay).AssemblyQualifiedName!, rootNodeId = 1 },
-            };
-            asset.flowEdges.Add(new FlowEdge
-            {
-                fromNodeId = 1, fromFlowPortName = "FlowOut",
-                toNodeId = 2, toFlowPortName = "FlowIn",
+                fromNodeId = 1, fromPortName = "FlowOut",
+                toNodeId = 2, toPortName = "FlowIn",
             });
             return asset;
         }
@@ -34,6 +30,14 @@ namespace Scaffold.GraphFlow.CardSandbox.Cards
     /// <summary>Strike500's effect node — runs DealDamageCommand with the card's BaseDamage.</summary>
     public sealed class Strike500Dispatcher : RuntimeNode<CardEffectRunner>
     {
+        public FlowInPort FlowIn = null!;
+
+        public Strike500Dispatcher()
+        {
+            FlowIn = new FlowInPort(this);
+            Ports.Add(FlowIn.Name, FlowIn);
+        }
+
         public override async Task Execute(CardEffectRunner runner, Flow flow)
         {
             var scope = (ICardEffectScope)flow.Scope!;

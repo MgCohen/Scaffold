@@ -1,13 +1,3 @@
-#pragma warning disable SCA0009 // Assembly attributes use global namespace by design
-using Scaffold.GraphFlow;
-using Scaffold.GraphFlow.CardSandbox;
-
-[assembly: GraphPackage(
-    Runner = typeof(CardEffectRunner),
-    Extension = "card",
-    AssetMenu = "GraphFlow/Card",
-    Convention = PortConvention.AllFieldsIn,
-    RegistryNamespace = "Scaffold.GraphFlow.CardSandbox.Generated",
-    DispatcherBase = typeof(CardCommandDispatcher<,>),
-    CommandBase = typeof(Command<>))]
-#pragma warning restore SCA0009
+// [assembly: GraphPackage(...)] is declared once on the runtime asm
+// (Samples/CardSandbox/Runtime/AssemblyInfo.cs). The generator walks the editor asm's
+// references, finds the runtime sibling, and picks up the declaration from there.

@@ -23,7 +23,33 @@ namespace Scaffold.GraphFlow.PackageGenerator
                 }
             }
 
+            // Editor asms inherit [GraphPackage] from their runtime sibling via reference. The
+            // runtime asm declares the package once; the editor asm (named `<Runtime>.Editor` by
+            // Unity asmdef convention) references it and picks the declaration up here. Only fall
+            // back to references when the current asm declared no package of its own — keeps
+            // legacy behavior for projects that still author both copies.
+            if (builder.Count == 0 && IsEditorAssembly(compilation))
+            {
+                foreach (var refAsm in compilation.SourceModule.ReferencedAssemblySymbols)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    foreach (var attr in refAsm.GetAttributes())
+                    {
+                        if (TryCreateModel(attr, graphPackageAttrType, out var model))
+                        {
+                            builder.Add(model);
+                        }
+                    }
+                }
+            }
+
             return builder.ToImmutable();
+        }
+
+        static bool IsEditorAssembly(Compilation compilation)
+        {
+            var name = compilation.Assembly.Name;
+            return name != null && name.EndsWith(".Editor", System.StringComparison.Ordinal);
         }
 
         static bool TryCreateModel(AttributeData attr, INamedTypeSymbol graphPackageAttrType, out GraphPackageModel model)

@@ -1,49 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using UnityEngine;
 
 namespace Scaffold.GraphFlow
 {
-    /// <summary>
-    /// Runtime wire — built at hydration time, never serialized. Holds a typed reference from an output
-    /// port on the source node to an input port on the destination node.
-    ///
-    /// <para><b>The single cast/conversion seam.</b> <see cref="Bind(Port, Port)"/> is the one place in
-    /// the runtime where untyped ports become typed wires. Future type-conversion (`int → string` auto-
-    /// coercion via a registered converter, etc.) plugs in here. M2 keeps it strict — type mismatch
-    /// throws.</para>
-    /// </summary>
-    public abstract class Connection
-    {
-        /// <summary>
-        /// Bind an input port to an output port. Dispatches through the input's type-revealing
-        /// <see cref="Port.AcceptOutput"/> virtual so the typed cast happens once, statically, on the
-        /// input side. Returns the constructed <see cref="Connection{T}"/> for the caller to record on
-        /// the destination node's <see cref="RuntimeNode.Connections"/> list.
-        /// </summary>
-        public static Connection Bind(Port input, Port output)
-        {
-            if (input == null) throw new ArgumentNullException(nameof(input));
-            if (output == null) throw new ArgumentNullException(nameof(output));
-            return input.AcceptOutput(output);
-        }
-    }
-
-    public sealed class Connection<T> : Connection
-    {
-        public InputPort<T> Input { get; }
-        public OutputPort<T> Output { get; }
-
-        internal Connection(InputPort<T> input, OutputPort<T> output)
-        {
-            Input = input;
-            Output = output;
-        }
-
-        public T Read() => Output.Read();
-    }
-
     /// <summary>
     /// Base runtime node — owns the dispatch dict and the connections list. Generated default ctors on
     /// concrete nodes populate <see cref="Ports"/> with each port handle keyed by port name; hydration

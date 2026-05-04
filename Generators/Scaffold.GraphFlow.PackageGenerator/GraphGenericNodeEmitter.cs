@@ -27,20 +27,15 @@ namespace Scaffold.GraphFlow.PackageGenerator
                 return;
             }
 
+            // Runtime ctor partials are emitted by GraphNodeRuntimePartialGenerator (a separate
+            // generator that runs against every compilation, not just [GraphPackage]-declaring
+            // ones). This path only handles editor mirrors + registration blocks.
             foreach (var node in nodes)
             {
                 if (editorAssembly)
                 {
                     EmitEditorMirror(spc, compilation, node);
                     registrationBlocks?.Add(BuildRegistrationBlock(package, compilation, node));
-                }
-                else
-                {
-                    var key = (node.TypeNamespace ?? "") + "." + node.TypeName;
-                    if (sourcedInCurrentCompilation.Contains(key))
-                    {
-                        EmitRuntimePartial(spc, package, node);
-                    }
                 }
             }
         }
@@ -118,32 +113,12 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine("    [Serializable]");
             sb.AppendLine($"    public sealed class {node.TypeName}EditorNode : Node");
             sb.AppendLine("    {");
-            if (node.IsFlowNode)
-            {
-                sb.AppendLine("        public const string FlowInPortName = \"FlowIn\";");
-            }
-
-            foreach (var p in node.FlowOuts)
-            {
-                sb.AppendLine($"        public const string {p.FieldName}PortName = \"{p.FieldName}\";");
-            }
-
-            foreach (var p in node.Inputs)
-            {
-                sb.AppendLine($"        public const string {p.FieldName}PortName = \"{p.FieldName}\";");
-            }
-
-            foreach (var p in node.Outputs)
-            {
-                sb.AppendLine($"        public const string {p.FieldName}PortName = \"{p.FieldName}\";");
-            }
-
             sb.AppendLine();
             sb.AppendLine("        protected override void OnDefinePorts(IPortDefinitionContext context)");
             sb.AppendLine("        {");
-            if (node.IsFlowNode)
+            if (node.HasFlowIn)
             {
-                sb.AppendLine("            context.AddInputPort(FlowInPortName)");
+                sb.AppendLine("            context.AddInputPort(\"FlowIn\")");
                 sb.AppendLine("                .WithDisplayName(string.Empty)");
                 sb.AppendLine("                .WithConnectorUI(PortConnectorUI.Arrowhead)");
                 sb.AppendLine("                .Build();");
@@ -151,7 +126,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
 
             foreach (var p in node.FlowOuts)
             {
-                sb.AppendLine($"            context.AddOutputPort({p.FieldName}PortName)");
+                sb.AppendLine($"            context.AddOutputPort(\"{p.FieldName}\")");
                 sb.AppendLine($"                .WithDisplayName(\"{p.FieldName}\")");
                 sb.AppendLine("                .WithConnectorUI(PortConnectorUI.Arrowhead)");
                 sb.AppendLine("                .Build();");
@@ -159,12 +134,12 @@ namespace Scaffold.GraphFlow.PackageGenerator
 
             foreach (var p in node.Inputs)
             {
-                sb.AppendLine($"            context.AddInputPort<{p.CSharpType}>({p.FieldName}PortName).Build();");
+                sb.AppendLine($"            context.AddInputPort<{p.CSharpType}>(\"{p.FieldName}\").Build();");
             }
 
             foreach (var p in node.Outputs)
             {
-                sb.AppendLine($"            context.AddOutputPort<{p.CSharpType}>({p.FieldName}PortName).Build();");
+                sb.AppendLine($"            context.AddOutputPort<{p.CSharpType}>(\"{p.FieldName}\").Build();");
             }
 
             sb.AppendLine("        }");
@@ -194,7 +169,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
                 flowOutNames.Add(p.FieldName);
             }
 
-            return GraphRegistryEmitter.BuildFlowNodeRegistrationBlock(runnerFq, editorTypeFq, runtimeTypeFq, flowOutNames, dataInputs, dataOutputs);
+            return GraphRegistryEmitter.BuildFlowNodeRegistrationBlock(runnerFq, editorTypeFq, runtimeTypeFq, node.HasFlowIn, flowOutNames, dataInputs, dataOutputs);
         }
 
         static string ClosedRuntimeTypeFq(GraphPackageModel package, GenericNodeModel node)

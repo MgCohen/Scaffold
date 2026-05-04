@@ -66,7 +66,46 @@ namespace Scaffold.GraphFlow
         public T Read() => _read();
     }
 
-    // FlowOut struct removed in M3 (per D3): authoring nodes now call <c>flow.GoTo(portId)</c> directly.
-    // Flow inputs remain editor-only metadata (no runtime Port object); the executor calls Execute on
-    // the destination node walked from <c>flowEdges</c>.
+    /// <summary>
+    /// Routing endpoint — a flow exit on a <see cref="RuntimeNode"/>. Authors call
+    /// <c>flow.GoTo(myFlowOut)</c> from inside <c>Execute</c>; the executor reads
+    /// <see cref="Connection"/> after Execute returns and walks directly to the destination node
+    /// without iterating <c>asset.flowEdges</c>.
+    ///
+    /// <para>Not generic over a value type — flow is routing, not value-pull. The asymmetry with
+    /// <see cref="OutputPort{T}"/> is intentional: <c>OutputPort&lt;T&gt;.Read()</c> produces a
+    /// typed value via a <c>Func&lt;T&gt;</c>; a flow exit produces nothing — it just marks "go
+    /// here next."</para>
+    /// </summary>
+    public sealed class FlowOutPort : Port
+    {
+        public string Name { get; }
+        public RuntimeNode Owner { get; }
+        public FlowConnection? Connection { get; internal set; }
+
+        public FlowOutPort(RuntimeNode owner, string name)
+        {
+            Owner = owner ?? throw new ArgumentNullException(nameof(owner));
+            Name = name ?? throw new ArgumentNullException(nameof(name));
+        }
+    }
+
+    /// <summary>
+    /// Routing endpoint — a flow entry on a <see cref="RuntimeNode"/>. Carries no Execute-time
+    /// behaviour; the executor reaches the owner via <see cref="FlowOutPort.Connection"/>'s
+    /// destination ref. Present so flow wiring is symmetric with data wiring (source.OutPort ↔
+    /// destination.InPort) and so validation can ask the port directly whether it's connected.
+    /// </summary>
+    public sealed class FlowInPort : Port
+    {
+        public string Name { get; }
+        public RuntimeNode Owner { get; }
+        public FlowConnection? Connection { get; internal set; }
+
+        public FlowInPort(RuntimeNode owner, string name = "FlowIn")
+        {
+            Owner = owner ?? throw new ArgumentNullException(nameof(owner));
+            Name = name ?? throw new ArgumentNullException(nameof(name));
+        }
+    }
 }

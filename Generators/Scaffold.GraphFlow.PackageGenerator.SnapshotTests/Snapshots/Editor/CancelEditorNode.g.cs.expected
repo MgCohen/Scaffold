@@ -8,11 +8,10 @@ namespace Scaffold.GraphFlow.M0.Editor.GToolkit
     [Serializable]
     public sealed class CancelEditorNode : Node
     {
-        public const string FlowInPortName = "FlowIn";
 
         protected override void OnDefinePorts(IPortDefinitionContext context)
         {
-            context.AddInputPort(FlowInPortName)
+            context.AddInputPort("FlowIn")
                 .WithDisplayName(string.Empty)
                 .WithConnectorUI(PortConnectorUI.Arrowhead)
                 .Build();

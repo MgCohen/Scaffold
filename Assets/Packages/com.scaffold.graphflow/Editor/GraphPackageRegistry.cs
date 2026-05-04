@@ -27,8 +27,10 @@ namespace Scaffold.GraphFlow.Editor
             public HashSet<string> DataOutputPortNames = new(StringComparer.Ordinal);
             public HashSet<string> FlowInputPortNames = new(StringComparer.Ordinal);
             public HashSet<string> FlowOutputPortNames = new(StringComparer.Ordinal);
-            // Non-null only for entry-shaped nodes; carries the AssemblyQualifiedName of the payload
-            // so the baker can populate EntryIndex.entryTypeId without reflection on the runtime side.
+            // Non-null only for entry-shaped nodes; carries the AssemblyQualifiedName of the payload.
+            // Used by the editor-side validation (EFG-V02 duplicate-entry rule) to group entries
+            // by payload type. No longer surfaced on the runtime asset — entries are discovered at
+            // hydration by pattern-matching EntryRuntimeNodeBase against asset.nodes.
             public string? EntryTypeId;
         }
 

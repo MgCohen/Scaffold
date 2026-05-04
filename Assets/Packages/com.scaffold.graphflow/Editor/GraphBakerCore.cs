@@ -88,8 +88,8 @@ namespace Scaffold.GraphFlow.Editor
                 editorToRegistration[n] = reg;
             }
 
-            var dataConnections = new List<ConnectionRecord>();
-            var flowEdges = new List<FlowEdge>();
+            var dataConnections = new List<Edge>();
+            var flowEdges = new List<Edge>();
 
             foreach (var pair in editorToRuntime)
             {
@@ -120,25 +120,10 @@ namespace Scaffold.GraphFlow.Editor
                 }
             }
 
-            var entries = new List<EntryIndex>();
-            foreach (var pair in editorToRuntime)
-            {
-                var reg = editorToRegistration[pair.Key];
-                if (reg.EntryTypeId == null)
-                    continue;
-
-                entries.Add(new EntryIndex
-                {
-                    entryTypeId = reg.EntryTypeId,
-                    rootNodeId = pair.Value.nodeId,
-                });
-            }
-
             var asset = ScriptableObject.CreateInstance<TAsset>();
             asset.nodes = new List<RuntimeNode>(editorToRuntime.Values);
             asset.connections = dataConnections;
             asset.flowEdges = flowEdges;
-            asset.entries = entries;
             asset.schemaVersion = SchemaVersion;
 
             result.Asset = asset;
@@ -148,26 +133,26 @@ namespace Scaffold.GraphFlow.Editor
         static bool TryRecordFlowEdge<TRunner>(
             GraphPackageRegistry<TRunner>.NodeRegistration fromReg, string fromPortName, int fromNodeId,
             GraphPackageRegistry<TRunner>.NodeRegistration toReg, string toPortName, int toNodeId,
-            List<FlowEdge> into) where TRunner : GraphRunner
+            List<Edge> into) where TRunner : GraphRunner
         {
             if (!fromReg.FlowOutputPortNames.Contains(fromPortName))
                 return false;
             if (!toReg.FlowInputPortNames.Contains(toPortName))
                 return false;
-            into.Add(new FlowEdge { fromNodeId = fromNodeId, fromFlowPortName = fromPortName, toNodeId = toNodeId, toFlowPortName = toPortName });
+            into.Add(new Edge { fromNodeId = fromNodeId, fromPortName = fromPortName, toNodeId = toNodeId, toPortName = toPortName });
             return true;
         }
 
         static bool TryRecordDataEdge<TRunner>(
             GraphPackageRegistry<TRunner>.NodeRegistration fromReg, string fromPortName, int fromNodeId,
             GraphPackageRegistry<TRunner>.NodeRegistration toReg, string toPortName, int toNodeId,
-            List<ConnectionRecord> into) where TRunner : GraphRunner
+            List<Edge> into) where TRunner : GraphRunner
         {
             if (!fromReg.DataOutputPortNames.Contains(fromPortName))
                 return false;
             if (!toReg.DataInputPortNames.Contains(toPortName))
                 return false;
-            into.Add(new ConnectionRecord { fromNodeId = fromNodeId, fromPortName = fromPortName, toNodeId = toNodeId, toPortName = toPortName });
+            into.Add(new Edge { fromNodeId = fromNodeId, fromPortName = fromPortName, toNodeId = toNodeId, toPortName = toPortName });
             return true;
         }
 

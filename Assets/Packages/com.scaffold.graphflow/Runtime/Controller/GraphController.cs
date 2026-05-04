@@ -47,6 +47,23 @@ namespace Scaffold.GraphFlow
                 to.Bind(c.toPortName, from, c.fromPortName);
             }
 
+            // Hydrate flow wiring symmetrically — resolve source/dest FlowOutPort/FlowInPort by name
+            // through the node's Ports dict, construct one FlowConnection, set the back-ref on both
+            // endpoints. After this, the executor walks via direct refs and never reads flowEdges.
+            foreach (var e in _asset.flowEdges)
+            {
+                if (!_byId.TryGetValue(e.fromNodeId, out var from) || !_byId.TryGetValue(e.toNodeId, out var to))
+                    continue;
+                if (!from.Ports.TryGetValue(e.fromPortName, out var srcPort) || srcPort is not FlowOutPort flowOut)
+                    continue;
+                if (!to.Ports.TryGetValue(e.toPortName, out var dstPort) || dstPort is not FlowInPort flowIn)
+                    continue;
+
+                var connection = new FlowConnection(flowOut, flowIn);
+                flowOut.Connection = connection;
+                flowIn.Connection = connection;
+            }
+
             // Bind runner reference onto every typed RuntimeNode<TRunner> so per-Execute dispatch is
             // a direct field read (no cast). Runner-agnostic nodes (Branch, Cancel, etc.) skip this
             // since they don't carry a runner field.

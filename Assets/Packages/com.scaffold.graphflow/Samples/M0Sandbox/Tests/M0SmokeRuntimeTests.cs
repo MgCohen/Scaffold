@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -12,8 +11,9 @@ namespace Scaffold.GraphFlow.M0.Tests
 {
     /// <summary>
     /// Hand-built (no editor) integration tests for the M0/M2/M3 runtime model — exercises hydration
-    /// (Connection.Bind through Ports dict), flow walk (executor against flowEdges), and the
-    /// payload-driven runtime emit shape. Port names are field names (post-M3 phase 2 / decision #4).
+    /// (Connection.Bind through Ports dict + FlowConnection through flow ports), flow walk
+    /// (executor follows port refs after hydration), and the payload-driven runtime emit shape.
+    /// Port names are field names (post-M3 phase 2 / decision #4).
     /// </summary>
     public sealed class M0SmokeRuntimeTests
     {
@@ -37,24 +37,20 @@ namespace Scaffold.GraphFlow.M0.Tests
 
             var asset = ScriptableObject.CreateInstance<MySmokeGraphAsset>();
             asset.nodes = new List<RuntimeNode> { onPlay, conv, log };
-            asset.entries = new List<EntryIndex>
-            {
-                new EntryIndex { entryTypeId = typeof(OnPlay).AssemblyQualifiedName!, rootNodeId = 1 },
-            };
 
-            asset.flowEdges.Add(new FlowEdge
+            asset.flowEdges.Add(new Edge
             {
-                fromNodeId = 1, fromFlowPortName = OnPlayFlowOut,
-                toNodeId = 3, toFlowPortName = LogFlowIn,
+                fromNodeId = 1, fromPortName = OnPlayFlowOut,
+                toNodeId = 3, toPortName = LogFlowIn,
             });
 
-            asset.connections.Add(new ConnectionRecord
+            asset.connections.Add(new Edge
             {
                 fromNodeId = 1, fromPortName = OnPlayCardId,
                 toNodeId = 2, toPortName = IntToStringValue,
             });
 
-            asset.connections.Add(new ConnectionRecord
+            asset.connections.Add(new Edge
             {
                 fromNodeId = 2, fromPortName = IntToStringResult,
                 toNodeId = 3, toPortName = LogMessage,
@@ -78,30 +74,26 @@ namespace Scaffold.GraphFlow.M0.Tests
 
             var asset = ScriptableObject.CreateInstance<MySmokeGraphAsset>();
             asset.nodes = new List<RuntimeNode> { onPlay, echo, log };
-            asset.entries = new List<EntryIndex>
-            {
-                new EntryIndex { entryTypeId = typeof(OnPlay).AssemblyQualifiedName!, rootNodeId = 1 },
-            };
 
-            asset.flowEdges.Add(new FlowEdge
+            asset.flowEdges.Add(new Edge
             {
-                fromNodeId = 1, fromFlowPortName = OnPlayFlowOut,
-                toNodeId = 2, toFlowPortName = EchoFlowIn,
+                fromNodeId = 1, fromPortName = OnPlayFlowOut,
+                toNodeId = 2, toPortName = EchoFlowIn,
             });
 
-            asset.flowEdges.Add(new FlowEdge
+            asset.flowEdges.Add(new Edge
             {
-                fromNodeId = 2, fromFlowPortName = EchoFlowOut,
-                toNodeId = 3, toFlowPortName = LogFlowIn,
+                fromNodeId = 2, fromPortName = EchoFlowOut,
+                toNodeId = 3, toPortName = LogFlowIn,
             });
 
-            asset.connections.Add(new ConnectionRecord
+            asset.connections.Add(new Edge
             {
                 fromNodeId = 1, fromPortName = OnPlayCardId,
                 toNodeId = 2, toPortName = EchoMagnitude,
             });
 
-            asset.connections.Add(new ConnectionRecord
+            asset.connections.Add(new Edge
             {
                 fromNodeId = 2, fromPortName = EchoSummary,
                 toNodeId = 3, toPortName = LogMessage,
@@ -116,15 +108,15 @@ namespace Scaffold.GraphFlow.M0.Tests
             Assert.AreEqual("echo:42", runner.LastLogMessage);
         }
 
-        const string BranchFlowIn        = Branch.FlowInPortName;
-        const string BranchCondition     = Branch.ConditionPortName;
-        const string BranchTrue          = Branch.TruePortName;
-        const string BranchFalse         = Branch.FalsePortName;
-        const string NotValue            = Not.ValuePortName;
-        const string NotResult           = Not.ResultPortName;
-        const string ReturnFlowIn        = Return<bool>.FlowInPortName;
-        const string ReturnValuePortName = Return<bool>.ValuePortName;
-        const string CancelFlowIn        = Cancel.FlowInPortName;
+        const string BranchFlowIn        = "FlowIn";
+        const string BranchCondition     = "Condition";
+        const string BranchTrue          = "True";
+        const string BranchFalse         = "False";
+        const string NotValue            = "Value";
+        const string NotResult           = "Result";
+        const string ReturnFlowIn        = "FlowIn";
+        const string ReturnValuePortName = "Value";
+        const string CancelFlowIn        = "FlowIn";
 
         [Test]
         public async Task M2_OnPlay_Not_Branch_Return_TruePath()
@@ -137,16 +129,12 @@ namespace Scaffold.GraphFlow.M0.Tests
 
             var asset = ScriptableObject.CreateInstance<MySmokeGraphAsset>();
             asset.nodes = new List<RuntimeNode> { onPlay, not, branch, ret, cancel };
-            asset.entries = new List<EntryIndex>
-            {
-                new EntryIndex { entryTypeId = typeof(OnPlay).AssemblyQualifiedName!, rootNodeId = 1 },
-            };
 
-            asset.flowEdges.Add(new FlowEdge { fromNodeId = 1, fromFlowPortName = OnPlayFlowOut, toNodeId = 3, toFlowPortName = BranchFlowIn });
-            asset.flowEdges.Add(new FlowEdge { fromNodeId = 3, fromFlowPortName = BranchTrue,   toNodeId = 4, toFlowPortName = ReturnFlowIn });
-            asset.flowEdges.Add(new FlowEdge { fromNodeId = 3, fromFlowPortName = BranchFalse,  toNodeId = 5, toFlowPortName = CancelFlowIn });
+            asset.flowEdges.Add(new Edge { fromNodeId = 1, fromPortName = OnPlayFlowOut, toNodeId = 3, toPortName = BranchFlowIn });
+            asset.flowEdges.Add(new Edge { fromNodeId = 3, fromPortName = BranchTrue,   toNodeId = 4, toPortName = ReturnFlowIn });
+            asset.flowEdges.Add(new Edge { fromNodeId = 3, fromPortName = BranchFalse,  toNodeId = 5, toPortName = CancelFlowIn });
 
-            asset.connections.Add(new ConnectionRecord { fromNodeId = 2, fromPortName = NotResult, toNodeId = 3, toPortName = BranchCondition });
+            asset.connections.Add(new Edge { fromNodeId = 2, fromPortName = NotResult, toNodeId = 3, toPortName = BranchCondition });
 
             var runner = new MySmokeRunner();
             var controller = new GraphController<MySmokeRunner>(asset);
@@ -170,17 +158,13 @@ namespace Scaffold.GraphFlow.M0.Tests
 
             var asset = ScriptableObject.CreateInstance<MySmokeGraphAsset>();
             asset.nodes = new List<RuntimeNode> { onPlay, notA, notB, branch, ret, cancel };
-            asset.entries = new List<EntryIndex>
-            {
-                new EntryIndex { entryTypeId = typeof(OnPlay).AssemblyQualifiedName!, rootNodeId = 1 },
-            };
 
-            asset.flowEdges.Add(new FlowEdge { fromNodeId = 1, fromFlowPortName = OnPlayFlowOut, toNodeId = 4, toFlowPortName = BranchFlowIn });
-            asset.flowEdges.Add(new FlowEdge { fromNodeId = 4, fromFlowPortName = BranchTrue,   toNodeId = 5, toFlowPortName = ReturnFlowIn });
-            asset.flowEdges.Add(new FlowEdge { fromNodeId = 4, fromFlowPortName = BranchFalse,  toNodeId = 6, toFlowPortName = CancelFlowIn });
+            asset.flowEdges.Add(new Edge { fromNodeId = 1, fromPortName = OnPlayFlowOut, toNodeId = 4, toPortName = BranchFlowIn });
+            asset.flowEdges.Add(new Edge { fromNodeId = 4, fromPortName = BranchTrue,   toNodeId = 5, toPortName = ReturnFlowIn });
+            asset.flowEdges.Add(new Edge { fromNodeId = 4, fromPortName = BranchFalse,  toNodeId = 6, toPortName = CancelFlowIn });
 
-            asset.connections.Add(new ConnectionRecord { fromNodeId = 2, fromPortName = NotResult, toNodeId = 3, toPortName = NotValue });
-            asset.connections.Add(new ConnectionRecord { fromNodeId = 3, fromPortName = NotResult, toNodeId = 4, toPortName = BranchCondition });
+            asset.connections.Add(new Edge { fromNodeId = 2, fromPortName = NotResult, toNodeId = 3, toPortName = NotValue });
+            asset.connections.Add(new Edge { fromNodeId = 3, fromPortName = NotResult, toNodeId = 4, toPortName = BranchCondition });
 
             var runner = new MySmokeRunner();
             var controller = new GraphController<MySmokeRunner>(asset);
@@ -200,13 +184,9 @@ namespace Scaffold.GraphFlow.M0.Tests
 
             var asset = ScriptableObject.CreateInstance<MySmokeGraphAsset>();
             asset.nodes = new List<RuntimeNode> { onPlay, not, ret };
-            asset.entries = new List<EntryIndex>
-            {
-                new EntryIndex { entryTypeId = typeof(OnPlay).AssemblyQualifiedName!, rootNodeId = 1 },
-            };
 
-            asset.flowEdges.Add(new FlowEdge { fromNodeId = 1, fromFlowPortName = OnPlayFlowOut, toNodeId = 3, toFlowPortName = ReturnFlowIn });
-            asset.connections.Add(new ConnectionRecord { fromNodeId = 2, fromPortName = NotResult, toNodeId = 3, toPortName = ReturnValuePortName });
+            asset.flowEdges.Add(new Edge { fromNodeId = 1, fromPortName = OnPlayFlowOut, toNodeId = 3, toPortName = ReturnFlowIn });
+            asset.connections.Add(new Edge { fromNodeId = 2, fromPortName = NotResult, toNodeId = 3, toPortName = ReturnValuePortName });
 
             var runner = new MySmokeRunner();
             var controller = new GraphController<MySmokeRunner>(asset);

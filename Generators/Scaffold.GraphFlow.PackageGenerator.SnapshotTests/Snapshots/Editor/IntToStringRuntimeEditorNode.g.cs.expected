@@ -8,13 +8,11 @@ namespace Scaffold.GraphFlow.M0.Editor.GToolkit
     [Serializable]
     public sealed class IntToStringRuntimeEditorNode : Node
     {
-        public const string ValuePortName = "Value";
-        public const string ResultPortName = "Result";
 
         protected override void OnDefinePorts(IPortDefinitionContext context)
         {
-            context.AddInputPort<int>(ValuePortName).Build();
-            context.AddOutputPort<string>(ResultPortName).Build();
+            context.AddInputPort<int>("Value").Build();
+            context.AddOutputPort<string>("Result").Build();
         }
     }
 }

@@ -6,15 +6,20 @@ using Scaffold.GraphFlow;
 
 namespace Scaffold.GraphFlow.M0.Smoke
 {
+    [Serializable]
     public sealed partial class LogDispatcherRuntime : RuntimeNode<MySmokeRunner>
     {
+        public FlowInPort FlowIn = null!;
+
         public string Message = "";
 
         public InputPort<string> InMessage = null!;
 
         public LogDispatcherRuntime()
         {
+            FlowIn = new FlowInPort(this);
             InMessage = new InputPort<string>(() => Message);
+            Ports.Add(FlowIn.Name, FlowIn);
             Ports.Add("Message", InMessage);
         }
 

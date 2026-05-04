@@ -6,15 +6,20 @@ using Scaffold.GraphFlow;
 
 namespace Scaffold.GraphFlow.M0.Smoke
 {
+    [Serializable]
     public sealed partial class OnPlayRuntime : EntryRuntimeNode<OnPlay>
     {
+        public FlowOutPort FlowOut = null!;
+
         public OutputPort<int> CardId = null!;
 
         int _cardIdValue = 0;
 
         public OnPlayRuntime()
         {
+            FlowOut = new FlowOutPort(this, nameof(FlowOut));
             CardId = new OutputPort<int>(() => _cardIdValue);
+            Ports.Add(FlowOut.Name, FlowOut);
             Ports.Add("CardId", CardId);
         }
 
@@ -24,7 +29,7 @@ namespace Scaffold.GraphFlow.M0.Smoke
             {
                 _cardIdValue = Payload.CardId;
             }
-            return flow.GoTo("FlowOut");
+            return flow.GoTo(FlowOut);
         }
     }
 }

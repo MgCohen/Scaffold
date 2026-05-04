@@ -7,9 +7,12 @@ namespace Scaffold.GraphFlow.CardSandbox
     /// <summary>Mode-2 command — applies damage and brackets it with Pre/Post DamageDealt events.</summary>
     public sealed class DealDamageCommand : Command<Unit>
     {
-        [GraphPort]
         public int Amount;
 
+        // Runtime-only — set programmatically by the host, not authored as a port wire.
+        // CardSandbox declares Convention = AllFieldsIn so [GraphPortIgnore] excludes this field
+        // from the generated editor mirror / runtime port set.
+        [GraphPortIgnore]
         public object? Target;
 
         public override async Task<Unit> Execute(ICardEffectScope scope, Flow flow)

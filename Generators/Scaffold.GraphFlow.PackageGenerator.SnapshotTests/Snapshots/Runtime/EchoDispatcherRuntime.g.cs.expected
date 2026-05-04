@@ -6,6 +6,7 @@ using Scaffold.GraphFlow;
 
 namespace Scaffold.GraphFlow.M0.Smoke
 {
+    [Serializable]
     public sealed partial class EchoDispatcherRuntime : global::Scaffold.GraphFlow.M0.Smoke.MyDispatcherBase<global::Scaffold.GraphFlow.M0.Smoke.Echo, global::Scaffold.GraphFlow.M0.Smoke.FakeResult>
     {
         public int Magnitude;
@@ -23,8 +24,6 @@ namespace Scaffold.GraphFlow.M0.Smoke
             Ports.Add("Magnitude", InMagnitude);
             Ports.Add("Summary", Summary);
         }
-
-        protected override string FlowOutPortName => "FlowOut";
 
         protected override Echo BuildPayload() => new Echo { Magnitude = InMagnitude.Read() };
 

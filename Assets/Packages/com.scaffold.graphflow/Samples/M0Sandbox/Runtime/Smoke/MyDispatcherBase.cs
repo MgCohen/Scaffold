@@ -8,15 +8,23 @@ namespace Scaffold.GraphFlow.M0.Smoke
     public abstract class MyDispatcherBase<TCmd, TResult> : RuntimeNode<MySmokeRunner>
         where TCmd : new()
     {
-        /// <summary>Flow output after dispatch — matches editor <c>FlowOut</c> / baker.</summary>
-        protected abstract string FlowOutPortName { get; }
+        public FlowInPort FlowIn = null!;
+        public FlowOutPort FlowOut = null!;
+
+        protected MyDispatcherBase()
+        {
+            FlowIn = new FlowInPort(this);
+            FlowOut = new FlowOutPort(this, nameof(FlowOut));
+            Ports.Add(FlowIn.Name, FlowIn);
+            Ports.Add(FlowOut.Name, FlowOut);
+        }
 
         public sealed override async Task Execute(MySmokeRunner runner, Flow flow)
         {
             var cmd = BuildPayload();
             var result = await DispatchAsync(runner, cmd).ConfigureAwait(false);
             WriteOutputs(result);
-            await flow.GoTo(FlowOutPortName);
+            await flow.GoTo(FlowOut);
         }
 
         protected abstract TCmd BuildPayload();

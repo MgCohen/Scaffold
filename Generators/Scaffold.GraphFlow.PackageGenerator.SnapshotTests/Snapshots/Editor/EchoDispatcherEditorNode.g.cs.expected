@@ -8,23 +8,19 @@ namespace Scaffold.GraphFlow.M0.Editor.GToolkit
     [Serializable]
     public sealed class EchoDispatcherEditorNode : Node
     {
-        public const string FlowInPortName = "FlowIn";
-        public const string FlowOutPortName = "FlowOut";
-        public const string MagnitudePortName = "Magnitude";
-        public const string SummaryPortName = "Summary";
 
         protected override void OnDefinePorts(IPortDefinitionContext context)
         {
-            context.AddInputPort(FlowInPortName)
+            context.AddInputPort("FlowIn")
                 .WithDisplayName(string.Empty)
                 .WithConnectorUI(PortConnectorUI.Arrowhead)
                 .Build();
-            context.AddOutputPort(FlowOutPortName)
+            context.AddOutputPort("FlowOut")
                 .WithDisplayName(string.Empty)
                 .WithConnectorUI(PortConnectorUI.Arrowhead)
                 .Build();
-            context.AddInputPort<int>(MagnitudePortName).Build();
-            context.AddOutputPort<string>(SummaryPortName).Build();
+            context.AddInputPort<int>("Magnitude").Build();
+            context.AddOutputPort<string>("Summary").Build();
         }
     }
 }

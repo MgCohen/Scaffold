@@ -22,14 +22,10 @@ namespace Scaffold.GraphFlow.CardSandbox.Cards
 
             var asset = ScriptableObject.CreateInstance<CardEffectGraphAsset>();
             asset.nodes = new List<RuntimeNode> { entry, mutator };
-            asset.entries = new List<EntryIndex>
+            asset.flowEdges.Add(new Edge
             {
-                new EntryIndex { entryTypeId = typeof(OnTrigger<DamageDealt>).AssemblyQualifiedName!, rootNodeId = 1 },
-            };
-            asset.flowEdges.Add(new FlowEdge
-            {
-                fromNodeId = 1, fromFlowPortName = "FlowOut",
-                toNodeId = 2, toFlowPortName = "FlowIn",
+                fromNodeId = 1, fromPortName = "FlowOut",
+                toNodeId = 2, toPortName = "FlowIn",
             });
             return asset;
         }
@@ -38,7 +34,14 @@ namespace Scaffold.GraphFlow.CardSandbox.Cards
     /// <summary>PlusOneDamage's effect node — bumps the in-flight DamageDealt event's Amount by 1.</summary>
     public sealed class PlusOneDamageMutator : RuntimeNode<CardEffectRunner>
     {
+        public FlowInPort FlowIn = null!;
         public OnTrigger<DamageDealt>? Source;
+
+        public PlusOneDamageMutator()
+        {
+            FlowIn = new FlowInPort(this);
+            Ports.Add(FlowIn.Name, FlowIn);
+        }
 
         public override Task Execute(CardEffectRunner runner, Flow flow)
         {

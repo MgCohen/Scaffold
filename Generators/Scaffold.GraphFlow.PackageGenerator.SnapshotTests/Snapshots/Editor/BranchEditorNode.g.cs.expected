@@ -8,16 +8,22 @@ namespace Scaffold.GraphFlow.M0.Editor.GToolkit
     [Serializable]
     public sealed class BranchEditorNode : Node
     {
-        public const string FlowInPortName = "FlowIn";
-        public const string ConditionPortName = "Condition";
 
         protected override void OnDefinePorts(IPortDefinitionContext context)
         {
-            context.AddInputPort(FlowInPortName)
+            context.AddInputPort("FlowIn")
                 .WithDisplayName(string.Empty)
                 .WithConnectorUI(PortConnectorUI.Arrowhead)
                 .Build();
-            context.AddInputPort<bool>(ConditionPortName).Build();
+            context.AddOutputPort("True")
+                .WithDisplayName("True")
+                .WithConnectorUI(PortConnectorUI.Arrowhead)
+                .Build();
+            context.AddOutputPort("False")
+                .WithDisplayName("False")
+                .WithConnectorUI(PortConnectorUI.Arrowhead)
+                .Build();
+            context.AddInputPort<bool>("Condition").Build();
         }
     }
 }
