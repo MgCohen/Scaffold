@@ -106,6 +106,10 @@ namespace Scaffold.GraphFlow.PackageGenerator
                 GraphPayloadNodeEmitter.Emit(spc, compilation, true, p, cancellationToken, registrations);
                 EmitGenericNodeArtifacts(spc, compilation, p, registrations, cancellationToken, editorAssembly: true);
                 GraphRegistryEmitter.EmitRegistryFile(spc, compilation, p, registrations);
+                // Per-package field-level lint (EFG002/003/004/006). Editor pass only — payloads
+                // are reachable via the runner's containing asm and reporting once per pass keeps
+                // the diagnostic deduplicated across runtime + editor compiles.
+                PayloadFieldLintPass.Run(spc, compilation, p, cancellationToken);
             }
             else
             {

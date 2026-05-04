@@ -164,6 +164,34 @@ namespace HarnessFixture.Generated
             });
             r.Register(new GraphPackageRegistry<HarnessFixture.HarnessRunner>.NodeRegistration
             {
+                EditorNodeType = typeof(HarnessFixture.Editor.GToolkit.AddEditorNode),
+                Factory = _ => new Scaffold.GraphFlow.Nodes.Add(),
+                DataInputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal)
+                {
+                    "A",
+                    "B",
+                },
+                DataOutputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal)
+                {
+                    "Result",
+                },
+            });
+            r.Register(new GraphPackageRegistry<HarnessFixture.HarnessRunner>.NodeRegistration
+            {
+                EditorNodeType = typeof(HarnessFixture.Editor.GToolkit.AndEditorNode),
+                Factory = _ => new Scaffold.GraphFlow.Nodes.And(),
+                DataInputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal)
+                {
+                    "A",
+                    "B",
+                },
+                DataOutputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal)
+                {
+                    "Result",
+                },
+            });
+            r.Register(new GraphPackageRegistry<HarnessFixture.HarnessRunner>.NodeRegistration
+            {
                 EditorNodeType = typeof(HarnessFixture.Editor.GToolkit.BranchEditorNode),
                 Factory = _ => new Scaffold.GraphFlow.Nodes.Branch(),
                 FlowInputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal)
@@ -191,11 +219,94 @@ namespace HarnessFixture.Generated
             });
             r.Register(new GraphPackageRegistry<HarnessFixture.HarnessRunner>.NodeRegistration
             {
+                EditorNodeType = typeof(HarnessFixture.Editor.GToolkit.GreaterThanEditorNode),
+                Factory = _ => new Scaffold.GraphFlow.Nodes.GreaterThan(),
+                DataInputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal)
+                {
+                    "A",
+                    "B",
+                },
+                DataOutputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal)
+                {
+                    "Result",
+                },
+            });
+            r.Register(new GraphPackageRegistry<HarnessFixture.HarnessRunner>.NodeRegistration
+            {
+                EditorNodeType = typeof(HarnessFixture.Editor.GToolkit.IntToStringEditorNode),
+                Factory = _ => new Scaffold.GraphFlow.Nodes.IntToString(),
+                DataInputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal)
+                {
+                    "Value",
+                },
+                DataOutputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal)
+                {
+                    "Result",
+                },
+            });
+            r.Register(new GraphPackageRegistry<HarnessFixture.HarnessRunner>.NodeRegistration
+            {
+                EditorNodeType = typeof(HarnessFixture.Editor.GToolkit.LessThanEditorNode),
+                Factory = _ => new Scaffold.GraphFlow.Nodes.LessThan(),
+                DataInputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal)
+                {
+                    "A",
+                    "B",
+                },
+                DataOutputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal)
+                {
+                    "Result",
+                },
+            });
+            r.Register(new GraphPackageRegistry<HarnessFixture.HarnessRunner>.NodeRegistration
+            {
+                EditorNodeType = typeof(HarnessFixture.Editor.GToolkit.MultiplyEditorNode),
+                Factory = _ => new Scaffold.GraphFlow.Nodes.Multiply(),
+                DataInputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal)
+                {
+                    "A",
+                    "B",
+                },
+                DataOutputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal)
+                {
+                    "Result",
+                },
+            });
+            r.Register(new GraphPackageRegistry<HarnessFixture.HarnessRunner>.NodeRegistration
+            {
                 EditorNodeType = typeof(HarnessFixture.Editor.GToolkit.NotEditorNode),
                 Factory = _ => new Scaffold.GraphFlow.Nodes.Not(),
                 DataInputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal)
                 {
                     "Value",
+                },
+                DataOutputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal)
+                {
+                    "Result",
+                },
+            });
+            r.Register(new GraphPackageRegistry<HarnessFixture.HarnessRunner>.NodeRegistration
+            {
+                EditorNodeType = typeof(HarnessFixture.Editor.GToolkit.OrEditorNode),
+                Factory = _ => new Scaffold.GraphFlow.Nodes.Or(),
+                DataInputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal)
+                {
+                    "A",
+                    "B",
+                },
+                DataOutputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal)
+                {
+                    "Result",
+                },
+            });
+            r.Register(new GraphPackageRegistry<HarnessFixture.HarnessRunner>.NodeRegistration
+            {
+                EditorNodeType = typeof(HarnessFixture.Editor.GToolkit.SubtractEditorNode),
+                Factory = _ => new Scaffold.GraphFlow.Nodes.Subtract(),
+                DataInputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal)
+                {
+                    "A",
+                    "B",
                 },
                 DataOutputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal)
                 {

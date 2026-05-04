@@ -36,6 +36,53 @@ namespace Scaffold.GraphFlow.PackageGenerator
             defaultSeverity: DiagnosticSeverity.Warning,
             isEnabledByDefault: true);
 
+        // EFG002 — [In] attribute on a readonly field. The In direction implies the runtime writes
+        // the value during hydration (port read), but readonly fields can only be assigned in a
+        // constructor — the generator can't populate them. Either drop the readonly modifier or
+        // remove [In].
+        internal static readonly DiagnosticDescriptor EFG002_InOnReadonly = new(
+            id: "EFG002",
+            title: "[In] on readonly field",
+            messageFormat: "Field '{0}.{1}' is marked [In] but is declared readonly — the runtime can't populate it from the input port. Remove either the readonly modifier or the [In] attribute.",
+            category: Category,
+            defaultSeverity: DiagnosticSeverity.Warning,
+            isEnabledByDefault: true);
+
+        // EFG003 — [Out] attribute on a settable field in AttributedFields mode. [Out] semantically
+        // means "exposed as a data output read by other nodes"; settable fields suggest the
+        // author intended an input. Fires only in AttributedFields mode (in other modes [Out] has
+        // different / no meaning).
+        internal static readonly DiagnosticDescriptor EFG003_OutOnSettable = new(
+            id: "EFG003",
+            title: "[Out] on settable field",
+            messageFormat: "Field '{0}.{1}' is marked [Out] but is settable — [Out] is for read-only outputs that downstream nodes consume. Mark the field readonly, or use [In] if it's meant to be an input.",
+            category: Category,
+            defaultSeverity: DiagnosticSeverity.Warning,
+            isEnabledByDefault: true);
+
+        // EFG004 — Port-classified field whose type is not Unity-serializable. Unity's
+        // [SerializeReference] (and [SerializeField]) only round-trips a known shape: primitives,
+        // string, enums, [Serializable] types, and UnityEngine.Object derivatives (plus List/array
+        // of any of those). Fields outside this set won't survive bake → reload.
+        internal static readonly DiagnosticDescriptor EFG004_FieldNotSerializable = new(
+            id: "EFG004",
+            title: "Port field type not Unity-serializable",
+            messageFormat: "Field '{0}.{1}' has type '{2}' which is not Unity-serializable (not a primitive, string, enum, [Serializable] type, or UnityEngine.Object derivative). The bake won't preserve its value across the asset round-trip.",
+            category: Category,
+            defaultSeverity: DiagnosticSeverity.Warning,
+            isEnabledByDefault: true);
+
+        // EFG006 — Field name conflicts with a generated port label. The generator emits implicit
+        // FlowIn / FlowOut ports for entry / action / dispatcher payloads; a payload field with
+        // the same name would create a duplicate port in the editor mirror.
+        internal static readonly DiagnosticDescriptor EFG006_ReservedPortName = new(
+            id: "EFG006",
+            title: "Field name conflicts with reserved port",
+            messageFormat: "Field '{0}.{1}' uses the reserved port name '{1}' (collides with the generator-emitted flow port). Rename the field — for example, prefix it with the payload concept (e.g., 'Card{1}').",
+            category: Category,
+            defaultSeverity: DiagnosticSeverity.Warning,
+            isEnabledByDefault: true);
+
         internal static Location LocationOf(ISymbol symbol)
         {
             foreach (var loc in symbol.Locations)
