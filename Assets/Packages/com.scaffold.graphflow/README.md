@@ -1,161 +1,340 @@
 # Scaffold GraphFlow
 
-## TL;DR
+Source-generator-driven graph package for Unity GraphToolkit. Authors define payloads; the generator emits editor mirrors, runtime nodes, and the registry. Multiple `[GraphPackage]`-annotated runners (effects, dialogue, AI, …) coexist in one project.
 
-- **`com.scaffold.graphflow`** ships **`Scaffold.GraphFlow.PackageAttributes`** (assembly-level `[GraphPackage]`, port conventions, port tags) and **`Scaffold.GraphFlow.PackageGenerator`** (Roslyn source generator for ExecPlan v2).
-- A **graph package** is declared with **`[assembly: GraphPackage]`** on the consumer assembly that owns payloads and the runner; the generator reads that attribute and emits editor/runtime/registry code (M1+).
-- Consumers must **reference the attributes assembly**, **reference the generator DLL** from the same asmdef (explicit analyzer reference), and **meet the requirements** in [Setup / Integration](#setup--integration).
+---
 
-## Responsibilities
+## Quickstart — create a new graph package
 
-### Owns
+### 1. Create runtime + editor asmdefs
 
-- Attribute definitions for graph package configuration and future port discovery (`GraphPackageAttribute`, `PortConvention`, `GraphPortAttribute`, etc.).
-- The Roslyn **incremental** source generator that interprets `[assembly: GraphPackage]` and emits generated C# for the owning assembly.
+`Runtime/MyEffects.asmdef`:
 
-### Does not own
+```json
+{
+  "name": "MyGame.Effects",
+  "rootNamespace": "MyGame.Effects",
+  "references": ["GUID:bab7af28f08a411c9af5ef2f6d191216"],
+  "autoReferenced": false
+}
+```
 
-- Runtime graph execution (`GraphRunner`, `GraphController`, bakers, importers) — that lives in **`Scaffold.GraphFlow.M0`** and future **`Scaffold.GraphFlow`** runtime packages.
-- Graph Toolkit editor graphs, Unity assets, or Card Framework types.
+`Editor/MyEffects.Editor.asmdef`:
 
-### Boundaries
+```json
+{
+  "name": "MyGame.Effects.Editor",
+  "rootNamespace": "MyGame.Effects",
+  "references": [
+    "MyGame.Effects",
+    "GUID:bab7af28f08a411c9af5ef2f6d191216",
+    "GUID:78d83f106afb440f84be7f3da9e310e9",
+    "Unity.GraphToolkit.Editor",
+    "Unity.GraphToolkit.Common.Editor"
+  ],
+  "includePlatforms": ["Editor"],
+  "autoReferenced": false
+}
+```
 
-- **Attributes:** pure .NET Standard 2.0, **no Unity references** (`noEngineReferences` on **`Scaffold.GraphFlow.PackageAttributes.asmdef`**, assembly name **`Scaffold.GraphFlow.PackageAttributes`**, precompiled **`Scaffold.GraphFlow.PackageAttributes.dll`** — avoids Unity treating a plugin DLL basename as colliding with asmdef naming).
-- **Generator:** runs only at compile time; emitted code targets the **consumer’s** language version (keep emissions C# 9–compatible unless the consumer raises LangVersion).
+GUIDs: `bab7af28...` = `Scaffold.GraphFlow` (runtime), `78d83f10...` = `Scaffold.GraphFlow.Editor`. The attributes asmdef (`Scaffold.GraphFlow.PackageAttributes`) is `autoReferenced: true` — no explicit reference needed.
 
-## Public API
+The runtime asmdef must reference the generator DLL as a **Roslyn analyzer**: select `Assets/Packages/com.scaffold.graphflow/Generators/Scaffold.GraphFlow.PackageGenerator.dll`, in Inspector check `Editor` only, label `RoslynAnalyzer`, and under `Validate References` add the asmdef GUID under `Run only on assemblies matching`. Editor asmdef gets the same analyzer wiring.
 
-| Symbol | Purpose | Inputs | Outputs / effects |
-| --- | --- | --- | --- |
-| `GraphPackageAttribute` | Declares one graph package per assembly (repeatable). | Assembly-level attribute; set via named properties. | Generator discovers configuration; M1+ emits types. |
-| `GraphPackageAttribute.Runner` | Package discriminator; ties payloads and codegen to `GraphRunner` subclass. | `typeof(MyRunner)` | Required. |
-| `GraphPackageAttribute.Extension` | File extension for GT source files (no leading dot). | string | Required for importer/menu wiring in full parity. |
-| `GraphPackageAttribute.AssetMenu` | Project-window create menu path. | string | Required for authoring UX in full parity. |
-| `GraphPackageAttribute.Convention` | Port discovery strategy for payloads. | `PortConvention` enum | Required when generating dispatcher/listener ports. |
-| `GraphPackageAttribute.RegistryNamespace` | Namespace for generated registry and node types. | string | Required when emitting generated types. |
-| `PortConvention` | Strategy enum (`CommandResultPair`, `AttributedFields`, etc.). | — | Enumerates built-in strategies (ExecPlan v2). |
-| `GraphPortAttribute`, `GraphHiddenAttribute`, `GraphMenuAttribute`, `InAttribute`, `OutAttribute` | Future port/authoring metadata. | Per ExecPlan v2 | Used by generator and tooling as M1+ grows. |
-
-**Failure behavior:** If `Runner` is missing or invalid, the generator skips or cannot emit meaningful output for that assembly. Empty `Extension` / `RegistryNamespace` may be accepted for bootstrap placeholders but are **not** sufficient for a shippable graph package.
-
-## Setup / Integration
-
-### Graph package requirements (checklist)
-
-Apply these to **each assembly** that declares `[assembly: GraphPackage(...)]`:
-
-1. **References**
-   - Reference assembly **`Scaffold.GraphFlow.PackageAttributes`** (add **`Scaffold.GraphFlow.PackageAttributes.asmdef`** or equivalent).
-   - Add an asmdef reference to the **Roslyn generator** plugin: the **GUID** of `Scaffold.GraphFlow.PackageGenerator.dll` in `.meta` (label: Roslyn analyzer, **Run Only On Assemblies With Reference**, explicitly referenced).  
-     *Reference: `Assets/GraphFlowSandbox/Runtime/Scaffold.GraphFlow.M0.asmdef`.*
-
-2. **Runner type**
-   - `Runner = typeof(T)` where **`T` subclasses `GraphRunner`** (from your runtime graph package, e.g. M0).
-   - `T` must be **non-abstract** and visible to the declaring assembly.
-
-3. **Assembly attribute**
-   - Exactly one logical configuration per runner per assembly is typical; **multiple** `[GraphPackage]` attributes are allowed **only** if you intentionally run multiple independent packages from the same consumer assembly (ExecPlan: multiple runners).
-
-4. **Required metadata for production codegen**
-   - **`Extension`** — stable, unique per package where possible; no leading `.`.
-   - **`AssetMenu`** — user-facing create path.
-   - **`Convention`** — matches how payloads expose ports.
-   - **`RegistryNamespace`** — namespace for generated types (e.g. `MyGame.Effects.Generated`).
-
-5. **Mode 2 (optional)**  
-   If binding existing hierarchies without marker interfaces, set **`CommandBase`**, **`EntryBase`**, and execution helpers (**`DispatcherBase`**, etc.) per ExecPlan v2. Mode 1 uses `IGraphEntry` / `IGraphAction<T>` on payloads only.
-
-6. **Language version**
-   - Emitted sources must compile with the consumer asmdef language version (Unity often defaults to **C# 9**). The generator avoids C# 10-only syntax unless you upgrade the consumer.
-
-7. **Sync built DLLs**
-   - After changing the generator or attributes projects, run **`dotnet build`** on the generator solution and copy DLLs into `Assets/Packages/com.scaffold.graphflow/` (see `Generators/Scaffold.GraphFlow/sync-unity-dlls.ps1`).
-
-### Common mistakes
-
-- Forgetting the **GUID reference** to **`Scaffold.GraphFlow.PackageGenerator.dll`** → generator never runs on that assembly.
-- Putting `[GraphPackage]` on a **type** instead of the **assembly** → not discovered.
-- **`Runner`** left default / null → invalid configuration for emission.
-
-### Fast checks
-
-- Unity **Console** free of generator-related compile errors.
-- IDE **Source Generators / Analyzers** node shows **`GraphPackageGeneratorBootstrap`** (or subsequent emitted files) for the consumer assembly.
-- Commenting out `[assembly: GraphPackage]` removes generated output → confirms the pipeline.
-
-## How to Use
-
-1. Add **`com.scaffold.graphflow`** (embedded under `Assets/Packages/`) to the project.
-2. Wire **Attributes** + **PackageGenerator** references on the consumer asmdef (see checklist).
-3. Add a small C# file with **`[assembly: GraphPackage(Runner = typeof(...), ...)]`**.
-4. Recompile; inspect generated sources under the analyzer node for your assembly.
-5. When runtime/editor packages are on M1 parity, delete hand-written duplicates and keep a single source of truth in payloads + attribute.
-
-## Examples
-
-### Minimal assembly declaration (M0 smoke)
-
-Place in `Assets/GraphFlowSandbox/Runtime/AssemblyInfo.cs` (same folder as `Scaffold.GraphFlow.M0.asmdef`):
+### 2. Subclass `GraphRunner`
 
 ```csharp
-#pragma warning disable SCA0009
+namespace MyGame.Effects
+{
+    public sealed class EffectRunner : GraphRunner
+    {
+        // Long-lived host services live here.
+        public IDamageService Damage { get; }
+        public EffectRunner(IDamageService damage) => Damage = damage;
+    }
+}
+```
+
+### 3. Hand-write the GraphAsset SO (one-liner)
+
+Required because Unity's `MonoScript` binding for `ScriptableObject` needs an on-disk `.cs` file. The generator can't emit it. The class name must be `<RunnerStem>GraphAsset` — for `EffectRunner` the stem is `Effect`.
+
+```csharp
+public sealed class EffectGraphAsset : GraphAsset<EffectRunner> { }
+```
+
+### 4. Declare the package
+
+`AssemblyInfo.cs` (in the runtime asmdef folder):
+
+```csharp
 using Scaffold.GraphFlow;
-using Scaffold.GraphFlow.M0.Smoke;
+using MyGame.Effects;
 
 [assembly: GraphPackage(
-    Runner = typeof(MySmokeRunner),
-    Extension = "gfmsmoke",
-    AssetMenu = "GraphFlow M0 Smoke Graph",
+    Runner = typeof(EffectRunner),
+    Extension = "effect",                  // file extension, no leading dot
+    AssetMenu = "MyGame/Effect Graph",     // Project-window create menu path
     Convention = PortConvention.AllFieldsIn,
-    RegistryNamespace = "Scaffold.GraphFlow.M0.Generated")]
-#pragma warning restore SCA0009
+    RegistryNamespace = "MyGame.Effects.Generated",
+    // Mode 2 (optional — see "Mode 2 commands" below):
+    DispatcherBase = typeof(EffectCommandDispatcher<,>),
+    CommandBase    = typeof(Command<>))]
 ```
 
-### Guard: missing runner
+### 5. Reimport. Done.
+
+The generator emits `EffectGraph`, `EffectGraphImporter`, `EffectGraphRegistry`, `EffectCatalog`, `OnTriggerEditorNode`, `ReturnEditorNode`, plus per-payload editor mirrors and runtime nodes. Project menu now has `Assets/Create/MyGame/Effect Graph`.
+
+---
+
+## Authoring payloads
+
+Four payload kinds. Each is a plain class — generator picks them up by interface / attribute / inheritance.
+
+### Entry — `IGraphEntry`
+
+The host's entry point. Carries data the graph reads at run start. Get a `FlowOut` plus output ports per public field.
 
 ```csharp
-// Invalid — Runner must be set to a concrete GraphRunner subclass.
-[assembly: GraphPackage(
-    Extension = "x",
-    AssetMenu = "Broken",
-    Convention = PortConvention.AllFieldsIn,
-    RegistryNamespace = "Broken.Generated")]
+public sealed class OnPlay : IGraphEntry
+{
+    public int CardId;
+    public object? Target;
+}
 ```
 
-## Best Practices
+Author drops an `OnPlay` node in the graph; runtime calls `controller.Run(new OnPlay { CardId = 7 })`.
 
-- Keep **one ExecPlan** (`Plans/GraphFlow/ExecPlan-v2.md`) as the semantic source of truth for behaviors not duplicated here.
-- Prefer **one `[GraphPackage]` per runner** per assembly unless you have a deliberate multi-runner assembly.
-- Use **stable `Extension`** values; changing them invalidates existing asset paths and importers.
-- After generator changes, always **sync DLLs** and let Unity reimport.
-- Keep generated code **C# 9 safe** until Unity / asmdef LangVersion is raised project-wide.
+### Event — `[GraphEvent]`
 
-## Anti-Patterns
+Surfaces in the package's `OnTrigger` node picker. The event class is the type; its public fields become OnTrigger output ports.
 
-- Declaring `[GraphPackage]` without referencing the **generator** on that asmdef.
-- Using **file-scoped namespaces** or other C# 10+-only patterns in emitted code while consumers compile as **C# 9**.
-- Mixing two runners’ payloads in one package declaration without reading ExecPlan multi-binding rules (future **`EFG008`**).
+```csharp
+[GraphEvent]
+public sealed class DamageDealt
+{
+    public int Amount;
+    public object? Target;
+}
+```
 
-## Testing
+The host publishes events through whatever bus it uses; the trigger graph subscribes via `OnTrigger<DamageDealt>` (one shared editor node, type chosen via picker).
 
-- **Build:** `dotnet build Generators/Scaffold.GraphFlow.PackageGenerator/Scaffold.GraphFlow.PackageGenerator.csproj -c Release`
-- **Sync:** `Generators/Scaffold.GraphFlow/sync-unity-dlls.ps1`
-- **Unity:** Compile `Scaffold.GraphFlow.M0` (or your consumer); inspect generated `GraphPackageGeneratorBootstrap` (bootstrap) and forthcoming trio/registry sources.
+### Mode-1 action — `IGraphAction<TRunner>` + `IExecutable<TRunner>`
 
-## AI Agent Context
+Self-contained action — payload IS its own executor.
 
-- Generator entry: **`GraphPackageIncrementalGenerator`** in `Generators/Scaffold.GraphFlow.PackageGenerator/`.
-- Attribute metadata name: **`Scaffold.GraphFlow.GraphPackageAttribute`** (full metadata name for Roslyn).
-- Unity wiring mirrors **`com.scaffold.autopacker`** (Roslyn analyzer `.meta` labels, explicit asmdef GUID reference).
-- Full vertical slice reference: **`Assets/GraphFlowSandbox/`**.
+```csharp
+public sealed class Log : IGraphAction<EffectRunner>, IExecutable<EffectRunner>
+{
+    public string Message = "";
+
+    public Task Execute(EffectRunner runner)
+    {
+        Debug.Log(Message);
+        return Task.CompletedTask;
+    }
+}
+```
+
+### Mode-2 command — `Command<TResult>` (uses `DispatcherBase`)
+
+For commands that participate in a host pipeline. Define the command base + dispatcher base once per package; subclass the command per concrete action.
+
+**Once per package:**
+
+```csharp
+public abstract class Command<TResult>
+{
+    public abstract Task<TResult> Execute(IEffectScope scope, Flow flow);
+}
+
+public abstract class EffectCommandDispatcher<TCmd, TResult> : RuntimeNode<EffectRunner>
+    where TCmd : Command<TResult>, new()
+{
+    public FlowInPort  FlowIn  = null!;
+    public FlowOutPort FlowOut = null!;
+
+    protected EffectCommandDispatcher()
+    {
+        FlowIn  = new FlowInPort(this);
+        FlowOut = new FlowOutPort(this, nameof(FlowOut));
+        Ports.Add(FlowIn.Name,  FlowIn);
+        Ports.Add(FlowOut.Name, FlowOut);
+    }
+
+    protected abstract TCmd BuildPayload();
+    protected abstract void WriteOutputs(TResult result);
+
+    public sealed override async Task Execute(EffectRunner runner, Flow flow)
+    {
+        var cmd    = BuildPayload();
+        var result = await cmd.Execute((IEffectScope)flow.Scope!, flow);
+        WriteOutputs(result);
+        await flow.GoTo(FlowOut);
+    }
+}
+```
+
+**Per concrete command:**
+
+```csharp
+public sealed class DealDamage : Command<Unit>, IGraphAction<EffectRunner>
+{
+    public int Amount;
+
+    [GraphPortIgnore]      // exclude from generated ports — set by host code
+    public object? Target;
+
+    public override Task<Unit> Execute(IEffectScope scope, Flow flow)
+    {
+        scope.Damage.Apply(Target, Amount);
+        return Task.FromResult(Unit.Default);
+    }
+}
+```
+
+---
+
+## Built-in nodes
+
+Drop directly from the Add Node menu. Categories:
+
+| Category | Nodes |
+|---|---|
+| Flow | `Branch` (bool → True/False), `Cancel`, `Return<T>` (typed value), `Return` (no value) |
+| Logic | `Not`, `And`, `Or` |
+| Compare | `GreaterThan` (int), `LessThan` (int) |
+| Math | `Add`, `Subtract`, `Multiply` (int) |
+| Convert | `IntToString` |
+| Trigger | `OnTrigger` (event-type picker — surfaces every `[GraphEvent]` in your package) |
+
+Plus: `Return` (no value picker → no Value port → terminate flow with `Outcome.Returned` and null result).
+
+---
+
+## Runtime — running a graph
+
+```csharp
+// Load the asset (Unity asset DB, Addressables, Resources — your call).
+var asset = AssetDatabase.LoadAssetAtPath<EffectGraphAsset>(path);
+
+var runner     = new EffectRunner(damageService);
+var controller = new GraphController<EffectRunner>(asset);
+controller.Initialize(runner, scopeFactory: () => new EffectScope());
+
+// Run — payload type maps to entry node in the graph.
+Flow flow = await controller.Run(new OnPlay { CardId = 7 });
+
+// Result interpretation.
+switch (flow.Outcome)
+{
+    case FlowOutcome.Returned: var result = flow.ReadResult<int>(); break;
+    case FlowOutcome.Cancelled: /* explicit Cancel node fired */    break;
+    case FlowOutcome.Stopped:   /* walked off the end */            break;
+}
+```
+
+For trigger graphs (entry = `OnTrigger<TEvent>`):
+
+```csharp
+// At init time, walk controller.EntryNodes and subscribe the right OnTrigger<T> instances.
+foreach (var entry in controller.EntryNodes)
+{
+    if (entry is OnTrigger<DamageDealt> trig)
+        bus.Subscribe<DamageDealt>(async e => {
+            var payload = new OnTrigger<DamageDealt> { Event = e, Timing = trig.Timing };
+            await trig.Run(payload);
+        }, trig.Timing);
+}
+```
+
+---
+
+## Diagnostics
+
+| Code | Severity | Trigger |
+|---|---|---|
+| EFG002 | Warning | `[In]` on a `readonly` field |
+| EFG003 | Warning | `[Out]` on a settable field (in `AttributedFields` mode) |
+| EFG004 | Warning | Port-classified field type isn't Unity-serializable |
+| EFG006 | Warning | Field name in `{FlowIn, FlowOut}` (collides with reserved port) |
+| EFG007 | Warning | Action payload has no execution path (no `IExecutable`, no `DispatcherBase`) |
+| EFG008 | Warning | Payload satisfies bindings for two `[GraphPackage]`s |
+| EFG009 | Warning | Type derived from `RuntimeNode` / `Node` is missing `[Serializable]` |
+
+In-graph (validator runs on `OnGraphChanged`):
+
+| Code | Severity | Trigger |
+|---|---|---|
+| EFG-V01 | Error | Unsupported node type (no registry entry) |
+| EFG-V02 | Warning | Duplicate entry node of same type |
+| EFG-V03 | Error | Edge pairs incompatible port kinds (flow↔data or unknown) |
+| EFG-V04 | Warning | Flow output unwired and node isn't a terminator |
+
+---
+
+## `[GraphPackage]` reference
+
+| Property | Required | Purpose |
+|---|---|---|
+| `Runner` | yes | `typeof(YourRunner)` — package discriminator |
+| `Extension` | yes | Asset file extension (no leading dot) |
+| `AssetMenu` | yes | Project menu path |
+| `Convention` | yes | `AllFieldsIn` / `AttributedFields` / `CommandResultPair` / `MutableInReadOnlyOut` |
+| `RegistryNamespace` | yes | Namespace for emitted registry / catalog |
+| `CommandBase` | Mode-2 | Open generic command base, e.g. `typeof(Command<>)` |
+| `DispatcherBase` | Mode-2 | Open generic dispatcher base, e.g. `typeof(EffectCommandDispatcher<,>)` |
+
+---
+
+## Field tags
+
+| Attribute | Purpose |
+|---|---|
+| `[GraphPort]` | Pin a port id across renames (advanced) |
+| `[GraphPortIgnore]` | Exclude a public field from port emission (host-set runtime data) |
+| `[GraphEvent]` | Mark an event class for `OnTrigger` discovery |
+| `[GraphReturnType]` | Add a custom type to the `Return` picker (primitives are baked-in) |
+| `[GraphNode]` | Mark a `RuntimeNode` derivative as a graph-author-visible node (`Category = ...`) |
+| `[GraphHidden]` | Suppress emission for a payload that would otherwise qualify |
+| `[In]` / `[Out]` | Direction tags in `AttributedFields` mode |
+
+---
+
+## Pitfalls
+
+- **Generator DLL not labeled as Roslyn analyzer** → no emission. Check the DLL's `.meta` flags `Editor`, `RoslynAnalyzer`, and the asmdef GUID under `Run Only On Assemblies With Reference`.
+- **`[GraphPackage]` on a type instead of the assembly** → not discovered. Must be assembly-level.
+- **`<RunnerStem>GraphAsset.cs` missing** → graph asset can't be saved. Hand-write the one-liner SO subclass; name must match the runner stem.
+- **`OnTrigger` picker shows `None` for an event** → bake throws "no EventType selected". Pick a real event before saving.
+- **EFG009 fires on a runtime node** → add `[Serializable]` to the class. Attribute does not inherit; every link in the SerializeReference chain needs it.
+- **Field literals don't survive bake** → field type isn't Unity-serializable. See EFG004.
+
+---
+
+## Working sample
+
+`Samples/CardSandbox/` — full Mode-2 setup with events, commands, dispatcher, scope, runner. Importable through Package Manager → Samples.
+
+`Samples~/M0Sandbox/` — minimal Mode-1 + Mode-2 vertical slice. Tilde-suffixed (Unity skips by default); import via Package Manager to use.
+
+---
+
+## After changing the generator
+
+```bash
+dotnet build Generators/Scaffold.GraphFlow.PackageGenerator/Scaffold.GraphFlow.PackageGenerator.csproj -c Release
+cp Generators/Scaffold.GraphFlow.PackageGenerator/bin/Release/netstandard2.0/Scaffold.GraphFlow.PackageGenerator.dll \
+   Assets/Packages/com.scaffold.graphflow/Generators/Scaffold.GraphFlow.PackageGenerator.dll
+```
+
+Then in Unity: right-click the synced DLL → Reimport.
+
+---
 
 ## Related
 
-- [ExecPlan v2](../../../Plans/GraphFlow/ExecPlan-v2.md)
-- [GraphFlow M0 smoke](../../GraphFlowSandbox/)
-
-## Changelog
-
-### 0.1.0
-
-- Initial embedded package: attributes DLL, PackageGenerator DLL, README with graph package requirements.
+- [ExecPlan v2](../../../Plans/GraphFlow/ExecPlan-v2.md) — design rationale, milestones
+- [Tests/](Tests/) — hand-built integration tests against synthetic fixtures
