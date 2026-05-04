@@ -14,7 +14,6 @@ namespace Scaffold.Ads.Levelplay
 
         public void Install(IContainerBuilder builder)
         {
-            builder.RegisterInstance(adConfiguration).As<AdConfigurationSO>().AsSelf();
             new AdsInstaller(adConfiguration).Install(builder);
         }
     }
