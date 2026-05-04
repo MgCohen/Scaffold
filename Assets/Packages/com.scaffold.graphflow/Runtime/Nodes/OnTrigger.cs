@@ -5,11 +5,12 @@ using System.Threading.Tasks;
 namespace Scaffold.GraphFlow
 {
     /// <summary>
-    /// Built-in trigger entry primitive (post-M3 decision #3). Single editor mirror
-    /// (<c>OnTriggerEditorNode</c>) drives all event types — the picked event class +
-    /// <see cref="Timing"/> are configured via dynamic options; the closed
-    /// <c>OnTrigger&lt;TEvent&gt;</c> instance is constructed reflectively at hydration based on
-    /// the picked type.
+    /// Built-in trigger entry primitive (post-M3 decision #3). One per-package
+    /// <c>OnTriggerEditorNode</c> shim drives all event types via a generator-emitted
+    /// <c>EventType</c> picker; the closed <c>OnTrigger&lt;TEvent&gt;</c> instance is constructed
+    /// at bake time through the package catalog's parameterless factory (<c>() => new OnTrigger&lt;TEvent&gt;()</c>),
+    /// then the registry's <c>RegisterOnTrigger</c> factory writes the picked <see cref="Timing"/>
+    /// via the <see cref="IOnTrigger"/> interface — no reflection at any point.
     ///
     /// <para>The runtime node IS its own payload — hosts pattern-match
     /// <c>controller.EntryNodes</c> for <c>OnTrigger&lt;DamageDealt&gt;</c>, read the configured
