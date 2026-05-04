@@ -78,6 +78,17 @@ namespace Scaffold.GraphFlow
             return Task.CompletedTask;
         }
 
+        /// <summary>Stop the walk and mark the run as <see cref="FlowOutcome.Returned"/> with no
+        /// value. Equivalent to a bare <c>return;</c> in a void method — the caller knows the run
+        /// ended deliberately, but <see cref="ReadResult{T}"/> will yield <c>default(T)</c>.</summary>
+        public Task Return()
+        {
+            Outcome = FlowOutcome.Returned;
+            Result = null;
+            _nextPort = null;
+            return Task.CompletedTask;
+        }
+
         /// <summary>Stop the walk and mark the run as cancelled.</summary>
         public Task Cancel()
         {

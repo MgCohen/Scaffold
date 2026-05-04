@@ -24,6 +24,18 @@ namespace Scaffold.GraphFlow.PackageGenerator
             defaultSeverity: DiagnosticSeverity.Warning,
             isEnabledByDefault: true);
 
+        // EFG009 — Type derived from RuntimeNode / GraphToolkit's Node missing [Serializable].
+        // Every link in the inheritance chain of a [SerializeReference] target needs
+        // [System.Serializable] explicitly (the attribute is not inherited). Unity logs a runtime
+        // warning per missing link; this diagnostic catches them at edit time so they don't slip in.
+        internal static readonly DiagnosticDescriptor EFG009_MissingSerializable = new(
+            id: "EFG009",
+            title: "Polymorphic graph type missing [Serializable]",
+            messageFormat: "Type '{0}' derives from {1} and is serialized by Unity's [SerializeReference], but is missing the [Serializable] attribute. Add [System.Serializable] (or [MakeSerializable]) on the class declaration to suppress Unity's runtime warning.",
+            category: Category,
+            defaultSeverity: DiagnosticSeverity.Warning,
+            isEnabledByDefault: true);
+
         internal static Location LocationOf(ISymbol symbol)
         {
             foreach (var loc in symbol.Locations)

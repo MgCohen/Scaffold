@@ -1,33 +1,38 @@
 #nullable enable
 using System;
+using System.Collections.Generic;
 using Unity.GraphToolkit.Editor;
+
+// Concrete subclasses are emitted per package and carry [Serializable] themselves; this base
+// also gets the attribute because Unity's [SerializeReference] walks the inheritance chain
+// and warns on any unmarked link.
 
 namespace Scaffold.GraphFlow.Editor.Nodes
 {
     /// <summary>
-    /// Built-in trigger entry editor mirror (post-M3 decision #3 — single non-generic node serves
-    /// every event type). Uses GraphToolkit's <c>OnDefineOptions</c> + <c>OnDefinePorts</c> to
-    /// dynamically expose:
+    /// Generic base for the per-package OnTrigger editor mirror. The concrete subclass is
+    /// emitted by the package generator and closes <typeparamref name="TEnum"/> over the
+    /// per-package <c>&lt;Stem&gt;Catalog.EventType</c> enum, then forwards
+    /// <see cref="GetPorts"/> to <c>&lt;Stem&gt;Catalog.Resolve(choice).Ports</c>.
+    ///
+    /// <para>Why generic + per-package shim instead of one shared class:</para>
     /// <list type="bullet">
-    /// <item>An <c>EventType</c> dropdown — string of the picked event type's assembly-qualified
-    /// name. Sourced from <see cref="GraphEventTypeRegistry"/>'s union of per-package
-    /// <c>EventTypes</c> tables.</item>
-    /// <item>A <see cref="Timing"/> dropdown for Before / After.</item>
+    /// <item>GraphToolkit's <c>AddOption&lt;TEnum&gt;</c> needs a closed enum at compile time —
+    /// the dropdown materializes from the enum values in metadata. Per-package enums give per-package
+    /// dropdowns automatically.</item>
+    /// <item><c>[UseWithGraph(typeof(&lt;Stem&gt;Graph))]</c> on the per-package shim scopes
+    /// menu visibility to the right graph type without needing a shared <c>UseWithGraph</c> that
+    /// would expose the node to every graph in the project.</item>
+    /// <item>The base does all the work — the shim is a 5-line specialization, generator-emitted.</item>
     /// </list>
-    /// <para>OnDefinePorts re-runs whenever an option changes; the per-event public-field set is
-    /// projected as one typed output port per field on the picked event class.</para>
-    /// <para>The runtime <c>OnTrigger&lt;TEvent&gt;</c> closed over the picked TEvent is constructed
-    /// reflectively at hydration time (one-time, not hot path) by the Factory delegate the
-    /// generated registry registers under this editor type.</para>
-    /// <para>Editor-option choice rationale: tier-2 (string AQN) per the brief's fallback ladder.
-    /// GraphToolkit's <c>IOptionDefinitionContext.AddOption&lt;T&gt;</c> requires <c>T</c> to be a
-    /// type GraphToolkit can serialize; for portability across assets and project versions, the
-    /// assembly-qualified type name is the safest persistent representation. UI is a plain text
-    /// field — proper picker UX would require either Scaffold.Types' <c>TypeReference</c> with
-    /// custom GT serialization support or a per-package generated enum.</para>
+    ///
+    /// <para>Ports come from a <see cref="PortMeta"/> list provided by the shim, which reads from
+    /// the per-package generator-emitted catalog. No reflection on <see cref="Type.GetFields"/>,
+    /// no <c>GraphEventTypeRegistry</c> indirection — the catalog is the source of truth and the
+    /// shim is its only consumer here.</para>
     /// </summary>
     [Serializable]
-    public sealed class OnTriggerEditorNode : Node
+    public abstract class OnTriggerEditorNode<TEnum> : Node where TEnum : struct, Enum
     {
         public const string FlowOutPortName     = "FlowOut";
         public const string EventTypeOptionName = "EventType";
@@ -35,10 +40,9 @@ namespace Scaffold.GraphFlow.Editor.Nodes
 
         protected override void OnDefineOptions(IOptionDefinitionContext context)
         {
-            context.AddOption<string>(EventTypeOptionName)
-                .WithDisplayName("Event Type (AQN)")
-                .WithTooltip("Assembly-qualified name of the [GraphEvent]-tagged class to trigger on.")
-                .WithDefaultValue(string.Empty);
+            context.AddOption<TEnum>(EventTypeOptionName)
+                .WithDisplayName("Event Type")
+                .WithTooltip("Pick the event class this trigger subscribes to.");
 
             context.AddOption<Timing>(TimingOptionName)
                 .WithDisplayName("Timing")
@@ -53,32 +57,48 @@ namespace Scaffold.GraphFlow.Editor.Nodes
                 .WithConnectorUI(PortConnectorUI.Arrowhead)
                 .Build();
 
-            var typeOpt = GetNodeOptionByName(EventTypeOptionName);
-            if (typeOpt == null) return;
-            if (!typeOpt.TryGetValue<string>(out var aqn) || string.IsNullOrEmpty(aqn)) return;
+            var opt = GetNodeOptionByName(EventTypeOptionName);
+            if (opt == null) return;
+            if (!opt.TryGetValue<TEnum>(out var picked)) return;
 
-            var resolved = Type.GetType(aqn, throwOnError: false);
-            if (resolved == null) return;
+            var ports = GetPorts(picked);
+            if (ports == null) return;
 
-            var meta = GraphEventTypeRegistry.Get(resolved);
-            if (meta == null) return;
-
-            foreach (var f in meta.PortFields)
+            foreach (var p in ports)
             {
-                // Best-effort: emit a typed port for primitives we know how to map; fall back to
-                // an untyped reference for everything else (object?). Matches the per-event
-                // generator's port-emit behavior (TypeFmt.Simple) so the registry stays honest.
-                if (f.Type == typeof(int))
-                    context.AddOutputPort<int>(f.Name).Build();
-                else if (f.Type == typeof(string))
-                    context.AddOutputPort<string>(f.Name).Build();
-                else if (f.Type == typeof(bool))
-                    context.AddOutputPort<bool>(f.Name).Build();
-                else if (f.Type == typeof(float))
-                    context.AddOutputPort<float>(f.Name).Build();
+                if (p.Direction == PortDirection.Output)
+                {
+                    AddOutputByType(context, p.Name, p.Type);
+                }
                 else
-                    context.AddOutputPort(f.Name).Build();
+                {
+                    AddInputByType(context, p.Name, p.Type);
+                }
             }
+        }
+
+        /// <summary>
+        /// Provides the port shape for the picked event-type choice. Per-package shim implements
+        /// this by reading from the catalog: <c>&lt;Stem&gt;Catalog.Resolve(picked)?.Ports</c>.
+        /// </summary>
+        protected abstract IReadOnlyList<PortMeta>? GetPorts(TEnum picked);
+
+        static void AddOutputByType(IPortDefinitionContext context, string name, Type t)
+        {
+            if (t == typeof(int))         context.AddOutputPort<int>(name).Build();
+            else if (t == typeof(string)) context.AddOutputPort<string>(name).Build();
+            else if (t == typeof(bool))   context.AddOutputPort<bool>(name).Build();
+            else if (t == typeof(float))  context.AddOutputPort<float>(name).Build();
+            else                          context.AddOutputPort(name).Build();
+        }
+
+        static void AddInputByType(IPortDefinitionContext context, string name, Type t)
+        {
+            if (t == typeof(int))         context.AddInputPort<int>(name).Build();
+            else if (t == typeof(string)) context.AddInputPort<string>(name).Build();
+            else if (t == typeof(bool))   context.AddInputPort<bool>(name).Build();
+            else if (t == typeof(float))  context.AddInputPort<float>(name).Build();
+            else                          context.AddInputPort(name).Build();
         }
     }
 }

@@ -37,8 +37,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             SourceProductionContext spc,
             Compilation compilation,
             GraphPackageModel package,
-            IReadOnlyList<string> registrationBlocks,
-            IReadOnlyList<EventTypeDescriptor>? eventTypes = null)
+            IReadOnlyList<string> registrationBlocks)
         {
             var ns = ResolveRegistryNamespace(package, compilation);
             var typeName = RegistryTypeName(package);
@@ -54,28 +53,20 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine("{");
             sb.AppendLine($"    public static partial class {typeName}");
             sb.AppendLine("    {");
-            AppendEventTypesTable(sb, eventTypes);
             sb.AppendLine($"        public static readonly {EditorRegistryTypeName}<{runnerFq}> Instance = Build();");
             sb.AppendLine();
             sb.AppendLine($"        static {EditorRegistryTypeName}<{runnerFq}> Build()");
             sb.AppendLine("        {");
             sb.AppendLine($"            var r = new {EditorRegistryTypeName}<{runnerFq}>();");
-            sb.AppendLine("            RegisterEventTypes();");
             sb.AppendLine("            RegisterGenerated(r);");
             sb.AppendLine("            RegisterOnTrigger(r);");
+            sb.AppendLine("            RegisterReturn(r);");
             sb.AppendLine("            RegisterAdditional(r);");
             sb.AppendLine("            return r;");
             sb.AppendLine("        }");
             sb.AppendLine();
-            sb.AppendLine("        static void RegisterEventTypes()");
-            sb.AppendLine("        {");
-            sb.AppendLine("            foreach (var meta in EventTypes)");
-            sb.AppendLine("            {");
-            sb.AppendLine("                GraphEventTypeRegistry.Register(meta);");
-            sb.AppendLine("            }");
-            sb.AppendLine("        }");
-            sb.AppendLine();
-            AppendOnTriggerRegistration(sb, runnerFq);
+            AppendOnTriggerRegistration(sb, package, compilation, runnerFq);
+            AppendReturnRegistration(sb, package, compilation, runnerFq);
             sb.AppendLine($"        static partial void RegisterAdditional({EditorRegistryTypeName}<{runnerFq}> r);");
             sb.AppendLine();
             sb.AppendLine($"        static void RegisterGenerated({EditorRegistryTypeName}<{runnerFq}> r)");
@@ -92,80 +83,89 @@ namespace Scaffold.GraphFlow.PackageGenerator
             spc.AddSource($"{typeName}.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
         }
 
-        static void AppendEventTypesTable(StringBuilder sb, IReadOnlyList<EventTypeDescriptor>? eventTypes)
+        static void AppendOnTriggerRegistration(StringBuilder sb, GraphPackageModel package, Compilation compilation, string runnerFq)
         {
-            sb.AppendLine("        public static readonly System.Collections.Generic.IReadOnlyList<EventTypeMeta> EventTypes = new EventTypeMeta[]");
-            sb.AppendLine("        {");
-            if (eventTypes != null)
-            {
-                foreach (var et in eventTypes)
-                {
-                    sb.AppendLine($"            new EventTypeMeta(typeof({et.TypeFq}), new EventPortMeta[]");
-                    sb.AppendLine("            {");
-                    foreach (var f in et.Fields)
-                    {
-                        sb.AppendLine($"                new EventPortMeta(\"{f.Name}\", typeof({f.TypeFq})),");
-                    }
-                    sb.AppendLine("            }),");
-                }
-            }
-            sb.AppendLine("        };");
-            sb.AppendLine();
-        }
+            // The shim is emitted into the same namespace as the registry partial; both live in the
+            // package's editor asm. The catalog is in the runtime asm under
+            // <see cref="GraphCatalogEmitter.ResolveCatalogNamespace"/>; the registry pulls from it
+            // via a fully-qualified reference so the using list stays minimal.
+            var shimNs    = ResolveRegistryNamespace(package, compilation);
+            var shimFq    = shimNs + ".OnTriggerEditorNode";
+            var catalogNs = GraphCatalogEmitter.ResolveCatalogNamespace(package, compilation);
+            var catalogFq = catalogNs + "." + package.GraphStem + GraphCatalogEmitter.CatalogClassSuffix;
 
-        static void AppendOnTriggerRegistration(StringBuilder sb, string runnerFq)
-        {
             sb.AppendLine($"        static void RegisterOnTrigger({EditorRegistryTypeName}<{runnerFq}> r)");
             sb.AppendLine("        {");
             sb.AppendLine($"            r.Register(new {EditorRegistryTypeName}<{runnerFq}>.NodeRegistration");
             sb.AppendLine("            {");
-            sb.AppendLine("                EditorNodeType = typeof(Scaffold.GraphFlow.Editor.Nodes.OnTriggerEditorNode),");
+            sb.AppendLine($"                EditorNodeType = typeof({shimFq}),");
             sb.AppendLine("                Factory = node =>");
             sb.AppendLine("                {");
-            sb.AppendLine("                    var typed = (Scaffold.GraphFlow.Editor.Nodes.OnTriggerEditorNode)node;");
-            sb.AppendLine("                    var typeOpt = typed.GetNodeOptionByName(Scaffold.GraphFlow.Editor.Nodes.OnTriggerEditorNode.EventTypeOptionName);");
-            sb.AppendLine("                    System.Type? eventType = null;");
-            sb.AppendLine("                    if (typeOpt != null && typeOpt.TryGetValue<string>(out var aqn) && !string.IsNullOrEmpty(aqn))");
+            sb.AppendLine($"                    var typed = ({shimFq})node;");
+            sb.AppendLine($"                    var eventOpt = typed.GetNodeOptionByName(global::Scaffold.GraphFlow.Editor.Nodes.OnTriggerEditorNode<{catalogFq}.EventType>.EventTypeOptionName);");
+            sb.AppendLine($"                    if (eventOpt == null || !eventOpt.TryGetValue<{catalogFq}.EventType>(out var picked) || picked == {catalogFq}.EventType.None)");
             sb.AppendLine("                    {");
-            sb.AppendLine("                        eventType = System.Type.GetType(aqn, throwOnError: false);");
+            sb.AppendLine("                        throw new System.InvalidOperationException(\"OnTrigger node has no EventType selected.\");");
             sb.AppendLine("                    }");
-            sb.AppendLine("                    if (eventType == null)");
+            sb.AppendLine($"                    var entry = {catalogFq}.Resolve(picked);");
+            sb.AppendLine("                    if (entry?.CreateRuntime == null)");
             sb.AppendLine("                    {");
-            sb.AppendLine("                        throw new System.InvalidOperationException(\"OnTrigger node has no EventType option set or the type cannot be resolved.\");");
+            sb.AppendLine("                        throw new System.InvalidOperationException($\"OnTrigger catalog entry for '{picked}' is missing a runtime factory.\");");
             sb.AppendLine("                    }");
-            sb.AppendLine("                    var closed = typeof(Scaffold.GraphFlow.OnTrigger<>).MakeGenericType(eventType);");
-            sb.AppendLine("                    var inst = (Scaffold.GraphFlow.RuntimeNode)System.Activator.CreateInstance(closed)!;");
-            sb.AppendLine("                    var timingOpt = typed.GetNodeOptionByName(Scaffold.GraphFlow.Editor.Nodes.OnTriggerEditorNode.TimingOptionName);");
-            sb.AppendLine("                    if (timingOpt != null && timingOpt.TryGetValue<Scaffold.GraphFlow.Timing>(out var t))");
+            sb.AppendLine("                    var rt = entry.CreateRuntime();");
+            sb.AppendLine($"                    var timingOpt = typed.GetNodeOptionByName(global::Scaffold.GraphFlow.Editor.Nodes.OnTriggerEditorNode<{catalogFq}.EventType>.TimingOptionName);");
+            sb.AppendLine("                    if (timingOpt != null && timingOpt.TryGetValue<global::Scaffold.GraphFlow.Timing>(out var pickedTiming) && rt is global::Scaffold.GraphFlow.IOnTrigger trig)");
             sb.AppendLine("                    {");
-            sb.AppendLine("                        closed.GetField(\"Timing\")!.SetValue(inst, t);");
+            sb.AppendLine("                        trig.Timing = pickedTiming;");
             sb.AppendLine("                    }");
-            sb.AppendLine("                    return inst;");
+            sb.AppendLine("                    return rt;");
             sb.AppendLine("                },");
-            sb.AppendLine("                FlowOutputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal) { \"FlowOut\" },");
+            sb.AppendLine($"                FlowOutputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal) {{ global::Scaffold.GraphFlow.Editor.Nodes.OnTriggerEditorNode<{catalogFq}.EventType>.FlowOutPortName }},");
+            // OnTrigger's per-event-field ports are dynamic (added at edit time once the user picks
+            // an EventType). The static registration enumerates the *union* of every event's field
+            // names so the EFG-V03 edge-pairing validator can recognize them. The editor only
+            // surfaces names that actually exist on the picked event, so the union is safe.
+            sb.AppendLine($"                DataOutputPortNames = new System.Collections.Generic.HashSet<string>({catalogFq}.AllEventDataOutputPortNames, System.StringComparer.Ordinal),");
+            sb.AppendLine($"                DataInputPortNames  = new System.Collections.Generic.HashSet<string>({catalogFq}.AllEventDataInputPortNames,  System.StringComparer.Ordinal),");
             sb.AppendLine("            });");
             sb.AppendLine("        }");
             sb.AppendLine();
         }
 
-        /// <summary>Compile-time descriptor for one [GraphEvent]-tagged class — feeds the per-package
-        /// EventTypes table emitted into the registry file.</summary>
-        internal sealed class EventTypeDescriptor
+        static void AppendReturnRegistration(StringBuilder sb, GraphPackageModel package, Compilation compilation, string runnerFq)
         {
-            public string TypeFq { get; }
-            public IReadOnlyList<EventFieldDescriptor> Fields { get; }
-            public EventTypeDescriptor(string typeFq, IReadOnlyList<EventFieldDescriptor> fields)
-            {
-                TypeFq = typeFq;
-                Fields = fields;
-            }
-        }
+            var shimNs    = ResolveRegistryNamespace(package, compilation);
+            var shimFq    = shimNs + ".ReturnEditorNode";
+            var catalogNs = GraphCatalogEmitter.ResolveCatalogNamespace(package, compilation);
+            var catalogFq = catalogNs + "." + package.GraphStem + GraphCatalogEmitter.CatalogClassSuffix;
+            var baseFq    = $"global::Scaffold.GraphFlow.Editor.Nodes.ReturnEditorNode<{catalogFq}.ReturnType>";
 
-        internal sealed class EventFieldDescriptor
-        {
-            public string Name { get; }
-            public string TypeFq { get; }
-            public EventFieldDescriptor(string name, string typeFq) { Name = name; TypeFq = typeFq; }
+            sb.AppendLine($"        static void RegisterReturn({EditorRegistryTypeName}<{runnerFq}> r)");
+            sb.AppendLine("        {");
+            sb.AppendLine($"            r.Register(new {EditorRegistryTypeName}<{runnerFq}>.NodeRegistration");
+            sb.AppendLine("            {");
+            sb.AppendLine($"                EditorNodeType = typeof({shimFq}),");
+            sb.AppendLine("                Factory = node =>");
+            sb.AppendLine("                {");
+            sb.AppendLine($"                    var typed = ({shimFq})node;");
+            sb.AppendLine($"                    var opt = typed.GetNodeOptionByName({baseFq}.ResultTypeOptionName);");
+            sb.AppendLine($"                    if (opt == null || !opt.TryGetValue<{catalogFq}.ReturnType>(out var picked) || picked == {catalogFq}.ReturnType.None)");
+            sb.AppendLine("                    {");
+            sb.AppendLine("                        // No ResultType picked — fall back to the void Return (equivalent to `return;`).");
+            sb.AppendLine("                        return new global::Scaffold.GraphFlow.Nodes.Return();");
+            sb.AppendLine("                    }");
+            sb.AppendLine($"                    var entry = {catalogFq}.Resolve(picked);");
+            sb.AppendLine("                    if (entry?.CreateRuntime == null)");
+            sb.AppendLine("                    {");
+            sb.AppendLine("                        throw new System.InvalidOperationException($\"Return catalog entry for '{picked}' is missing a runtime factory.\");");
+            sb.AppendLine("                    }");
+            sb.AppendLine("                    return entry.CreateRuntime();");
+            sb.AppendLine("                },");
+            sb.AppendLine($"                FlowInputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal) {{ {baseFq}.FlowInPortName }},");
+            sb.AppendLine($"                DataInputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal) {{ {baseFq}.ValuePortName }},");
+            sb.AppendLine("            });");
+            sb.AppendLine("        }");
+            sb.AppendLine();
         }
 
         internal static string BuildEntryRegistrationBlock(

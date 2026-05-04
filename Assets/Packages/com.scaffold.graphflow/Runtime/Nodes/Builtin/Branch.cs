@@ -1,7 +1,9 @@
+using System;
 using System.Threading.Tasks;
 
 namespace Scaffold.GraphFlow.Nodes
 {
+    [Serializable]
     [GraphNode(Category = "Flow")]
     public sealed partial class Branch : RuntimeNode
     {

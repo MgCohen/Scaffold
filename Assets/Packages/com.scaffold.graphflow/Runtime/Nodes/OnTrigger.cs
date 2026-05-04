@@ -1,4 +1,5 @@
 #nullable enable
+using System;
 using System.Threading.Tasks;
 
 namespace Scaffold.GraphFlow
@@ -17,7 +18,8 @@ namespace Scaffold.GraphFlow
     /// and passes it to <see cref="EntryRuntimeNode{TEntry}.Run"/>; that becomes the per-run
     /// <c>Payload</c> the flow body reads (via <c>Payload.Event</c>).</para>
     /// </summary>
-    public sealed class OnTrigger<TEvent> : EntryRuntimeNode<OnTrigger<TEvent>>
+    [Serializable]
+    public sealed class OnTrigger<TEvent> : EntryRuntimeNode<OnTrigger<TEvent>>, IOnTrigger
         where TEvent : class
     {
         /// <summary>The event reference. Set by the host on the per-event payload passed to
@@ -26,8 +28,10 @@ namespace Scaffold.GraphFlow
         public TEvent? Event;
 
         /// <summary>Trigger phase. On the asset-instance node this is the edit-time choice the host
-        /// reads at wiring; on the per-event payload it's whatever phase the host is delivering.</summary>
-        public Timing Timing;
+        /// reads at wiring; on the per-event payload it's whatever phase the host is delivering.
+        /// Exposed through <see cref="IOnTrigger"/> so cross-package callers can apply the
+        /// edit-time choice without knowing <typeparamref name="TEvent"/>.</summary>
+        public Timing Timing { get; set; }
 
         /// <summary>Single flow exit — drives the body of the trigger graph.</summary>
         public FlowOutPort FlowOut = null!;

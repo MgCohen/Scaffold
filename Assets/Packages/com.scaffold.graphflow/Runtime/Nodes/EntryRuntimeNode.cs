@@ -8,6 +8,7 @@ namespace Scaffold.GraphFlow
     /// Non-generic base for entry runtime nodes — used as the controller's dispatch surface for
     /// payload-typed bridges, without exposing TPayload to the controller's loop.
     /// </summary>
+    [Serializable]
     public abstract class EntryRuntimeNodeBase : RuntimeNode
     {
         public abstract IEntryBridge CreateBridge<TRunner>(TRunner runner, GraphAsset<TRunner> asset, GraphExecutor<TRunner> executor, Func<IEffectScope?>? scopeFactory)
@@ -24,6 +25,7 @@ namespace Scaffold.GraphFlow
     /// <para>Post-M3 phase 2 (decision #5 + finish of decision #1): TRunner dropped. Single-T form
     /// only — the prior 2-arg <c>EntryRuntimeNode&lt;TEntry, TRunner&gt;</c> is removed.</para>
     /// </summary>
+    [Serializable]
     public abstract class EntryRuntimeNode<TEntry> : EntryRuntimeNodeBase
         where TEntry : class
     {

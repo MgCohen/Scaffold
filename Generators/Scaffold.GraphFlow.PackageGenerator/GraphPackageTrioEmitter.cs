@@ -25,6 +25,11 @@ namespace Scaffold.GraphFlow.PackageGenerator
             {
                 DispatchOnePackage(spc, compilation, editorAsm, p, cancellationToken);
             }
+
+            // Whole-compilation lint — flags any RuntimeNode / GraphToolkit Node derivative missing
+            // [Serializable]. Runs once per pass; runtime and editor asms each see their own source
+            // types so there's no double-reporting.
+            SerializableLintPass.Run(spc, compilation, cancellationToken);
         }
 
         // EFG008: a payload that satisfies IGraphAction<R1> AND IGraphAction<R2> for two declared packages is ambiguous.
@@ -100,14 +105,46 @@ namespace Scaffold.GraphFlow.PackageGenerator
                 var registrations = new System.Collections.Generic.List<string>();
                 GraphPayloadNodeEmitter.Emit(spc, compilation, true, p, cancellationToken, registrations);
                 EmitGenericNodeArtifacts(spc, compilation, p, registrations, cancellationToken, editorAssembly: true);
-                var eventTypes = DiscoverEventTypes(compilation, p, cancellationToken);
-                GraphRegistryEmitter.EmitRegistryFile(spc, compilation, p, registrations, eventTypes);
+                GraphRegistryEmitter.EmitRegistryFile(spc, compilation, p, registrations);
             }
             else
             {
                 GraphPayloadNodeEmitter.Emit(spc, compilation, false, p, cancellationToken);
                 EmitGenericNodeArtifacts(spc, compilation, p, registrations: null, cancellationToken, editorAssembly: false);
+                EmitCatalogIfRunnerAsm(spc, compilation, p, cancellationToken);
             }
+        }
+
+        /// <summary>
+        /// Emit the per-package <c>&lt;Stem&gt;Catalog</c> into the runner's containing asm (the
+        /// runtime asm). The catalog has no editor dependencies — factories close over runtime
+        /// types only — so it lives next to the runtime nodes it describes. Editor mirrors and
+        /// the registry read it via the asm reference.
+        /// </summary>
+        static void EmitCatalogIfRunnerAsm(SourceProductionContext spc, Compilation compilation, GraphPackageModel p, CancellationToken ct)
+        {
+            var runner = GraphCompilationNames.TypeFromFullyQualified(compilation, p.RunnerFullyQualified);
+            var payloadAsm = runner?.ContainingAssembly;
+            if (payloadAsm == null) return;
+            // Only emit catalog when the current compilation IS the runner's asm — otherwise we'd
+            // try to emit duplicate definitions across every consumer asm.
+            if (!SymbolEqualityComparer.Default.Equals(compilation.Assembly, payloadAsm)) return;
+
+            var graphEventAttr      = compilation.GetTypeByMetadataName("Scaffold.GraphFlow.GraphEventAttribute");
+            var graphReturnTypeAttr = compilation.GetTypeByMetadataName("Scaffold.GraphFlow.GraphReturnTypeAttribute");
+            var graphPortAttr       = compilation.GetTypeByMetadataName("Scaffold.GraphFlow.GraphPortAttribute");
+            var graphPortIgnoreAttr = compilation.GetTypeByMetadataName("Scaffold.GraphFlow.GraphPortIgnoreAttribute");
+            var markerNs = string.IsNullOrEmpty(p.GraphFrameworkNamespace) ? "Scaffold.GraphFlow" : p.GraphFrameworkNamespace;
+            var iEntry  = compilation.GetTypeByMetadataName(markerNs + ".IGraphEntry");
+
+            if (graphEventAttr == null || graphPortAttr == null || iEntry == null) return;
+
+            var events   = GraphCatalogDiscovery.DiscoverEvents(compilation, p, payloadAsm, graphEventAttr, ct);
+            var commands = GraphCatalogDiscovery.DiscoverCommands(compilation, p, payloadAsm, graphPortAttr, graphPortIgnoreAttr, ct);
+            var entries  = GraphCatalogDiscovery.DiscoverEntries(compilation, p, payloadAsm, iEntry, graphPortAttr, graphPortIgnoreAttr, ct);
+            var returns  = GraphCatalogDiscovery.DiscoverReturns(compilation, p, payloadAsm, graphReturnTypeAttr, ct);
+
+            GraphCatalogEmitter.EmitRuntimeCatalog(spc, compilation, p, events, commands, entries, returns);
         }
 
         static void EmitGenericNodeArtifacts(
@@ -194,45 +231,6 @@ namespace Scaffold.GraphFlow.PackageGenerator
             GraphGenericNodeEmitter.EmitForPackage(spc, compilation, p, allNodes.ToImmutable(), inCurrentCompilation, registrations, editorAssembly);
         }
 
-        static System.Collections.Generic.List<GraphRegistryEmitter.EventTypeDescriptor> DiscoverEventTypes(Compilation compilation, GraphPackageModel p, System.Threading.CancellationToken ct)
-        {
-            var result = new System.Collections.Generic.List<GraphRegistryEmitter.EventTypeDescriptor>();
-            var graphEventAttr = compilation.GetTypeByMetadataName("Scaffold.GraphFlow.GraphEventAttribute");
-            if (graphEventAttr == null) return result;
-
-            var runner = GraphCompilationNames.TypeFromFullyQualified(compilation, p.RunnerFullyQualified);
-            var payloadAssembly = runner?.ContainingAssembly;
-            if (payloadAssembly == null) return result;
-
-            foreach (var type in GraphPayloadTypeWalker.AllNamedTypesInAssembly(payloadAssembly, ct))
-            {
-                ct.ThrowIfCancellationRequested();
-                if (!PayloadDiscovery.IsCandidateType(type)) continue;
-                if (!PayloadDiscovery.HasGraphEventAttribute(type, graphEventAttr)) continue;
-
-                var typeFq = type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-                if (typeFq.StartsWith("global::", System.StringComparison.Ordinal))
-                {
-                    typeFq = typeFq.Substring(8);
-                }
-
-                var fields = new System.Collections.Generic.List<GraphRegistryEmitter.EventFieldDescriptor>();
-                foreach (var f in PayloadDiscovery.InstanceFields(type))
-                {
-                    var fTypeFq = f.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-                    if (fTypeFq.StartsWith("global::", System.StringComparison.Ordinal))
-                    {
-                        fTypeFq = fTypeFq.Substring(8);
-                    }
-                    fields.Add(new GraphRegistryEmitter.EventFieldDescriptor(f.Name, fTypeFq));
-                }
-
-                result.Add(new GraphRegistryEmitter.EventTypeDescriptor(typeFq, fields));
-            }
-
-            return result;
-        }
-
         static bool IsEditorAssembly(Compilation compilation)
         {
             var name = compilation.Assembly.Name;
@@ -257,6 +255,81 @@ namespace Scaffold.GraphFlow.PackageGenerator
             AppendEditorGraphValidationFile(valSb, compilation, p);
             var valPath = $"{p.GraphStem}GraphValidation.g.cs";
             spc.AddSource(valPath, SourceText.From(valSb.ToString(), Encoding.UTF8));
+
+            var trigSb = new StringBuilder();
+            AppendOnTriggerEditorShimFile(trigSb, compilation, p);
+            spc.AddSource("OnTriggerEditorNode.g.cs", SourceText.From(trigSb.ToString(), Encoding.UTF8));
+
+            var retSb = new StringBuilder();
+            AppendReturnEditorShimFile(retSb, compilation, p);
+            spc.AddSource("ReturnEditorNode.g.cs", SourceText.From(retSb.ToString(), Encoding.UTF8));
+        }
+
+        /// <summary>
+        /// Emit the per-package OnTrigger editor shim — a 5-line concrete subclass that closes
+        /// the generic <c>OnTriggerEditorNode&lt;TEnum&gt;</c> base over the catalog's
+        /// <c>EventChoice</c> enum and forwards <c>GetPorts</c> into <c>&lt;Stem&gt;Catalog.Resolve(c).Ports</c>.
+        /// <para>The shim must be per-package because GraphToolkit's <c>AddOption&lt;TEnum&gt;</c>
+        /// dropdown reads the closed enum at compile time, and <c>[UseWithGraph(typeof(&lt;Stem&gt;Graph))]</c>
+        /// scopes menu visibility to the right graph type.</para>
+        /// </summary>
+        static void AppendOnTriggerEditorShimFile(StringBuilder sb, Compilation compilation, GraphPackageModel p)
+        {
+            var registryNs = GraphRegistryEmitter.ResolveRegistryNamespace(p, compilation);
+            var catalogNs  = GraphCatalogEmitter.ResolveCatalogNamespace(p, compilation);
+            var catalogTy  = p.GraphStem + GraphCatalogEmitter.CatalogClassSuffix;
+
+            sb.AppendLine("// <auto-generated />");
+            sb.AppendLine("#nullable enable");
+            sb.AppendLine("using System;");
+            sb.AppendLine("using System.Collections.Generic;");
+            sb.AppendLine("using Scaffold.GraphFlow;");
+            sb.AppendLine("using Scaffold.GraphFlow.Editor.Nodes;");
+            sb.AppendLine($"using {EditorGraphToolkitNamespace(compilation)};");
+            sb.AppendLine($"using {catalogNs};");
+            sb.AppendLine("using Unity.GraphToolkit.Editor;");
+            sb.AppendLine();
+            sb.AppendLine($"namespace {registryNs}");
+            sb.AppendLine("{");
+            sb.AppendLine("    [Serializable]");
+            sb.AppendLine($"    [UseWithGraph(typeof({p.GraphStem}Graph))]");
+            sb.AppendLine($"    public sealed class OnTriggerEditorNode : OnTriggerEditorNode<{catalogTy}.EventType>");
+            sb.AppendLine("    {");
+            sb.AppendLine($"        protected override IReadOnlyList<PortMeta>? GetPorts({catalogTy}.EventType picked)");
+            sb.AppendLine($"            => {catalogTy}.Resolve(picked)?.Ports;");
+            sb.AppendLine("    }");
+            sb.AppendLine("}");
+        }
+
+        /// <summary>
+        /// Emit the per-package Return editor shim — closes the generic
+        /// <c>ReturnEditorNode&lt;TEnum&gt;</c> base over the catalog's <c>ReturnChoice</c> enum
+        /// and forwards <c>GetResultType</c> into <c>&lt;Stem&gt;Catalog.Resolve(c).Type</c>.
+        /// </summary>
+        static void AppendReturnEditorShimFile(StringBuilder sb, Compilation compilation, GraphPackageModel p)
+        {
+            var registryNs = GraphRegistryEmitter.ResolveRegistryNamespace(p, compilation);
+            var catalogNs  = GraphCatalogEmitter.ResolveCatalogNamespace(p, compilation);
+            var catalogTy  = p.GraphStem + GraphCatalogEmitter.CatalogClassSuffix;
+
+            sb.AppendLine("// <auto-generated />");
+            sb.AppendLine("#nullable enable");
+            sb.AppendLine("using System;");
+            sb.AppendLine("using Scaffold.GraphFlow.Editor.Nodes;");
+            sb.AppendLine($"using {EditorGraphToolkitNamespace(compilation)};");
+            sb.AppendLine($"using {catalogNs};");
+            sb.AppendLine("using Unity.GraphToolkit.Editor;");
+            sb.AppendLine();
+            sb.AppendLine($"namespace {registryNs}");
+            sb.AppendLine("{");
+            sb.AppendLine("    [Serializable]");
+            sb.AppendLine($"    [UseWithGraph(typeof({p.GraphStem}Graph))]");
+            sb.AppendLine($"    public sealed class ReturnEditorNode : ReturnEditorNode<{catalogTy}.ReturnType>");
+            sb.AppendLine("    {");
+            sb.AppendLine($"        protected override Type? GetResultType({catalogTy}.ReturnType picked)");
+            sb.AppendLine($"            => {catalogTy}.Resolve(picked)?.Type;");
+            sb.AppendLine("    }");
+            sb.AppendLine("}");
         }
 
         static void AppendEditorGraphValidationFile(StringBuilder sb, Compilation compilation, GraphPackageModel p)
