@@ -15,7 +15,7 @@ namespace Scaffold.GraphFlow.CardSandbox.Cards
         public const int BaseDamage = 5;
 
         /// <summary>Entry runtime — emits <see cref="OnPlay"/> walks into the dispatcher.</summary>
-        public sealed class OnPlayEntry : EntryRuntimeNode<OnPlay, CardEffectRunner, Unit>
+        public sealed class OnPlayEntry : EntryRuntimeNode<OnPlay, CardEffectRunner>
         {
             public const int FlowOutPortId = unchecked((int)0xC0010001u);
 

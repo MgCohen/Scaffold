@@ -74,7 +74,7 @@ namespace Scaffold.GraphFlow.M0.Tests
             var controller = new GraphController<MySmokeRunner>(asset);
             controller.Initialize(runner);
 
-            await controller.RunFlow(new OnPlay { CardId = 42 });
+            await controller.Run(new OnPlay { CardId = 42 });
 
             Assert.AreEqual("42", runner.LastLogMessage);
         }
@@ -121,7 +121,7 @@ namespace Scaffold.GraphFlow.M0.Tests
             var controller = new GraphController<MySmokeRunner>(asset);
             controller.Initialize(runner);
 
-            await controller.RunFlow(new OnPlay { CardId = 42 });
+            await controller.Run(new OnPlay { CardId = 42 });
 
             Assert.AreEqual("echo:42", runner.LastLogMessage);
         }
@@ -168,7 +168,7 @@ namespace Scaffold.GraphFlow.M0.Tests
             var controller = new GraphController<MySmokeRunner>(asset);
             controller.Initialize(runner);
 
-            var flow = await controller.RunFlow(new OnPlay { CardId = 0 });
+            var flow = await controller.Run(new OnPlay { CardId = 0 });
 
             Assert.AreEqual(FlowOutcome.Returned, flow.Outcome, "Return path was taken; Outcome should be Returned.");
             Assert.AreEqual(false, flow.ReadResult<bool>(), "Return.Value is unwired → reads default(bool)=false.");
@@ -205,7 +205,7 @@ namespace Scaffold.GraphFlow.M0.Tests
             var controller = new GraphController<MySmokeRunner>(asset);
             controller.Initialize(runner);
 
-            var flow = await controller.RunFlow(new OnPlay { CardId = 0 });
+            var flow = await controller.Run(new OnPlay { CardId = 0 });
 
             Assert.AreEqual(FlowOutcome.Cancelled, flow.Outcome, "False branch reaches Cancel.");
         }
@@ -233,7 +233,7 @@ namespace Scaffold.GraphFlow.M0.Tests
             var controller = new GraphController<MySmokeRunner>(asset);
             controller.Initialize(runner);
 
-            var flow = await controller.RunFlow(new OnPlay { CardId = 0 });
+            var flow = await controller.Run(new OnPlay { CardId = 0 });
 
             Assert.AreEqual(FlowOutcome.Returned, flow.Outcome);
             Assert.AreEqual(true, flow.ReadResult<bool>());

@@ -63,7 +63,7 @@ Apply these to **each assembly** that declares `[assembly: GraphPackage(...)]`:
    - **`RegistryNamespace`** — namespace for generated types (e.g. `MyGame.Effects.Generated`).
 
 5. **Mode 2 (optional)**  
-   If binding existing hierarchies without marker interfaces, set **`CommandBase`**, **`EntryBase`**, and execution helpers (**`DispatcherBase`**, etc.) per ExecPlan v2. Mode 1 uses `IGraphEntry<T>` / `IGraphAction<T>` on payloads only.
+   If binding existing hierarchies without marker interfaces, set **`CommandBase`**, **`EntryBase`**, and execution helpers (**`DispatcherBase`**, etc.) per ExecPlan v2. Mode 1 uses `IGraphEntry` / `IGraphAction<T>` on payloads only.
 
 6. **Language version**
    - Emitted sources must compile with the consumer asmdef language version (Unity often defaults to **C# 9**). The generator avoids C# 10-only syntax unless you upgrade the consumer.

@@ -14,7 +14,7 @@ namespace Scaffold.GraphFlow.CardSandbox.Cards
     /// </summary>
     public static class PlusOneDamage
     {
-        public sealed class OnPreDamageEntry : EntryRuntimeNode<PreDamageDealtEvent, CardEffectRunner, Unit>
+        public sealed class OnPreDamageEntry : EntryRuntimeNode<PreDamageDealtEvent, CardEffectRunner>
         {
             public override Task Execute(CardEffectRunner runner, Flow flow)
             {

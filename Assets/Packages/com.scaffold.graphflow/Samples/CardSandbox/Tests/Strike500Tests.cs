@@ -24,7 +24,7 @@ namespace Scaffold.GraphFlow.CardSandbox.Tests
             var controller = new GraphController<CardEffectRunner>(asset);
             controller.Initialize(runner, () => new CardEffectScope(bus, sink));
 
-            await controller.Run<OnPlay, Unit>(new OnPlay());
+            await controller.Run(new OnPlay());
 
             Assert.AreEqual(5, sink.LastAmount);
         }
@@ -48,13 +48,13 @@ namespace Scaffold.GraphFlow.CardSandbox.Tests
             {
                 switch (entry)
                 {
-                    case EntryRuntimeNode<PreDamageDealtEvent, CardEffectRunner, Unit> trig:
+                    case EntryRuntimeNode<PreDamageDealtEvent, CardEffectRunner> trig:
                         bus.Subscribe<PreDamageDealtEvent>(async e => await trig.Run(e));
                         break;
                 }
             }
 
-            await s500.Run<OnPlay, Unit>(new OnPlay());
+            await s500.Run(new OnPlay());
 
             Assert.AreEqual(6, sink.LastAmount);
         }
