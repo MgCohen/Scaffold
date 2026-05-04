@@ -2,17 +2,17 @@
 #nullable enable
 using System;
 using Scaffold.GraphFlow.Editor.Nodes;
-using Scaffold.GraphFlow.M0.Editor.GToolkit;
-using Scaffold.GraphFlow.M0.Generated;
+using HarnessFixture.Editor.GToolkit;
+using HarnessFixture.Generated;
 using Unity.GraphToolkit.Editor;
 
-namespace Scaffold.GraphFlow.M0.Generated
+namespace HarnessFixture.Generated
 {
     [Serializable]
-    [UseWithGraph(typeof(MySmokeGraph))]
-    public sealed class ReturnEditorNode : ReturnEditorNode<MySmokeCatalog.ReturnType>
+    [UseWithGraph(typeof(HarnessGraph))]
+    public sealed class ReturnEditorNode : ReturnEditorNode<HarnessCatalog.ReturnType>
     {
-        protected override Type? GetResultType(MySmokeCatalog.ReturnType picked)
-            => MySmokeCatalog.Resolve(picked)?.Type;
+        protected override Type? GetResultType(HarnessCatalog.ReturnType picked)
+            => HarnessCatalog.Resolve(picked)?.Type;
     }
 }

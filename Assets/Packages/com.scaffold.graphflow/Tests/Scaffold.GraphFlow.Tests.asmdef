@@ -1,8 +1,7 @@
 {
-    "name": "Scaffold.GraphFlow.M0.Tests",
-    "rootNamespace": "Scaffold.GraphFlow.M0.Tests",
+    "name": "Scaffold.GraphFlow.Tests",
+    "rootNamespace": "Scaffold.GraphFlow.Tests",
     "references": [
-        "Scaffold.GraphFlow.M0",
         "Scaffold.GraphFlow"
     ],
     "includePlatforms": [

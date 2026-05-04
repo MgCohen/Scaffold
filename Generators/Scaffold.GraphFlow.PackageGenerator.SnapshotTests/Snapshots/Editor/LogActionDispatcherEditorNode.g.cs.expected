@@ -3,19 +3,19 @@
 using System;
 using Unity.GraphToolkit.Editor;
 
-namespace Scaffold.GraphFlow.M0.Editor.GToolkit
+namespace HarnessFixture.Editor.GToolkit
 {
     [Serializable]
-    public sealed class OnPlayEditorNode : Node
+    public sealed class LogActionDispatcherEditorNode : Node
     {
 
         protected override void OnDefinePorts(IPortDefinitionContext context)
         {
-            context.AddOutputPort("FlowOut")
+            context.AddInputPort("FlowIn")
                 .WithDisplayName(string.Empty)
                 .WithConnectorUI(PortConnectorUI.Arrowhead)
                 .Build();
-            context.AddOutputPort<int>("CardId").Build();
+            context.AddInputPort<string>("Message").Build();
         }
     }
 }

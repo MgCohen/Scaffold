@@ -4,17 +4,17 @@ using System;
 using System.Collections.Generic;
 using Scaffold.GraphFlow;
 using Scaffold.GraphFlow.Editor.Nodes;
-using Scaffold.GraphFlow.M0.Editor.GToolkit;
-using Scaffold.GraphFlow.M0.Generated;
+using HarnessFixture.Editor.GToolkit;
+using HarnessFixture.Generated;
 using Unity.GraphToolkit.Editor;
 
-namespace Scaffold.GraphFlow.M0.Generated
+namespace HarnessFixture.Generated
 {
     [Serializable]
-    [UseWithGraph(typeof(MySmokeGraph))]
-    public sealed class OnTriggerEditorNode : OnTriggerEditorNode<MySmokeCatalog.EventType>
+    [UseWithGraph(typeof(HarnessGraph))]
+    public sealed class OnTriggerEditorNode : OnTriggerEditorNode<HarnessCatalog.EventType>
     {
-        protected override IReadOnlyList<PortMeta>? GetPorts(MySmokeCatalog.EventType picked)
-            => MySmokeCatalog.Resolve(picked)?.Ports;
+        protected override IReadOnlyList<PortMeta>? GetPorts(HarnessCatalog.EventType picked)
+            => HarnessCatalog.Resolve(picked)?.Ports;
     }
 }

@@ -4,18 +4,18 @@ using System.Collections.Generic;
 using System.Linq;
 using Unity.GraphToolkit.Editor;
 using Scaffold.GraphFlow.Editor;
-using Scaffold.GraphFlow.M0.Smoke;
-using Scaffold.GraphFlow.M0.Generated;
+using HarnessFixture;
+using HarnessFixture.Generated;
 
-namespace Scaffold.GraphFlow.M0.Editor.GToolkit
+namespace HarnessFixture.Editor.GToolkit
 {
-    partial class MySmokeGraph
+    partial class HarnessGraph
     {
         public override void OnGraphChanged(GraphLogger logger)
         {
             base.OnGraphChanged(logger);
-            var registry = MySmokeGraphRegistry.Instance;
-            var registrations = new Dictionary<INode, GraphPackageRegistry<MySmokeRunner>.NodeRegistration>();
+            var registry = HarnessGraphRegistry.Instance;
+            var registrations = new Dictionary<INode, GraphPackageRegistry<HarnessRunner>.NodeRegistration>();
             var entriesByType = new Dictionary<string, List<INode>>();
             foreach (var node in GetNodes())
             {
@@ -46,7 +46,7 @@ namespace Scaffold.GraphFlow.M0.Editor.GToolkit
             ValidateRunFlowTerminates(registrations, logger);
         }
 
-        static void ValidateEdgePairings(Dictionary<INode, GraphPackageRegistry<MySmokeRunner>.NodeRegistration> registrations, GraphLogger logger)
+        static void ValidateEdgePairings(Dictionary<INode, GraphPackageRegistry<HarnessRunner>.NodeRegistration> registrations, GraphLogger logger)
         {
             var connected = new List<IPort>();
             foreach (var kv in registrations)
@@ -73,7 +73,7 @@ namespace Scaffold.GraphFlow.M0.Editor.GToolkit
             }
         }
 
-        static void ValidateRunFlowTerminates(Dictionary<INode, GraphPackageRegistry<MySmokeRunner>.NodeRegistration> registrations, GraphLogger logger)
+        static void ValidateRunFlowTerminates(Dictionary<INode, GraphPackageRegistry<HarnessRunner>.NodeRegistration> registrations, GraphLogger logger)
         {
             // Walk forward from every entry node along its flow outputs. A node is a flow
             // terminator iff its registry entry has zero FlowOutputPortIds (Return/Cancel/

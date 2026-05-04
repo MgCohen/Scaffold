@@ -3,7 +3,7 @@
 using System;
 using Unity.GraphToolkit.Editor;
 
-namespace Scaffold.GraphFlow.M0.Editor.GToolkit
+namespace HarnessFixture.Editor.GToolkit
 {
     [Serializable]
     public sealed class CancelEditorNode : Node

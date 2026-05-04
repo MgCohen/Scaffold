@@ -4,10 +4,10 @@ using System;
 using System.Threading.Tasks;
 using Scaffold.GraphFlow;
 
-namespace Scaffold.GraphFlow.M0.Smoke
+namespace HarnessFixture
 {
     [Serializable]
-    public sealed partial class EchoDispatcherRuntime : global::Scaffold.GraphFlow.M0.Smoke.MyDispatcherBase<global::Scaffold.GraphFlow.M0.Smoke.Echo, global::Scaffold.GraphFlow.M0.Smoke.FakeResult>
+    public sealed partial class EchoCmdDispatcherRuntime : global::HarnessFixture.HarnessDispatcherBase<global::HarnessFixture.EchoCmd, global::HarnessFixture.EchoResult>
     {
         public int Magnitude;
 
@@ -17,7 +17,7 @@ namespace Scaffold.GraphFlow.M0.Smoke
 
         string _summaryValue = "";
 
-        public EchoDispatcherRuntime()
+        public EchoCmdDispatcherRuntime()
         {
             InMagnitude = new InputPort<int>(() => Magnitude);
             Summary = new OutputPort<string>(() => _summaryValue);
@@ -25,8 +25,8 @@ namespace Scaffold.GraphFlow.M0.Smoke
             Ports.Add("Summary", Summary);
         }
 
-        protected override Echo BuildPayload() => new Echo { Magnitude = InMagnitude.Read() };
+        protected override EchoCmd BuildPayload() => new EchoCmd { Magnitude = InMagnitude.Read() };
 
-        protected override void WriteOutputs(FakeResult result) => _summaryValue = result.Summary;
+        protected override void WriteOutputs(EchoResult result) => _summaryValue = result.Summary;
     }
 }

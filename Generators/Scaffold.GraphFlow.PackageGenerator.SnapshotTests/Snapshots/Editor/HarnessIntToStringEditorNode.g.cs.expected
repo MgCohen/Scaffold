@@ -3,10 +3,10 @@
 using System;
 using Unity.GraphToolkit.Editor;
 
-namespace Scaffold.GraphFlow.M0.Editor.GToolkit
+namespace HarnessFixture.Editor.GToolkit
 {
     [Serializable]
-    public sealed class IntToStringRuntimeEditorNode : Node
+    public sealed class HarnessIntToStringEditorNode : Node
     {
 
         protected override void OnDefinePorts(IPortDefinitionContext context)

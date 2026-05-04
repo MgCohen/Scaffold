@@ -4,30 +4,30 @@ using System;
 using System.Threading.Tasks;
 using Scaffold.GraphFlow;
 
-namespace Scaffold.GraphFlow.M0.Smoke
+namespace HarnessFixture
 {
     [Serializable]
-    public sealed partial class OnPlayRuntime : EntryRuntimeNode<OnPlay>
+    public sealed partial class OnEntryRuntime : EntryRuntimeNode<OnEntry>
     {
         public FlowOutPort FlowOut = null!;
 
-        public OutputPort<int> CardId = null!;
+        public OutputPort<int> Value = null!;
 
-        int _cardIdValue = 0;
+        int _valueValue = 0;
 
-        public OnPlayRuntime()
+        public OnEntryRuntime()
         {
             FlowOut = new FlowOutPort(this, nameof(FlowOut));
-            CardId = new OutputPort<int>(() => _cardIdValue);
+            Value = new OutputPort<int>(() => _valueValue);
             Ports.Add(FlowOut.Name, FlowOut);
-            Ports.Add("CardId", CardId);
+            Ports.Add("Value", Value);
         }
 
         public override Task Execute(Flow flow)
         {
             if (Payload != null)
             {
-                _cardIdValue = Payload.CardId;
+                _valueValue = Payload.Value;
             }
             return flow.GoTo(FlowOut);
         }

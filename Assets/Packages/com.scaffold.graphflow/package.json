@@ -8,7 +8,7 @@
     {
       "displayName": "M0 Smoke Sandbox",
       "description": "Smoke-test sandbox: dispatcher, payloads, and the .gfmsmoke graph asset that exercises the M0 runtime end-to-end.",
-      "path": "Samples/M0Sandbox"
+      "path": "Samples~/M0Sandbox"
     },
     {
       "displayName": "Card Sandbox",
