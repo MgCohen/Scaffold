@@ -5,6 +5,7 @@ using Scaffold.States;
 
 namespace Scaffold.Entities.States
 {
+    [Mutator]
     internal sealed class AddModifierMutator : Mutator<EntityVariableState, AddModifierPayload>
     {
         public override EntityVariableState Change(EntityVariableState state, AddModifierPayload payload, IStateScope scope)

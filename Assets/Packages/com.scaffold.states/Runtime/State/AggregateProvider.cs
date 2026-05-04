@@ -13,7 +13,7 @@ namespace Scaffold.States
             return BuildCore(scope);
         }
 
-        public abstract void Wire(IStoreScope scope, IAggregateRebuild rebuild);
+        public abstract IDisposable Wire(IStoreScope scope, IAggregateRebuild rebuild);
 
         protected abstract TAggregate BuildCore(IStateScope scope);
     }

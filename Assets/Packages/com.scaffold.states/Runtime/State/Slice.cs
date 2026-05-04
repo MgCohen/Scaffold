@@ -6,7 +6,7 @@ namespace Scaffold.States
 {
     public sealed class Slice : BaseSlice<State>
     {
-        public Slice(IReference reference, State state) : base(reference, state)
+        public Slice(Reference reference, State state) : base(reference, state)
         {
         }
 
@@ -15,7 +15,7 @@ namespace Scaffold.States
             State = state;
         }
 
-        public static Slice Create(IReference? reference, State state)
+        public static Slice Create(Reference? reference, State state)
         {
             reference ??= States.Reference.Null;
             return new Slice(reference, state);

@@ -6,6 +6,6 @@ namespace Scaffold.States
     {
         Type GetSubscriptionType();
 
-        void Notify(IReference reference, BaseState state, StateChangeEvent changeEvent);
+        void Notify(Reference reference, BaseState state, StateChangeEvent changeEvent);
     }
 }

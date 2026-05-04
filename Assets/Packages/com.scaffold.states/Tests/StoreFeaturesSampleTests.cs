@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 using Scaffold.States;
-using Scaffold.States.Samples;
+using Scaffold.States.Tests.Fixtures;
 
 namespace Scaffold.States.Tests
 {
@@ -127,14 +127,14 @@ namespace Scaffold.States.Tests
             Store store = SampleStoreFactory.CreateKeyedCounterDemo();
             var keyA = new SampleKey("A");
             var keyB = new SampleKey("B");
-            var keys = new List<IReference>();
+            var keys = new List<Reference>();
 
             store.SubscribeAllReferences<CounterState>((r, _, _) => keys.Add(r));
 
             store.Execute(new RoutedCounterPayload(keyA, 1));
             store.Execute(new RoutedCounterPayload(keyB, 1));
 
-            Assert.That(keys, Is.EqualTo(new IReference[] { keyA, keyB }));
+            Assert.That(keys, Is.EqualTo(new Reference[] { keyA, keyB }));
         }
 
         [Test]
@@ -159,7 +159,7 @@ namespace Scaffold.States.Tests
             var builder = new StoreBuilder();
             builder.AddState(new CounterState(0));
             Store store = builder.Build();
-            var keys = new List<IReference>();
+            var keys = new List<Reference>();
             store.SubscribeAllReferences<CounterState>((r, _, _) => keys.Add(r));
             var key = new SampleKey("X");
             store.RegisterSlice(key, new CounterState(99));
@@ -269,7 +269,11 @@ namespace Scaffold.States.Tests
             builder.AddState(keyB, new CounterState(2));
             Store store = builder.Build();
 
-            var pairs = store.EnumerateAll<CounterState>().ToList();
+            var pairs = new List<(Reference Reference, CounterState State)>();
+            foreach (var pair in store.EnumerateAllPairs<CounterState>())
+            {
+                pairs.Add(pair);
+            }
             Assert.That(pairs.Count, Is.EqualTo(2));
             Assert.That(pairs.Sum(p => p.State.Value), Is.EqualTo(3));
         }
@@ -325,13 +329,59 @@ namespace Scaffold.States.Tests
             Store store = SampleStoreFactory.CreateKeyedCounterDemo();
             var keyA = new SampleKey("A");
             int count = 0;
-            Action<IReference, CounterState, StateChangeEvent> handler = (_, _, _) => count++;
+            Action<Reference, CounterState, StateChangeEvent> handler = (_, _, _) => count++;
             store.Subscribe<CounterState>(keyA, handler);
             store.Execute(new RoutedCounterPayload(keyA, 1));
             Assert.That(count, Is.EqualTo(1));
             store.Unsubscribe<CounterState>(keyA, handler);
             store.Execute(new RoutedCounterPayload(keyA, 2));
             Assert.That(count, Is.EqualTo(1));
+        }
+
+        private sealed record OrphanPayload;
+
+        [Test]
+        public void Execute_UnregisteredPayload_ThrowsMutatorNotRegisteredException()
+        {
+            var builder = new StoreBuilder();
+            builder.AddState(new CounterState(0));
+            Store store = builder.Build();
+
+            var ex = Assert.Throws<MutatorNotRegisteredException>(() => store.Execute(new OrphanPayload()));
+            Assert.That(ex!.PayloadType, Is.EqualTo(typeof(OrphanPayload)));
+        }
+
+        [Test]
+        public void StoreBuilder_DuplicateCanonicalAtSameReference_Throws()
+        {
+            var builder = new StoreBuilder();
+            var key = new SampleKey("K");
+            builder.AddState(key, new CounterState(0));
+
+            Assert.Throws<InvalidOperationException>(() => builder.AddState(key, new CounterState(1)));
+        }
+
+        [Test]
+        public void Snapshot_Get_MissingEntry_ThrowsKeyNotFoundException()
+        {
+            var snap = new Snapshot();
+            Assert.Throws<KeyNotFoundException>(() => snap.Get<CounterState>());
+        }
+
+        [Test]
+        public void UnregisterAggregate_DisposesWire_StopsAggregateCanonicalSubscriptions()
+        {
+            StoreFeaturesDemo demo = SampleStoreFactory.CreateFullDemo();
+            Store store = demo.Store;
+
+            store.Execute(new CombinedTickPayload(1));
+            Assert.That(demo.TotalsProvider.CanonicalSubscriptionNotifications, Is.EqualTo(2));
+
+            Assert.That(store.UnregisterAggregate<TotalsDashboardState>(null), Is.True);
+
+            store.Execute(new CombinedTickPayload(1));
+            Assert.That(demo.TotalsProvider.CanonicalSubscriptionNotifications, Is.EqualTo(2));
+            Assert.That(store.Get<CounterState>().Value, Is.EqualTo(2));
         }
 
         [Test]

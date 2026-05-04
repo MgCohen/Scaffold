@@ -12,14 +12,15 @@
     "dependencies": {
         "com.scaffold.records": "0.1.0",
         "com.scaffold.maps": "0.1.0",
-        "com.scaffold.pooling": "0.1.0"
+        "com.scaffold.pooling": "0.1.0",
+        "jp.hadashikick.vcontainer": "https://github.com/hadashiA/VContainer.git?path=VContainer/Assets/VContainer#1.17.0"
     },
     "path": "https://github.com/MgCohen/Scaffold.git?path=/Assets/Packages/com.scaffold.states#main",
     "samples": [
         {
             "displayName": "Store features (slices, aggregates, mutators)",
             "description": "Canonical slices, aggregate slices, subscriptions, direct and payload mutators (including multiple mutators per payload), IPayloadReference routing, and ExecuteBatch.",
-            "path": "Samples"
+            "path": "Samples~"
         }
     ]
 }

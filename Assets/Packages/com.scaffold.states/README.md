@@ -10,13 +10,13 @@ Runtime slice/store pattern for immutable game state. **`Store`** composes **`Sl
 
 ## Layout
 
-- `Runtime/Store.cs` — central API.
+- `Runtime/Store.cs` — central API (`Execute`, `Get`, `Subscribe`, snapshots).
 - `Runtime/State/` — `State`, `AggregateState`, `Slice`, `AggregateSlice`, `Snapshot`.
 - `Runtime/Builders/` — `StoreBuilder` and per-state builders.
-- `Runtime/Events/` — handlers, subscriptions, deferred dispatch.
+- `Runtime/Events/` — `StateEventHandler`, `DeferredStateEventHandler`, `StateEventHandlerFactory`, `TypedSubscription`, `Ledger`.
 - `Runtime/Mutators/` — `Mutator<TState>` and `Mutator<TState, TPayload>`.
 - `Runtime/Pipeline/` — `MutatorRegistry`, `MutatorRunner`.
-- `Samples/` — small demos plus `Samples/CardGame/` for the full pattern.
+- `Samples~/` — small demos plus `Samples~/CardGame/` for the full pattern (Package Manager-only via `~` suffix).
 
 ## Concepts
 
@@ -121,10 +121,8 @@ Capture all canonical slices; restoring prunes anything missing from the snapsho
 
 Buffer `Notify` calls during a scope; flush as a batch (`PreserveAll` or `LatestPerKey`).
 
-    var deferred = new DeferredStateEventHandler(
-        StateEventHandlers.CreateDefault(),
-        StateEventMergeMode.LatestPerKey);
-
+    var inner = StateEventHandlerFactory.CreateDefault();
+    var deferred = new DeferredStateEventHandler(inner, StateEventMergeMode.LatestPerKey);
     builder.AddEventHandler(deferred);
 
     using (deferred.BeginDeferScope())

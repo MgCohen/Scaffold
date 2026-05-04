@@ -6,7 +6,7 @@ namespace Scaffold.States
     {
         void Commit();
 
-        void SetPending<TState>(IReference? reference, TState state) where TState : State;
+        void SetPending<TState>(Reference? reference, TState state) where TState : State;
 
         void Reset();
     }

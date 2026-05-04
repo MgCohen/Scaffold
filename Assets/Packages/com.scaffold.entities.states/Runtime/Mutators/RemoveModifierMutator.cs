@@ -4,6 +4,7 @@ using Scaffold.States;
 
 namespace Scaffold.Entities.States
 {
+    [Mutator]
     internal sealed class RemoveModifierMutator : Mutator<EntityVariableState, RemoveModifierPayload>
     {
         public override EntityVariableState Change(EntityVariableState state, RemoveModifierPayload payload, IStateScope scope)

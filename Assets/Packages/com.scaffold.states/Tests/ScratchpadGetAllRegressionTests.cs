@@ -3,7 +3,7 @@
 using System.Collections.Generic;
 using NUnit.Framework;
 using Scaffold.States;
-using Scaffold.States.Samples;
+using Scaffold.States.Tests.Fixtures;
 
 namespace Scaffold.States.Tests
 {
@@ -40,6 +40,47 @@ namespace Scaffold.States.Tests
 
             Assert.That(collected, Has.Count.EqualTo(1));
             Assert.That(collected[0].Value, Is.EqualTo(42));
+        }
+
+        private sealed class CountAllCountersMutator : Mutator<CounterState>
+        {
+            private readonly List<int> counts;
+
+            public CountAllCountersMutator(List<int> counts)
+            {
+                this.counts = counts;
+            }
+
+            public override CounterState Change(CounterState state, IStateScope scope)
+            {
+                int n = 0;
+                foreach (CounterState _ in scope.GetAll<CounterState>())
+                {
+                    n++;
+                }
+
+                counts.Add(n);
+                return state;
+            }
+        }
+
+        [Test]
+        public void PooledMutatorRunner_BackToBackExecute_GetAll_CountsMatchSliceCardinality()
+        {
+            var builder = new StoreBuilder();
+            builder.AddState(new CounterState(0));
+            for (int i = 0; i < 5; i++)
+            {
+                builder.AddState(new SampleKey($"k{i}"), new CounterState(i));
+            }
+
+            Store store = builder.Build();
+
+            var counts = new List<int>();
+            store.ExecuteMutator(new CountAllCountersMutator(counts));
+            store.ExecuteMutator(new CountAllCountersMutator(counts));
+
+            Assert.That(counts, Is.EqualTo(new[] { 6, 6 }));
         }
     }
 }

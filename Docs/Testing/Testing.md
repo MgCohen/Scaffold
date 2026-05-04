@@ -103,7 +103,9 @@ Coverage goals and best practices are documented in [AutomatedTesting.md](Automa
 ### Script Parameters
 
 - `check-unity-compilation.ps1`: `-ProjectPath`, `-UnityPath`, `-TimeoutMinutes` (default `10`)
-- `run-unity-tests.ps1`: **`-TestPlatform`** `EditMode` \| `PlayMode`, plus `-ProjectPath`, `-UnityPath`, `-AssemblyNames`, `-EnableCoverage`, `-CoverageResultsPath`, `-CoverageOptions`, `-TimeoutMinutes` (default `30`). **`run-editmode-tests.ps1`** / **`run-playmode-tests.ps1`** forward to this script.
+- `run-unity-tests.ps1`: **`-TestPlatform`** `EditMode` \| `PlayMode` \| `StandaloneWindows64`, plus `-ProjectPath`, `-UnityPath`, `-AssemblyNames`, `-PerformanceTestResultsPath`, **`-IncludePerformanceBenchmarks`**, **`-PerformanceBenchmarksOnly`**, `-EnableCoverage`, `-CoverageResultsPath`, `-CoverageOptions`, `-TimeoutMinutes` (default `30`). **`run-editmode-tests.ps1`** / **`run-playmode-tests.ps1`** forward to this script.
+
+**Performance microbenchmarks:** Methods under `Assets/Benchmarks/` that use `[Test, Performance]` also carry **`[Category("PerformanceBenchmark")]`**. Unless you pass **`-IncludePerformanceBenchmarks`**, **`-PerformanceBenchmarksOnly`**, or **`-PerformanceTestResultsPath`**, the runner adds Unity’s **`-testCategory "!PerformanceBenchmark"`** so normal EditMode/PlayMode gates stay fast. Regression-style `[Test]` helpers in the same assemblies (for example allocation probes and `Bench.NoAllocations` checks) stay **uncategorized** and always run.
 - `check-analyzers.ps1`: `-ProjectPath`, `-TimeoutMinutes` (default `10`), `-AnalyzerTestsTimeoutMinutes` (default `10`)
   Default behavior excludes diagnostics from test assemblies. Add `-IncludeTestAssemblies` to include them.
   Emits `BUILD_EXIT` (from `dotnet build`), `TOTAL` (SCA + SCM hits), `BLOCKER:` for non-analyzer errors; **exits 1** if the build failed or any blocker line was reported (analyzer warning count alone does not force exit 1).

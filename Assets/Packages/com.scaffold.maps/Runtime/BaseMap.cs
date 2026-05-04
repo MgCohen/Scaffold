@@ -8,7 +8,7 @@ namespace Scaffold.Maps
     {
         protected BaseMap()
         {
-            data = new Dictionary<TKey, Holder<TValue>>();
+            data = new Dictionary<TKey, TValue>();
         }
 
         public BaseMap(IEqualityComparer<TKey> comparer)
@@ -18,95 +18,44 @@ namespace Scaffold.Maps
                 throw new ArgumentNullException(nameof(comparer));
             }
 
-            data = new Dictionary<TKey, Holder<TValue>>(comparer);
+            data = new Dictionary<TKey, TValue>(comparer);
         }
 
         public virtual TValue this[TKey key]
         {
-            get
-            {
-                return data[key].Value;
-            }
-            set
-            {
-                data[key].Value = value;
-            }
+            get => data[key];
+            set => data[key] = value;
         }
 
-        public int Count
-        {
-            get
-            {
-                return data.Count;
-            }
-        }
+        public int Count => data.Count;
 
         public IEnumerable<TValue> Values
         {
             get
             {
-                foreach (KeyValuePair<TKey, Holder<TValue>> entry in data)
+                foreach (KeyValuePair<TKey, TValue> entry in data)
                 {
-                    yield return entry.Value.Value;
+                    yield return entry.Value;
                 }
             }
         }
 
-        private readonly Dictionary<TKey, Holder<TValue>> data;
+        private readonly Dictionary<TKey, TValue> data;
 
-        public bool ContainsKey(TKey key)
+        public bool ContainsKey(TKey key) => data.ContainsKey(key);
+
+        public bool TryGetValue(TKey key, out TValue value) => data.TryGetValue(key, out value);
+
+        public virtual bool Remove(TKey key) => data.Remove(key);
+
+        public virtual void Clear() => data.Clear();
+
+        protected void Add(TKey key, TValue value)
         {
-            if (data == null)
-            {
-                throw new InvalidOperationException("Map storage was not initialized.");
-            }
-
-            return data.ContainsKey(key);
+            data.Add(key, value);
         }
 
-        public bool TryGetValue(TKey key, out TValue value)
-        {
-            if (data == null)
-            {
-                throw new InvalidOperationException("Map storage was not initialized.");
-            }
-
-            bool found = data.TryGetValue(key, out Holder<TValue> holder);
-            value = found ? holder.Value : default;
-            return found;
-        }
-
-        public virtual bool Remove(TKey key)
-        {
-            if (data == null)
-            {
-                throw new InvalidOperationException("Map storage was not initialized.");
-            }
-
-            return data.Remove(key);
-        }
-
-        public virtual void Clear()
-        {
-            if (data == null)
-            {
-                throw new InvalidOperationException("Map storage was not initialized.");
-            }
-
-            data.Clear();
-        }
-
-        protected void Add(TKey key, Holder<TValue> holder)
-        {
-            data.Add(key, holder);
-        }
-
-        internal bool TryGetHolder(TKey key, out Holder<TValue> holder)
-        {
-            return data.TryGetValue(key, out holder);
-        }
-
-        internal IEnumerable<KeyValuePair<TKey, Holder<TValue>>> GetEntries()
+        internal IEnumerable<KeyValuePair<TKey, TValue>> GetEntries()
         {
             return data;
         }
@@ -118,9 +67,9 @@ namespace Scaffold.Maps
 
         public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
         {
-            foreach (KeyValuePair<TKey, Holder<TValue>> entry in data)
+            foreach (KeyValuePair<TKey, TValue> entry in data)
             {
-                yield return new KeyValuePair<TKey, TValue>(entry.Key, entry.Value.Value);
+                yield return entry;
             }
         }
     }

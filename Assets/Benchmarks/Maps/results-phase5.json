@@ -1,0 +1,9 @@
+{
+  "$schema_note": "Populate this file by running Unity batchmode with -perfTestResults after Phases 2-5. Until then this is a placeholder documenting the expected path per the maps refactor plan.",
+  "package": "com.scaffold.maps",
+  "phase": 5,
+  "editor_mono": [],
+  "editor_mono_meta": {
+    "instruction": "Merge PerformanceTestResults.json from -perfTestResults export; keep baselines.json editor_mono as the numeric floor for CI."
+  }
+}
