@@ -25,8 +25,8 @@ namespace Scaffold.GraphFlow
 
         public PortMeta(string name, Type type, PortDirection direction)
         {
-            Name      = name ?? throw new ArgumentNullException(nameof(name));
-            Type      = type ?? throw new ArgumentNullException(nameof(type));
+            Name      = name;
+            Type      = type;
             Direction = direction;
         }
     }

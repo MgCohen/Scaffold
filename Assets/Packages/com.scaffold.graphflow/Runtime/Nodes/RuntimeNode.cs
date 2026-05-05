@@ -37,7 +37,6 @@ namespace Scaffold.GraphFlow
         /// </summary>
         public Connection Bind(string dstPortName, RuntimeNode src, string srcPortName)
         {
-            if (src == null) throw new ArgumentNullException(nameof(src));
             if (!Ports.TryGetValue(dstPortName, out var dstPort))
                 throw new ArgumentException($"Destination node has no port named '{dstPortName}'.");
             if (!src.Ports.TryGetValue(srcPortName, out var srcPort))

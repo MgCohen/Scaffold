@@ -61,7 +61,7 @@ namespace Scaffold.GraphFlow
     {
         readonly Func<T> _read;
 
-        public OutputPort(Func<T> read) => _read = read ?? throw new ArgumentNullException(nameof(read));
+        public OutputPort(Func<T> read) => _read = read;
 
         public T Read() => _read();
     }
@@ -85,8 +85,8 @@ namespace Scaffold.GraphFlow
 
         public FlowOutPort(RuntimeNode owner, string name)
         {
-            Owner = owner ?? throw new ArgumentNullException(nameof(owner));
-            Name = name ?? throw new ArgumentNullException(nameof(name));
+            Owner = owner;
+            Name = name;
         }
     }
 
@@ -104,8 +104,8 @@ namespace Scaffold.GraphFlow
 
         public FlowInPort(RuntimeNode owner, string name = "FlowIn")
         {
-            Owner = owner ?? throw new ArgumentNullException(nameof(owner));
-            Name = name ?? throw new ArgumentNullException(nameof(name));
+            Owner = owner;
+            Name = name;
         }
     }
 }

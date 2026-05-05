@@ -1,5 +1,3 @@
-using System;
-
 namespace Scaffold.GraphFlow
 {
     /// <summary>
@@ -18,12 +16,7 @@ namespace Scaffold.GraphFlow
         /// <see cref="Port.AcceptOutput"/> virtual so the typed cast happens once, statically, on the
         /// input side.
         /// </summary>
-        public static Connection Bind(Port input, Port output)
-        {
-            if (input == null) throw new ArgumentNullException(nameof(input));
-            if (output == null) throw new ArgumentNullException(nameof(output));
-            return input.AcceptOutput(output);
-        }
+        public static Connection Bind(Port input, Port output) => input.AcceptOutput(output);
     }
 
     public sealed class Connection<T> : Connection

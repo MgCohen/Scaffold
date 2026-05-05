@@ -57,8 +57,8 @@ namespace Scaffold.GraphFlow
             Type? resultType = null)
         {
             Kinds          = kinds;
-            Type           = type ?? throw new ArgumentNullException(nameof(type));
-            Ports          = ports ?? throw new ArgumentNullException(nameof(ports));
+            Type           = type;
+            Ports          = ports;
             CreateRuntime  = createRuntime;
             DefaultLiteral = defaultLiteral;
             ResultType     = resultType;

@@ -25,12 +25,12 @@ namespace Scaffold.GraphFlow
 
         public GraphController(GraphAsset<TRunner> asset)
         {
-            _asset = asset ?? throw new ArgumentNullException(nameof(asset));
+            _asset = asset;
         }
 
         public void Initialize(TRunner runner, Func<IEffectScope?>? scopeFactory = null)
         {
-            _runner = runner ?? throw new ArgumentNullException(nameof(runner));
+            _runner = runner;
             _scopeFactory = scopeFactory;
 
             _byId = new Dictionary<int, RuntimeNode>(_asset.nodes.Count);
@@ -96,9 +96,6 @@ namespace Scaffold.GraphFlow
         /// </summary>
         public Task<Flow> Run<TEntry>(TEntry payload, CancellationToken ct = default) where TEntry : class
         {
-            if (_bridges == null)
-                throw new InvalidOperationException("Initialize must be called first.");
-
             var entryType = typeof(TEntry);
             if (!_bridges.TryGetValue(entryType, out var bridge))
                 throw new InvalidOperationException($"No baked entry for {entryType.FullName}.");
