@@ -11,7 +11,6 @@ namespace Scaffold.GraphFlow
         readonly GraphAsset<TRunner> _asset;
         Dictionary<int, RuntimeNode> _byId = null!;
         Dictionary<Type, IEntryBridge> _bridges = new();
-        readonly GraphExecutor<TRunner> _executor = new GraphExecutor<TRunner>();
         TRunner _runner = null!;
         List<RuntimeNode> _entryNodes = new();
         Func<object?>? _scopeFactory;
@@ -84,7 +83,7 @@ namespace Scaffold.GraphFlow
                     continue;
 
                 _entryNodes.Add(n);
-                var bridge = entry.CreateBridge<TRunner>(_runner, _asset, _executor, _scopeFactory);
+                var bridge = entry.CreateBridge<TRunner>(_runner, _asset, _scopeFactory);
                 _bridges[bridge.PayloadType] = bridge;
             }
         }

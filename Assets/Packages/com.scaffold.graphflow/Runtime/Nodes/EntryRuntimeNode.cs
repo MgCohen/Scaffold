@@ -11,7 +11,7 @@ namespace Scaffold.GraphFlow
     [Serializable]
     public abstract class EntryRuntimeNodeBase : RuntimeNode
     {
-        public abstract IEntryBridge CreateBridge<TRunner>(TRunner runner, GraphAsset<TRunner> asset, GraphExecutor<TRunner> executor, Func<object?>? scopeFactory)
+        public abstract IEntryBridge CreateBridge<TRunner>(TRunner runner, GraphAsset<TRunner> asset, Func<object?>? scopeFactory)
             where TRunner : GraphRunner;
     }
 
@@ -41,8 +41,8 @@ namespace Scaffold.GraphFlow
             return _runFromHere(payload);
         }
 
-        public override IEntryBridge CreateBridge<TRunner>(TRunner runner, GraphAsset<TRunner> asset, GraphExecutor<TRunner> executor, Func<object?>? scopeFactory)
-            => new EntryBridge<TEntry, TRunner>(this, runner, asset, executor, scopeFactory);
+        public override IEntryBridge CreateBridge<TRunner>(TRunner runner, GraphAsset<TRunner> asset, Func<object?>? scopeFactory)
+            => new EntryBridge<TEntry, TRunner>(this, runner, asset, scopeFactory);
     }
 
     /// <summary>
@@ -58,21 +58,19 @@ namespace Scaffold.GraphFlow
         readonly EntryRuntimeNode<TEntry> _node;
         readonly TRunner _runner;
         readonly GraphAsset<TRunner> _asset;
-        readonly GraphExecutor<TRunner> _executor;
         readonly Func<object?>? _scopeFactory;
 
-        public EntryBridge(EntryRuntimeNode<TEntry> node, TRunner runner, GraphAsset<TRunner> asset, GraphExecutor<TRunner> executor, Func<object?>? scopeFactory)
+        public EntryBridge(EntryRuntimeNode<TEntry> node, TRunner runner, GraphAsset<TRunner> asset, Func<object?>? scopeFactory)
         {
             _node = node;
             _runner = runner;
             _asset = asset;
-            _executor = executor;
             _scopeFactory = scopeFactory;
 
             _node.BindRunner(payload =>
             {
                 _node.SetPayload(payload);
-                return _executor.RunFlow(_node, _runner, _asset, _scopeFactory?.Invoke());
+                return GraphExecutor.RunFlow(_node, _runner, _asset, _scopeFactory?.Invoke());
             });
         }
 
@@ -81,7 +79,7 @@ namespace Scaffold.GraphFlow
         public Task<Flow> Run(object payload)
         {
             _node.SetPayload((TEntry)payload);
-            return _executor.RunFlow(_node, _runner, _asset, _scopeFactory?.Invoke());
+            return GraphExecutor.RunFlow(_node, _runner, _asset, _scopeFactory?.Invoke());
         }
     }
 }

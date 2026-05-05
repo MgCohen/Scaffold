@@ -1,6 +1,3 @@
-#nullable enable
-using System.Threading;
-
 namespace Scaffold.GraphFlow
 {
     /// <summary>
@@ -10,6 +7,5 @@ namespace Scaffold.GraphFlow
     /// </summary>
     public abstract class GraphRunner
     {
-        public CancellationToken CancellationToken { get; set; }
     }
 }

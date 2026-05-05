@@ -10,9 +10,10 @@ namespace Scaffold.GraphFlow
     /// <see cref="Flow.GoTo"/>. <c>asset.flowEdges</c> is consumed once at hydration by
     /// <see cref="GraphController{TRunner}.Initialize"/> to populate those refs.
     /// </summary>
-    public sealed class GraphExecutor<TRunner> where TRunner : GraphRunner
+    public static class GraphExecutor
     {
-        public async Task<Flow> RunFlow(RuntimeNode start, TRunner runner, GraphAsset<TRunner> asset, object? scope = null, CancellationToken ct = default)
+        public static async Task<Flow> RunFlow<TRunner>(RuntimeNode start, TRunner runner, GraphAsset<TRunner> asset, object? scope = null, CancellationToken ct = default)
+            where TRunner : GraphRunner
         {
             var flow = new Flow(ct) { Scope = scope, Runner = runner };
             RuntimeNode? current = start;

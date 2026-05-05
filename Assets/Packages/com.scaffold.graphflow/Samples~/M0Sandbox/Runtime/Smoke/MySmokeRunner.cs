@@ -1,4 +1,3 @@
-using System.Threading;
 using Scaffold.GraphFlow;
 
 namespace Scaffold.GraphFlow.M0.Smoke
@@ -10,15 +9,5 @@ namespace Scaffold.GraphFlow.M0.Smoke
         public string LastLogMessage { get; private set; }
 
         public void RecordLog(string message) => LastLogMessage = message;
-
-        public MySmokeRunner()
-        {
-            CancellationToken = default;
-        }
-
-        public MySmokeRunner(CancellationToken token)
-        {
-            CancellationToken = token;
-        }
     }
 }
