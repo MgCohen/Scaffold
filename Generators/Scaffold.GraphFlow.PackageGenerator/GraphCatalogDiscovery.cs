@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Threading;
 using Microsoft.CodeAnalysis;
 
@@ -24,12 +25,12 @@ namespace Scaffold.GraphFlow.PackageGenerator
         internal static IReadOnlyList<GraphCatalogEmitter.EventDescriptor> DiscoverEvents(
             Compilation compilation,
             GraphPackageModel package,
-            IAssemblySymbol payloadAsm,
+            ImmutableArray<INamedTypeSymbol> allTypes,
             INamedTypeSymbol graphEventAttr,
             CancellationToken ct)
         {
             var result = new List<GraphCatalogEmitter.EventDescriptor>();
-            foreach (var type in GraphPayloadTypeWalker.AllNamedTypesInAssembly(payloadAsm, ct))
+            foreach (var type in allTypes)
             {
                 ct.ThrowIfCancellationRequested();
                 if (!PayloadDiscovery.IsCandidateType(type)) continue;
@@ -45,7 +46,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
         internal static IReadOnlyList<GraphCatalogEmitter.CommandDescriptor> DiscoverCommands(
             Compilation compilation,
             GraphPackageModel package,
-            IAssemblySymbol payloadAsm,
+            ImmutableArray<INamedTypeSymbol> allTypes,
             INamedTypeSymbol graphPortAttr,
             INamedTypeSymbol? graphPortIgnoreAttr,
             CancellationToken ct)
@@ -56,7 +57,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             var openCmdBase = compilation.GetTypeByMetadataName(package.CommandBaseMetadataName);
             if (openCmdBase == null) return result;
 
-            foreach (var type in GraphPayloadTypeWalker.AllNamedTypesInAssembly(payloadAsm, ct))
+            foreach (var type in allTypes)
             {
                 ct.ThrowIfCancellationRequested();
                 if (!PayloadDiscovery.IsCandidateType(type)) continue;
@@ -91,14 +92,14 @@ namespace Scaffold.GraphFlow.PackageGenerator
         internal static IReadOnlyList<GraphCatalogEmitter.EntryDescriptor> DiscoverEntries(
             Compilation compilation,
             GraphPackageModel package,
-            IAssemblySymbol payloadAsm,
+            ImmutableArray<INamedTypeSymbol> allTypes,
             INamedTypeSymbol iEntry,
             INamedTypeSymbol graphPortAttr,
             INamedTypeSymbol? graphPortIgnoreAttr,
             CancellationToken ct)
         {
             var result = new List<GraphCatalogEmitter.EntryDescriptor>();
-            foreach (var type in GraphPayloadTypeWalker.AllNamedTypesInAssembly(payloadAsm, ct))
+            foreach (var type in allTypes)
             {
                 ct.ThrowIfCancellationRequested();
                 if (!PayloadDiscovery.IsCandidateType(type)) continue;
@@ -123,7 +124,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
         internal static IReadOnlyList<GraphCatalogEmitter.ReturnDescriptor> DiscoverReturns(
             Compilation compilation,
             GraphPackageModel package,
-            IAssemblySymbol payloadAsm,
+            ImmutableArray<INamedTypeSymbol> allTypes,
             INamedTypeSymbol? graphReturnTypeAttr,
             CancellationToken ct)
         {
@@ -138,7 +139,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             // [GraphReturnType]-tagged types in the package's runtime asm.
             if (graphReturnTypeAttr != null)
             {
-                foreach (var type in GraphPayloadTypeWalker.AllNamedTypesInAssembly(payloadAsm, ct))
+                foreach (var type in allTypes)
                 {
                     ct.ThrowIfCancellationRequested();
                     if (!PayloadDiscovery.IsCandidateType(type)) continue;

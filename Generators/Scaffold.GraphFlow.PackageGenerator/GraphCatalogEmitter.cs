@@ -291,8 +291,10 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine("        public static IEnumerable<CatalogEntry> OfKind(CatalogKind k) =>");
             sb.AppendLine("            s_All.Where(e => (e.Kinds & k) != 0);");
             sb.AppendLine();
+            sb.AppendLine("        static readonly Dictionary<System.Type, CatalogEntry> s_ByType = s_All.ToDictionary(e => e.Type);");
+            sb.AppendLine();
             sb.AppendLine("        public static CatalogEntry? Get(System.Type t) =>");
-            sb.AppendLine("            s_All.FirstOrDefault(e => e.Type == t);");
+            sb.AppendLine("            s_ByType.TryGetValue(t, out var v) ? v : null;");
             sb.AppendLine();
         }
 

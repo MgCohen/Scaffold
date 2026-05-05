@@ -97,8 +97,10 @@ namespace HarnessFixture.Generated
         public static IEnumerable<CatalogEntry> OfKind(CatalogKind k) =>
             s_All.Where(e => (e.Kinds & k) != 0);
 
+        static readonly Dictionary<System.Type, CatalogEntry> s_ByType = s_All.ToDictionary(e => e.Type);
+
         public static CatalogEntry? Get(System.Type t) =>
-            s_All.FirstOrDefault(e => e.Type == t);
+            s_ByType.TryGetValue(t, out var v) ? v : null;
 
         // ============ Event port unions (for V03 edge validation) ============
 

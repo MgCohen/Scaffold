@@ -143,10 +143,14 @@ namespace Scaffold.GraphFlow.PackageGenerator
 
             if (graphEventAttr == null || graphPortAttr == null || iEntry == null) return;
 
-            var events   = GraphCatalogDiscovery.DiscoverEvents(compilation, p, payloadAsm, graphEventAttr, ct);
-            var commands = GraphCatalogDiscovery.DiscoverCommands(compilation, p, payloadAsm, graphPortAttr, graphPortIgnoreAttr, ct);
-            var entries  = GraphCatalogDiscovery.DiscoverEntries(compilation, p, payloadAsm, iEntry, graphPortAttr, graphPortIgnoreAttr, ct);
-            var returns  = GraphCatalogDiscovery.DiscoverReturns(compilation, p, payloadAsm, graphReturnTypeAttr, ct);
+            // Walk the payload asm once and reuse for every Discover* — each used to walk the
+            // same asm itself, producing four full type enumerations.
+            var allTypes = GraphPayloadTypeWalker.AllNamedTypesInAssembly(payloadAsm, ct);
+
+            var events   = GraphCatalogDiscovery.DiscoverEvents(compilation, p, allTypes, graphEventAttr, ct);
+            var commands = GraphCatalogDiscovery.DiscoverCommands(compilation, p, allTypes, graphPortAttr, graphPortIgnoreAttr, ct);
+            var entries  = GraphCatalogDiscovery.DiscoverEntries(compilation, p, allTypes, iEntry, graphPortAttr, graphPortIgnoreAttr, ct);
+            var returns  = GraphCatalogDiscovery.DiscoverReturns(compilation, p, allTypes, graphReturnTypeAttr, ct);
 
             GraphCatalogEmitter.EmitRuntimeCatalog(spc, compilation, p, events, commands, entries, returns);
         }
