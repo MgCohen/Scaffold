@@ -1,17 +1,12 @@
 # GraphFlow Runner Redesign — Plan & Sketches
 
-Status: **Draft, iterating.** The shape feels right; specifics need nitpicking.
+Status: **Draft v2 — major rewrite after design conversation. Shape locked, ready to implement.**
 
-This doc captures the proposed redesign of the GraphFlow runtime API
-surface — folding `GraphController<TRunner>` and `GraphExecutor` into
-the `GraphRunner` itself, simplifying entry dispatch, and introducing
-the right virtuals so consumers can extend behavior without resorting
-to delegates or attribute soup.
-
-The redesign came out of a design discussion that started with "how do
-I make custom flow ports on entries" and snowballed into "the whole
-controller/executor split is over-engineered for what consumers
-actually need."
+This doc replaces the v1 sketch. The shape changed substantially after a
+design pass that pulled the model closer to FlowCanvas / Unreal Blueprint
+idioms (pull-based dataflow + push-based execution, per-In handlers,
+flow-keyed caches) while keeping the framework's existing strengths
+(typed ports, source-generated catalogs, no reflection at runtime).
 
 > **Reading prerequisites.** This doc references types, attributes,
 > validators, and generator behavior from the existing GraphFlow
@@ -21,6 +16,44 @@ actually need."
 > - `GraphFlow-Audit.md` at the repo root (recent architecture
 >   audit — Batch references, validator IDs `EFG-V*`, the
 >   `PortValueResolver` etc. all originate there).
+
+---
+
+## What changed from v1
+
+The v1 draft kept `RuntimeNode.Execute(Flow)` as the single per-node
+chokepoint and folded `GraphController` + `GraphExecutor` into the
+runner. Most of that survived. The deeper changes:
+
+- **Execute is gone.** Replaced by per-`FlowInPort` callback handlers
+  set in node ctors. Nodes no longer override an Execute method;
+  imperative behavior lives on the In ports themselves. Multi-In
+  becomes natural — necessary for loops (now on the roadmap).
+- **Pure nodes have no flow ports.** Add, Subtract, And, etc. are
+  pure compute — lazy `OutputPort<T>` reads only. No In, no Out,
+  no handler. Matches FlowCanvas's PureFunctionNode model.
+- **Flow becomes the per-run identity.** Carries payload, outcome,
+  cancellation, runner ref, per-flow port-value cache. Pooled to
+  hold steady-state allocation at zero.
+- **Ports are flow-keyed memo caches.** `OutputPort<T>.Read(Flow)`
+  computes once per flow and caches. Loops invalidate via
+  `flow.InvalidateAll()`.
+- **Walk loop returns `FlowOutPort.End`** (a sentinel) instead of
+  null. `flow.Return(value)` and `flow.Cancel()` return the sentinel
+  so handlers compose into one-line expressions.
+- **Builder owns construction**, including the runner. Public API is
+  `builder.Build(asset)` returning a fresh runner; the builder caches
+  bake results per asset. No static cache classes.
+- **Bake is named explicitly** (was "Hydrate" in v1). Topology
+  resolution + node wiring happen once per asset, shared across all
+  runners spawned from that asset.
+- **Nodes are shared across runners.** Per-run state lives on Flow,
+  per-port cache is keyed by Flow, runners hold no per-node state.
+  The 5-cards-in-hand pattern works with one bake + many cheap
+  runners.
+- **Typed runner access via `RuntimeNode<TRunner>`** static helper
+  — no cached `_runner` field on nodes (would be per-runner state
+  on a shared instance).
 
 ---
 
@@ -51,44 +84,47 @@ controller.Initialize(runner);
 await controller.Run(new OnPlay { ... });
 ```
 
-Three objects, two of which the consumer doesn't conceptually want to
-hold (`controller` is a black box; `runner` carries services). The
-trigger-bus pattern is even noisier — host must track every (runner,
-asset) pair and re-do the dance.
-
 ### What we want
 
 - **Custom entry shapes** — e.g., card entries with two flow outs:
   `Validate` (must terminate at `Return<bool>`) and `Execute`.
-- **Per-node before/after wrapping** — log/time/gate every node.
-  Can be expressed as a virtual override, not a delegate chain.
-- **Trigger payload modification** — a graph mid-bus can change the
-  inflight payload (or cancel the chain).
-- **Two overridable init seams** — `runner.Initialize` (loops nodes,
-  registers entries) and `node.Initialize` (per-node consumer hook).
-  Wiring lives in a separate static `GraphBuilder` — not part of
-  either override surface.
+- **Loops** — multi-In nodes (Begin / Continue), with a clean
+  invalidation story so iteration K+1 re-evaluates instead of
+  reusing iteration K's cached values.
+- **Concurrent runs on the same runner** — five cards in hand
+  spawn five runners; each runner can be re-entered (recursive
+  triggers) without per-call setup.
+- **Trigger payload modification** — graphs that modify the
+  inflight trigger payload (or cancel propagation entirely).
+- **Per-node hooks** — Initialize seam for "subscribe to events,
+  cache state" without intruding on wiring.
 
-### Design tenets
+---
 
-Architectural assumptions baked into every decision below. Stating
-them up-front so a reader can sanity-check the rest.
+## Design tenets
+
+Architectural assumptions baked into every decision below.
 
 - **Many-to-one runners-to-asset.** A runner instance is bound to
-  exactly one asset (you don't re-bind a runner to a different
-  asset over its lifetime). The same asset can be used to build
-  many runner instances — typical pattern: one runner per
-  in-game thing (per card, per encounter, per session) all built
-  from the same `*.card` / `*.graph` asset.
+  exactly one asset. The same asset can build many runners —
+  typical pattern: one runner per in-game thing (per card, per
+  encounter, per session) all built from the same `*.card` /
+  `*.graph` asset.
 
-- **Concurrent runs on the same runner are expected to work.**
-  A consumer should be able to call `runner.Run(...)` again before
-  the prior run completes (re-entrant trigger fires, parallel
-  invocations from the host) without the second call clobbering
-  the first. Per-run state lives on `Flow`, not on the runner or
-  on entry nodes. ⚠ This conflicts with Q7's current lean (option 3,
-  "one runner per concurrent path"); Q7 needs revisiting in light
-  of this tenet.
+- **Concurrent runs on the same runner are first-class.** All
+  per-run state lives on `Flow`, never on the runner or on nodes.
+  Nodes are stateless after bake; the runner holds only graph-level
+  state. The same runner can be `Run` repeatedly in parallel
+  without coordination — both for game-driven concurrency (one
+  card triggering itself recursively) and for host-driven
+  concurrency (parallel dispatch on the same runner instance).
+
+- **Bake-once, build-many.** Topology resolution and node
+  instantiation happen exactly once per asset. Spawning a runner
+  from an already-baked asset is just constructing the runner;
+  the wired node graph is shared across all runners built from
+  that asset. Per-runner state is only what the consumer puts
+  there (services).
 
 - **Framework provides primitives; host writes the coordination
   layer.** The package ships `Flow.Outcome`, `Return<T>`, `Cancel`,
@@ -98,29 +134,37 @@ them up-front so a reader can sanity-check the rest.
   bus, no built-in subscription registry — those belong to the
   game.
 
-- **Asset is read at `Build` time only.** Once `GraphBuilder.Build`
-  returns, the runtime never touches `asset.nodes` /
-  `asset.connections` / `asset.flowEdges` again. Direct port refs
-  carry all the wiring; the executor walks via `FlowOutPort.Connection`.
+- **Forward flow, backward data, ports as the threading.** Flow
+  goes from entry to terminator via In→Out→In links. Data is
+  pulled lazily backward when a node reads an input. Ports are
+  the only objects that touch both — they're how the two
+  directions connect. This framing is the spine of the design.
+
+- **Asset is read at bake time only.** Once `Bake` returns, the
+  runtime never touches `asset.nodes` / `asset.connections` /
+  `asset.flowEdges` again. Direct port refs carry all the wiring.
   This is the existing G+2 invariant from `GraphFlow-Audit.md`
-  ("hydration-once / direct-refs-thereafter") — the redesign
-  preserves it.
+  ("hydration-once / direct-refs-thereafter") — preserved.
+
+- **Single-threaded reads (for now).** The per-port cache is a
+  plain `Dictionary<Flow, T>`. Concurrent runs from a
+  `SynchronizationContext` (Unity's main thread) interleave but
+  don't race. True multi-threaded reads from worker threads are
+  out of scope; revisit if a job-system integration becomes a real
+  ask.
 
 ---
 
 ## Driving use cases
 
-Pseudo-code intent only. The shape is what matters; specific names /
-signatures / accessors are deferred to the design decisions section
-so the API isn't accidentally pinned by an early sketch.
+Pseudo-code intent only. Specific names / signatures live in the
+architecture section.
 
 ### UC1 — Entry with multiple typed flow outs
 
-> A package's entry point exposes more than one flow exit, each with
-> its own expected result type. The consumer dispatches a payload
-> through one specific exit and gets back its typed result. Different
-> exits can be invoked independently (or sequentially) for the same
-> payload.
+> A package's entry exposes more than one flow exit, each with its
+> own expected result type. The consumer dispatches a payload
+> through one specific exit and gets back its typed result.
 
 ```
 # package author declares (once, at package level):
@@ -129,45 +173,39 @@ entry shape for this package =
     flow-out "Execute"  returning nothing
 
 # at runtime:
-runner = create runner with services
-attach asset to runner
-
-ok = run-through(runner, "Validate", payload)       → bool
+runner = build runner with services from asset
+ok = runner.RunValidate(payload)        → bool
 if not ok: stop
-run-through(runner, "Execute", payload)              → void
+runner.RunExecute(payload)              → void
 ```
 
 Constraints implied:
-- The "expected result type" is enforceable at edit time
-  (validator: a graph wired to `Validate` must terminate at a
-  `Return<bool>`).
+- Result type enforceable at edit time (validator: a graph wired
+  to `Validate` must terminate at `Return<bool>`).
 - Flow exits are package-uniform (every entry in the package has
-  the same shape) — this matches the "per-package + per-type"
-  preference.
+  the same shape) — matches "per-package + per-type" preference.
 
-### UC2 — wrap every node execution with custom logic
+### UC2 — Loops (multi-In nodes)
 
-> The consumer wants to run code immediately before and immediately
-> after each node executes — for logging, profiling, telemetry,
-> gating, etc. Single hook per concern; the framework's default is
-> "no wrapping."
+> A loop node has multiple flow entry points: `Begin` for the first
+> iteration and `Continue` for subsequent ones. The body runs once
+> per iteration; data ports inside the body re-evaluate each time.
 
 ```
-# consumer expresses, at runner level:
-override "execute one node" =
-    do something before
-    invoke default execute-one-node behavior
-    do something after
+loop body = subgraph after Body output
+iteration counter lives on Flow, not on this
+each iteration: invalidate previous iteration's port caches
 ```
 
 Constraints implied:
-- The hook is per-runner (subclass override), not a registered
-  delegate chain. One override at a time.
-- Default path has zero overhead when not overridden.
-- Overriding "execute one node" must NOT require also overriding
-  the walk loop itself.
+- Multi-In nodes must be expressible. Single-Execute models can't
+  do this without a discriminator parameter.
+- The framework needs a way to invalidate a flow's accumulated
+  port caches between iterations.
+- Iteration state (counter etc.) must be per-flow, not per-node
+  (concurrent loop runs share the node instance).
 
-### UC3 — modify a trigger payload mid-bus
+### UC3 — Modify a trigger payload mid-bus
 
 > A trigger fires an event payload to subscribed graphs. A graph
 > can modify the inflight payload (e.g., bump a damage amount by
@@ -178,281 +216,263 @@ Constraints implied:
 # host fires trigger:
 current = original event
 for each subscribed runner (filtered by timing):
-    outcome, modified = run trigger graph with current payload
-    if outcome was "cancel": return null
-    current = modified                # graph's post-modification payload
+    flow = await runner.Run(current)
+    if flow.IsCancelled: return null
+    # `current` was mutated in place — payload threading is
+    # automatic for reference-typed payloads
 return current
 ```
 
 Constraints implied:
-- "Modify" is one mechanism, not two — whether the framework lets
-  graphs edit-in-place or return a replacement is an implementation
-  choice; pick whichever is simpler. The host only observes "the
-  payload after this graph ran."
-- "Cancel" is a distinct outcome from "no modification" — the
-  framework already distinguishes these via `Flow.Outcome`.
+- "Modify" is one mechanism. Direction picked: edit-in-place
+  (reference-typed payloads, mutation visible after the run).
+  Implementation mechanism (per-payload generated nodes vs.
+  generic + accessor closures) deferred — see Q-modify.
+- "Cancel" is distinct from "no modification" — already handled
+  by `Flow.Outcome`.
 
-### UC4 — runner-level + node-level init, both overridable
+### UC4 — Wrap node execution with custom logic
 
-> When the runner binds an asset, the runner orchestrates the init
-> loop and each node decides what its own init looks like. Both
-> are individually overridable. The wiring work itself (port
-> binding, flow connection setup, runner ref attachment, entry
-> registration) is framework-private — consumer overrides add
-> setup on top of it, not replace it.
+> Reframed from v1. With Execute gone, there's no longer a single
+> chokepoint to wrap. Cross-cutting concerns (logging, profiling,
+> gating) attach via `Initialize` hooks at bake time, or — if we
+> ever need it — via a future walk-loop interception point. Not
+> a v2 priority.
+
+### UC5 — Init seams (per-node + per-runner)
+
+> When a runner is built, each node gets an Initialize hook for
+> per-node setup (subscribe to events, cache derived data). The
+> runner gets its own Initialize hook for runner-level setup.
+> Wiring is framework-private and never on the override surface.
 
 ```
-# external builder (framework, not on the override surface):
-build(runner, asset):
-    pre-resolve everything (node-id map, edges, ports)
-    create connection objects (data + flow), once each
-    hand each node its slice → node.build(runner, slice)
-    hand the wired nodes to the runner → runner.initialize(nodes)
-    return runner ready
-
-# node side (framework wiring step — virtual, default does the work):
-node.build(runner, slice):
-    default = attach my incoming data connections to my input ports
-              attach my flow connections (out + in) to my flow ports
-              capture runner reference (typed nodes only)
-    # node owns all its own port mutation; nothing happens to its
-    # ports from outside
-
-# node side (consumer hook):
-node.initialize(runner):
-    default = no-op
-    # consumer override adds custom setup using runner services
-    # (e.g., pre-cache stuff). No wiring concerns here.
-
-# runner side (loop seam — virtual):
-runner.initialize(nodes):
-    default = for each node:
-                  if entry: register by payload type
-                  node.initialize(runner)
-    # consumer override can wrap the loop, filter nodes, add
-    # cross-cutting work (e.g. service warmup) before/after.
+# builder orchestrates:
+build(asset):
+    bake (one-time per asset, cached on builder):
+        resolve topology, create connections, instantiate nodes,
+        wire connections to ports
+    construct runner via CreateRunner(baked)  ← consumer override
+    foreach node: node.Initialize(runner)
+    runner.Initialize()
+    return runner
 ```
 
 Constraints implied:
-- Wiring is external (`build`), not on either `Initialize` override
-  surface. Consumers can override `runner.initialize` or
-  `node.initialize` freely without risk of bypassing wiring.
-- Two virtual seams — `runner.initialize` (whole-loop scope) and
-  `node.initialize` (per-node scope, consumer hook only). Consumer
-  picks the granularity that matches what they're doing.
-- No "post-init" phase. Anything a consumer wants to do after
-  nodes are ready, they do at the end of their `runner.initialize`
-  override, after calling base.
+- Wiring is in `Bake`, not on either `Initialize` override
+  surface. Consumer overrides can't accidentally bypass it.
+- `Initialize` defaults are no-ops. Forgetting `base.Initialize()`
+  doesn't break anything — consumer overrides are pure additions.
 
 ---
 
-## Design decisions (with rationale)
+## Design decisions
 
-### D1 — Runner *is* the executor
+### D1 — Pull model: flow forward, data backward
 
-**Decision.** Fold `GraphExecutor` and `GraphController<TRunner>` into
-`GraphRunner`. Delete both as standalone types. The runner becomes the
-single object the consumer holds.
+**Decision.** Flow walks forward via FlowIn → FlowOut → FlowIn
+links. Data pulls backward via lazy `Read(Flow)` calls on input
+ports, which read upstream output ports, which compute on demand.
+Two direction grammars, one set of ports threading them.
+
+Two node tiers fall out of this:
+
+| Tier | Has FlowIn? | Has FlowOut? | Has OutputPort? | Behavior lives in |
+|---|---|---|---|---|
+| **Pure** | no | no | yes | OutputPort lambda |
+| **Imperative** | yes (1+) | yes (0+) | optional | FlowInPort handler |
+
+Pure nodes (Add, Branch's Condition input, Return's Value input):
+no flow ports, lazy outputs.
+Imperative nodes (Branch, Wait, Return, Cancel, Loop): per-In
+handlers, optional outputs.
 
 **Rationale.**
 
-- Consumers conceptually want to hold "the running graph." That's the
-  runner — the thing typed to their package, the thing they inject
-  services into, the thing they call `Run()` on.
-- The audit (S3) made `GraphExecutor` static when it had zero state.
-  The moment we want a virtual `ExecuteNode` extension seam, static
-  doesn't work. A non-static `GraphExecutor` class would re-introduce
-  a separate object with one virtual — bureaucracy.
-- `GraphController<TRunner>` was a thin orchestration layer. With
-  init on the runner and walk on the runner, controller has nothing
-  left to own.
-- "Runner = services bag *and* graph orchestration" arguably violates
-  SRP. Counter-argument: the alternative is a 3-object dance for a
-  1-object concept, and the runner is already the consumer's
-  customization seam (subclassed for services + DI). Pragmatism wins.
+- Matches FlowCanvas / Unreal Blueprint conventions. Authors
+  coming from those tools will recognize the model immediately.
+- Node bodies stay local: the closure that computes a value sits
+  next to the port that exposes it. The handler that runs on
+  flow-arrival sits next to the port that receives it.
+- Pure compute stays cheap (no execute scheduling), imperative
+  flow is explicit.
 
-**Rejected alternative — separate executor with virtuals.**
+### D2 — Per-FlowInPort handlers replace `Execute`
+
+**Decision.** Imperative nodes don't override `Execute`. Each
+`FlowInPort` is constructed with a handler that returns the next
+`FlowOutPort` to walk to (or `FlowOutPort.End` to stop). Multi-In
+nodes declare multiple FlowInPort fields, each with its own
+handler.
 
 ```csharp
-public class GraphExecutor
-{
-    public virtual Task<Flow> RunFlow<TRunner>(...) { ... }
-    protected virtual Task ExecuteNode(RuntimeNode node, Flow flow) => node.Execute(flow);
-}
-
-new GraphController<CardEffectRunner>(asset, new CardEffectExecutor());
+In = new FlowInPort(flow => Condition.Read(flow) ? True : False);
 ```
 
-Cleaner SRP, but two extension points instead of one. Consumers now
-need to subclass *both* runner (for services) and executor (for
-walk wrapping). Doesn't match the "one base class to extend" goal.
+**Rationale.**
 
-### D2 — Inheritance, not delegates, for extension
+- Loops need multi-In (Begin / Continue / Break). Single-Execute
+  forces a discriminator parameter or an internal state machine.
+- Each entry point's logic stays local — no `if (lastIn == In_A)`
+  switching in one method.
+- Handler signature `Func<Flow, FlowOutPort>` is symmetric with
+  `OutputPort<T>`'s `Func<Flow, T>` — both active port types take
+  their behavior in the constructor.
+- The framework owns the walk loop; handlers are pure functions
+  of `flow → next port`. No imperative `flow.GoTo` ceremony.
 
-**Decision.** `ExecuteNode` is a virtual on the runner. No
-`UseInterceptor(NodeStep)` delegate API.
+### D3 — `Flow` as per-run identity + payload + cache key
+
+**Decision.** `Flow` is the per-run context object. It carries:
+- Payload (set once, read by entry data ports).
+- Outcome (`Cancelled` / `Returned` / running).
+- Result (for `Return<T>`).
+- Cancellation token.
+- Runner back-reference (typed access via `RuntimeNode<TRunner>`).
+- Per-loop "slot" storage (iteration counters, etc.).
+- A `_touchedPorts` list for cache cleanup.
+
+`Flow` is pooled. Steady-state per-Run allocation is zero.
 
 **Rationale.**
 
-- "I was expecting just an override method that I could call in a
-  parent class, so interceptors wouldn't be required" — the consumer
-  already subclasses the runner; one more virtual override is zero
-  additional ceremony.
-- One interceptor is enough; if multiple are ever needed, the
-  consumer composes their own chain inside their override.
-- Delegate-based middleware introduces capture + closure allocations
-  per call. Virtual call has zero overhead when not overridden.
+- Per-run state must not live on shared nodes (D5). Flow is the
+  only object whose lifetime matches a single Run.
+- Pooling addresses the obvious "Flow allocation per Run" cost.
+  The pool holds N pre-allocated Flows; each tracks the ports it
+  touches; on completion it returns to the pool, walking the
+  touched list to clear per-port caches.
+- Slots replace per-node mutable state for things like loop
+  iteration counters. A Loop node looks up `flow.GetSlot<int>(this)`
+  — keyed by `this` (the node) so concurrent runs of the same Loop
+  don't collide.
 
-### D3 — Wiring lives in a static `GraphBuilder`; `Initialize` is consumer-hook only
+### D4 — Ports own their Flow-keyed cache
 
-**Decision.** Topology resolution and connection wiring live in a
-static `GraphBuilder` class. Consumers don't see it directly —
-they call `GraphBuilder.Build(runner, asset)` (the only public
-entry point for setup), which returns the runner ready to dispatch.
+**Decision.** `OutputPort<T>` holds a `Dictionary<Flow, T>` cache.
+First `Read(flow)` computes via the lambda and stores; subsequent
+reads in the same flow return the cached value. On flow completion,
+the framework walks the flow's touched-ports list and clears
+entries for that flow.
 
-Runner and node both have `Initialize` virtuals, but neither does
-wiring:
+Per-port `cache: false` opt-out for ports that should always
+re-evaluate (`Time.time` reads, RNG samples, loop iteration
+counters).
 
-1. `runner.Initialize(IReadOnlyList<RuntimeNode>)` — default loops
-   nodes, registers entries by payload type, calls each node's
-   `Initialize(runner)` consumer hook. Override to wrap the loop.
-2. `node.Initialize(GraphRunner runner)` — default no-op. Pure
-   consumer extension point. Override to add per-node setup.
-
-A separate `node.Build(runner, slice)` method (also virtual, but
-framework-internal) is what receives the pre-resolved wiring slice
-from the builder and attaches connections to the node's own ports.
-Consumers don't override `Build` in the typical case — it's part
-of the framework surface.
+`flow.InvalidateAll()` clears all touched-port caches for the
+current flow — used by Loop between iterations.
 
 **Rationale.**
 
-- "We need to be able to override both initializes" — both runner
-  and node have a virtual `Initialize`.
-- "The initialize of the runner is what loops through the nodes
-  to initialize" — runner's default IS the loop.
-- Static builder satisfies "we should keep the 'hydration' part
-  as a private method" by moving it *out* of the runner/node
-  entirely — it's framework infrastructure, not on either
-  override surface.
-- "Kill the double method, Initialize is just calling Hydrate" —
-  no Initialize→Hydrate wrapper inside the node. `Initialize` is
-  truly empty by default; `Build` is the wiring step.
-- O(N+E) instead of O(N·E): builder pre-resolves once, hands each
-  node its slice. No recursion, no per-node edge scanning. (See
-  Q6, now closed.)
-- No more "footgun": `Initialize` has no load-bearing default, so
-  forgetting `base.Initialize(...)` doesn't break the graph.
-  Consumer overrides are pure additions.
-- No post-init phase. If a consumer wants to run code after all
-  nodes are initialized, they do it at the end of their
-  `runner.Initialize` override after `base.Initialize(nodes)`.
-- The runner's loop method is named `Initialize` rather than `Bind`
-  because `Bind` is already the verb for port-level wiring
-  (`Connection.Bind(input, output)`, `Port.AcceptOutput`,
-  `node.BindPort(...)`). Using it as a runner-level verb invited
-  collisions in code search and confusion about scope. The setup
-  entry on the framework — `GraphBuilder.Build` — keeps a distinct
-  verb at the topmost level, so the three verbs read as a
-  hierarchy: `Build` (whole graph) → `Initialize` (per-node hook)
-  → port-level `Bind` (the actual wiring).
+- Memoization within a flow matters when an output is read by
+  multiple consumers (Add wired to three downstream nodes).
+- Cache lifetime is bounded: Flow lifecycle = cache lifecycle.
+- Per-port dict is small (avg N entries, N = pool size).
+- Loop invalidation is targeted (O(touched ports), not O(graph)).
+- Single-threaded read contract sidesteps concurrent-write races
+  on the dict for now.
 
-### D4 — `node.Build` owns its own port mutation; builder coordinates
+### D5 — Nodes are shared across runners
 
-**Decision.** Each node has a virtual `Build(GraphRunner, NodeBuildSlice)`
-method that the builder calls during the wiring pass. The slice is
-pre-resolved by the builder; the node attaches it to its own ports
-via the existing internal port API (`Port.AcceptOutput`,
-`FlowOutPort.Connection`, `FlowInPort.Connection`).
-
-The builder creates each `Connection<T>` and `FlowConnection`
-exactly once (flow connections are shared between two nodes; the
-same instance is included in both nodes' slices). Builder
-guarantees the create-once invariant; nodes only attach.
-
-Entry registration (mapping `EntryRuntimeNodeBase` instances by
-payload type) lives on the **runner**'s `Initialize` loop, not the
-builder or the node — the runner is the one that needs the lookup
-for `Run<TEntry>` dispatch.
+**Decision.** Bake instantiates one set of `RuntimeNode` instances
+per asset. All runners built from that asset reference the same
+node instances. Nodes have no per-runner state — no `_runner`
+field, no per-runner caches. The runner reference reaches a node
+only via `flow.Runner` at execute time.
 
 **Rationale.**
 
-- "Node knows what is there. So he can do the whole mapping."
-  — node owns its own port mutation; nothing reaches into its
-  ports from outside the class.
-- "We are creating the same connection twice" — solved: builder
-  pre-resolves and creates each connection object exactly once,
-  hands the same instance to both endpoint nodes' Build calls.
-- "We can move the building logic to a builder ... can be generic
-  and works on every single package" — `GraphBuilder` is a single
-  static class shared across all packages. No per-package
-  customization for now (see open question for future
-  extensibility).
-- "No reason for the runtime node to register itself on runner.
-  Runner is the one that initialized it — let runner register it."
-  — runner's `Initialize` loop pattern-matches `EntryRuntimeNodeBase`
-  and registers.
-- O(N+E) total cost. No recursion, no per-node edge scanning.
-- "Three separate steps" on the node lifecycle: ctor (parameterless,
-  for deserialization) → `Build` (framework wiring) → `Initialize`
-  (consumer hook). Clear separation of concerns.
+- Bake once, build many. The 5-cards-in-hand case spawns 5
+  runners but pays the bake cost (topology resolution + node
+  instantiation + connection wiring) exactly once.
+- Per-run state is on Flow (D3); per-port cache is keyed by Flow
+  (D4). With these two, there's nothing left for nodes to hold
+  per-runner.
+- The `_runner` field on `RuntimeNode<TRunner>` from v1 goes away
+  — it would have been per-runner state on a shared instance,
+  contradicting this tenet.
 
-### D5 — Payload moves to `Flow`, not to the entry node
+### D6 — Builder owns construction, hydration cached on builder
 
-**Decision.** Strip `_runFromHere`, `BindRunner(Func)`, `Run(TEntry)`,
-`Run(object)`, `BindForRun<TRunner>` *and* `SetPayload` /
-`Payload` from `EntryRuntimeNode<TEntry>`. The runner walks; the
-typed payload for a given run lives on `Flow`. The entry's `Execute`
-reads `flow.GetPayload<TEntry>()`.
+**Decision.** A typed `GraphBuilder<TRunner>` is the consumer's
+entry point for spawning runners. The builder:
+- Holds a `Dictionary<GraphAsset, BakedGraph>` cache (per builder
+  instance, not static).
+- Calls `Bake(asset)` on cache miss to do the O(N+E) topology
+  pass.
+- Constructs the runner by calling a consumer-implemented
+  abstract `CreateRunner(BakedGraph)`.
+- Calls `node.Initialize(runner)` for each node, then
+  `runner.Initialize()`.
 
-**Rationale.**
+Consumer subclasses the builder once per package, holds services
+as fields, supplies the runner via `CreateRunner`.
 
-- `EntryRuntimeNode.Payload` was per-instance mutable state — two
-  concurrent `Run` calls on the same runner would clobber each
-  other's payload. `Flow` is per-run by construction, so payload
-  on Flow is concurrency-safe by default.
-- The closure (`_runFromHere`) existed because `GraphExecutor.RunFlow`
-  needed runner + asset + scope plumbed through. With the runner
-  *being* the executor, those refs are already on `this`.
-- The typed `Run(payload)` call site (used by Strike500Tests) moves
-  to `runner.Run(payload)`. Host pattern-match-then-Run becomes
-  pattern-match-runner-then-Run.
-- The entry node now only needs to expose its payload type
-  (`PayloadType`) so the runner can route by-type. No mutable state.
-
-**Caveat.** Output ports on auto-generated entry runtimes (e.g.
-`OnPlayRuntime.Card`, `Player`) read closures that today capture
-`this.Payload`. Those need to capture `flow.GetPayload<TEntry>()`
-instead — but output port `Read()` doesn't carry a `Flow`, so this
-is a deeper port-system change. See Q7.
-
-### D6 — Generics: keep `GraphAsset<TRunner>`, runner non-generic
-
-**Decision.** Asset stays typed by runner (`CardGraphAsset :
-GraphAsset<CardEffectRunner>`). Runner is non-generic. Setup goes
-through `GraphBuilder.Build<TRunner>(runner, asset)`, where TRunner
-is inferred from the args and runner/asset matching is enforced at
-compile time via generic constraints — no runtime cast at the
-runner level.
+```csharp
+var builder = new CardEffectBuilder(rules, bus);
+var runners = Enumerable.Range(0, 5)
+    .Select(_ => builder.Build(asset))
+    .ToArray();
+```
 
 **Rationale.**
 
-- Asset declarations are the user's main "package surface" (they're
-  the SO type with `[CreateAssetMenu]`). Self-documenting their
-  runner pairing reads better there than on the runner.
-- Runner type inversion (`Runner<TGraph>`) was offered by the user
-  ("if needed we can invert the generics"). Both work; keeping the
-  current direction minimizes diff against existing assets and
-  generator emit. Runtime cast in `Initialize` is a one-time check
-  at setup, never on the hot path.
-- CRTP on the runner (`GraphRunner<TRunner> where TRunner :
-  GraphRunner<TRunner>`) would give compile-time cast safety but
-  introduces a classic-but-still-jarring type signature for every
-  consumer subclass. Skipped unless the runtime cast becomes a real
-  problem.
+- The builder, not the runner, is the natural owner of the bake
+  cache. Same lifecycle, same scope.
+- Consumer's runner subclass keeps a single ctor that takes
+  `(BakedGraph baked, ...services)` — no two-phase setup, no
+  Attach method.
+- DI fits later: register the builder with the container, get it
+  injected, call `Build`.
+- No `_built` guard on the runner — runners are constructed once
+  per call by definition.
 
-**Note:** Q3 (the inversion alternative) is closed — moot under the
-builder shape. See Q3 for details.
+### D7 — Typed runner access via `RuntimeNode<TRunner>` static helper
+
+**Decision.** `RuntimeNode<TRunner>` (the typed base) provides a
+`protected static TRunner Runner(Flow flow) => (TRunner)flow.Runner;`
+helper. Consumer nodes that need typed access to package services
+derive from it; framework nodes (Add, Branch, Return) stay on the
+untyped `RuntimeNode`.
+
+**Rationale.**
+
+- Cast is unavoidable (nodes shared, runner per-flow). The static
+  helper is the smallest sugar that makes the cast disappear at
+  call sites.
+- Framework builtins remain runner-agnostic.
+- No generic Flow<TRunner>; that approach forces TRunner into
+  every port type or just relocates the cast to the handler entry.
+
+### D8 — Whole-payload port on `EntryRuntimeNode<TPayload>` base
+
+**Decision.** The typed entry base exposes `OutputPort<TPayload>
+Payload` for free. Consumer subclasses inherit it; the generator
+emits zero extra lines.
+
+```csharp
+public abstract class EntryRuntimeNode<TPayload> : EntryRuntimeNodeBase
+    where TPayload : class
+{
+    public override Type PayloadType => typeof(TPayload);
+    public OutputPort<TPayload> Payload { get; }
+
+    protected EntryRuntimeNode()
+    {
+        Payload = new OutputPort<TPayload>(flow => flow.GetPayload<TPayload>()!);
+        Ports.Add(nameof(Payload), Payload);
+    }
+}
+```
+
+**Rationale.**
+
+- Currently impossible to wire the whole payload to a downstream
+  node (only individual fields are exposed).
+- Captured-nothing closure → static cached delegate, zero
+  per-instance allocation.
+- Foundation for the deferred Modify/Decompose/Construct work
+  (those nodes will wire their `Source` input to this port).
 
 ---
 
@@ -463,286 +483,178 @@ builder shape. See Q3 for details.
 ```
 Runtime/
   Asset/      GraphAsset.cs                  (unchanged)
-  Controller/
-    GraphRunner.cs                           (services + dispatch + executor walk)
-    GraphBuilder.cs                          NEW — static, wires graphs
-    GraphExecutor.cs                         DELETED
+  Builder/
+    GraphBuilder.cs                          NEW — abstract<TRunner>, owns bake cache
+    BakedGraph.cs                            NEW — wired-graph DTO
+    GraphTopology.cs                         NEW — internal Bake() pass
+    GraphRunner.cs                           (executor walk + dispatch + entry lookup)
     GraphController.cs                       DELETED
-  Flow/       Flow.cs                        (carries per-run Payload now)
-  Markers/    PortMeta, CatalogEntry, …      (unchanged)
-              IEntryBridge.cs                 already deleted (Batch 8)
+    GraphExecutor.cs                         DELETED
+  Flow/       Flow.cs                        (payload + slots + InvalidateAll + pool)
+  Markers/    PortMeta, CatalogEntry, …      (unchanged for now)
   Nodes/
-    RuntimeNode.cs                           (virtual Build + virtual Initialize)
-    EntryRuntimeNode.cs                      (just a type marker — no Payload field)
-    OnTrigger.cs                             (reads payload from Flow now)
-    Builtin/  …                              (unchanged)
-  Ports/      Ports.cs, Connection.cs        (unchanged)
+    RuntimeNode.cs                           (Initialize hook, no Execute)
+    RuntimeNode_TRunner.cs                   (typed base + Runner(Flow) helper)
+    EntryRuntimeNode.cs                      (typed base + Payload port)
+    Builtin/  …                              (rewritten — see below)
+  Ports/
+    Port.cs                                  (base + IsConnected on InputPort<T>)
+    OutputPort.cs                            (cache, opt-out flag)
+    FlowInPort.cs                            (handler-in-ctor, sync/async overloads)
+    FlowOutPort.cs                           (.End sentinel)
+    Connection.cs                            (unchanged)
 ```
 
-### Key types — proposed shape
-
-#### `GraphRunner`
+### Port primitives
 
 ```csharp
-public abstract class GraphRunner
+public abstract class Port
 {
-    // Only persistent state: payload-type → entry node lookup, built
-    // by Initialize, used by every Run<TEntry> dispatch.
-    Dictionary<Type, EntryRuntimeNodeBase> _entriesByPayload = new();
+    public RuntimeNode Owner { get; internal set; } = null!;
+    public string      Name  { get; internal set; } = "";
+}
 
-    // Override seam — the loop. Called by GraphBuilder after wiring;
-    // not called by consumer code directly. Default iterates nodes,
-    // registers entries, calls each node's Initialize hook.
-    public virtual void Initialize(IReadOnlyList<RuntimeNode> nodes)
+public class OutputPort<T> : Port
+{
+    readonly Func<Flow, T> _compute;
+    readonly Dictionary<Flow, T> _cache = new();
+    readonly bool _shouldCache;
+
+    public OutputPort(Func<Flow, T> compute, bool cache = true)
     {
-        foreach (var n in nodes)
-        {
-            if (n is EntryRuntimeNodeBase entry)
-                _entriesByPayload[entry.PayloadType] = entry;
-            n.Initialize(this);
-        }
+        _compute = compute;
+        _shouldCache = cache;
     }
 
-    public Task<Flow> Run<TEntry>(TEntry payload, CancellationToken ct = default)
-        where TEntry : class
+    public T Read(Flow flow)
     {
-        if (!_entriesByPayload.TryGetValue(typeof(TEntry), out var entry))
-            throw new InvalidOperationException($"No baked entry for {typeof(TEntry).FullName}.");
-
-        var flow = CreateFlow(ct);
-        flow.SetPayload(payload);
-        return RunFlow(entry, flow);
+        if (!_shouldCache) return _compute(flow);
+        if (_cache.TryGetValue(flow, out var v)) return v;
+        v = _compute(flow);
+        _cache[flow] = v;
+        flow.RegisterTouched(this);
+        return v;
     }
 
-    // Dispatch through a specific named flow-out on the entry, returning
-    // the typed result the graph terminated with. Used by package-specific
-    // entry bases (e.g. CardEntry<T>.RunValidate(payload)) that expose
-    // multi-flow-out shapes.
-    protected async Task<TResult?> RunFromFlowOut<TPayload, TResult>(
-        TPayload payload, string portName, CancellationToken ct = default)
-        where TPayload : class
-    {
-        if (!_entriesByPayload.TryGetValue(typeof(TPayload), out var entry))
-            throw new InvalidOperationException($"No baked entry for {typeof(TPayload).FullName}.");
-        if (!entry.Ports.TryGetValue(portName, out var port) || port is not FlowOutPort flowOut)
-            throw new InvalidOperationException($"Entry has no flow-out '{portName}'.");
+    internal void ClearCache(Flow flow) => _cache.Remove(flow);
+}
 
-        var flow = CreateFlow(ct);
-        flow.SetPayload(payload);
+public class InputPort<T> : Port
+{
+    OutputPort<T>? _source;
+    public bool IsConnected => _source != null;
+    public T Read(Flow flow) => _source is null ? default! : _source.Read(flow);
+    internal void Connect(OutputPort<T> source) => _source = source;
+}
 
-        // Walk starts AT the destination of this flow-out, not the entry.
-        var dest = flowOut.Connection?.Destination.Owner;
-        if (dest == null) return default;       // unwired flow-out — no work
+public class FlowOutPort : Port
+{
+    public static readonly FlowOutPort End = new() { Name = "<end>" };
+    public FlowConnection? Connection { get; internal set; }
+}
 
-        await RunFlow(dest, flow).ConfigureAwait(false);
-        return flow.ReadResult<TResult>();
-    }
+public delegate FlowOutPort           FlowHandler     (Flow flow);
+public delegate ValueTask<FlowOutPort> AsyncFlowHandler(Flow flow);
 
-    // Public read for hosts that pattern-match — e.g. trigger buses
-    // that need to dispatch to a specific entry runtime type.
-    public T? GetEntry<T>() where T : EntryRuntimeNodeBase
-    {
-        foreach (var e in _entriesByPayload.Values)
-            if (e is T t) return t;
-        return null;
-    }
+public class FlowInPort : Port
+{
+    public FlowConnection? Connection { get; internal set; }
+    internal Func<Flow, ValueTask<FlowOutPort>> Invoke { get; }
 
-    async Task<Flow> RunFlow(RuntimeNode start, Flow flow)
-    {
-        RuntimeNode? current = start;
-        while (current != null)
-        {
-            await ExecuteNode(current, flow).ConfigureAwait(false);
-            current = flow.ConsumeNext()?.Connection?.Destination.Owner;
-        }
-        return flow;
-    }
-
-    // Override seam — wraps each node execution. Default just calls.
-    protected internal virtual Task ExecuteNode(RuntimeNode node, Flow flow)
-        => node.Execute(flow);
-
-    // Override seam — game-specific runners attach scope here.
-    protected virtual Flow CreateFlow(CancellationToken ct) =>
-        new Flow(ct) { Runner = this };
+    public FlowInPort(FlowHandler      sync ) { Invoke = f => new(sync(f));     }
+    public FlowInPort(AsyncFlowHandler async_) { Invoke = async_; }
 }
 ```
 
-#### `RuntimeNode`
+### `Flow`
+
+```csharp
+public sealed class Flow
+{
+    object? _payload;
+    Dictionary<object, object>? _slots;        // per-(node, key) per-flow state
+    readonly List<Port> _touched = new();
+
+    public GraphRunner    Runner { get; internal set; } = null!;
+    public CancellationToken Token { get; internal set; }
+
+    public Outcome Outcome { get; private set; }
+    public bool    IsCancelled  => Outcome == Outcome.Cancelled;
+    public bool    IsTerminating => Outcome != Outcome.Running;
+
+    // Payload
+    public T?   GetPayload<T>() where T : class => _payload as T;
+    internal void SetPayload(object p) => _payload = p;
+
+    // Outcome-setting helpers — return End so handlers compose
+    public FlowOutPort Return<T>(T value) { _result = value; Outcome = Outcome.Returned;  return FlowOutPort.End; }
+    public FlowOutPort Cancel()           {                  Outcome = Outcome.Cancelled; return FlowOutPort.End; }
+    object? _result;
+    public T? ReadResult<T>() => _result is T t ? t : default;
+
+    // Cache touch tracking
+    internal void RegisterTouched(Port p) => _touched.Add(p);
+    public   void InvalidateAll()
+    {
+        foreach (var p in _touched) (p as ICacheClearable)?.ClearCache(this);
+        _touched.Clear();
+    }
+
+    // Slots — per-node per-flow scoped state (loop counters etc.)
+    public T GetSlot<T>(object owner) =>
+        _slots != null && _slots.TryGetValue(owner, out var v) ? (T)v : default!;
+    public void SetSlot<T>(object owner, T value) =>
+        (_slots ??= new())[owner] = value;
+
+    internal void ResetForReuse()
+    {
+        _payload = null; _result = null; Outcome = Outcome.Running;
+        _slots?.Clear(); _touched.Clear();
+    }
+}
+```
+
+### `RuntimeNode` and `RuntimeNode<TRunner>`
 
 ```csharp
 public abstract class RuntimeNode
 {
-    public int nodeId;
+    public int    nodeId;
     public string editorGuid = string.Empty;
     [NonSerialized] public readonly Dictionary<string, Port> Ports = new();
 
-    // Framework wiring step — called by GraphBuilder. Default
-    // attaches the pre-resolved connections to this node's own
-    // ports. Virtual for advanced cases (custom port shapes), but
-    // typical nodes don't override.
-    internal virtual void Build(GraphRunner runner, in NodeBuildSlice slice)
-    {
-        foreach (var (dstPortName, srcPort) in slice.IncomingData)
-        {
-            if (Ports.TryGetValue(dstPortName, out var dst))
-                dst.AcceptOutput(srcPort);   // existing typed-cast seam
-        }
+    // Framework wiring step — called by Bake. Default attaches the
+    // pre-resolved connections to this node's ports.
+    internal virtual void Build(in NodeBuildSlice slice) { /* ... */ }
 
-        foreach (var conn in slice.FlowConnections)
-        {
-            if (ReferenceEquals(conn.Source.Owner, this))
-                conn.Source.Connection = conn;
-            if (ReferenceEquals(conn.Destination.Owner, this))
-                conn.Destination.Connection = conn;
-        }
-    }
-
-    // Consumer extension point — called by runner.Initialize after
-    // all nodes are wired. Default no-op. Override to add per-node
-    // setup using runner services.
+    // Consumer extension point — called by builder after every node
+    // is wired. Default no-op. Override to subscribe to events,
+    // cache derived state using runner services.
     public virtual void Initialize(GraphRunner runner) { }
-
-    public virtual Task Execute(Flow flow) => Task.CompletedTask;
 }
 
 public abstract class RuntimeNode<TRunner> : RuntimeNode where TRunner : GraphRunner
 {
-    [NonSerialized] TRunner? _runner;
+    // Typed access to runner from inside FlowInPort handlers /
+    // OutputPort lambdas — `Runner(flow).Rules.Foo()`.
+    protected static TRunner Runner(Flow flow) => (TRunner)flow.Runner;
 
-    internal sealed override void Build(GraphRunner runner, in NodeBuildSlice slice)
-    {
-        base.Build(runner, slice);
-        _runner = (TRunner)runner;
-    }
-
-    public sealed override Task Execute(Flow flow) => Execute(_runner!, flow);
-    public abstract Task Execute(TRunner runner, Flow flow);
-
+    // Typed Initialize sugar.
     public sealed override void Initialize(GraphRunner runner) => Initialize((TRunner)runner);
     public virtual void Initialize(TRunner runner) { }
 }
 ```
 
-```csharp
-// The pre-resolved wiring slice the builder hands to each node.
-public readonly struct NodeBuildSlice
-{
-    // dest-port-name on this node → upstream source port (already resolved)
-    public IReadOnlyList<KeyValuePair<string, Port>> IncomingData { get; }
-
-    // Flow connections that touch this node's ports (either as source
-    // or destination — node decides which side via Owner check).
-    public IReadOnlyList<FlowConnection> FlowConnections { get; }
-
-    public NodeBuildSlice(
-        IReadOnlyList<KeyValuePair<string, Port>> incomingData,
-        IReadOnlyList<FlowConnection> flowConnections)
-    {
-        IncomingData = incomingData;
-        FlowConnections = flowConnections;
-    }
-}
-```
-
 Three-step node lifecycle:
+- **ctor** (parameterless): runs at deserialization or instantiation
+  via the catalog factory. Populates the `Ports` dict and wires
+  per-In handlers via FlowInPort ctor.
+- **`Build`** (framework-internal): called by `Bake` once per node.
+  Attaches the pre-resolved slice to the node's ports.
+- **`Initialize`** (consumer hook): called by the builder after all
+  nodes are wired. Default no-op.
 
-- **ctor** (parameterless): runs at deserialization time. Populates
-  the `Ports` dict. No runner / no asset / no connections yet.
-- **`Build`** (framework, internal virtual): called by `GraphBuilder`
-  during the wiring pass. Default attaches the pre-resolved slice
-  to this node's ports + captures the runner ref for typed nodes.
-  Typical consumer nodes don't override.
-- **`Initialize`** (consumer hook, public virtual): called by
-  `runner.Initialize` after every node is wired. Default no-op.
-  Override to do per-node setup using runner services.
-
-Entry-registration is *not* here — runner's `Initialize` loop
-pattern-matches `EntryRuntimeNodeBase` and registers. The node has
-no opinion about whether it's an entry.
-
-#### `GraphBuilder` (static, internal)
-
-```csharp
-internal static class GraphBuilder
-{
-    // The single setup entry point. Consumer constructs the runner
-    // (with services) and the asset, calls Build, gets back the
-    // runner ready to dispatch.
-    public static TRunner Build<TRunner>(TRunner runner, GraphAsset<TRunner> asset)
-        where TRunner : GraphRunner
-    {
-        // 1. Pre-resolve node-id → node map. O(N), one pass.
-        var byId = new Dictionary<int, RuntimeNode>(asset.nodes.Count);
-        foreach (var n in asset.nodes) byId[n.nodeId] = n;
-
-        // 2. Bucket incoming data connections by destination node-id.
-        //    For each data edge, resolve upstream source port once.
-        var incomingByNode = new Dictionary<int, List<KeyValuePair<string, Port>>>();
-        foreach (var c in asset.connections)
-        {
-            if (!byId.TryGetValue(c.fromNodeId, out var from)) continue;
-            if (!byId.TryGetValue(c.toNodeId, out var to)) continue;
-            if (!from.Ports.TryGetValue(c.fromPortName, out var srcPort)) continue;
-
-            if (!incomingByNode.TryGetValue(to.nodeId, out var list))
-                incomingByNode[to.nodeId] = list = new();
-            list.Add(new(c.toPortName, srcPort));
-        }
-
-        // 3. Build flow connections — exactly once each. Bucket by
-        //    each touching node-id so both endpoints get the same
-        //    instance.
-        var flowByNode = new Dictionary<int, List<FlowConnection>>();
-        foreach (var e in asset.flowEdges)
-        {
-            if (!byId.TryGetValue(e.fromNodeId, out var from)) continue;
-            if (!byId.TryGetValue(e.toNodeId, out var to)) continue;
-            if (!from.Ports.TryGetValue(e.fromPortName, out var src) || src is not FlowOutPort flowOut) continue;
-            if (!to.Ports.TryGetValue(e.toPortName, out var dst) || dst is not FlowInPort flowIn) continue;
-
-            var conn = new FlowConnection(flowOut, flowIn);
-
-            if (!flowByNode.TryGetValue(from.nodeId, out var fromList))
-                flowByNode[from.nodeId] = fromList = new();
-            fromList.Add(conn);
-
-            if (from.nodeId != to.nodeId)
-            {
-                if (!flowByNode.TryGetValue(to.nodeId, out var toList))
-                    flowByNode[to.nodeId] = toList = new();
-                toList.Add(conn);
-            }
-        }
-
-        // 4. Hand each node its slice — node attaches to its own ports.
-        foreach (var n in asset.nodes)
-        {
-            incomingByNode.TryGetValue(n.nodeId, out var inData);
-            flowByNode.TryGetValue(n.nodeId, out var flow);
-
-            var slice = new NodeBuildSlice(
-                (IReadOnlyList<KeyValuePair<string, Port>>?)inData ?? Array.Empty<KeyValuePair<string, Port>>(),
-                (IReadOnlyList<FlowConnection>?)flow ?? Array.Empty<FlowConnection>());
-
-            n.Build(runner, slice);
-        }
-
-        // 5. Hand off to runner (registers entries + calls
-        //    node.Initialize for each node).
-        runner.Initialize(asset.nodes);
-
-        return runner;
-    }
-}
-```
-
-Single pass over `asset.connections` (O(E_data)) and `asset.flowEdges`
-(O(E_flow)). Single pass over `asset.nodes` to dispatch slices.
-Total cost: O(N + E). Each `Connection<T>` and `FlowConnection`
-created exactly once.
-
-#### `EntryRuntimeNode<TEntry>` and `Flow`
+### `EntryRuntimeNode<TPayload>`
 
 ```csharp
 public abstract class EntryRuntimeNodeBase : RuntimeNode
@@ -750,426 +662,598 @@ public abstract class EntryRuntimeNodeBase : RuntimeNode
     public abstract Type PayloadType { get; }
 }
 
-public abstract class EntryRuntimeNode<TEntry> : EntryRuntimeNodeBase
-    where TEntry : class
+public abstract class EntryRuntimeNode<TPayload> : EntryRuntimeNodeBase
+    where TPayload : class
 {
-    public override Type PayloadType => typeof(TEntry);
+    public override Type PayloadType => typeof(TPayload);
+    public OutputPort<TPayload> Payload { get; }
 
-    // No instance payload state. Reads from per-run Flow:
-    protected TEntry? GetPayload(Flow flow) => flow.GetPayload<TEntry>();
+    protected EntryRuntimeNode()
+    {
+        Payload = new OutputPort<TPayload>(flow => flow.GetPayload<TPayload>()!);
+        Ports.Add(nameof(Payload), Payload);
+    }
 }
 ```
 
+No `_runFromHere`, no `BindRunner`, no `Run(TEntry)`, no `Run(object)`,
+no `BindForRun<TRunner>`, no `Payload` field, no `SetPayload`. Only:
+- `PayloadType` for runner-side dispatch.
+- `Payload` output port for graphs that want the whole payload.
+- Per-package subclasses add their own FlowOuts (Validate / Execute).
+
+### `BakedGraph`
+
 ```csharp
-public sealed class Flow
+public sealed class BakedGraph
 {
-    object? _payload;
+    public IReadOnlyList<RuntimeNode>                   Nodes            { get; }
+    public IReadOnlyDictionary<Type, EntryRuntimeNodeBase> EntriesByPayload { get; }
 
-    internal void SetPayload(object payload) => _payload = payload;
-    public T? GetPayload<T>() where T : class => _payload as T;
-
-    // ... existing Flow members (Outcome, Result, Scope, etc.) ...
+    internal BakedGraph(
+        IReadOnlyList<RuntimeNode> nodes,
+        IReadOnlyDictionary<Type, EntryRuntimeNodeBase> entries)
+    {
+        Nodes = nodes;
+        EntriesByPayload = entries;
+    }
 }
 ```
 
-The runner stashes payload on `Flow` once per run:
+### `GraphBuilder<TRunner>`
 
 ```csharp
-// in GraphRunner.Run<TEntry>:
-var flow = CreateFlow(ct);
-flow.SetPayload(payload);
-return RunFlow(entry, flow);
+public abstract class GraphBuilder<TRunner> where TRunner : GraphRunner
+{
+    readonly Dictionary<GraphAsset, BakedGraph> _cache = new();
+
+    public TRunner Build(GraphAsset<TRunner> asset)
+    {
+        if (!_cache.TryGetValue(asset, out var baked))
+            _cache[asset] = baked = GraphTopology.Bake(asset);
+
+        var runner = CreateRunner(baked);
+        foreach (var n in baked.Nodes) n.Initialize(runner);
+        runner.Initialize();
+        return runner;
+    }
+
+    protected abstract TRunner CreateRunner(BakedGraph baked);
+}
+
+internal static class GraphTopology
+{
+    public static BakedGraph Bake(GraphAsset asset)
+    {
+        // O(N+E) topology pass — same shape as v1 but with the
+        // per-In handler model. See GraphFlow-Audit G+2 invariant.
+        // 1. Build node-id → node map (asset.nodes are already
+        //    instantiated RuntimeNodes from deserialization).
+        // 2. Bucket asset.connections (data) and asset.flowEdges
+        //    (flow) by destination node-id.
+        // 3. Create FlowConnection instances exactly once each.
+        // 4. For each node: hand it its slice via node.Build(slice).
+        // 5. Build entriesByPayload dict.
+        // 6. Return BakedGraph(nodes, entriesByPayload).
+    }
+}
 ```
 
-Concurrent `runner.Run` calls each get their own `Flow`, so payload
-is per-run by construction — no shared mutable state on the entry.
-
-### Custom entry shapes (per-package + per-type)
-
-Per the user's preference for inheritance: each package defines a
-**base entry class** that declares its flow-out shape. Per-type
-entries inherit and add nothing. The generator emits the per-payload
-subclass; the package's base is hand-written.
+### `GraphRunner`
 
 ```csharp
-// Package-side hand-written base (lives in CardEffect runtime asm):
+public abstract class GraphRunner
+{
+    protected internal IReadOnlyList<RuntimeNode>                   Nodes            { get; }
+    protected internal IReadOnlyDictionary<Type, EntryRuntimeNodeBase> EntriesByPayload { get; }
+
+    protected GraphRunner(BakedGraph baked)
+    {
+        Nodes            = baked.Nodes;
+        EntriesByPayload = baked.EntriesByPayload;
+    }
+
+    public virtual void Initialize() { }   // consumer hook, default no-op
+
+    // Default-flow-out dispatch by payload type.
+    public Task<Flow> Run<TEntry>(TEntry payload, CancellationToken ct = default)
+        where TEntry : class
+    {
+        if (!EntriesByPayload.TryGetValue(typeof(TEntry), out var entry))
+            throw new InvalidOperationException($"No entry for {typeof(TEntry).FullName}.");
+
+        // Entry's default FlowOut walks via its sole connection.
+        // For per-package shapes with multiple FlowOuts, see
+        // RunFromFlowOut below.
+        var flow = AcquireFlow(payload, ct);
+        return RunFromEntry(entry, flow);
+    }
+
+    // Explicit-flow-out dispatch (multi-out entry shapes).
+    protected async Task<TResult?> RunFromFlowOut<TResult>(
+        object payload, FlowOutPort flowOut, CancellationToken ct = default)
+    {
+        var dest = flowOut.Connection?.Destination;
+        if (dest == null) return default;
+
+        var flow = AcquireFlow(payload, ct);
+        await RunFromInPort(dest, flow);
+        return flow.ReadResult<TResult>();
+    }
+
+    Flow AcquireFlow(object payload, CancellationToken ct)
+    {
+        var flow = FlowPool.Rent();
+        flow.SetPayload(payload);
+        flow.Token  = ct;
+        flow.Runner = this;
+        return flow;
+    }
+
+    async Task<Flow> RunFromEntry(EntryRuntimeNodeBase entry, Flow flow)
+    {
+        // Walk starts at the destination of the entry's default Out.
+        // (For multi-Out entries, RunFromFlowOut is the typed path.)
+        var defaultOut = entry.GetDefaultOut();
+        var dest = defaultOut?.Connection?.Destination;
+        if (dest != null) await RunFromInPort(dest, flow);
+        return flow;
+    }
+
+    async Task RunFromInPort(FlowInPort start, Flow flow)
+    {
+        FlowInPort? current = start;
+        while (current != null)
+        {
+            var next = await current.Invoke(flow);
+            if (ReferenceEquals(next, FlowOutPort.End)) break;
+            current = next.Connection?.Destination;
+        }
+        FlowPool.Return(flow);   // clears caches via flow.InvalidateAll under the hood
+    }
+}
+```
+
+### Per-package shape
+
+Hand-written by the consumer (one builder + one runner subclass per
+package, plus a per-package entry base class):
+
+```csharp
+// Per-package entry base — declares the multi-out shape.
 public abstract class CardEntry<TPayload> : EntryRuntimeNode<TPayload>
     where TPayload : class
 {
-    public FlowOutPort Validate = null!;
-    public FlowOutPort Execute  = null!;
+    public FlowOutPort Validate { get; }
+    public FlowOutPort Execute  { get; }
 
     protected CardEntry()
     {
-        Validate = new FlowOutPort(this, nameof(Validate));
-        Execute  = new FlowOutPort(this, nameof(Execute));
+        Validate = new FlowOutPort { Owner = this, Name = nameof(Validate) };
+        Execute  = new FlowOutPort { Owner = this, Name = nameof(Execute)  };
         Ports.Add(Validate.Name, Validate);
         Ports.Add(Execute.Name,  Execute);
     }
 }
 
-// [GraphPackage] declares the base. NOTE: `EntryBase` is a NEW property
-// being added to the existing GraphPackage attribute as part of this
-// redesign — it doesn't exist on [GraphPackage] today.
-[assembly: GraphPackage(
-    Runner    = typeof(CardEffectRunner),
-    Extension = "card",
-    AssetMenu = "GraphFlow/Card",
-    EntryBase = typeof(CardEntry<>))]
-
-// Generator emits per-payload subclass:
+// Generator-emitted per-payload subclass.
 [Serializable]
 public sealed class OnPlayRuntime : CardEntry<OnPlay>
 {
-    public OutputPort<Card> Card;
-    public OutputPort<PlayerId> Player;
-    // ctor wires data-output ports as before
-}
-```
-
-#### Typed dispatch — canonical path
-
-The canonical way to dispatch through a specific flow-out is via the
-package's entry base, reached through `runner.GetEntry<T>()`:
-
-```csharp
-// On the package's entry base — written once per package:
-public abstract class CardEntry<TPayload> : EntryRuntimeNode<TPayload>
-    where TPayload : class
-{
-    // ... ports as above ...
-
-    public Task<bool> RunValidate(TPayload payload) =>
-        Runner!.RunFromFlowOut<TPayload, bool>(payload, nameof(Validate));
-
-    public Task RunExecute(TPayload payload) =>
-        Runner!.RunFromFlowOut<TPayload, object>(payload, nameof(Execute));
-}
-
-// Host call site:
-var entry = runner.GetEntry<OnPlayRuntime>()!;
-if (!await entry.RunValidate(new OnPlay { ... })) return;
-await entry.RunExecute(new OnPlay { ... });
-```
-
-(Implies `Runner` is exposed on `EntryRuntimeNode<TEntry>` — readable
-by the entry's own typed-dispatch methods. Captured during `Build`.)
-
-#### Typed dispatch — optional sugar on the runner subclass
-
-A consumer who finds the `GetEntry<T>()` indirection chatty can add
-package-specific helpers on their runner subclass that wrap the same
-underlying primitive. Pure sugar; no new framework concept:
-
-```csharp
-public sealed class CardEffectRunner : GraphRunner
-{
-    public Task<bool> RunValidate<T>(T payload) where T : class =>
-        RunFromFlowOut<T, bool>(payload, "Validate");
-
-    public Task RunExecute<T>(T payload) where T : class =>
-        RunFromFlowOut<T, object>(payload, "Execute");
-}
-
-// Host call site (sugar):
-if (!await runner.RunValidate(new OnPlay { ... })) return;
-await runner.RunExecute(new OnPlay { ... });
-```
-
-Both paths bottom out in the same `GraphRunner.RunFromFlowOut<...>`
-primitive. Q1 captures the call-site trade-off.
-
----
-
-## Open questions / nitpicks
-
-### Q1 — Where does `RunValidate` / `RunExecute` live?
-
-**Resolution: both, with (2) canonical and (1) optional sugar.** All
-paths bottom out in the same `GraphRunner.RunFromFlowOut<TPayload, TResult>`
-primitive. The choice is just where the call-site sugar lives.
-
-1. **On the runner subclass** (e.g. `CardEffectRunner.RunValidate<T>`).
-   Optional package-level sugar. Call site:
-   `await runner.RunValidate(new OnPlay { ... })`. Per-package — a
-   consumer who doesn't want this sugar simply doesn't write it.
-
-2. **On the per-package entry base** (e.g.
-   `CardEntry<TPayload>.RunValidate(TPayload)`). **Canonical.**
-   Reached via `runner.GetEntry<OnPlayRuntime>()!.RunValidate(payload)`.
-   The typed-dispatch surface lives in one place per package; every
-   entry that inherits the base gets it for free.
-
-3. **On the generated entry subclass** (e.g.
-   `OnPlayRuntime.RunValidate(OnPlay)`) — same call shape as (2),
-   but the methods are emitted per-entry by the generator. We're not
-   pursuing this — duplicates the surface.
-
-The doc's example shows both side-by-side. Pick the one that matches
-the consumer's ergonomic preference for that package; they're not
-mutually exclusive.
-
-### Q2 — Constrain flow-out result types (validator)
-
-Card game wants `Validate` to terminate at `Return<bool>`. Today,
-EFG-V04 only checks "flow path terminates at Return/Cancel" — no type
-match. Adding per-port expected-type metadata:
-
-- Where declared? On the FlowOutPort field in the package's entry
-  base — attribute? `[FlowOutResult(typeof(bool))] public FlowOutPort
-  Validate;` — generator/registry reads, validator enforces.
-- Or on the runner's `RunFromFlowOut` declaration — the typed
-  `Task<TResult>` return tells you `TResult`.
-- Or both — declarative on the port for the validator + reflective
-  on the call site for the runner.
-
-To decide. Probably attribute-on-port for clarity.
-
-### Q3 — ~~Generic direction (D6 vs D6-alt)~~ (CLOSED)
-
-Originally open as a trade-off between `GraphAsset<TRunner>` (current)
-and `GraphRunner<TGraph>` (inverted). Mostly moot under the static-
-builder shape: `GraphBuilder.Build<TRunner>(TRunner runner, GraphAsset<TRunner> asset)`
-enforces runner/asset matching at compile time via generic inference,
-so the runner-side runtime cast that motivated the question doesn't
-exist. The remaining runtime cast — `(TRunner)runner` inside
-`RuntimeNode<TRunner>.Build` — is unaffected by the inversion either
-way.
-
-Closed in favor of keeping `GraphAsset<TRunner>`. Re-open if a future
-need (e.g., a non-generic asset shape) surfaces.
-
-### Q4 — Multiple `Build` or single?
-
-`GraphBuilder.Build` has no idempotency guard. Calling it twice
-on the same runner would re-wire ports (clobbering the first
-wiring), re-create connections, and re-populate
-`_entriesByPayload`. Almost certainly wrong.
-
-Options:
-
-1. Guard with a flag on the runner — throw on second `Build`.
-2. Allow re-Build as a feature (asset swapping). Reset
-   `_entriesByPayload`, walk nodes to clear port connections,
-   then re-wire.
-3. Don't guard — document that calling twice is undefined.
-
-Lean: (1). Re-build is a feature we don't have a use case for.
-Cheap: just a `bool _built` on the runner that `Build` sets.
-
-### Q5 — Trigger modify mechanism (UC3)
-
-The user clarified UC3: graphs need a way to modify the inflight
-trigger payload, but whether that's edit-in-place or replace-by-
-value is "whatever's easier."
-
-Two sketches:
-
-1. **Edit-in-place** — `OnTrigger<TEvent>.Event` is writable; nodes
-   that take the trigger as a data input + write back mutate the
-   live payload. Host reads
-   `flow.GetPayload<OnTrigger<TEvent>>()?.Event` after the run.
-2. **Replace-by-Return** — graph terminates at `Return<TEvent>`;
-   host reads `flow.ReadResult<TEvent>()`.
-
-Pick one for the framework convention. Both are nearly free
-(framework already has the primitives); the choice is which idiom
-we *document* and use in samples.
-
-Lean: edit-in-place — terser graph authoring (no need for an
-explicit `Return` node at the end of every modifier graph),
-simpler host code.
-
-### Q6 — ~~Init perf at scale~~ (CLOSED)
-
-The recursive-self-init concern (`O(N · E)`) is moot under the
-builder design. `GraphBuilder.Build` is a single O(N + E) pass:
-one walk of `asset.connections`, one walk of `asset.flowEdges`,
-one walk of `asset.nodes` to dispatch slices. Each `Connection<T>`
-and `FlowConnection` created exactly once.
-
-### Q7 — Concurrent runs and output-port closures
-
-D5 fixes payload concurrency by moving `Payload` from the entry
-node to `Flow`. But the auto-generated entry runtime classes today
-expose payload data via output ports whose `Read()` closures
-capture `this.Payload`:
-
-```csharp
-public sealed class OnPlayRuntime : EntryRuntimeNode<OnPlay>
-{
-    public OutputPort<Card> Card;
+    // Per-field outputs (lazy lambdas — capture nothing, static
+    // cached delegates).
+    public OutputPort<Card>     Card;
     public OutputPort<PlayerId> Player;
 
     public OnPlayRuntime()
     {
-        Card   = new OutputPort<Card>(() => Payload!.Card);          // captures `this`
-        Player = new OutputPort<PlayerId>(() => Payload!.Player);
+        Card   = new OutputPort<Card>    (flow => flow.GetPayload<OnPlay>()!.Card);
+        Player = new OutputPort<PlayerId>(flow => flow.GetPayload<OnPlay>()!.Player);
+        Ports.Add(nameof(Card),   Card);
+        Ports.Add(nameof(Player), Player);
+    }
+}
+
+// Per-package builder — holds services.
+public sealed class CardEffectBuilder : GraphBuilder<CardEffectRunner>
+{
+    readonly Rules _rules;
+    readonly Bus   _bus;
+
+    public CardEffectBuilder(Rules rules, Bus bus)
+    {
+        _rules = rules;
+        _bus   = bus;
+    }
+
+    protected override CardEffectRunner CreateRunner(BakedGraph baked)
+        => new(baked, _rules, _bus);
+}
+
+// Per-package runner — services + typed dispatch sugar.
+public sealed class CardEffectRunner : GraphRunner
+{
+    readonly Rules _rules;
+    readonly Bus   _bus;
+
+    public CardEffectRunner(BakedGraph baked, Rules rules, Bus bus) : base(baked)
+    {
+        _rules = rules;
+        _bus   = bus;
+    }
+
+    public Task<bool> RunValidate<T>(T payload) where T : class
+    {
+        var entry = (CardEntry<T>)EntriesByPayload[typeof(T)];
+        return RunFromFlowOut<bool>(payload, entry.Validate);
+    }
+
+    public Task RunExecute<T>(T payload) where T : class
+    {
+        var entry = (CardEntry<T>)EntriesByPayload[typeof(T)];
+        return RunFromFlowOut<object>(payload, entry.Execute);
     }
 }
 ```
 
-`Payload` is gone from the node, and the closure has no `Flow`
-parameter to thread through. So downstream nodes reading entry
-data ports lose their value source.
+Host call site:
 
-Options:
+```csharp
+var builder = new CardEffectBuilder(rules, bus);
+var runners = Enumerable.Range(0, 5).Select(_ => builder.Build(asset)).ToArray();
 
-1. **Per-run output-port reads** — change `OutputPort<T>.Read()`
-   to take a `Flow`. Big port-system change; touches every node
-   that constructs OutputPort<T>.
-2. **Thread/run-local Flow** — stash the active Flow in an
-   `AsyncLocal<Flow>` so closures can read it. Magic; surprises
-   debuggers and analyzers; works for true async but iffy under
-   sync-over-async.
-3. **One runner per concurrent path** — accept that running the
-   same runner twice in parallel is undefined, document, move on.
-   Consumers spin up a runner per concurrent dispatch (cheap
-   given the new Initialize-on-runner shape).
+if (!await runners[0].RunValidate(new OnPlay { ... })) return;
+await runners[0].RunExecute(new OnPlay { ... });
+```
 
-Lean: (3) for now. Concurrency on the same runner isn't a real
-use case the package needs to support today. (1) is the right
-long-term answer if it ever becomes one.
+---
 
-> ⚠ **Conflict flagged in Tenets.** The "concurrent runs on the
-> same runner are expected to work" tenet contradicts this lean.
-> Q7 needs a deeper revisit; deferred to a separate pass.
+## Built-in nodes — final shape
 
-### Q8 — `NodeBuildSlice` parameter shape
+### `Add` — pure, lazy, no flow ports
 
-**Resolution: single `IReadOnlyList<FlowConnection>` for flow,
-node self-detects which side via `Owner` ref check.** Picked over
-the alternative ("split into two dicts: outgoing-by-source-port-name
-+ incoming-by-dest-port-name") for simpler builder bookkeeping.
-Per-node cost is one extra `ReferenceEquals(conn.Source.Owner, this)`
-check per flow connection, which is trivial.
+```csharp
+[Serializable]
+[GraphNode(Category = "Math")]
+public sealed partial class Add : RuntimeNode
+{
+    public InputPort<int>  A      = null!;
+    public InputPort<int>  B      = null!;
+    public OutputPort<int> Result = null!;
 
-The alternative would be more explicit (no self-check needed) but
-doubles the dictionary count in the builder and adds two-dict
-construction per node. Both work; chose the lighter shape.
+    partial void InitializePorts() =>
+        Result = new OutputPort<int>(flow => A.Read(flow) + B.Read(flow));
+}
+```
 
-**Single hard-cutover commit** ("refactor(GraphFlow): runner =
-executor + dispatch, static GraphBuilder owns wiring"). Old
-`GraphController` / `GraphExecutor` are deleted in the same commit
-that introduces `GraphBuilder` + the new runner shape. No
-"alive-but-obsolete" transition window — every consumer call site
-moves in lockstep. Generator output for runtime nodes is unchanged;
-the registry's `CreateBridge` → `BindForRun` plumbing already
-changed in Batch 8.
+### `Branch` — single In, two Outs
 
-The cutover is feasible in one commit because:
+```csharp
+[Serializable]
+[GraphNode(Category = "Flow")]
+public sealed partial class Branch : RuntimeNode
+{
+    public InputPort<bool> Condition = null!;
+    public FlowInPort      In        = null!;
+    public FlowOutPort     True      = null!;
+    public FlowOutPort     False     = null!;
 
-- Consumer surface change is mechanical: `new GraphController<T>(asset); controller.Initialize(runner); controller.Run(...)` →
-  `GraphBuilder.Build(runner, asset); runner.Run(...)`.
-- All three call-site updaters (`CardSandbox`, `M0Sandbox`,
-  `Tests/RuntimeSmokeTests`) are in the same repo and ride the same
-  commit.
+    partial void InitializePorts() =>
+        In = new FlowInPort(flow => Condition.Read(flow) ? True : False);
+}
+```
+
+### `Return<TResult>` — terminator
+
+```csharp
+[Serializable]
+[GraphNode(Category = "Flow")]
+public sealed partial class Return<TResult> : RuntimeNode
+{
+    public FlowInPort         In    = null!;
+    public InputPort<TResult> Value = null!;
+
+    partial void InitializePorts() =>
+        In = new FlowInPort(flow => flow.Return(Value.Read(flow)));
+}
+```
+
+### `Cancel`
+
+```csharp
+[Serializable]
+[GraphNode(Category = "Flow")]
+public sealed partial class Cancel : RuntimeNode
+{
+    public FlowInPort In = null!;
+
+    partial void InitializePorts() =>
+        In = new FlowInPort(flow => flow.Cancel());
+}
+```
+
+### `Wait` — async handler
+
+```csharp
+[Serializable]
+[GraphNode(Category = "Time")]
+public sealed partial class Wait : RuntimeNode
+{
+    public InputPort<float> Seconds = null!;
+    public FlowInPort       In      = null!;
+    public FlowOutPort      Out     = null!;
+
+    partial void InitializePorts() =>
+        In = new FlowInPort(async flow =>
+        {
+            await Task.Delay(TimeSpan.FromSeconds(Seconds.Read(flow)), flow.Token);
+            return Out;
+        });
+}
+```
+
+### `Loop` — multi-In, the case that drove this
+
+```csharp
+[Serializable]
+[GraphNode(Category = "Flow")]
+public sealed partial class Loop : RuntimeNode
+{
+    public InputPort<int>  Count     = null!;
+    public FlowInPort      Begin     = null!;
+    public FlowInPort      Continue  = null!;
+    public FlowOutPort     Body      = null!;
+    public FlowOutPort     Done      = null!;
+    public OutputPort<int> Iteration = null!;
+
+    partial void InitializePorts()
+    {
+        // Iteration counter lives on Flow, not on `this` —
+        // concurrent loop runs each have their own slot.
+        Iteration = new OutputPort<int>(flow => flow.GetSlot<int>(this), cache: false);
+
+        Begin = new FlowInPort(flow =>
+        {
+            flow.SetSlot(this, 0);
+            return Count.Read(flow) > 0 ? Body : Done;
+        });
+
+        Continue = new FlowInPort(flow =>
+        {
+            flow.InvalidateAll();                       // wipe iteration K's caches
+            var i = flow.GetSlot<int>(this) + 1;
+            flow.SetSlot(this, i);
+            return i < Count.Read(flow) ? Body : Done;
+        });
+    }
+}
+```
+
+---
+
+## Open questions
+
+### Q-modify — Trigger payload modification mechanism
+
+Direction picked (D-trigger / UC3): **edit-in-place** on
+reference-typed payloads. Two implementation paths under
+consideration; deferred to a follow-up pass:
+
+1. **Per-payload generated nodes** (`OnPlayWrite`, etc.) — typed
+   InputPorts per field, hard-coded write-back logic. More
+   generated code, fully typed at runtime.
+2. **Generic + accessor closures** (`Modify<TPayload>`) — one
+   framework class, per-payload accessor data emitted to the
+   catalog. Less generated code, slight runtime indirection.
+
+Choice depends on how much we want to lean on the catalog versus
+how much per-payload code we tolerate. Resolve when implementing.
+
+Related: `InputPort<T>.IsConnected` is in the port API for the
+"skip unwired fields" semantics regardless of which path lands.
+
+### Q-pool — Flow pool ownership
+
+The pool needs to live somewhere. Options:
+- **Static singleton** — simplest, shared across all runners.
+  Concurrency on the pool itself becomes a concern (same
+  single-threaded contract or a lock).
+- **Per-runner** — no contention but loses sharing across runners
+  (5-card case allocates 5 pools).
+- **Per-builder** — bake-cache scope, shared across that builder's
+  runners. Probably the right scope.
+
+Lean: per-builder. Settle when implementing.
+
+### Q-walk-interception — UC2 reframe
+
+v1's UC2 (wrap every node execution) is gone with `Execute`.
+Replacement options:
+- A virtual `OnFlowStep` on `GraphRunner` that wraps each handler
+  invocation in the walk loop.
+- Per-node opt-in: nodes wrap their own handlers in ctor with
+  whatever decoration they want.
+- Defer entirely until a real use case surfaces (logging,
+  profiling, replay harness).
+
+Lean: defer. The walk loop has a natural injection point if we
+need it; adding it speculatively is YAGNI.
+
+### Q-async-overload — `FlowInPort` ctor resolution
+
+Two ctor overloads (`FlowHandler` vs `AsyncFlowHandler`) rely on
+the lambda being typed as `async` for the async overload to bind.
+Verify with a small test that overload resolution picks the right
+one in practice. If ambiguous, fall back to two named static
+factories (`FlowInPort.Sync(...)`, `FlowInPort.Async(...)`).
+
+### Q-default-out — Entry's default FlowOut for `Run<TEntry>`
+
+`Run<TEntry>` walks from "the entry's default FlowOut." For
+single-out entries this is unambiguous. For multi-out entries
+(CardEntry: Validate + Execute), what's the default?
+- **No default** — `Run<TEntry>` only works for single-out
+  entries; multi-out requires `RunFromFlowOut`. Cleanest.
+- **Convention** — first declared FlowOut. Implicit but fragile.
+- **Explicit** — `[DefaultFlowOut]` attribute on one port.
+
+Lean: no default. `Run<TEntry>` is for the simple single-out case;
+multi-out shapes use the per-package runner sugar
+(`RunValidate` / `RunExecute`).
+
+---
+
+## Migration / cutover
+
+Single hard-cutover commit ("refactor(GraphFlow): per-In handlers,
+Bake builder, Flow as per-run context"). Old `GraphController` /
+`GraphExecutor` deleted in the same commit that introduces the
+new shape. No alive-but-obsolete transition window.
 
 Order of work within the commit:
 
-1. **Add `GraphRunner` API** — `Initialize(IReadOnlyList<RuntimeNode>)`
-   virtual + `Run<TEntry>` + `RunFromFlowOut<TPayload, TResult>` +
-   `GetEntry<T>` + `ExecuteNode` virtual + `CreateFlow` virtual.
-   `_built` guard.
-2. **Add per-run payload to `Flow`** — `SetPayload` (internal) and
-   `GetPayload<T>()` (public). Runner stashes payload before walk.
-3. **Add `RuntimeNode.Build(runner, slice)`** — internal virtual,
-   default attaches the slice to local ports. Add `NodeBuildSlice`
-   record. `Initialize(runner)` becomes a no-op consumer hook.
-4. **`RuntimeNode<TRunner>`** — seal `Build` to also capture
-   `_runner`; seal `Initialize(GraphRunner)` to forward to typed
-   `Initialize(TRunner)`.
-5. **Add `GraphBuilder.cs`** — single `Build<TRunner>(runner, asset)`
-   method. O(N+E) wiring, then calls `runner.Initialize(nodes)`.
-6. **Strip `EntryRuntimeNode<T>`** — remove `_runFromHere`, `Run`,
-   `BindForRun`, `Run(object)`, `SetPayload`, `Payload`. Just
-   `PayloadType` + a getter that reads from Flow.
-7. **Update generator** — `EntryBase` property added to the
-   `[GraphPackage]` attribute; per-payload subclass emit closes
-   `EntryBase<TPayload>`; output port closures capture `flow`
-   instead of `Payload` (deferred — see Q7).
-8. **Delete** `GraphController.cs`, `GraphExecutor.cs`. Migrate
-   samples + `Tests/RuntimeSmokeTests` call sites.
-9. **Run** snapshot tests + smoke tests; refresh snapshots if
-   generator output shifts.
+1. **Port API additions.**
+   - `OutputPort<T>` — flow-keyed cache + opt-out flag.
+   - `InputPort<T>.IsConnected`.
+   - `FlowOutPort.End` sentinel.
+   - `FlowInPort` with sync + async ctor overloads.
 
-Estimated net delete: ~200 lines of framework (controller +
-executor + EntryRuntimeNode complexity), plus a ~80-line static
-`GraphBuilder.cs` add. Net negative. Plus generator changes for
-`EntryBase` and per-run output-port closures.
+2. **Flow gains pool-friendly state.**
+   - Payload, slots, touched-ports list, `Return`/`Cancel` return
+     `FlowOutPort.End`, `InvalidateAll`, `ResetForReuse`.
+
+3. **Add `BakedGraph` + `GraphTopology.Bake`.** Pure topology
+   resolution, returns BakedGraph.
+
+4. **Add `GraphBuilder<TRunner>`.** Cache + Build template method
+   + abstract CreateRunner.
+
+5. **Rewrite `GraphRunner`.**
+   - Forced base ctor `(BakedGraph)`.
+   - `Run<TEntry>` (default-out dispatch).
+   - `RunFromFlowOut<TResult>` (explicit-out dispatch).
+   - Walk loop (`Invoke` per FlowInPort, `End` sentinel check,
+     pool return).
+   - `Initialize` virtual no-op default.
+
+6. **Rewrite `RuntimeNode`.**
+   - `Build(in NodeBuildSlice)` internal virtual (framework
+     wiring step).
+   - `Initialize(GraphRunner)` public virtual no-op default.
+   - Drop `Execute`.
+
+7. **Rewrite `RuntimeNode<TRunner>`.**
+   - Static `Runner(Flow)` helper.
+   - Sealed Initialize override forwarding to typed.
+   - Drop `_runner` field, drop typed Execute.
+
+8. **Strip `EntryRuntimeNode<T>`** to: `PayloadType` + `Payload`
+   port. Drop everything else.
+
+9. **Rewrite all built-in nodes** (Add, And, Or, Not, Branch,
+   GreaterThan, LessThan, Subtract, Multiply, IntToString, Return,
+   Cancel) to the new shape.
+
+10. **Generator changes.**
+    - Per-payload entry runtime closure capture: `flow =>
+      flow.GetPayload<T>()!.FieldX` instead of `() => Payload!.FieldX`.
+    - Entry runtime no longer holds Payload field.
+    - `EntryBase` property on `[GraphPackage]` if not already there.
+    - Catalog emit unchanged for now (Modify/Decompose/Construct
+      deferred).
+
+11. **Delete** `GraphController.cs`, `GraphExecutor.cs`. Migrate
+    all sample + test call sites to `builder.Build(asset)` /
+    `runner.Run(payload)`.
+
+12. **Run** snapshot tests + smoke tests. Refresh snapshots if
+    generator output shifts.
+
+Estimated net delete: ~250–350 lines of framework (controller +
+executor + EntryRuntimeNode complexity + per-node Execute
+boilerplate). Add: ~250 lines of framework (BakedGraph +
+GraphBuilder + GraphTopology + per-In handler infrastructure).
+Roughly net-zero on framework size; significantly different shape.
+Plus generator changes for Payload-from-Flow and EntryBase emit.
 
 ---
 
 ## Test impact
 
 - **Snapshot tests** — `HarnessGraphRegistry.g.cs` registry shape
-  may change if `BindForRun` plumbing is removed; new attribute
-  `EntryBase` adds emit branches. Snapshots regenerated post-change.
+  may change if `BindForRun` plumbing is removed; entry runtime
+  closure capture changes. Snapshots regenerated post-change.
 - **`Tests/RuntimeSmokeTests`** — fixtures use `controller.Initialize`
-  + `controller.Run`. Migrate to `GraphBuilder.Build(runner, asset)`
+  + `controller.Run`. Migrate to `new SmokeBuilder(...).Build(asset)`
   + `runner.Run`. Trivial.
 - **`CardSandbox/Tests/Strike500Tests`** — uses `trig.Run(payload)`
-  for trigger pattern-match. Migrate to keeping a runner reference
-  per subscribed entry and calling `runner.Run(payload)`.
+  for trigger pattern-match. Migrate to per-runner subscription
+  pattern with `runner.Run(payload)`.
 - **Editor / generator** — `RegisterAdditional` partial on
-  `<Stem>GraphRegistry` is unchanged. The per-package OnTrigger /
-  Return shims are unchanged.
+  `<Stem>GraphRegistry` is unchanged. Per-package OnTrigger /
+  Return shims are unchanged (still use the existing catalog).
 - **`PortValueResolver`** — unchanged (bake-time, doesn't touch
   controller/executor).
+- **NEW: Loop node test** — concurrent runs, cache invalidation,
+  iteration counter on flow slot. Validates the multi-In shape
+  end-to-end.
 
 ---
 
-## What this enables (besides UC1-UC4)
+## What this enables (besides UC1-UC5)
 
-- Replay / determinism harnesses can subclass the runner, override
-  `ExecuteNode` to record/replay node outputs.
-- Profiler integration via the `ExecuteNode` seam — wrap each call
-  in a `BeginSample`/`EndSample`.
-- Conditional gating ("if game is paused, await before continuing
-  the walk") drops in cleanly at `ExecuteNode`.
-- Cross-graph state sharing — multiple runners can ref one services
-  instance via DI, runner subclasses just hold the ref.
+- **Loops with shared body subgraph state per iteration.** Per-flow
+  caches + `InvalidateAll` give correct re-evaluation without
+  per-loop sub-flow trees.
+- **Replay / determinism harnesses** — Flow is the snapshot unit.
+  Record one Flow, replay it.
+- **Per-flow scoped state** via `flow.GetSlot/SetSlot` — anywhere
+  a node needs per-run state without per-runner state on the node.
+- **Cross-graph state sharing** — multiple runners can ref one
+  services instance via DI (or just shared field on the builder).
+- **Profiler integration** later via the deferred walk-step
+  interception — wrap each `await current.Invoke(flow)` in a
+  `BeginSample`/`EndSample`.
 
 ---
 
 ## Future considerations (out of scope for this redesign)
 
-Things we discussed and intentionally deferred. Captured here so
-they don't get lost.
-
-- **Runner ref via Run / Execute parameters** instead of a cached
-  `_runner` field on `RuntimeNode<TRunner>`. Today the runner ref
-  is captured once during `Build` and read on every `Execute`. An
-  alternative is to thread the runner through `ExecuteNode` /
-  `node.Execute` parameters directly — eliminates the cached field,
-  makes the per-call surface explicit, and removes one spot where
-  runner-state mutation could drift across concurrent runs.
-  Trade-off: more verbose call sites; every node body reads
-  `runner.Foo` instead of `_runner.Foo`. Fine for now to keep the
-  cached field; revisit if concurrent-run guarantees push us
-  toward fully stateless nodes.
-
-- **Per-package builder customization** — currently `GraphBuilder`
-  is a single static class shared across all packages. If a package
-  ever needs a different wiring strategy (custom port resolution,
-  alternative connection materialization), promote `GraphBuilder`
-  to a class with virtuals and add a
-  `protected virtual GraphBuilder CreateBuilder()` on `GraphRunner`.
-  Not worth the API surface today.
+- **Modify / Decompose / Construct nodes for payloads.** Direction
+  set (edit-in-place); mechanism deferred. Two paths sketched in
+  Q-modify; pick when implementing. Will reuse `EntryRuntimeNode<T>.Payload`
+  port as the wire target.
+- **Walk-loop interception** for cross-cutting concerns (logging,
+  profiling, gating). Deferred until concrete need.
+- **Concurrent reads from worker threads.** Current contract is
+  single-threaded reads (Unity's main-thread `SynchronizationContext`).
+  If a job-system integration ever materializes, the per-port
+  `Dictionary<Flow, T>` would need either lock-protection or
+  `ConcurrentDictionary`.
+- **Sub-flows / Flow trees** — considered for loop semantics
+  (per-iteration child flow). Rejected in favor of `InvalidateAll`
+  on a single Flow because trees complicate Return/Cancel
+  propagation. Revisit only if a use case demands isolation
+  guarantees we can't otherwise provide.
+- **No-cache opt-out via attribute** instead of ctor flag —
+  ergonomic sugar, not a behavior change.
 
 ---
 
 ## Anti-goals (what this redesign explicitly does **not** do)
 
-- **No runtime reflection added.** Type matching at setup is
-  compile-time via generic inference. The one runtime cast is
-  `RuntimeNode<TRunner>.Build`'s `(TRunner)runner` when capturing
-  the typed runner ref — once per node at Build time, never on the
-  hot path.
+- **No runtime reflection added.** All field access in entry
+  runtimes is generator-emitted (lambdas closing over `flow.GetPayload<T>()`).
+  Type matching at setup is compile-time via generic inference and
+  the builder's `Build<T>(asset)` extension.
 - **No new attributes on user payloads** — entry shapes come from
   the package's hand-written entry base, not from a forest of
   attributes per payload.
-- **No DI container required** — runner ctor is whatever the user
+- **No DI container required** — builder ctor is whatever the user
   wants; the framework doesn't impose service injection patterns.
-- **No async-over-sync** — the walk is genuinely async (nodes can
-  await services), no busy loops or sync wrappers.
+- **No async-over-sync** — handlers are genuinely async; no busy
+  loops or sync wrappers.
+- **No `Execute` virtual on `RuntimeNode`.** Imperative behavior
+  is per-FlowInPort. There is no chokepoint to override.
+- **No mutable per-runner state on nodes.** Nodes are shared
+  across runners by construction; per-run state is on Flow.
