@@ -10,10 +10,8 @@ namespace Scaffold.GraphFlow
         public int nodeId;
         public string editorGuid = string.Empty;
 
-        // Port-name → port handle. Populated by the generated ctor.
         [NonSerialized] public readonly Dictionary<string, Port> Ports = new();
 
-        // Default no-op = stop-the-walk. Flow-bearing nodes override.
         public virtual Task Execute(Flow flow) => Task.CompletedTask;
 
         public Connection Bind(string dstPortName, RuntimeNode src, string srcPortName)
@@ -31,7 +29,6 @@ namespace Scaffold.GraphFlow
     public abstract class RuntimeNode<TRunner> : RuntimeNode where TRunner : GraphRunner
     {
 #nullable enable
-        // Bound at hydration; per-Execute dispatch reads this directly.
         [NonSerialized] TRunner? _runner;
 #nullable disable
 

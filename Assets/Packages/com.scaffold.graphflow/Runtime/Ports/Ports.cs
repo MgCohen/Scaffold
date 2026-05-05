@@ -4,8 +4,6 @@ namespace Scaffold.GraphFlow
 {
     public abstract class Port
     {
-        // Default rejects — only InputPort<T> overrides. The wire flows from output to input,
-        // so OutputPort<T> never receives a Bind call.
         internal virtual Connection AcceptOutput(Port output) =>
             throw new InvalidOperationException($"Bind direction must be input.AcceptOutput(output); got {GetType()} on the input side.");
     }
@@ -20,7 +18,6 @@ namespace Scaffold.GraphFlow
 
         public T Read() => _conn != null ? _conn.Read() : (_fallback != null ? _fallback() : default!);
 
-        // The single typed-cast seam in the system; T is statically known here.
         internal override Connection AcceptOutput(Port output)
         {
             if (output is not OutputPort<T> typedOut)

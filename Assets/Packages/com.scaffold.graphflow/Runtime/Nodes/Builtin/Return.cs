@@ -21,7 +21,6 @@ namespace Scaffold.GraphFlow.Nodes
         public override Task Execute(Flow flow) => flow.Return(Value.Read());
     }
 
-    // Untyped fallback for a Return editor node whose ResultType picker is None.
     [Serializable]
     public sealed class Return : RuntimeNode
     {

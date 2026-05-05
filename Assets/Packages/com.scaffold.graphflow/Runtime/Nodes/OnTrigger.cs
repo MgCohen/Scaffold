@@ -20,9 +20,6 @@ namespace Scaffold.GraphFlow
 
         public override Task Execute(Flow flow)
         {
-            // Copy the per-event payload's Event onto the asset-instance node so the body of the
-            // flow can read .Event through this typed entry reference. The asset-instance Timing
-            // is what hosts read at wiring; per-event Payload.Timing is telemetry only.
             if (Payload != null) Event = Payload.Event;
             return flow.GoTo(FlowOut);
         }
