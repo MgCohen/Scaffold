@@ -7,7 +7,10 @@ namespace Scaffold.GraphFlow
     [Serializable]
     public abstract class EntryRuntimeNodeBase : RuntimeNode
     {
-        public abstract IEntryBridge CreateBridge<TRunner>(TRunner runner, GraphAsset<TRunner> asset, Func<object?>? scopeFactory)
+        public abstract Type PayloadType { get; }
+        public abstract Task<Flow> Run(object payload);
+
+        public abstract void BindForRun<TRunner>(TRunner runner, GraphAsset<TRunner> asset, Func<object?>? scopeFactory)
             where TRunner : GraphRunner;
     }
 
@@ -27,39 +30,16 @@ namespace Scaffold.GraphFlow
             return _runFromHere(payload);
         }
 
-        public override IEntryBridge CreateBridge<TRunner>(TRunner runner, GraphAsset<TRunner> asset, Func<object?>? scopeFactory)
-            => new EntryBridge<TEntry, TRunner>(this, runner, asset, scopeFactory);
-    }
+        public override Type PayloadType => typeof(TEntry);
+        public override Task<Flow> Run(object payload) => Run((TEntry)payload);
 
-    public sealed class EntryBridge<TEntry, TRunner> : IEntryBridge
-        where TEntry : class
-        where TRunner : GraphRunner
-    {
-        readonly EntryRuntimeNode<TEntry> _node;
-        readonly TRunner _runner;
-        readonly GraphAsset<TRunner> _asset;
-        readonly Func<object?>? _scopeFactory;
-
-        public EntryBridge(EntryRuntimeNode<TEntry> node, TRunner runner, GraphAsset<TRunner> asset, Func<object?>? scopeFactory)
+        public override void BindForRun<TRunner>(TRunner runner, GraphAsset<TRunner> asset, Func<object?>? scopeFactory)
         {
-            _node = node;
-            _runner = runner;
-            _asset = asset;
-            _scopeFactory = scopeFactory;
-
-            _node.BindRunner(payload =>
+            BindRunner(payload =>
             {
-                _node.SetPayload(payload);
-                return GraphExecutor.RunFlow(_node, _runner, _asset, _scopeFactory?.Invoke());
+                SetPayload(payload);
+                return GraphExecutor.RunFlow(this, runner, asset, scopeFactory?.Invoke());
             });
-        }
-
-        public Type PayloadType => typeof(TEntry);
-
-        public Task<Flow> Run(object payload)
-        {
-            _node.SetPayload((TEntry)payload);
-            return GraphExecutor.RunFlow(_node, _runner, _asset, _scopeFactory?.Invoke());
         }
     }
 }

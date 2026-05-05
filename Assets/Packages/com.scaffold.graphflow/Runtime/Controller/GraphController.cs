@@ -10,7 +10,7 @@ namespace Scaffold.GraphFlow
     {
         readonly GraphAsset<TRunner> _asset;
         Dictionary<int, RuntimeNode> _byId = null!;
-        Dictionary<Type, IEntryBridge> _bridges = new();
+        Dictionary<Type, EntryRuntimeNodeBase> _entriesByPayload = new();
         TRunner _runner = null!;
         List<RuntimeNode> _entryNodes = new();
         Func<object?>? _scopeFactory;
@@ -60,25 +60,25 @@ namespace Scaffold.GraphFlow
             }
 
             _entryNodes = new List<RuntimeNode>();
-            _bridges.Clear();
+            _entriesByPayload.Clear();
             foreach (var n in _asset.nodes)
             {
                 if (n is not EntryRuntimeNodeBase entry)
                     continue;
 
                 _entryNodes.Add(n);
-                var bridge = entry.CreateBridge<TRunner>(_runner, _asset, _scopeFactory);
-                _bridges[bridge.PayloadType] = bridge;
+                entry.BindForRun(_runner, _asset, _scopeFactory);
+                _entriesByPayload[entry.PayloadType] = entry;
             }
         }
 
         public Task<Flow> Run<TEntry>(TEntry payload, CancellationToken ct = default) where TEntry : class
         {
             var entryType = typeof(TEntry);
-            if (!_bridges.TryGetValue(entryType, out var bridge))
+            if (!_entriesByPayload.TryGetValue(entryType, out var entry))
                 throw new InvalidOperationException($"No baked entry for {entryType.FullName}.");
 
-            return bridge.Run(payload);
+            return entry.Run(payload);
         }
     }
 }
