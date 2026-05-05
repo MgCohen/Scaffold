@@ -2,7 +2,6 @@ using System;
 
 namespace Scaffold.GraphFlow.Nodes
 {
-    /// <summary>Pure data node — bool && bool.</summary>
     [Serializable]
     [GraphNode(Category = "Logic")]
     public sealed partial class And : RuntimeNode

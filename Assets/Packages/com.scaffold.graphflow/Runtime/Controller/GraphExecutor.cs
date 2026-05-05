@@ -4,12 +4,6 @@ using System.Threading.Tasks;
 
 namespace Scaffold.GraphFlow
 {
-    /// <summary>
-    /// Per-run flow walker. Reads no edge metadata at runtime — every step follows the destination
-    /// stored on the <see cref="FlowOutPort"/> the previous node selected via
-    /// <see cref="Flow.GoTo"/>. <c>asset.flowEdges</c> is consumed once at hydration by
-    /// <see cref="GraphController{TRunner}.Initialize"/> to populate those refs.
-    /// </summary>
     public static class GraphExecutor
     {
         public static async Task<Flow> RunFlow<TRunner>(RuntimeNode start, TRunner runner, GraphAsset<TRunner> asset, object? scope = null, CancellationToken ct = default)

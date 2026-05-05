@@ -15,11 +15,6 @@ namespace Scaffold.GraphFlow
         List<RuntimeNode> _entryNodes = new();
         Func<object?>? _scopeFactory;
 
-        /// <summary>
-        /// All entry nodes discovered in the asset (anything assignable to
-        /// <see cref="EntryRuntimeNode{TEntry}"/>). Hosts pattern-match concrete generic types here
-        /// to wire trigger entries into their event bus.
-        /// </summary>
         public IReadOnlyList<RuntimeNode> EntryNodes => _entryNodes;
 
         public GraphController(GraphAsset<TRunner> asset)
@@ -36,8 +31,6 @@ namespace Scaffold.GraphFlow
             foreach (var n in _asset.nodes)
                 _byId[n.nodeId] = n;
 
-            // Hydrate data wiring through the single Connection.Bind seam. Per-node Bind on the base
-            // looks up both ports via the dict and constructs Connection<T>.
             foreach (var c in _asset.connections)
             {
                 if (!_byId.TryGetValue(c.fromNodeId, out var from) || !_byId.TryGetValue(c.toNodeId, out var to))
@@ -46,9 +39,6 @@ namespace Scaffold.GraphFlow
                 to.Bind(c.toPortName, from, c.fromPortName);
             }
 
-            // Hydrate flow wiring symmetrically — resolve source/dest FlowOutPort/FlowInPort by name
-            // through the node's Ports dict, construct one FlowConnection, set the back-ref on both
-            // endpoints. After this, the executor walks via direct refs and never reads flowEdges.
             foreach (var e in _asset.flowEdges)
             {
                 if (!_byId.TryGetValue(e.fromNodeId, out var from) || !_byId.TryGetValue(e.toNodeId, out var to))
@@ -63,18 +53,12 @@ namespace Scaffold.GraphFlow
                 flowIn.Connection = connection;
             }
 
-            // Bind runner reference onto every typed RuntimeNode<TRunner> so per-Execute dispatch is
-            // a direct field read (no cast). Runner-agnostic nodes (Branch, Cancel, etc.) skip this
-            // since they don't carry a runner field.
             foreach (var n in _asset.nodes)
             {
                 if (n is RuntimeNode<TRunner> typed)
                     typed.BindRunner(_runner);
             }
 
-            // Build EntryNodes catalog + per-payload bridges. CreateBridge closes the runner type
-            // through a generic method, so the dispatch surface stays runner-agnostic but the bridge
-            // itself is fully typed.
             _entryNodes = new List<RuntimeNode>();
             _bridges.Clear();
             foreach (var n in _asset.nodes)
@@ -88,11 +72,6 @@ namespace Scaffold.GraphFlow
             }
         }
 
-        /// <summary>
-        /// Typed entry invocation. Looks up the entry bridge by payload type, sets the payload, runs
-        /// the flow, and returns the resulting <see cref="Flow"/> (callers read
-        /// <see cref="Flow.Outcome"/> / <see cref="Flow.ReadResult{T}"/> as needed).
-        /// </summary>
         public Task<Flow> Run<TEntry>(TEntry payload, CancellationToken ct = default) where TEntry : class
         {
             var entryType = typeof(TEntry);

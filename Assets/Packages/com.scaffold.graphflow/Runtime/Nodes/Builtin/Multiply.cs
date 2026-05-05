@@ -2,7 +2,6 @@ using System;
 
 namespace Scaffold.GraphFlow.Nodes
 {
-    /// <summary>Pure data node — int * int.</summary>
     [Serializable]
     [GraphNode(Category = "Math")]
     public sealed partial class Multiply : RuntimeNode

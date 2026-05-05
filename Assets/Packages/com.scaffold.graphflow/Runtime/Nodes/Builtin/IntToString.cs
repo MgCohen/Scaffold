@@ -2,7 +2,6 @@ using System;
 
 namespace Scaffold.GraphFlow.Nodes
 {
-    /// <summary>Pure data node — int → string via <see cref="int.ToString()"/>.</summary>
     [Serializable]
     [GraphNode(Category = "Convert")]
     public sealed partial class IntToString : RuntimeNode

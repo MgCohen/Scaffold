@@ -4,10 +4,6 @@ using System.Threading.Tasks;
 
 namespace Scaffold.GraphFlow
 {
-    /// <summary>
-    /// Non-generic base for entry runtime nodes — used as the controller's dispatch surface for
-    /// payload-typed bridges, without exposing TPayload to the controller's loop.
-    /// </summary>
     [Serializable]
     public abstract class EntryRuntimeNodeBase : RuntimeNode
     {
@@ -15,16 +11,6 @@ namespace Scaffold.GraphFlow
             where TRunner : GraphRunner;
     }
 
-    /// <summary>
-    /// Base for generated/hand-written entry runtime nodes. Carries <c>TPayload</c> for routing only —
-    /// the runner reference is plumbed into the bridge at <see cref="CreateBridge"/> time, not into
-    /// the Execute body. Entries that genuinely need typed runner access cast <c>flow.Runner</c> in
-    /// their <see cref="RuntimeNode.Execute"/> override (same pattern Mode-2 dispatchers use for
-    /// <c>flow.Scope</c>).
-    ///
-    /// <para>Post-M3 phase 2 (decision #5 + finish of decision #1): TRunner dropped. Single-T form
-    /// only — the prior 2-arg <c>EntryRuntimeNode&lt;TEntry, TRunner&gt;</c> is removed.</para>
-    /// </summary>
     [Serializable]
     public abstract class EntryRuntimeNode<TEntry> : EntryRuntimeNodeBase
         where TEntry : class
@@ -45,12 +31,6 @@ namespace Scaffold.GraphFlow
             => new EntryBridge<TEntry, TRunner>(this, runner, asset, scopeFactory);
     }
 
-    /// <summary>
-    /// Generic per-payload bridge. Closes over the entry node + executor + asset + runner so the
-    /// controller can dispatch by payload type without reflection. The closure also wires
-    /// <see cref="EntryRuntimeNode{TEntry}.BindRunner"/> so hosts that pattern-match the entry can
-    /// call <c>Run(payload)</c> directly.
-    /// </summary>
     public sealed class EntryBridge<TEntry, TRunner> : IEntryBridge
         where TEntry : class
         where TRunner : GraphRunner

@@ -8,14 +8,6 @@ namespace Scaffold.GraphFlow
         Output,
     }
 
-    /// <summary>
-    /// Compile-time port descriptor — Name + Type + Direction. Replaces the previous
-    /// EventPortMeta + the implicit input/output split: one shape covers every port the catalog
-    /// records, regardless of whether the host concept is an event field, command input,
-    /// command output, or entry payload field.
-    /// <para>Carried inside <see cref="CatalogEntry.Ports"/> so editor mirrors and bake factories
-    /// iterate the same data with a single direction-switching loop.</para>
-    /// </summary>
     [Serializable]
     public readonly struct PortMeta
     {
