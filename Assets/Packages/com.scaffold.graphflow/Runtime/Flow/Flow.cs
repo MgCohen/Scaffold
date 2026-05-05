@@ -1,72 +1,68 @@
 #nullable enable
+using System.Collections.Generic;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace Scaffold.GraphFlow
 {
-    public enum FlowOutcome { Stopped, Returned, Cancelled }
+    public enum Outcome { Running, Returned, Cancelled }
 
     public sealed class Flow
     {
-        public CancellationToken CancellationToken { get; }
-        public string? Reason { get; set; }
+        readonly object _payload;
+        Dictionary<object, object>? _slots;
+        readonly List<Port> _touched = new();
+        object? _result;
 
-        public FlowOutcome Outcome { get; private set; }
-        internal object? Result { get; private set; }
-        FlowOutPort? _nextPort;
+        public GraphRunner Runner { get; }
+        public CancellationToken Token { get; }
 
-        public object? Scope { get; internal set; }
+        public Outcome Outcome { get; private set; } = Outcome.Running;
+        public bool IsCancelled => Outcome == Outcome.Cancelled;
+        public bool IsTerminating => Outcome != Outcome.Running;
 
-        public GraphRunner? Runner { get; internal set; }
-
-        public Flow(CancellationToken cancellationToken = default)
+        internal Flow(object payload, GraphRunner runner, CancellationToken token)
         {
-            CancellationToken = cancellationToken;
+            _payload = payload;
+            Runner = runner;
+            Token = token;
         }
 
-        public Task GoTo(FlowOutPort port)
+        public T? GetPayload<T>() where T : class => _payload as T;
+
+        public FlowOutPort Return<T>(T value)
         {
-            _nextPort = port;
-            return Task.CompletedTask;
+            _result = value;
+            Outcome = Outcome.Returned;
+            return FlowOutPort.End;
         }
 
-        public Task Stop()
+        public FlowOutPort Return()
         {
-            Outcome = FlowOutcome.Stopped;
-            _nextPort = null;
-            return Task.CompletedTask;
+            _result = null;
+            Outcome = Outcome.Returned;
+            return FlowOutPort.End;
         }
 
-        public Task Return<T>(T value)
+        public FlowOutPort Cancel()
         {
-            Outcome = FlowOutcome.Returned;
-            Result = value;
-            _nextPort = null;
-            return Task.CompletedTask;
+            Outcome = Outcome.Cancelled;
+            return FlowOutPort.End;
         }
 
-        public Task Return()
+        public T? ReadResult<T>() => _result is T t ? t : default;
+
+        internal void RegisterTouched(Port p) => _touched.Add(p);
+
+        public void InvalidateAll()
         {
-            Outcome = FlowOutcome.Returned;
-            Result = null;
-            _nextPort = null;
-            return Task.CompletedTask;
+            foreach (var p in _touched) p.ClearCache(this);
+            _touched.Clear();
         }
 
-        public Task Cancel()
-        {
-            Outcome = FlowOutcome.Cancelled;
-            _nextPort = null;
-            return Task.CompletedTask;
-        }
+        public T GetSlot<T>(object owner) =>
+            _slots != null && _slots.TryGetValue(owner, out var v) ? (T)v : default!;
 
-        internal FlowOutPort? ConsumeNext()
-        {
-            var n = _nextPort;
-            _nextPort = null;
-            return n;
-        }
-
-        public T? ReadResult<T>() => Result is T t ? t : default;
+        public void SetSlot<T>(object owner, T value) =>
+            (_slots ??= new())[owner] = value!;
     }
 }
