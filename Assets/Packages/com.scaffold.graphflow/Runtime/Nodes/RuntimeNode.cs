@@ -24,9 +24,6 @@ namespace Scaffold.GraphFlow
         /// <summary>Port-name → port handle, populated by the generated ctor.</summary>
         [NonSerialized] public readonly Dictionary<string, Port> Ports = new();
 
-        /// <summary>Wires built at hydration. Append-only; the executor never reads from here.</summary>
-        [NonSerialized] public readonly List<Connection> Connections = new();
-
         /// <summary>
         /// Default no-op = stop-the-walk. Override in flow-bearing nodes. The two-tier hierarchy
         /// (decision #5) makes this the single dispatch point — <see cref="RuntimeNode{TRunner}"/>
@@ -46,9 +43,7 @@ namespace Scaffold.GraphFlow
             if (!src.Ports.TryGetValue(srcPortName, out var srcPort))
                 throw new ArgumentException($"Source node has no port named '{srcPortName}'.");
 
-            var conn = Connection.Bind(dstPort, srcPort);
-            Connections.Add(conn);
-            return conn;
+            return Connection.Bind(dstPort, srcPort);
         }
     }
 

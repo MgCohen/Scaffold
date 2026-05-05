@@ -150,7 +150,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
 
         static void EmitEventEntry(StringBuilder sb, EventDescriptor e)
         {
-            var fieldName = SafeFieldName(e.Type.Name);
+            var fieldName = e.Type.Name;
             var typeFq = TrimGlobal(e.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
             sb.AppendLine($"        public static readonly CatalogEntry {fieldName} = new(");
             sb.AppendLine($"            kinds: CatalogKind.Event,");
@@ -164,7 +164,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
 
         static void EmitCommandEntry(StringBuilder sb, CommandDescriptor c)
         {
-            var fieldName = SafeFieldName(c.Command.Name);
+            var fieldName = c.Command.Name;
             var typeFq    = TrimGlobal(c.Command.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
             var resultFq  = TrimGlobal(c.Result.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
             sb.AppendLine($"        public static readonly CatalogEntry {fieldName} = new(");
@@ -180,7 +180,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
 
         static void EmitEntryEntry(StringBuilder sb, EntryDescriptor e)
         {
-            var fieldName = SafeFieldName(e.Type.Name);
+            var fieldName = e.Type.Name;
             var typeFq    = TrimGlobal(e.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
             sb.AppendLine($"        public static readonly CatalogEntry {fieldName} = new(");
             sb.AppendLine($"            kinds: CatalogKind.Entry,");
@@ -266,17 +266,17 @@ namespace Scaffold.GraphFlow.PackageGenerator
 
             foreach (var e in events)
             {
-                sb.AppendLine($"            {SafeFieldName(e.Type.Name)},");
+                sb.AppendLine($"            {e.Type.Name},");
             }
 
             foreach (var c in commands)
             {
-                sb.AppendLine($"            {SafeFieldName(c.Command.Name)},");
+                sb.AppendLine($"            {c.Command.Name},");
             }
 
             foreach (var e in entries)
             {
-                sb.AppendLine($"            {SafeFieldName(e.Type.Name)},");
+                sb.AppendLine($"            {e.Type.Name},");
             }
 
             foreach (var r in returns)
@@ -383,10 +383,10 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine("        // ============ Resolve ============");
             sb.AppendLine();
 
-            EmitResolver(sb, "EventType", GetEventLabels(events), e => SafeFieldName(e));
+            EmitResolver(sb, "EventType", GetEventLabels(events), e => e);
             EmitResolver(sb, "ReturnType", GetReturnLabels(returns), e => e);
-            EmitResolver(sb, "CommandType", GetCommandLabels(commands), e => SafeFieldName(e));
-            EmitResolver(sb, "EntryType", GetEntryLabels(entries), e => SafeFieldName(e));
+            EmitResolver(sb, "CommandType", GetCommandLabels(commands), e => e);
+            EmitResolver(sb, "EntryType", GetEntryLabels(entries), e => e);
         }
 
         static void EmitResolver(StringBuilder sb, string enumName, IReadOnlyList<string> labels, System.Func<string, string> labelToFieldName)
@@ -431,13 +431,6 @@ namespace Scaffold.GraphFlow.PackageGenerator
             var list = new List<string>(entries.Count);
             foreach (var e in entries) list.Add(e.Type.Name);
             return list;
-        }
-
-        static string SafeFieldName(string raw)
-        {
-            // Type names in user code are already valid C# identifiers; field names use them
-            // verbatim. Reserved words / leading digits aren't a concern at this layer.
-            return raw;
         }
 
         static string TrimGlobal(string fq)

@@ -16,8 +16,7 @@ namespace Scaffold.GraphFlow
         /// <summary>
         /// Bind an input port to an output port. Dispatches through the input's type-revealing
         /// <see cref="Port.AcceptOutput"/> virtual so the typed cast happens once, statically, on the
-        /// input side. Returns the constructed <see cref="Connection{T}"/> for the caller to record on
-        /// the destination node's <see cref="RuntimeNode.Connections"/> list.
+        /// input side.
         /// </summary>
         public static Connection Bind(Port input, Port output)
         {

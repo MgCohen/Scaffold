@@ -105,12 +105,5 @@ namespace Scaffold.GraphFlow
 
             return bridge.Run(payload);
         }
-
-        public void Dispose()
-        {
-            _byId?.Clear();
-            _bridges?.Clear();
-            _entryNodes?.Clear();
-        }
     }
 }
