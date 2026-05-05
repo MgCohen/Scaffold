@@ -1,12 +1,21 @@
 # GraphFlow Runner Redesign — Plan & Sketches
 
-Status: **Draft v2 — major rewrite after design conversation. Shape locked, ready to implement.**
+Status: **Draft v2 — shape locked after a review pass that closed all
+implementation-blocking questions. Ready to implement.**
 
 This doc replaces the v1 sketch. The shape changed substantially after a
 design pass that pulled the model closer to FlowCanvas / Unreal Blueprint
 idioms (pull-based dataflow + push-based execution, per-In handlers,
 flow-keyed caches) while keeping the framework's existing strengths
 (typed ports, source-generated catalogs, no reflection at runtime).
+
+A review pass after the v2 first draft resolved ten outstanding details
+that were ambiguous or under-specified. Those resolutions are integrated
+inline (file layout, port primitives, Flow shape, GraphRunner, built-in
+node sketches, OnTrigger handling, migration steps). The summary table
+of resolved details lives in **§ "Resolved during v2 review pass"**
+below; each decision is also reflected at the relevant point in the
+architecture.
 
 > **Reading prerequisites.** This doc references types, attributes,
 > validators, and generator behavior from the existing GraphFlow
@@ -54,6 +63,34 @@ runner. Most of that survived. The deeper changes:
 - **Typed runner access via `RuntimeNode<TRunner>`** static helper
   — no cached `_runner` field on nodes (would be per-runner state
   on a shared instance).
+
+---
+
+## Resolved during v2 review pass
+
+The first draft of v2 left several details either implicit or open. A
+review pass closed each of them. The decisions below are already
+threaded through the architecture sections; this table is an at-a-glance
+index so the rationale for any sketch detail is one lookup away.
+
+| # | Topic | Decision |
+|---|---|---|
+| R1 | `Connection<T>` (abstract `Connection` and the data-edge wrapper) | **Deleted.** `InputPort<T>` holds an `OutputPort<T>` directly; reads go straight to the source. `FlowConnection` survives because the walk loop traverses it. |
+| R2 | `OnTrigger<TEvent>.Event` mutable field | **Replaced with `OutputPort<TEvent> Event`.** The inner event lives in a separate `Inner` field on the payload-wrapper instance; the port reads it via `flow.GetPayload<…>().Inner`. No mutable per-run state on the shared node. |
+| R3 | `EntryRuntimeNodeBase.GetDefaultOut()` for `Run<TEntry>` dispatch | **Concrete on the base.** Scans `Ports` for the sole `FlowOutPort` and returns it; throws if zero or more than one. Multi-out entries (e.g., `CardEntry`) trip the throw and force callers to use `RunFromFlowOut`. |
+| R4 | `NodeBuildSlice` shape | **Pre-resolved port pairs.** `Bake` walks the asset's name-keyed dicts once and hands each node a `(IReadOnlyList<DataBinding> data, IReadOnlyList<FlowBinding> flow)` slice. `Build` just calls `inputPort.Connect(outputPort)` per data entry and assigns `FlowConnection` per flow entry. Generic-erasing `DataBinding` carries an `Action<>` apply step (one per pair) closed over the typed pair at bake time. |
+| R5 | `RuntimeNode.Bind()` and `Port.AcceptOutput()` | **Both deleted.** Test fixtures and any hand-authored wiring call `inputPort.Connect(outputPort)` directly. The slice-based `Build` is the only production wiring path. |
+| R6 | `FlowOutPort` / `FlowInPort` ctor signature | **Positional, immutable.** `new FlowOutPort(owner, name)` / `new FlowInPort.Sync(owner, name, handler)` etc. (object-initializer style was sketched in the v2 first draft; rejected — generator already emits positional, immutable Owner/Name is safer.) |
+| R7 | `FlowPool` for per-Run allocation | **None for now.** `new Flow(payload, ct, runner)` per dispatch. Pooling stays a documented future optimisation; deferring it shrinks the cutover diff and the GC delta of one Flow per Run is small. |
+| R8 | `ICacheClearable` interface | **None.** `Port` base gets a `internal virtual void ClearCache(Flow flow) { }` no-op. `OutputPort<T>` overrides it. `Flow.InvalidateAll` walks `_touched` and calls `port.ClearCache(this)` directly. |
+| R9 | `FlowInPort` sync vs async ctor overload resolution (Q-async-overload) | **Named static factories.** `FlowInPort.Sync(owner, name, Func<Flow, FlowOutPort>)` and `FlowInPort.Async(owner, name, Func<Flow, Task<FlowOutPort>>)`. **Async return type is `Task<FlowOutPort>`, not `ValueTask<FlowOutPort>`.** Eliminates lambda-binding ambiguity entirely; intent is explicit at the call site. |
+| R10 | `GraphAsset` shape for `GraphTopology.Bake` | **Non-generic `GraphAsset` base.** Holds the `nodes` / `connections` / `flowEdges` lists. `GraphAsset<TRunner>` becomes a typed marker subclass. `Bake` is runner-agnostic and takes the non-generic base; `GraphBuilder<TRunner>.Build(GraphAsset<TRunner>)` keeps type-safety at the call site. |
+
+The original v2 open-question list (Q-modify, Q-walk-interception,
+Q-pool, Q-async-overload, Q-default-out) is updated below — Q-pool /
+Q-async-overload / Q-default-out are now resolved (R7 / R9 / R3
+respectively). Q-modify and Q-walk-interception remain genuinely
+deferred.
 
 ---
 
@@ -306,7 +343,8 @@ nodes declare multiple FlowInPort fields, each with its own
 handler.
 
 ```csharp
-In = new FlowInPort(flow => Condition.Read(flow) ? True : False);
+In = FlowInPort.Sync(this, nameof(In),
+    flow => Condition.Read(flow) ? True : False);
 ```
 
 **Rationale.**
@@ -482,27 +520,62 @@ public abstract class EntryRuntimeNode<TPayload> : EntryRuntimeNodeBase
 
 ```
 Runtime/
-  Asset/      GraphAsset.cs                  (unchanged)
+  Asset/      GraphAsset.cs                  Non-generic base added (R10) holding
+                                             nodes / connections / flowEdges lists.
+                                             GraphAsset<TRunner> becomes a typed
+                                             marker subclass.
   Builder/
     GraphBuilder.cs                          NEW — abstract<TRunner>, owns bake cache
     BakedGraph.cs                            NEW — wired-graph DTO
     GraphTopology.cs                         NEW — internal Bake() pass
-    GraphRunner.cs                           (executor walk + dispatch + entry lookup)
+    GraphRunner.cs                           Executor walk + dispatch + entry lookup.
+                                             No Flow pool — each dispatch news up
+                                             a Flow (R7).
     GraphController.cs                       DELETED
     GraphExecutor.cs                         DELETED
-  Flow/       Flow.cs                        (payload + slots + InvalidateAll + pool)
+  Flow/       Flow.cs                        Payload + slots + touched-list +
+                                             InvalidateAll. No pool, no
+                                             ResetForReuse, no GoTo / Stop /
+                                             ConsumeNext (R7).
   Markers/    PortMeta, CatalogEntry, …      (unchanged for now)
   Nodes/
-    RuntimeNode.cs                           (Initialize hook, no Execute)
-    RuntimeNode_TRunner.cs                   (typed base + Runner(Flow) helper)
-    EntryRuntimeNode.cs                      (typed base + Payload port)
-    Builtin/  …                              (rewritten — see below)
+    RuntimeNode.cs                           Build(slice) framework wiring +
+                                             Initialize(runner) consumer hook.
+                                             No Execute, no Bind, no AcceptOutput
+                                             (R5).
+    RuntimeNode_TRunner.cs                   Typed base + protected static
+                                             Runner(Flow) helper.
+    EntryRuntimeNode.cs                      Base + GetDefaultOut() concrete
+                                             scan-and-throw (R3); typed
+                                             EntryRuntimeNode<TPayload> adds
+                                             OutputPort<TPayload> Payload (D8).
+    OnTrigger.cs                             Reshaped — Event becomes
+                                             OutputPort<TEvent>; inner event
+                                             lives on the payload-wrapper
+                                             instance as `Inner` (R2).
+    Builtin/  …                              Rewritten — see below.
   Ports/
-    Port.cs                                  (base + IsConnected on InputPort<T>)
-    OutputPort.cs                            (cache, opt-out flag)
-    FlowInPort.cs                            (handler-in-ctor, sync/async overloads)
-    FlowOutPort.cs                           (.End sentinel)
-    Connection.cs                            (unchanged)
+    Port.cs                                  Base. Adds internal virtual
+                                             ClearCache(Flow) no-op (R8).
+                                             Owner / Name remain only on flow
+                                             ports (no migration onto base).
+    InputPort.cs                             Holds OutputPort<T>? _source
+                                             directly. IsConnected,
+                                             Connect(OutputPort<T>) (R1).
+                                             Read(Flow) — no fallback lambda.
+    OutputPort.cs                            Func<Flow, T> compute, flow-keyed
+                                             cache, cache=false opt-out flag.
+                                             Overrides Port.ClearCache.
+    FlowInPort.cs                            No public ctor; named static
+                                             factories Sync / Async.
+                                             Invoke is Func<Flow, Task<FlowOutPort>>
+                                             internally; Sync wraps with
+                                             Task.FromResult (R9).
+    FlowOutPort.cs                           .End static sentinel.
+                                             Positional ctor (owner, name) (R6).
+    Connection.cs                            Slimmed — only FlowConnection
+                                             remains. Abstract Connection +
+                                             generic Connection<T> deleted (R1).
 ```
 
 ### Port primitives
@@ -510,11 +583,13 @@ Runtime/
 ```csharp
 public abstract class Port
 {
-    public RuntimeNode Owner { get; internal set; } = null!;
-    public string      Name  { get; internal set; } = "";
+    // Cache-clear hook for Flow.InvalidateAll. Default no-op so InputPort
+    // and the flow ports inherit the right behavior; OutputPort<T>
+    // overrides. Replaces the v1 sketch's ICacheClearable interface (R8).
+    internal virtual void ClearCache(Flow flow) { }
 }
 
-public class OutputPort<T> : Port
+public sealed class OutputPort<T> : Port
 {
     readonly Func<Flow, T> _compute;
     readonly Dictionary<Flow, T> _cache = new();
@@ -522,7 +597,7 @@ public class OutputPort<T> : Port
 
     public OutputPort(Func<Flow, T> compute, bool cache = true)
     {
-        _compute = compute;
+        _compute     = compute;
         _shouldCache = cache;
     }
 
@@ -536,10 +611,11 @@ public class OutputPort<T> : Port
         return v;
     }
 
-    internal void ClearCache(Flow flow) => _cache.Remove(flow);
+    internal override void ClearCache(Flow flow) => _cache.Remove(flow);
 }
 
-public class InputPort<T> : Port
+// InputPort holds an OutputPort<T> directly — Connection<T> deleted (R1).
+public sealed class InputPort<T> : Port
 {
     OutputPort<T>? _source;
     public bool IsConnected => _source != null;
@@ -547,72 +623,135 @@ public class InputPort<T> : Port
     internal void Connect(OutputPort<T> source) => _source = source;
 }
 
-public class FlowOutPort : Port
+public sealed class FlowOutPort : Port
 {
-    public static readonly FlowOutPort End = new() { Name = "<end>" };
+    // Sentinel returned by handlers / Return / Cancel to terminate the walk.
+    // Owner is null on the sentinel; the walk loop checks ReferenceEquals
+    // before dereferencing Connection.
+    public static readonly FlowOutPort End = new(null!, "<end>");
+
+    public RuntimeNode    Owner { get; }
+    public string         Name  { get; }
     public FlowConnection? Connection { get; internal set; }
+
+    public FlowOutPort(RuntimeNode owner, string name)
+    {
+        Owner = owner;
+        Name  = name;
+    }
 }
 
-public delegate FlowOutPort           FlowHandler     (Flow flow);
-public delegate ValueTask<FlowOutPort> AsyncFlowHandler(Flow flow);
-
-public class FlowInPort : Port
+// Sync handlers return a FlowOutPort directly. Async handlers return
+// Task<FlowOutPort> (Task, not ValueTask — R9). Internally both shapes
+// collapse to a single Task-returning Invoke so the walk loop awaits one
+// thing.
+public sealed class FlowInPort : Port
 {
+    public RuntimeNode    Owner { get; }
+    public string         Name  { get; }
     public FlowConnection? Connection { get; internal set; }
-    internal Func<Flow, ValueTask<FlowOutPort>> Invoke { get; }
+    internal Func<Flow, Task<FlowOutPort>> Invoke { get; }
 
-    public FlowInPort(FlowHandler      sync ) { Invoke = f => new(sync(f));     }
-    public FlowInPort(AsyncFlowHandler async_) { Invoke = async_; }
+    FlowInPort(RuntimeNode owner, string name, Func<Flow, Task<FlowOutPort>> invoke)
+    {
+        Owner  = owner;
+        Name   = name;
+        Invoke = invoke;
+    }
+
+    // R9 — named factories. No public ctor; lambda binding is unambiguous
+    // because the user picks the factory.
+    public static FlowInPort Sync(
+        RuntimeNode owner, string name, Func<Flow, FlowOutPort> handler) =>
+        new(owner, name, flow => Task.FromResult(handler(flow)));
+
+    public static FlowInPort Async(
+        RuntimeNode owner, string name, Func<Flow, Task<FlowOutPort>> handler) =>
+        new(owner, name, handler);
 }
 ```
+
+**Notes.**
+
+- `Owner` / `Name` live only on the flow ports (matches today). Putting
+  them on `Port` base was sketched in the v2 first draft and rejected —
+  data ports never need them, and keeping the base minimal keeps the
+  generator's per-port allocation footprint flat.
+- `OutputPort<T>` is sealed so `ClearCache` is a single direct call; no
+  `internal sealed override` ceremony. Same for `InputPort<T>` /
+  flow ports.
 
 ### `Flow`
 
 ```csharp
+public enum Outcome { Running, Returned, Cancelled }
+
 public sealed class Flow
 {
-    object? _payload;
+    readonly object _payload;
     Dictionary<object, object>? _slots;        // per-(node, key) per-flow state
     readonly List<Port> _touched = new();
+    object? _result;
 
-    public GraphRunner    Runner { get; internal set; } = null!;
-    public CancellationToken Token { get; internal set; }
+    public GraphRunner       Runner { get; }
+    public CancellationToken Token  { get; }
 
-    public Outcome Outcome { get; private set; }
-    public bool    IsCancelled  => Outcome == Outcome.Cancelled;
+    public Outcome Outcome { get; private set; } = Outcome.Running;
+    public bool    IsCancelled   => Outcome == Outcome.Cancelled;
     public bool    IsTerminating => Outcome != Outcome.Running;
 
-    // Payload
-    public T?   GetPayload<T>() where T : class => _payload as T;
-    internal void SetPayload(object p) => _payload = p;
+    // R7 — no pool. New Flow per dispatch. Ctor takes everything;
+    // payload / runner / token are immutable for the lifetime of the run.
+    internal Flow(object payload, GraphRunner runner, CancellationToken token)
+    {
+        _payload = payload;
+        Runner   = runner;
+        Token    = token;
+    }
 
-    // Outcome-setting helpers — return End so handlers compose
-    public FlowOutPort Return<T>(T value) { _result = value; Outcome = Outcome.Returned;  return FlowOutPort.End; }
-    public FlowOutPort Cancel()           {                  Outcome = Outcome.Cancelled; return FlowOutPort.End; }
-    object? _result;
+    // Payload
+    public T? GetPayload<T>() where T : class => _payload as T;
+
+    // Outcome-setting helpers — return End so handlers compose into
+    // one-line lambdas: `flow => flow.Return(Value.Read(flow))`.
+    public FlowOutPort Return<T>(T value)
+    {
+        _result = value;
+        Outcome = Outcome.Returned;
+        return FlowOutPort.End;
+    }
+    public FlowOutPort Cancel()
+    {
+        Outcome = Outcome.Cancelled;
+        return FlowOutPort.End;
+    }
     public T? ReadResult<T>() => _result is T t ? t : default;
 
-    // Cache touch tracking
+    // Cache touch tracking — direct virtual call (R8), no ICacheClearable.
     internal void RegisterTouched(Port p) => _touched.Add(p);
     public   void InvalidateAll()
     {
-        foreach (var p in _touched) (p as ICacheClearable)?.ClearCache(this);
+        foreach (var p in _touched) p.ClearCache(this);
         _touched.Clear();
     }
 
-    // Slots — per-node per-flow scoped state (loop counters etc.)
+    // Slots — per-(owner, this) per-flow scoped state (loop counters etc.).
+    // Owner is typically `this` from inside a node (so concurrent runs of
+    // the same Loop node don't collide).
     public T GetSlot<T>(object owner) =>
         _slots != null && _slots.TryGetValue(owner, out var v) ? (T)v : default!;
     public void SetSlot<T>(object owner, T value) =>
-        (_slots ??= new())[owner] = value;
-
-    internal void ResetForReuse()
-    {
-        _payload = null; _result = null; Outcome = Outcome.Running;
-        _slots?.Clear(); _touched.Clear();
-    }
+        (_slots ??= new())[owner] = value!;
 }
 ```
+
+**What's gone vs. v1 / earlier v2 sketches.**
+
+- No `GoTo` / `Stop` / `ConsumeNext` — handlers return `FlowOutPort`
+  directly; `FlowOutPort.End` terminates the walk.
+- No `ResetForReuse` — there's no pool to reset for (R7).
+- No `Scope` — flow context is just payload + runner + token + slots.
+- `_nextPort` field is gone (the walk loop holds it on the stack).
 
 ### `RuntimeNode` and `RuntimeNode<TRunner>`
 
@@ -623,13 +762,26 @@ public abstract class RuntimeNode
     public string editorGuid = string.Empty;
     [NonSerialized] public readonly Dictionary<string, Port> Ports = new();
 
-    // Framework wiring step — called by Bake. Default attaches the
-    // pre-resolved connections to this node's ports.
-    internal virtual void Build(in NodeBuildSlice slice) { /* ... */ }
+    // Framework wiring step — called once by Bake. Default applies the
+    // slice in a tight loop. Nodes don't typically override this;
+    // overriding is left in for nodes that need post-wire fixup.
+    //
+    // Bind / AcceptOutput from the old API are gone (R5) — the slice is
+    // the only wiring path.
+    internal virtual void Build(in NodeBuildSlice slice)
+    {
+        for (int i = 0; i < slice.Data.Count; i++) slice.Data[i].Apply();
+        for (int i = 0; i < slice.Flow.Count; i++)
+        {
+            var f = slice.Flow[i];
+            f.Source.Connection      = f.Connection;
+            f.Destination.Connection = f.Connection;
+        }
+    }
 
-    // Consumer extension point — called by builder after every node
-    // is wired. Default no-op. Override to subscribe to events,
-    // cache derived state using runner services.
+    // Consumer extension point — called by the builder after every node
+    // is wired. Default no-op. Override to subscribe to events, cache
+    // derived state using runner services.
     public virtual void Initialize(GraphRunner runner) { }
 }
 
@@ -646,13 +798,64 @@ public abstract class RuntimeNode<TRunner> : RuntimeNode where TRunner : GraphRu
 ```
 
 Three-step node lifecycle:
-- **ctor** (parameterless): runs at deserialization or instantiation
-  via the catalog factory. Populates the `Ports` dict and wires
-  per-In handlers via FlowInPort ctor.
-- **`Build`** (framework-internal): called by `Bake` once per node.
-  Attaches the pre-resolved slice to the node's ports.
+
+- **ctor** (parameterless): runs at deserialization or instantiation via
+  the catalog factory. Populates the `Ports` dict and wires per-In
+  handlers via the FlowInPort.Sync / FlowInPort.Async factories.
+- **`Build`** (framework-internal): called by `Bake` once per node. Walks
+  the pre-resolved slice and applies it.
 - **`Initialize`** (consumer hook): called by the builder after all
   nodes are wired. Default no-op.
+
+### `NodeBuildSlice` (R4)
+
+`Bake` resolves all port-name lookups and type-pair matching once,
+then hands each node a slice carrying ready-to-apply bindings. Nodes
+don't see asset edge structs or do dict lookups during Build.
+
+```csharp
+public readonly struct NodeBuildSlice
+{
+    public IReadOnlyList<DataBinding> Data { get; }
+    public IReadOnlyList<FlowBinding> Flow { get; }
+
+    public NodeBuildSlice(IReadOnlyList<DataBinding> data,
+                          IReadOnlyList<FlowBinding> flow)
+    {
+        Data = data;
+        Flow = flow;
+    }
+}
+
+// Generic-erased data binding. Bake resolves the typed pair and closes
+// over the typed Connect call in `Apply`. This sidesteps having to make
+// the slice itself generic over T.
+public readonly struct DataBinding
+{
+    readonly Action _apply;
+    public DataBinding(Action apply) { _apply = apply; }
+    public void Apply() => _apply();
+}
+
+public readonly struct FlowBinding
+{
+    public FlowOutPort     Source      { get; }
+    public FlowInPort      Destination { get; }
+    public FlowConnection  Connection  { get; }
+    public FlowBinding(FlowOutPort src, FlowInPort dst, FlowConnection conn)
+    {
+        Source = src; Destination = dst; Connection = conn;
+    }
+}
+```
+
+`GraphTopology.Bake` produces these by iterating the asset's
+`connections` (data) and `flowEdges` (flow). For each data edge it looks
+up the typed `InputPort<T>` / `OutputPort<T>` pair via reflection on
+field type once at bake (or via the existing `PortMeta` catalog if
+that's cheaper) and emits `new DataBinding(() => input.Connect(output))`.
+The `Action` allocation is paid once per edge at bake; runtime calls
+are pure delegate-invokes with no further reflection.
 
 ### `EntryRuntimeNode<TPayload>`
 
@@ -660,6 +863,39 @@ Three-step node lifecycle:
 public abstract class EntryRuntimeNodeBase : RuntimeNode
 {
     public abstract Type PayloadType { get; }
+
+    // R3 — concrete on the base. Scans Ports for the sole FlowOutPort and
+    // returns it. Throws on zero or more than one, which forces multi-out
+    // entries (CardEntry: Validate + Execute) into RunFromFlowOut. Cached
+    // on first call so repeated dispatches are O(1).
+    FlowOutPort? _defaultOut;
+    bool _defaultOutResolved;
+
+    public FlowOutPort GetDefaultOut()
+    {
+        if (_defaultOutResolved) return _defaultOut
+            ?? throw new InvalidOperationException(
+                $"Entry {GetType().Name} has no FlowOutPort.");
+
+        FlowOutPort? found = null;
+        int count = 0;
+        foreach (var p in Ports.Values)
+        {
+            if (p is not FlowOutPort fo) continue;
+            count++;
+            found = fo;
+        }
+        _defaultOutResolved = true;
+        _defaultOut         = count == 1 ? found : null;
+
+        if (count == 0)
+            throw new InvalidOperationException(
+                $"Entry {GetType().Name} has no FlowOutPort — cannot dispatch via Run<TEntry>.");
+        if (count > 1)
+            throw new InvalidOperationException(
+                $"Entry {GetType().Name} has {count} FlowOutPorts — use RunFromFlowOut to pick one.");
+        return _defaultOut!;
+    }
 }
 
 public abstract class EntryRuntimeNode<TPayload> : EntryRuntimeNodeBase
@@ -678,7 +914,9 @@ public abstract class EntryRuntimeNode<TPayload> : EntryRuntimeNodeBase
 
 No `_runFromHere`, no `BindRunner`, no `Run(TEntry)`, no `Run(object)`,
 no `BindForRun<TRunner>`, no `Payload` field, no `SetPayload`. Only:
+
 - `PayloadType` for runner-side dispatch.
+- `GetDefaultOut()` for `Run<TEntry>` single-out dispatch.
 - `Payload` output port for graphs that want the whole payload.
 - Per-package subclasses add their own FlowOuts (Validate / Execute).
 
@@ -744,7 +982,7 @@ internal static class GraphTopology
 ```csharp
 public abstract class GraphRunner
 {
-    protected internal IReadOnlyList<RuntimeNode>                   Nodes            { get; }
+    protected internal IReadOnlyList<RuntimeNode>                      Nodes            { get; }
     protected internal IReadOnlyDictionary<Type, EntryRuntimeNodeBase> EntriesByPayload { get; }
 
     protected GraphRunner(BakedGraph baked)
@@ -755,17 +993,17 @@ public abstract class GraphRunner
 
     public virtual void Initialize() { }   // consumer hook, default no-op
 
-    // Default-flow-out dispatch by payload type.
+    // Default-flow-out dispatch by payload type. Throws if the entry has
+    // zero or multiple FlowOutPorts (R3) — multi-out shapes use the
+    // RunFromFlowOut path below.
     public Task<Flow> Run<TEntry>(TEntry payload, CancellationToken ct = default)
         where TEntry : class
     {
         if (!EntriesByPayload.TryGetValue(typeof(TEntry), out var entry))
-            throw new InvalidOperationException($"No entry for {typeof(TEntry).FullName}.");
+            throw new InvalidOperationException(
+                $"No entry for {typeof(TEntry).FullName}.");
 
-        // Entry's default FlowOut walks via its sole connection.
-        // For per-package shapes with multiple FlowOuts, see
-        // RunFromFlowOut below.
-        var flow = AcquireFlow(payload, ct);
+        var flow = NewFlow(payload, ct);
         return RunFromEntry(entry, flow);
     }
 
@@ -776,26 +1014,20 @@ public abstract class GraphRunner
         var dest = flowOut.Connection?.Destination;
         if (dest == null) return default;
 
-        var flow = AcquireFlow(payload, ct);
+        var flow = NewFlow(payload, ct);
         await RunFromInPort(dest, flow);
         return flow.ReadResult<TResult>();
     }
 
-    Flow AcquireFlow(object payload, CancellationToken ct)
-    {
-        var flow = FlowPool.Rent();
-        flow.SetPayload(payload);
-        flow.Token  = ct;
-        flow.Runner = this;
-        return flow;
-    }
+    // R7 — no pool. New Flow per dispatch. The Flow ctor is internal so
+    // callers can't bypass GraphRunner's wiring of payload / runner / token.
+    Flow NewFlow(object payload, CancellationToken ct) =>
+        new Flow(payload, this, ct);
 
     async Task<Flow> RunFromEntry(EntryRuntimeNodeBase entry, Flow flow)
     {
-        // Walk starts at the destination of the entry's default Out.
-        // (For multi-Out entries, RunFromFlowOut is the typed path.)
         var defaultOut = entry.GetDefaultOut();
-        var dest = defaultOut?.Connection?.Destination;
+        var dest = defaultOut.Connection?.Destination;
         if (dest != null) await RunFromInPort(dest, flow);
         return flow;
     }
@@ -809,7 +1041,10 @@ public abstract class GraphRunner
             if (ReferenceEquals(next, FlowOutPort.End)) break;
             current = next.Connection?.Destination;
         }
-        FlowPool.Return(flow);   // clears caches via flow.InvalidateAll under the hood
+        // Clears every per-port flow-keyed cache touched during this run.
+        // No pool to return to — the Flow drops out of scope after this
+        // method returns and is GC'd along with its dictionaries.
+        flow.InvalidateAll();
     }
 }
 ```
@@ -939,7 +1174,8 @@ public sealed partial class Branch : RuntimeNode
     public FlowOutPort     False     = null!;
 
     partial void InitializePorts() =>
-        In = new FlowInPort(flow => Condition.Read(flow) ? True : False);
+        In = FlowInPort.Sync(this, nameof(In),
+            flow => Condition.Read(flow) ? True : False);
 }
 ```
 
@@ -954,7 +1190,8 @@ public sealed partial class Return<TResult> : RuntimeNode
     public InputPort<TResult> Value = null!;
 
     partial void InitializePorts() =>
-        In = new FlowInPort(flow => flow.Return(Value.Read(flow)));
+        In = FlowInPort.Sync(this, nameof(In),
+            flow => flow.Return(Value.Read(flow)));
 }
 ```
 
@@ -968,7 +1205,7 @@ public sealed partial class Cancel : RuntimeNode
     public FlowInPort In = null!;
 
     partial void InitializePorts() =>
-        In = new FlowInPort(flow => flow.Cancel());
+        In = FlowInPort.Sync(this, nameof(In), flow => flow.Cancel());
 }
 ```
 
@@ -984,7 +1221,7 @@ public sealed partial class Wait : RuntimeNode
     public FlowOutPort      Out     = null!;
 
     partial void InitializePorts() =>
-        In = new FlowInPort(async flow =>
+        In = FlowInPort.Async(this, nameof(In), async flow =>
         {
             await Task.Delay(TimeSpan.FromSeconds(Seconds.Read(flow)), flow.Token);
             return Out;
@@ -1012,13 +1249,13 @@ public sealed partial class Loop : RuntimeNode
         // concurrent loop runs each have their own slot.
         Iteration = new OutputPort<int>(flow => flow.GetSlot<int>(this), cache: false);
 
-        Begin = new FlowInPort(flow =>
+        Begin = FlowInPort.Sync(this, nameof(Begin), flow =>
         {
             flow.SetSlot(this, 0);
             return Count.Read(flow) > 0 ? Body : Done;
         });
 
-        Continue = new FlowInPort(flow =>
+        Continue = FlowInPort.Sync(this, nameof(Continue), flow =>
         {
             flow.InvalidateAll();                       // wipe iteration K's caches
             var i = flow.GetSlot<int>(this) + 1;
@@ -1028,6 +1265,57 @@ public sealed partial class Loop : RuntimeNode
     }
 }
 ```
+
+### `OnTrigger<TEvent>` — Mode-3 event entry (R2)
+
+`OnTrigger<TEvent>` is a special entry: it's both the runtime-node type
+AND its own payload type (the host wraps an inner event in an
+`OnTrigger<TEvent>` wrapper instance and dispatches that). Today's
+mutable `Event` field is replaced by:
+
+- An **inner-event field** on the payload-wrapper instance (`Inner`) —
+  set by the host before dispatch. This is per-dispatch instance state,
+  not per-runner shared state, so it doesn't violate D5.
+- An **`Event` output port** on the runtime node — reads the wrapper's
+  `Inner` field via the flow's payload.
+
+```csharp
+[Serializable]
+public sealed class OnTrigger<TEvent>
+    : EntryRuntimeNode<OnTrigger<TEvent>>, IOnTrigger
+    where TEvent : class
+{
+    // Editor-time config — Timing is serialized on the node itself, not
+    // the payload-wrapper. Static config, no per-run state.
+    public Timing Timing { get; set; }
+
+    // Inner event payload. Host code sets this on the *wrapper instance*
+    // before dispatch:
+    //   var wrapper = new OnTrigger<DamageDealt> { Inner = evt };
+    //   await runner.Run(wrapper);
+    // Renamed from the v1 `Event` field to free that name for the port.
+    public TEvent? Inner;
+
+    public FlowOutPort        FlowOut;
+    public OutputPort<TEvent> Event;
+
+    public OnTrigger()
+    {
+        FlowOut = new FlowOutPort(this, nameof(FlowOut));
+        Event   = new OutputPort<TEvent>(
+            flow => flow.GetPayload<OnTrigger<TEvent>>()!.Inner!);
+        Ports.Add(FlowOut.Name, FlowOut);
+        Ports.Add(nameof(Event), Event);
+    }
+}
+```
+
+`FlowOut` is the only `FlowOutPort` on the node, so
+`EntryRuntimeNodeBase.GetDefaultOut()` returns it for `runner.Run<OnTrigger<TEvent>>`
+dispatch. The `Inner` rename is a breaking change for any host code
+that read `OnTrigger<TEvent>.Event` directly — those call sites move to
+`wrapper.Inner` for writes; reads inside the graph go through the
+`Event` port.
 
 ---
 
@@ -1052,19 +1340,6 @@ how much per-payload code we tolerate. Resolve when implementing.
 Related: `InputPort<T>.IsConnected` is in the port API for the
 "skip unwired fields" semantics regardless of which path lands.
 
-### Q-pool — Flow pool ownership
-
-The pool needs to live somewhere. Options:
-- **Static singleton** — simplest, shared across all runners.
-  Concurrency on the pool itself becomes a concern (same
-  single-threaded contract or a lock).
-- **Per-runner** — no contention but loses sharing across runners
-  (5-card case allocates 5 pools).
-- **Per-builder** — bake-cache scope, shared across that builder's
-  runners. Probably the right scope.
-
-Lean: per-builder. Settle when implementing.
-
 ### Q-walk-interception — UC2 reframe
 
 v1's UC2 (wrap every node execution) is gone with `Execute`.
@@ -1079,27 +1354,15 @@ Replacement options:
 Lean: defer. The walk loop has a natural injection point if we
 need it; adding it speculatively is YAGNI.
 
-### Q-async-overload — `FlowInPort` ctor resolution
+### Resolved
 
-Two ctor overloads (`FlowHandler` vs `AsyncFlowHandler`) rely on
-the lambda being typed as `async` for the async overload to bind.
-Verify with a small test that overload resolution picks the right
-one in practice. If ambiguous, fall back to two named static
-factories (`FlowInPort.Sync(...)`, `FlowInPort.Async(...)`).
-
-### Q-default-out — Entry's default FlowOut for `Run<TEntry>`
-
-`Run<TEntry>` walks from "the entry's default FlowOut." For
-single-out entries this is unambiguous. For multi-out entries
-(CardEntry: Validate + Execute), what's the default?
-- **No default** — `Run<TEntry>` only works for single-out
-  entries; multi-out requires `RunFromFlowOut`. Cleanest.
-- **Convention** — first declared FlowOut. Implicit but fragile.
-- **Explicit** — `[DefaultFlowOut]` attribute on one port.
-
-Lean: no default. `Run<TEntry>` is for the simple single-out case;
-multi-out shapes use the per-package runner sugar
-(`RunValidate` / `RunExecute`).
+- **Q-pool** — resolved (R7). No pool; `new Flow(...)` per dispatch.
+  Pool reintroduction stays a future optimisation.
+- **Q-async-overload** — resolved (R9). Named static factories
+  `FlowInPort.Sync` / `FlowInPort.Async` with `Task<FlowOutPort>`.
+- **Q-default-out** — resolved (R3). `EntryRuntimeNodeBase.GetDefaultOut()`
+  scans `Ports` for the sole `FlowOutPort` and throws on zero or
+  multiple.
 
 ---
 
@@ -1112,91 +1375,153 @@ new shape. No alive-but-obsolete transition window.
 
 Order of work within the commit:
 
-1. **Port API additions.**
-   - `OutputPort<T>` — flow-keyed cache + opt-out flag.
-   - `InputPort<T>.IsConnected`.
-   - `FlowOutPort.End` sentinel.
-   - `FlowInPort` with sync + async ctor overloads.
+1. **Port API rewrite.**
+   - `Port` base gains `internal virtual void ClearCache(Flow) {}` (R8).
+   - `OutputPort<T>` — `Func<Flow, T>` compute, flow-keyed cache,
+     `cache:false` opt-out, `ClearCache` override.
+   - `InputPort<T>` — `_source: OutputPort<T>?`, `IsConnected`,
+     `Connect(OutputPort<T>)`, `Read(Flow)`. Old `_fallback` and
+     `AcceptOutput` deleted.
+   - `FlowOutPort` — `.End` sentinel; positional ctor `(owner, name)` (R6).
+   - `FlowInPort` — no public ctor; `FlowInPort.Sync(owner, name, Func<Flow, FlowOutPort>)`
+     and `FlowInPort.Async(owner, name, Func<Flow, Task<FlowOutPort>>)`
+     factories (R9).
+   - **Delete** abstract `Connection` and generic `Connection<T>` (R1).
+     Slim `Connection.cs` to just `FlowConnection`.
 
-2. **Flow gains pool-friendly state.**
-   - Payload, slots, touched-ports list, `Return`/`Cancel` return
-     `FlowOutPort.End`, `InvalidateAll`, `ResetForReuse`.
+2. **Rewrite `Flow`.**
+   - Internal ctor `(payload, runner, token)` — immutable for the
+     run's lifetime.
+   - `Outcome { Running, Returned, Cancelled }`; default Running.
+   - Payload via `GetPayload<T>()` only (no setter).
+   - `Return<T>(value)` / `Cancel()` set Outcome and return
+     `FlowOutPort.End`.
+   - `RegisterTouched(Port)` / `InvalidateAll()` (calls `port.ClearCache(this)`
+     directly — R8).
+   - `GetSlot<T>(owner)` / `SetSlot<T>(owner, value)`.
+   - **Delete** `GoTo`, `Stop`, `ConsumeNext`, `Scope`, `Reason`,
+     `ResetForReuse`, `_nextPort` (R7).
 
-3. **Add `BakedGraph` + `GraphTopology.Bake`.** Pure topology
-   resolution, returns BakedGraph.
+3. **Add non-generic `GraphAsset` base** (R10) holding `nodes` /
+   `connections` / `flowEdges`. `GraphAsset<TRunner>` becomes a typed
+   marker subclass.
 
-4. **Add `GraphBuilder<TRunner>`.** Cache + Build template method
+4. **Add `NodeBuildSlice`, `DataBinding`, `FlowBinding` structs** (R4).
+
+5. **Add `BakedGraph` + `GraphTopology.Bake(GraphAsset)`.** Pure
+   topology resolution; produces per-node slices and the
+   `EntriesByPayload` dict.
+
+6. **Add `GraphBuilder<TRunner>`.** Cache + Build template method
    + abstract CreateRunner.
 
-5. **Rewrite `GraphRunner`.**
+7. **Rewrite `GraphRunner`.**
    - Forced base ctor `(BakedGraph)`.
-   - `Run<TEntry>` (default-out dispatch).
-   - `RunFromFlowOut<TResult>` (explicit-out dispatch).
-   - Walk loop (`Invoke` per FlowInPort, `End` sentinel check,
-     pool return).
+   - `Run<TEntry>` — `entry.GetDefaultOut()` dispatch; throws on
+     multi-out entries (R3).
+   - `RunFromFlowOut<TResult>` — explicit-out dispatch.
+   - Walk loop awaits `current.Invoke(flow)`, checks
+     `FlowOutPort.End` sentinel, calls `flow.InvalidateAll()` on exit
+     (no pool return — R7).
    - `Initialize` virtual no-op default.
+   - `NewFlow(payload, ct)` helper just `new Flow(...)` (R7).
 
-6. **Rewrite `RuntimeNode`.**
-   - `Build(in NodeBuildSlice)` internal virtual (framework
-     wiring step).
+8. **Rewrite `RuntimeNode`.**
+   - `Build(in NodeBuildSlice)` internal virtual default that
+     applies the slice (R4).
    - `Initialize(GraphRunner)` public virtual no-op default.
-   - Drop `Execute`.
+   - **Delete** `Execute`, `Bind(...)` (R5).
 
-7. **Rewrite `RuntimeNode<TRunner>`.**
+9. **Rewrite `RuntimeNode<TRunner>`.**
    - Static `Runner(Flow)` helper.
    - Sealed Initialize override forwarding to typed.
    - Drop `_runner` field, drop typed Execute.
 
-8. **Strip `EntryRuntimeNode<T>`** to: `PayloadType` + `Payload`
-   port. Drop everything else.
+10. **Rewrite `EntryRuntimeNodeBase` and `EntryRuntimeNode<TPayload>`.**
+    - Base: `PayloadType` + concrete `GetDefaultOut()` (R3).
+    - Typed: adds `OutputPort<TPayload> Payload`. Nothing else.
+    - **Delete** `_runFromHere`, `BindRunner`, `Run(TEntry)`,
+      `Run(object)`, `BindForRun<TRunner>`, `Payload` field,
+      `SetPayload`.
 
-9. **Rewrite all built-in nodes** (Add, And, Or, Not, Branch,
-   GreaterThan, LessThan, Subtract, Multiply, IntToString, Return,
-   Cancel) to the new shape.
+11. **Rewrite `OnTrigger<TEvent>`** (R2).
+    - Rename `Event` field → `Inner` (the inner-event payload field).
+    - Add `OutputPort<TEvent> Event` reading
+      `flow.GetPayload<OnTrigger<TEvent>>()!.Inner!`.
+    - Remove `Execute` override.
+    - `Timing` property unchanged.
 
-10. **Generator changes.**
+12. **Rewrite all built-in nodes** (Add, And, Or, Not, Branch,
+    GreaterThan, LessThan, Subtract, Multiply, IntToString, Return,
+    Cancel, Wait, Loop) to the new shape — pure nodes have no flow
+    ports + lazy `OutputPort<T>`; imperative nodes use
+    `FlowInPort.Sync` / `FlowInPort.Async` factories (R9).
+
+13. **Generator changes.**
     - Per-payload entry runtime closure capture: `flow =>
-      flow.GetPayload<T>()!.FieldX` instead of `() => Payload!.FieldX`.
-    - Entry runtime no longer holds Payload field.
-    - `EntryBase` property on `[GraphPackage]` if not already there.
+      flow.GetPayload<T>()!.FieldX` instead of `() => _fieldXValue`.
+    - Drop the per-field backing `_fooValue` fields and the `Execute`
+      override that copied them.
+    - Drop `FlowOut` field from per-payload entry runtime if package
+      shape provides its own; otherwise emit it positionally
+      `new FlowOutPort(this, nameof(FlowOut))` (R6).
+    - Per-`[GraphNode]` partial ctor: emit FlowInPort fields via
+      `FlowInPort.Sync(this, nameof(X), …)` from `InitializePorts` —
+      framework no longer constructs FlowInPorts in the partial
+      itself, since the handler is required and only the user knows
+      it. The partial keeps creating data ports and FlowOutPorts.
     - Catalog emit unchanged for now (Modify/Decompose/Construct
       deferred).
 
-11. **Delete** `GraphController.cs`, `GraphExecutor.cs`. Migrate
+14. **Delete** `GraphController.cs`, `GraphExecutor.cs`. Migrate
     all sample + test call sites to `builder.Build(asset)` /
     `runner.Run(payload)`.
 
-12. **Run** snapshot tests + smoke tests. Refresh snapshots if
+15. **Run** snapshot tests + smoke tests. Refresh snapshots if
     generator output shifts.
 
 Estimated net delete: ~250–350 lines of framework (controller +
-executor + EntryRuntimeNode complexity + per-node Execute
-boilerplate). Add: ~250 lines of framework (BakedGraph +
-GraphBuilder + GraphTopology + per-In handler infrastructure).
-Roughly net-zero on framework size; significantly different shape.
-Plus generator changes for Payload-from-Flow and EntryBase emit.
+executor + Connection<T> + EntryRuntimeNode complexity + per-node
+Execute boilerplate). Add: ~300 lines of framework (BakedGraph +
+GraphBuilder + GraphTopology + NodeBuildSlice + per-In handler
+infrastructure + GetDefaultOut). Roughly net-zero on framework
+size; significantly different shape. Plus generator changes for
+Payload-from-Flow capture, FlowInPort factory emission, and the
+OnTrigger reshape.
 
 ---
 
 ## Test impact
 
 - **Snapshot tests** — `HarnessGraphRegistry.g.cs` registry shape
-  may change if `BindForRun` plumbing is removed; entry runtime
-  closure capture changes. Snapshots regenerated post-change.
+  changes: `BindForRun` plumbing is removed and entry runtime
+  closure capture switches to `flow.GetPayload<T>()!.FieldX`. The
+  per-payload entry runtime no longer holds backing `_fooValue`
+  fields or an `Execute` override. Snapshots regenerated post-change.
 - **`Tests/RuntimeSmokeTests`** — fixtures use `controller.Initialize`
   + `controller.Run`. Migrate to `new SmokeBuilder(...).Build(asset)`
-  + `runner.Run`. Trivial.
+  + `runner.Run`. Hand-authored fixtures that called
+  `node.Bind(...)` (R5) move to `inputPort.Connect(outputPort)` /
+  direct `FlowConnection` assignment.
 - **`CardSandbox/Tests/Strike500Tests`** — uses `trig.Run(payload)`
   for trigger pattern-match. Migrate to per-runner subscription
-  pattern with `runner.Run(payload)`.
+  pattern with `runner.Run(payload)`. Any code that read
+  `OnTrigger<TEvent>.Event` directly moves to either:
+  - host writes: `wrapper.Inner = evt` before dispatch (R2);
+  - graph reads: wire the `Event` output port to a downstream
+    `InputPort<TEvent>`.
 - **Editor / generator** — `RegisterAdditional` partial on
   `<Stem>GraphRegistry` is unchanged. Per-package OnTrigger /
-  Return shims are unchanged (still use the existing catalog).
+  Return shims need their entry-runtime base updated (still use
+  the existing catalog, but the new EntryRuntimeNode<T> shape).
 - **`PortValueResolver`** — unchanged (bake-time, doesn't touch
   controller/executor).
 - **NEW: Loop node test** — concurrent runs, cache invalidation,
   iteration counter on flow slot. Validates the multi-In shape
   end-to-end.
+- **NEW: GetDefaultOut throw test** — multi-out entry (CardEntry
+  shape) dispatched through `Run<TEntry>` should throw the
+  expected message; `RunFromFlowOut` should succeed.
 
 ---
 
