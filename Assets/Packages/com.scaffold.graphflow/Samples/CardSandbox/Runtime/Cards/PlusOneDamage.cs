@@ -1,12 +1,10 @@
 #nullable enable
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using Scaffold.GraphFlow;
 using UnityEngine;
 
 namespace Scaffold.GraphFlow.CardSandbox.Cards
 {
-    /// <summary>"+1 damage" trigger — OnTrigger&lt;DamageDealt&gt; (Before) → bumps Amount by 1.</summary>
     public static class PlusOneDamage
     {
         public static CardEffectGraphAsset BuildAsset()
@@ -17,7 +15,7 @@ namespace Scaffold.GraphFlow.CardSandbox.Cards
             };
             var mutator = new PlusOneDamageMutator
             {
-                nodeId = 2, editorGuid = "plusone-mutator", Source = entry,
+                nodeId = 2, editorGuid = "plusone-mutator",
             };
 
             var asset = ScriptableObject.CreateInstance<CardEffectGraphAsset>();
@@ -27,26 +25,31 @@ namespace Scaffold.GraphFlow.CardSandbox.Cards
                 fromNodeId = 1, fromPortName = "FlowOut",
                 toNodeId = 2, toPortName = "FlowIn",
             });
+            asset.connections.Add(new Edge
+            {
+                fromNodeId = 1, fromPortName = "Event",
+                toNodeId = 2, toPortName = "Event",
+            });
             return asset;
         }
     }
 
-    /// <summary>PlusOneDamage's effect node — bumps the in-flight DamageDealt event's Amount by 1.</summary>
     public sealed class PlusOneDamageMutator : RuntimeNode<CardEffectRunner>
     {
-        public FlowInPort FlowIn = null!;
-        public OnTrigger<DamageDealt>? Source;
+        public FlowInPort FlowIn;
+        public InputPort<DamageDealt> Event;
 
         public PlusOneDamageMutator()
         {
-            FlowIn = new FlowInPort(this);
+            Event = new InputPort<DamageDealt>();
+            FlowIn = FlowInPort.Sync(this, nameof(FlowIn), flow =>
+            {
+                var evt = Event.Read(flow);
+                if (evt != null) evt.Amount += 1;
+                return FlowOutPort.End;
+            });
             Ports.Add(FlowIn.Name, FlowIn);
-        }
-
-        public override Task Execute(CardEffectRunner runner, Flow flow)
-        {
-            if (Source?.Event != null) Source.Event.Amount += 1;
-            return flow.Stop();
+            Ports.Add(nameof(Event), Event);
         }
     }
 }

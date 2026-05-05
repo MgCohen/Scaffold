@@ -42,7 +42,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
                     continue;
                 }
 
-                var (isFlowNode, isGenericOverRunner) = ClassifyHierarchy(type);
+                var (_, isGenericOverRunner) = ClassifyHierarchy(type);
 
                 // Skip generic types that are NOT generic-over-runner (e.g. Return<TResult>) —
                 // their dynamic-options editor lands in phase 3. Until then, the runtime class
@@ -51,18 +51,23 @@ namespace Scaffold.GraphFlow.PackageGenerator
                 {
                     continue;
                 }
-                if (!isFlowNode && !DerivesFromRuntimeNodeBase(type))
+                if (!DerivesFromRuntimeNodeBase(type) && !isGenericOverRunner)
                 {
                     continue;
                 }
 
-                var (inputs, outputs, flowOuts, hasFlowIn) = ParseFields(type);
+                var (inputs, outputs, flowOuts, flowIns) = ParseFields(type);
                 var hasInitHook = HasInitializePortsHook(type);
+
+                // Flow-bearing iff the node has any flow port field. Replaces the old
+                // `overrides Execute(Flow)` heuristic — Execute is gone, behavior lives on
+                // FlowInPort handlers, so the field shape is the source of truth.
+                var isFlowNode = flowIns.Length > 0 || flowOuts.Length > 0;
 
                 var ns = type.ContainingNamespace.IsGlobalNamespace ? string.Empty : type.ContainingNamespace.ToDisplayString();
                 builder.Add(new GenericNodeModel(
                     ns, type.Name, isFlowNode, isGenericOverRunner,
-                    category, flowOuts, hasFlowIn, inputs, outputs, hasInitHook));
+                    category, flowOuts, flowIns, inputs, outputs, hasInitHook));
             }
 
             return builder.ToImmutable();
@@ -147,12 +152,12 @@ namespace Scaffold.GraphFlow.PackageGenerator
         static (ImmutableArray<GenericNodeInputField> inputs,
                 ImmutableArray<GenericNodeOutputField> outputs,
                 ImmutableArray<GenericNodeFlowOut> flowOuts,
-                bool hasFlowIn) ParseFields(INamedTypeSymbol type)
+                ImmutableArray<GenericNodeFlowIn> flowIns) ParseFields(INamedTypeSymbol type)
         {
             var inputs = ImmutableArray.CreateBuilder<GenericNodeInputField>();
             var outputs = ImmutableArray.CreateBuilder<GenericNodeOutputField>();
             var flowOuts = ImmutableArray.CreateBuilder<GenericNodeFlowOut>();
-            var hasFlowIn = false;
+            var flowIns = ImmutableArray.CreateBuilder<GenericNodeFlowIn>();
 
             foreach (var member in type.GetMembers())
             {
@@ -180,11 +185,11 @@ namespace Scaffold.GraphFlow.PackageGenerator
                 }
                 else if (typed.Name == "FlowInPort")
                 {
-                    hasFlowIn = true;
+                    flowIns.Add(new GenericNodeFlowIn(field.Name));
                 }
             }
 
-            return (inputs.ToImmutable(), outputs.ToImmutable(), flowOuts.ToImmutable(), hasFlowIn);
+            return (inputs.ToImmutable(), outputs.ToImmutable(), flowOuts.ToImmutable(), flowIns.ToImmutable());
         }
 
         static bool HasInitializePortsHook(INamedTypeSymbol type)

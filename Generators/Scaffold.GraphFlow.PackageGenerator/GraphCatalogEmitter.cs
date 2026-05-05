@@ -217,9 +217,9 @@ namespace Scaffold.GraphFlow.PackageGenerator
             foreach (var f in fields)
             {
                 var fTypeFq = GraphCompilationNames.TrimGlobal(f.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
-                // Two ports per event field — read (output) and write (input) — for Option F payload mutation.
+                // Read-only — write-back ports for Option F payload mutation are deferred (Q-modify).
+                // Until that lands, exposing Input ports is misleading: they have no runtime effect.
                 sb.AppendLine($"{indent}    new PortMeta(\"{f.Name}\", typeof({fTypeFq}), PortDirection.Output),");
-                sb.AppendLine($"{indent}    new PortMeta(\"{f.Name}\", typeof({fTypeFq}), PortDirection.Input),");
             }
 
             sb.Append($"{indent}}}");
@@ -311,20 +311,17 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine();
 
             var outputs = new HashSet<string>(System.StringComparer.Ordinal);
-            var inputs  = new HashSet<string>(System.StringComparer.Ordinal);
             foreach (var e in events)
             {
                 foreach (var f in e.Fields)
                 {
-                    // Match the per-entry port emission: each event field surfaces as both an
-                    // output (read) and an input (write) port — Option F payload mutation.
+                    // Read-only — write-back ports for Option F payload mutation are deferred.
                     outputs.Add(f.Name);
-                    inputs.Add(f.Name);
                 }
             }
 
             EmitStringList(sb, "AllEventDataOutputPortNames", outputs);
-            EmitStringList(sb, "AllEventDataInputPortNames",  inputs);
+            EmitStringList(sb, "AllEventDataInputPortNames",  System.Linq.Enumerable.Empty<string>());
         }
 
         static void EmitStringList(StringBuilder sb, string name, IEnumerable<string> values)

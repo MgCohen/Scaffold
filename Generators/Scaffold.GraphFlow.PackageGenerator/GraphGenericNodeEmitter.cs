@@ -34,11 +34,22 @@ namespace Scaffold.GraphFlow.PackageGenerator
             {
                 if (editorAssembly)
                 {
+                    if (IsVoidReturnFrameworkNode(node)) continue;
                     EmitEditorMirror(spc, compilation, node);
                     registrationBlocks?.Add(BuildRegistrationBlock(package, compilation, node));
                 }
             }
         }
+
+        // The trio shim's typed Return picker covers void Return when the user picks "None"
+        // (factory returns `new Return()` directly, no registry lookup). Emitting a separate
+        // editor mirror for the void Return [GraphNode] would double up the menu entry under
+        // the same display name. Skip it here — runtime ctor still gets emitted by the
+        // partial generator.
+        static bool IsVoidReturnFrameworkNode(GenericNodeModel node) =>
+            node.TypeName == "Return"
+            && node.TypeNamespace == "Scaffold.GraphFlow.Nodes"
+            && !node.IsGenericOverRunner;
 
         static void EmitEditorMirror(SourceProductionContext spc, Compilation compilation, GenericNodeModel node)
         {
@@ -52,15 +63,15 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine($"namespace {editorNs}");
             sb.AppendLine("{");
             sb.AppendLine("    [Serializable]");
-            sb.AppendLine($"    public sealed class {node.TypeName}EditorNode : Node");
+            sb.AppendLine($"    public sealed class {node.TypeName} : Node");
             sb.AppendLine("    {");
             sb.AppendLine();
             sb.AppendLine("        protected override void OnDefinePorts(IPortDefinitionContext context)");
             sb.AppendLine("        {");
-            if (node.HasFlowIn)
+            foreach (var p in node.FlowIns)
             {
-                sb.AppendLine("            context.AddInputPort(\"FlowIn\")");
-                sb.AppendLine("                .WithDisplayName(string.Empty)");
+                sb.AppendLine($"            context.AddInputPort(\"{p.FieldName}\")");
+                sb.AppendLine($"                .WithDisplayName(\"{(node.FlowIns.Length == 1 ? string.Empty : p.FieldName)}\")");
                 sb.AppendLine("                .WithConnectorUI(PortConnectorUI.Arrowhead)");
                 sb.AppendLine("                .Build();");
             }
@@ -87,13 +98,13 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine("    }");
             sb.AppendLine("}");
 
-            spc.AddSource($"{node.TypeName}EditorNode.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
+            spc.AddSource($"{node.TypeName}.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
         }
 
         static string BuildRegistrationBlock(GraphPackageModel package, Compilation compilation, GenericNodeModel node)
         {
             var runnerFq = GraphCompilationNames.TrimGlobal(package.RunnerFullyQualified);
-            var editorTypeFq = GraphCompilationNames.EditorGraphToolkitNamespace(compilation) + "." + node.TypeName + "EditorNode";
+            var editorTypeFq = GraphCompilationNames.EditorGraphToolkitNamespace(compilation) + "." + node.TypeName;
             var runtimeTypeFq = ClosedRuntimeTypeFq(package, node);
 
             var dataInputs = ToInputTriples(node.Inputs);
@@ -110,7 +121,13 @@ namespace Scaffold.GraphFlow.PackageGenerator
                 flowOutNames.Add(p.FieldName);
             }
 
-            return GraphRegistryEmitter.BuildFlowNodeRegistrationBlock(runnerFq, editorTypeFq, runtimeTypeFq, node.HasFlowIn, flowOutNames, dataInputs, dataOutputs);
+            var flowInNames = new List<string>();
+            foreach (var p in node.FlowIns)
+            {
+                flowInNames.Add(p.FieldName);
+            }
+
+            return GraphRegistryEmitter.BuildFlowNodeRegistrationBlock(runnerFq, editorTypeFq, runtimeTypeFq, flowInNames, flowOutNames, dataInputs, dataOutputs);
         }
 
         static string ClosedRuntimeTypeFq(GraphPackageModel package, GenericNodeModel node)

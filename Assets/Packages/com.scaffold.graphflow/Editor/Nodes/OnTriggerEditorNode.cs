@@ -35,6 +35,7 @@ namespace Scaffold.GraphFlow.Editor.Nodes
     public abstract class OnTriggerEditorNode<TEnum> : Node where TEnum : struct, Enum
     {
         public const string FlowOutPortName     = "FlowOut";
+        public const string PayloadPortName     = "Payload";
         public const string EventTypeOptionName = "EventType";
         public const string TimingOptionName    = "Timing";
 
@@ -56,6 +57,12 @@ namespace Scaffold.GraphFlow.Editor.Nodes
                 .WithDisplayName(string.Empty)
                 .WithConnectorUI(PortConnectorUI.Arrowhead)
                 .Build();
+
+            // Whole-payload output (D8) — exposes the OnTrigger<TEvent> wrapper instance for
+            // graphs that want to thread the full payload through Modify/Decompose nodes
+            // (Q-modify, deferred). Untyped here because TEvent isn't known until the picker
+            // resolves; per-event field reads use the typed ports below.
+            context.AddOutputPort(PayloadPortName).Build();
 
             var opt = GetNodeOptionByName(EventTypeOptionName);
             if (opt == null) return;

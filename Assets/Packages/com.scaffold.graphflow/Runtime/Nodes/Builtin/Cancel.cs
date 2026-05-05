@@ -1,5 +1,4 @@
 using System;
-using System.Threading.Tasks;
 
 namespace Scaffold.GraphFlow.Nodes
 {
@@ -9,6 +8,7 @@ namespace Scaffold.GraphFlow.Nodes
     {
         public FlowInPort In = null!;
 
-        public override Task Execute(Flow flow) => flow.Cancel();
+        partial void InitializePorts() =>
+            In = FlowInPort.Sync(this, nameof(In), flow => flow.Cancel());
     }
 }

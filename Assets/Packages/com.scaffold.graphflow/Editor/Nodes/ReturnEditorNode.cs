@@ -17,7 +17,7 @@ namespace Scaffold.GraphFlow.Editor.Nodes
     [Serializable]
     public abstract class ReturnEditorNode<TEnum> : Node where TEnum : struct, Enum
     {
-        public const string FlowInPortName       = "FlowIn";
+        public const string FlowInPortName       = "In";
         public const string ValuePortName        = "Value";
         public const string ResultTypeOptionName = "ResultType";
 

@@ -1,6 +1,5 @@
 #nullable enable
 using System;
-using System.Threading.Tasks;
 
 namespace Scaffold.GraphFlow
 {
@@ -8,38 +7,47 @@ namespace Scaffold.GraphFlow
     public abstract class EntryRuntimeNodeBase : RuntimeNode
     {
         public abstract Type PayloadType { get; }
-        public abstract Task<Flow> Run(object payload);
 
-        public abstract void BindForRun<TRunner>(TRunner runner, GraphAsset<TRunner> asset, Func<object?>? scopeFactory)
-            where TRunner : GraphRunner;
+        FlowOutPort? _defaultOut;
+        bool _defaultOutResolved;
+
+        public FlowOutPort GetDefaultOut()
+        {
+            if (_defaultOutResolved) return _defaultOut!;
+
+            FlowOutPort? found = null;
+            int count = 0;
+            foreach (var p in Ports.Values)
+            {
+                if (p is not FlowOutPort fo) continue;
+                count++;
+                found = fo;
+            }
+
+            if (count == 0)
+                throw new InvalidOperationException(
+                    $"Entry {GetType().Name} has no FlowOutPort — cannot dispatch via Run<TEntry>.");
+            if (count > 1)
+                throw new InvalidOperationException(
+                    $"Entry {GetType().Name} has {count} FlowOutPorts — use RunFromFlowOut to pick one.");
+
+            _defaultOutResolved = true;
+            _defaultOut = found;
+            return _defaultOut!;
+        }
     }
 
     [Serializable]
-    public abstract class EntryRuntimeNode<TEntry> : EntryRuntimeNodeBase
-        where TEntry : class
+    public abstract class EntryRuntimeNode<TPayload> : EntryRuntimeNodeBase
+        where TPayload : class
     {
-        protected TEntry? Payload { get; private set; }
-        public void SetPayload(TEntry payload) => Payload = payload;
+        public override Type PayloadType => typeof(TPayload);
+        public OutputPort<TPayload> Payload { get; }
 
-        Func<TEntry, Task<Flow>>? _runFromHere;
-        public void BindRunner(Func<TEntry, Task<Flow>> runFromHere) => _runFromHere = runFromHere;
-
-        public Task<Flow> Run(TEntry payload)
+        protected EntryRuntimeNode()
         {
-            if (_runFromHere == null) throw new InvalidOperationException("Entry not initialized.");
-            return _runFromHere(payload);
-        }
-
-        public override Type PayloadType => typeof(TEntry);
-        public override Task<Flow> Run(object payload) => Run((TEntry)payload);
-
-        public override void BindForRun<TRunner>(TRunner runner, GraphAsset<TRunner> asset, Func<object?>? scopeFactory)
-        {
-            BindRunner(payload =>
-            {
-                SetPayload(payload);
-                return GraphExecutor.RunFlow(this, runner, asset, scopeFactory?.Invoke());
-            });
+            Payload = new OutputPort<TPayload>(flow => flow.GetPayload<TPayload>()!);
+            Ports.Add(nameof(Payload), Payload);
         }
     }
 }

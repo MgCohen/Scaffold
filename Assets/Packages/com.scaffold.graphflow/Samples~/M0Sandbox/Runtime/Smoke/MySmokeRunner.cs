@@ -2,12 +2,17 @@ using Scaffold.GraphFlow;
 
 namespace Scaffold.GraphFlow.M0.Smoke
 {
-    /// <summary>M0 smoke runner — holds services used by the vertical slice.</summary>
     public sealed class MySmokeRunner : GraphRunner
     {
-        /// <summary>Test hook: last message passed to Log payload execution.</summary>
-        public string LastLogMessage { get; private set; }
+        public string LastLogMessage { get; private set; } = "";
 
         public void RecordLog(string message) => LastLogMessage = message;
+
+        public MySmokeRunner(BakedGraph baked) : base(baked) { }
+    }
+
+    public sealed class MySmokeBuilder : GraphBuilder<MySmokeRunner>
+    {
+        protected override MySmokeRunner CreateRunner(BakedGraph baked) => new(baked);
     }
 }

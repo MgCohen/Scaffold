@@ -7,15 +7,6 @@ using Microsoft.CodeAnalysis.Text;
 
 namespace Scaffold.GraphFlow.PackageGenerator
 {
-    /// <summary>
-    /// Standalone generator: emits the runtime ctor partial for every <c>[GraphNode]</c> class in
-    /// the current compilation, regardless of whether the asm declares a <c>[GraphPackage]</c>.
-    /// <para>This is what lets package built-ins (Branch / Cancel / Not, in <c>Scaffold.GraphFlow</c>)
-    /// shed their hand-written ctors despite living in an asm with no package declaration. For asms
-    /// that DO declare <c>[GraphPackage]</c> the same logic still applies — this generator owns
-    /// runtime ctor emission for every <c>[GraphNode]</c>, the package generator handles editor
-    /// mirrors and registry entries.</para>
-    /// </summary>
     [Generator]
     public sealed class GraphNodeRuntimePartialGenerator : IIncrementalGenerator
     {
@@ -38,14 +29,10 @@ namespace Scaffold.GraphFlow.PackageGenerator
 
         static void EmitForType(SourceProductionContext spc, INamedTypeSymbol type)
         {
-            // Same gating GenericNodeParser does — we mirror its rules so the package generator's
-            // editor-mirror emit and this runtime emit agree on which types are eligible.
             if (type.TypeKind != TypeKind.Class) return;
             if (type.IsAbstract || type.DeclaredAccessibility != Accessibility.Public) return;
             if (type.TypeParameters.Length > 1) return;
 
-            // Single-T generic that's NOT generic-over-runner (e.g. Return<TResult>) — skip until
-            // the dynamic-options shape lands. Same rule as GenericNodeParser.
             var isGenericOverRunner = type.TypeParameters.Length == 1 && IsGenericOverRunner(type);
             if (type.TypeParameters.Length == 1 && !isGenericOverRunner) return;
 
@@ -78,6 +65,11 @@ namespace Scaffold.GraphFlow.PackageGenerator
             }
 
             var hasInitHook = type.GetMembers("InitializePorts").OfType<IMethodSymbol>().Any();
+            // The partial calls InitializePorts() whenever the user owns
+            // construction of any port — outputs (typed lambdas) or flow-ins
+            // (handler-required FlowInPort.Sync / FlowInPort.Async). The
+            // partial only emits the declaration, the user provides the body.
+            var needsInitCall = hasInitHook || outputs.Count > 0 || flowIns.Count > 0;
 
             var sb = new StringBuilder();
             var ns = type.ContainingNamespace.IsGlobalNamespace ? string.Empty : type.ContainingNamespace.ToDisplayString();
@@ -105,17 +97,12 @@ namespace Scaffold.GraphFlow.PackageGenerator
                 sb.AppendLine($"            {p.name} = new InputPort<{p.csType}>();");
             }
 
-            foreach (var name in flowIns)
-            {
-                sb.AppendLine($"            {name} = new FlowInPort(this);");
-            }
-
             foreach (var name in flowOuts)
             {
                 sb.AppendLine($"            {name} = new FlowOutPort(this, \"{name}\");");
             }
 
-            if (hasInitHook || outputs.Count > 0)
+            if (needsInitCall)
             {
                 sb.AppendLine("            InitializePorts();");
             }
@@ -142,7 +129,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
 
             sb.AppendLine("        }");
 
-            if (outputs.Count > 0)
+            if (needsInitCall)
             {
                 sb.AppendLine();
                 sb.AppendLine("        partial void InitializePorts();");

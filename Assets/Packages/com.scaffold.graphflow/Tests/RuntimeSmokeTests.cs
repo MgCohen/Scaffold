@@ -6,15 +6,6 @@ using UnityEngine;
 
 namespace Scaffold.GraphFlow.Tests
 {
-    /// <summary>
-    /// Hand-built (no editor / no bake) integration tests for the runtime model — exercises
-    /// hydration (<c>Connection.Bind</c> through the <c>Ports</c> dict + <c>FlowConnection</c>
-    /// through flow ports), the executor's flow walk, and the entry-bridge dispatch contract.
-    /// Port names are field names (post-M3 phase 2 / decision #4).
-    ///
-    /// <para>Fixtures live in <see cref="Scaffold.GraphFlow.Tests.TestRunner"/> and friends —
-    /// fully hand-authored so these tests don't depend on any sample's generator output.</para>
-    /// </summary>
     public sealed class RuntimeSmokeTests
     {
         const string EntryFlowOut       = "FlowOut";
@@ -31,15 +22,15 @@ namespace Scaffold.GraphFlow.Tests
         const string IntToStrIn   = "Value";
         const string IntToStrOut  = "Result";
 
-        const string BranchFlowIn    = "FlowIn";
+        const string BranchFlowIn    = "In";
         const string BranchCondition = "Condition";
         const string BranchTrue      = "True";
         const string BranchFalse     = "False";
         const string NotValue        = "Value";
         const string NotResult       = "Result";
-        const string ReturnFlowIn    = "FlowIn";
+        const string ReturnFlowIn    = "In";
         const string ReturnValue     = "Value";
-        const string CancelFlowIn    = "FlowIn";
+        const string CancelFlowIn    = "In";
 
         [Test]
         public async Task Mode1_Entry_IntToString_Log()
@@ -54,11 +45,8 @@ namespace Scaffold.GraphFlow.Tests
             asset.connections.Add(new Edge { fromNodeId = 1, fromPortName = EntryValuePortName, toNodeId = 2, toPortName = IntToStrIn });
             asset.connections.Add(new Edge { fromNodeId = 2, fromPortName = IntToStrOut,        toNodeId = 3, toPortName = LogMessage });
 
-            var runner = new TestRunner();
-            var controller = new GraphController<TestRunner>(asset);
-            controller.Initialize(runner);
-
-            await controller.Run(new TestEntry { Value = 42 });
+            var runner = new TestBuilder().Build(asset);
+            await runner.Run(new TestEntry { Value = 42 });
 
             Assert.AreEqual("42", runner.LastLogMessage);
         }
@@ -77,11 +65,8 @@ namespace Scaffold.GraphFlow.Tests
             asset.connections.Add(new Edge { fromNodeId = 1, fromPortName = EntryValuePortName, toNodeId = 2, toPortName = EchoMag });
             asset.connections.Add(new Edge { fromNodeId = 2, fromPortName = EchoSummary,        toNodeId = 3, toPortName = LogMessage });
 
-            var runner = new TestRunner();
-            var controller = new GraphController<TestRunner>(asset);
-            controller.Initialize(runner);
-
-            await controller.Run(new TestEntry { Value = 42 });
+            var runner = new TestBuilder().Build(asset);
+            await runner.Run(new TestEntry { Value = 42 });
 
             Assert.AreEqual("echo:42", runner.LastLogMessage);
         }
@@ -102,13 +87,10 @@ namespace Scaffold.GraphFlow.Tests
             asset.flowEdges.Add(new Edge { fromNodeId = 3, fromPortName = BranchFalse,  toNodeId = 5, toPortName = CancelFlowIn });
             asset.connections.Add(new Edge { fromNodeId = 2, fromPortName = NotResult, toNodeId = 3, toPortName = BranchCondition });
 
-            var runner = new TestRunner();
-            var controller = new GraphController<TestRunner>(asset);
-            controller.Initialize(runner);
+            var runner = new TestBuilder().Build(asset);
+            var flow = await runner.Run(new TestEntry { Value = 0 });
 
-            var flow = await controller.Run(new TestEntry { Value = 0 });
-
-            Assert.AreEqual(FlowOutcome.Returned, flow.Outcome, "Return path was taken; Outcome should be Returned.");
+            Assert.AreEqual(Outcome.Returned, flow.Outcome, "Return path was taken; Outcome should be Returned.");
             Assert.AreEqual(false, flow.ReadResult<bool>(), "Return.Value is unwired → reads default(bool)=false.");
         }
 
@@ -130,13 +112,10 @@ namespace Scaffold.GraphFlow.Tests
             asset.connections.Add(new Edge { fromNodeId = 2, fromPortName = NotResult, toNodeId = 3, toPortName = NotValue });
             asset.connections.Add(new Edge { fromNodeId = 3, fromPortName = NotResult, toNodeId = 4, toPortName = BranchCondition });
 
-            var runner = new TestRunner();
-            var controller = new GraphController<TestRunner>(asset);
-            controller.Initialize(runner);
+            var runner = new TestBuilder().Build(asset);
+            var flow = await runner.Run(new TestEntry { Value = 0 });
 
-            var flow = await controller.Run(new TestEntry { Value = 0 });
-
-            Assert.AreEqual(FlowOutcome.Cancelled, flow.Outcome, "False branch reaches Cancel.");
+            Assert.AreEqual(Outcome.Cancelled, flow.Outcome, "False branch reaches Cancel.");
         }
 
         [Test]
@@ -151,13 +130,10 @@ namespace Scaffold.GraphFlow.Tests
             asset.flowEdges.Add(new Edge { fromNodeId = 1, fromPortName = EntryFlowOut, toNodeId = 3, toPortName = ReturnFlowIn });
             asset.connections.Add(new Edge { fromNodeId = 2, fromPortName = NotResult, toNodeId = 3, toPortName = ReturnValue });
 
-            var runner = new TestRunner();
-            var controller = new GraphController<TestRunner>(asset);
-            controller.Initialize(runner);
+            var runner = new TestBuilder().Build(asset);
+            var flow = await runner.Run(new TestEntry { Value = 0 });
 
-            var flow = await controller.Run(new TestEntry { Value = 0 });
-
-            Assert.AreEqual(FlowOutcome.Returned, flow.Outcome);
+            Assert.AreEqual(Outcome.Returned, flow.Outcome);
             Assert.AreEqual(true, flow.ReadResult<bool>());
         }
     }

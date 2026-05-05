@@ -11,6 +11,6 @@ namespace Scaffold.GraphFlow.Nodes
         public OutputPort<int> Result = null!;
 
         partial void InitializePorts() =>
-            Result = new OutputPort<int>(() => A.Read() * B.Read());
+            Result = new OutputPort<int>(flow => A.Read(flow) * B.Read(flow));
     }
 }

@@ -159,13 +159,14 @@ namespace Scaffold.GraphFlow.PackageGenerator
         static string BuildEntryRegistration(INamedTypeSymbol payload, GraphPackageModel package, Compilation compilation, INamedTypeSymbol graphPortAttr, INamedTypeSymbol? graphPortIgnoreAttr)
         {
             var leaf = payload.Name;
-            var editorTypeFq = GraphCompilationNames.EditorGraphToolkitNamespace(compilation) + "." + leaf + "EditorNode";
+            var editorTypeFq = GraphCompilationNames.EditorGraphToolkitNamespace(compilation) + "." + leaf;
             var typeNs = payload.ContainingNamespace.IsGlobalNamespace ? "" : payload.ContainingNamespace.ToDisplayString();
             var runtimeTypeFq = string.IsNullOrEmpty(typeNs) ? leaf + "Runtime" : typeNs + "." + leaf + "Runtime";
             var payloadTypeFq = string.IsNullOrEmpty(typeNs) ? leaf : typeNs + "." + leaf;
             var runnerFq = GraphCompilationNames.TrimGlobal(package.RunnerFullyQualified);
             var fields = FieldsWithPort(payload, graphPortAttr, graphPortIgnoreAttr, package.Convention);
             var dataOuts = new System.Collections.Generic.List<string>();
+            dataOuts.Add("Payload");
             foreach (var f in fields)
             {
                 dataOuts.Add(f.Name);
@@ -177,7 +178,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
         static string BuildExecutableActionRegistration(INamedTypeSymbol payload, System.Collections.Generic.IReadOnlyList<IFieldSymbol> inputs, GraphPackageModel package, Compilation compilation, INamedTypeSymbol graphPortAttr, INamedTypeSymbol? graphPortIgnoreAttr)
         {
             var leaf = payload.Name;
-            var editorTypeFq = GraphCompilationNames.EditorGraphToolkitNamespace(compilation) + "." + leaf + "DispatcherEditorNode";
+            var editorTypeFq = GraphCompilationNames.EditorGraphToolkitNamespace(compilation) + "." + CleanMenuName(leaf);
             var typeNs = payload.ContainingNamespace.IsGlobalNamespace ? "" : payload.ContainingNamespace.ToDisplayString();
             var runtimeTypeFq = string.IsNullOrEmpty(typeNs) ? leaf + "DispatcherRuntime" : typeNs + "." + leaf + "DispatcherRuntime";
             var runnerFq = GraphCompilationNames.TrimGlobal(package.RunnerFullyQualified);
@@ -202,7 +203,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
         static string BuildCommandRegistration(INamedTypeSymbol cmd, INamedTypeSymbol result, GraphPackageModel package, Compilation compilation, INamedTypeSymbol graphPortAttr, INamedTypeSymbol? graphPortIgnoreAttr)
         {
             var leaf = cmd.Name;
-            var editorTypeFq = GraphCompilationNames.EditorGraphToolkitNamespace(compilation) + "." + leaf + "DispatcherEditorNode";
+            var editorTypeFq = GraphCompilationNames.EditorGraphToolkitNamespace(compilation) + "." + CleanMenuName(leaf);
             var typeNs = cmd.ContainingNamespace.IsGlobalNamespace ? "" : cmd.ContainingNamespace.ToDisplayString();
             var runtimeTypeFq = string.IsNullOrEmpty(typeNs) ? leaf + "DispatcherRuntime" : typeNs + "." + leaf + "DispatcherRuntime";
             var runnerFq = GraphCompilationNames.TrimGlobal(package.RunnerFullyQualified);
@@ -238,7 +239,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine($"namespace {ns}");
             sb.AppendLine("{");
             sb.AppendLine($"    [Serializable]");
-            sb.AppendLine($"    public sealed class {leaf}EditorNode : Node");
+            sb.AppendLine($"    public sealed class {leaf} : Node");
             sb.AppendLine("    {");
             sb.AppendLine();
             sb.AppendLine("        protected override void OnDefinePorts(IPortDefinitionContext context)");
@@ -247,6 +248,10 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine("                .WithDisplayName(string.Empty)");
             sb.AppendLine("                .WithConnectorUI(PortConnectorUI.Arrowhead)");
             sb.AppendLine("                .Build();");
+
+            // Whole-payload output (D8) — typed because the entry knows TPayload at gen time.
+            var payloadFq = GraphCompilationNames.TrimGlobal(payload.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
+            sb.AppendLine($"            context.AddOutputPort<{payloadFq}>(\"Payload\").Build();");
 
             foreach (var f in portFields)
             {
@@ -257,10 +262,26 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine("        }");
             sb.AppendLine("    }");
             sb.AppendLine("}");
-            spc.AddSource($"{leaf}EditorNode.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
+            spc.AddSource($"{leaf}.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
         }
 
         static string EditorGtPortMethod(ITypeSymbol t) => TypeFmt.IsInt(t) ? "<int>" : TypeFmt.IsString(t) ? "<string>" : "";
+
+        // Strip suffixes that just clutter the editor menu name. "Command" stripped because
+        // the user explicitly chose `DealDamage` over `DealDamageCommand`. "EditorNode" /
+        // "Dispatcher" because they're framework boilerplate not domain meaning.
+        static string CleanMenuName(string raw)
+        {
+            string Strip(string s, string suffix) =>
+                s.EndsWith(suffix, System.StringComparison.Ordinal) && s.Length > suffix.Length
+                    ? s.Substring(0, s.Length - suffix.Length)
+                    : s;
+            var name = raw;
+            name = Strip(name, "EditorNode");
+            name = Strip(name, "Dispatcher");
+            name = Strip(name, "Command");
+            return name;
+        }
 
         static void EmitEntryRuntime(SourceProductionContext spc, INamedTypeSymbol payload, string runnerName, INamedTypeSymbol graphPortAttr, INamedTypeSymbol? graphPortIgnoreAttr, int convention)
         {
@@ -271,30 +292,26 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine("// <auto-generated />");
             sb.AppendLine("#nullable enable");
             sb.AppendLine("using System;");
-            sb.AppendLine("using System.Threading.Tasks;");
             sb.AppendLine("using Scaffold.GraphFlow;");
             sb.AppendLine();
             sb.AppendLine($"namespace {typeNs}");
             sb.AppendLine("{");
             sb.AppendLine($"    [Serializable]");
-            sb.AppendLine($"    public sealed partial class {leaf}Runtime : EntryRuntimeNode<{leaf}>");
+            sb.AppendLine($"    public sealed class {leaf}Runtime : EntryRuntimeNode<{leaf}>");
             sb.AppendLine("    {");
-            sb.AppendLine($"        public FlowOutPort FlowOut = null!;");
-            sb.AppendLine();
+            sb.AppendLine($"        public FlowOutPort FlowOut;");
             foreach (var f in fields)
             {
-                sb.AppendLine($"        public OutputPort<{f.CSharpType}> {f.Name} = null!;");
-                sb.AppendLine();
-                sb.AppendLine($"        {f.CSharpType} _{LowerFirst(f.Name)}Value = {TypeFmt.DefaultLiteral(GetFieldType(payload, f.Name))};");
-                sb.AppendLine();
+                sb.AppendLine($"        public OutputPort<{f.CSharpType}> {f.Name};");
             }
 
+            sb.AppendLine();
             sb.AppendLine($"        public {leaf}Runtime()");
             sb.AppendLine("        {");
             sb.AppendLine($"            FlowOut = new FlowOutPort(this, nameof(FlowOut));");
             foreach (var f in fields)
             {
-                sb.AppendLine($"            {f.Name} = new OutputPort<{f.CSharpType}>(() => _{LowerFirst(f.Name)}Value);");
+                sb.AppendLine($"            {f.Name} = new OutputPort<{f.CSharpType}>(flow => flow.GetPayload<{leaf}>()!.{f.Name});");
             }
 
             sb.AppendLine($"            Ports.Add(FlowOut.Name, FlowOut);");
@@ -303,19 +320,6 @@ namespace Scaffold.GraphFlow.PackageGenerator
                 sb.AppendLine($"            Ports.Add(\"{f.Name}\", {f.Name});");
             }
 
-            sb.AppendLine("        }");
-            sb.AppendLine();
-            sb.AppendLine($"        public override Task Execute(Flow flow)");
-            sb.AppendLine("        {");
-            sb.AppendLine("            if (Payload != null)");
-            sb.AppendLine("            {");
-            foreach (var f in fields)
-            {
-                sb.AppendLine($"                _{LowerFirst(f.Name)}Value = Payload.{f.Name};");
-            }
-
-            sb.AppendLine("            }");
-            sb.AppendLine($"            return flow.GoTo(FlowOut);");
             sb.AppendLine("        }");
             sb.AppendLine("    }");
             sb.AppendLine("}");
@@ -341,6 +345,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
         {
             var sb = new StringBuilder();
             var leaf = payload.Name;
+            var menuName = CleanMenuName(leaf);
             var ns = GraphCompilationNames.EditorGraphToolkitNamespace(compilation);
             sb.AppendLine("// <auto-generated />");
             sb.AppendLine("#nullable enable");
@@ -350,7 +355,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine($"namespace {ns}");
             sb.AppendLine("{");
             sb.AppendLine($"    [Serializable]");
-            sb.AppendLine($"    public sealed class {leaf}DispatcherEditorNode : Node");
+            sb.AppendLine($"    public sealed class {menuName} : Node");
             sb.AppendLine("    {");
             sb.AppendLine();
             sb.AppendLine("        protected override void OnDefinePorts(IPortDefinitionContext context)");
@@ -368,7 +373,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine("        }");
             sb.AppendLine("    }");
             sb.AppendLine("}");
-            spc.AddSource($"{leaf}DispatcherEditorNode.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
+            spc.AddSource($"{menuName}.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
         }
 
         static string EditorGtInputPort(ITypeSymbol t) => TypeFmt.IsInt(t) ? "<int>" : TypeFmt.IsString(t) ? "<string>" : "";
@@ -388,46 +393,41 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine($"namespace {typeNs}");
             sb.AppendLine("{");
             sb.AppendLine($"    [Serializable]");
-            sb.AppendLine($"    public sealed partial class {leaf}DispatcherRuntime : RuntimeNode<{runnerName}>");
+            sb.AppendLine($"    public sealed class {leaf}DispatcherRuntime : RuntimeNode<{runnerName}>");
             sb.AppendLine("    {");
-            sb.AppendLine($"        public FlowInPort FlowIn = null!;");
-            sb.AppendLine();
+            sb.AppendLine($"        public FlowInPort FlowIn;");
             foreach (var f in inputFields)
             {
-                sb.AppendLine($"        public {f.CSharpType} {f.Name} = {TypeFmt.DefaultLiteral(GetFieldType(payload, f.Name))};");
-                sb.AppendLine();
-                sb.AppendLine($"        public InputPort<{f.CSharpType}> In{f.Name} = null!;");
-                sb.AppendLine();
+                sb.AppendLine($"        public InputPort<{f.CSharpType}> {f.Name};");
             }
 
+            sb.AppendLine();
             sb.AppendLine($"        public {leaf}DispatcherRuntime()");
             sb.AppendLine("        {");
-            sb.AppendLine($"            FlowIn = new FlowInPort(this);");
             foreach (var f in inputFields)
             {
-                sb.AppendLine($"            In{f.Name} = new InputPort<{f.CSharpType}>(() => {f.Name});");
+                sb.AppendLine($"            {f.Name} = new InputPort<{f.CSharpType}>();");
             }
 
+            sb.AppendLine($"            FlowIn = FlowInPort.Async(this, nameof(FlowIn), async flow =>");
+            sb.AppendLine("            {");
+            sb.AppendLine($"                var payload = new {leaf}");
+            sb.AppendLine("                {");
+            foreach (var f in inputFields)
+            {
+                sb.AppendLine($"                    {f.Name} = {f.Name}.Read(flow),");
+            }
+
+            sb.AppendLine("                };");
+            sb.AppendLine("                await payload.Execute(Runner(flow)).ConfigureAwait(false);");
+            sb.AppendLine("                return FlowOutPort.End;");
+            sb.AppendLine("            });");
             sb.AppendLine($"            Ports.Add(FlowIn.Name, FlowIn);");
             foreach (var f in inputFields)
             {
-                sb.AppendLine($"            Ports.Add(\"{f.Name}\", In{f.Name});");
+                sb.AppendLine($"            Ports.Add(\"{f.Name}\", {f.Name});");
             }
 
-            sb.AppendLine("        }");
-            sb.AppendLine();
-            sb.AppendLine($"        public override async Task Execute({runnerName} runner, Flow flow)");
-            sb.AppendLine("        {");
-            sb.AppendLine($"            var payload = new {leaf}");
-            sb.AppendLine("            {");
-            foreach (var f in inputFields)
-            {
-                sb.AppendLine($"                {f.Name} = In{f.Name}.Read(),");
-            }
-
-            sb.AppendLine("            };");
-            sb.AppendLine("            await payload.Execute(runner).ConfigureAwait(false);");
-            sb.AppendLine("            // No flow.GoTo → default-on-no-call is Stop (terminal action).");
             sb.AppendLine("        }");
             sb.AppendLine("    }");
             sb.AppendLine("}");
@@ -445,6 +445,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
         {
             var sb = new StringBuilder();
             var leaf = cmd.Name;
+            var menuName = CleanMenuName(leaf);
             var ns = GraphCompilationNames.EditorGraphToolkitNamespace(compilation);
             var cmdPortFields = new System.Collections.Generic.List<IFieldSymbol>();
             foreach (var f in PayloadDiscovery.InstanceFields(cmd))
@@ -470,7 +471,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine($"namespace {ns}");
             sb.AppendLine("{");
             sb.AppendLine($"    [Serializable]");
-            sb.AppendLine($"    public sealed class {leaf}DispatcherEditorNode : Node");
+            sb.AppendLine($"    public sealed class {menuName} : Node");
             sb.AppendLine("    {");
             sb.AppendLine();
             sb.AppendLine("        protected override void OnDefinePorts(IPortDefinitionContext context)");
@@ -498,7 +499,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine("        }");
             sb.AppendLine("    }");
             sb.AppendLine("}");
-            spc.AddSource($"{leaf}DispatcherEditorNode.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
+            spc.AddSource($"{menuName}.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
         }
 
         static void EmitCommandRuntime(
@@ -519,40 +520,35 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine("// <auto-generated />");
             sb.AppendLine("#nullable enable");
             sb.AppendLine("using System;");
-            sb.AppendLine("using System.Threading.Tasks;");
             sb.AppendLine("using Scaffold.GraphFlow;");
             sb.AppendLine();
             sb.AppendLine($"namespace {typeNs}");
             sb.AppendLine("{");
             sb.AppendLine($"    [Serializable]");
-            sb.AppendLine($"    public sealed partial class {leaf}DispatcherRuntime : {closedDispatcherFq}");
+            sb.AppendLine($"    public sealed class {leaf}DispatcherRuntime : {closedDispatcherFq}");
             sb.AppendLine("    {");
             foreach (var f in cmdFields)
             {
                 sb.AppendLine($"        public {f.CSharpType} {f.Name};");
-                sb.AppendLine();
-                sb.AppendLine($"        public InputPort<{f.CSharpType}> In{f.Name} = null!;");
-                sb.AppendLine();
+                sb.AppendLine($"        public InputPort<{f.CSharpType}> In{f.Name};");
             }
 
             foreach (var f in resultFields)
             {
-                sb.AppendLine($"        public OutputPort<{f.CSharpType}> {f.Name} = null!;");
-                sb.AppendLine();
-                sb.AppendLine($"        {f.CSharpType} _{LowerFirst(f.Name)}Value = {TypeFmt.DefaultLiteral(GetFieldType(result, f.Name))};");
-                sb.AppendLine();
+                sb.AppendLine($"        public OutputPort<{f.CSharpType}> {f.Name};");
             }
 
+            sb.AppendLine();
             sb.AppendLine($"        public {leaf}DispatcherRuntime()");
             sb.AppendLine("        {");
             foreach (var f in cmdFields)
             {
-                sb.AppendLine($"            In{f.Name} = new InputPort<{f.CSharpType}>(() => {f.Name});");
+                sb.AppendLine($"            In{f.Name} = new InputPort<{f.CSharpType}>();");
             }
 
             foreach (var f in resultFields)
             {
-                sb.AppendLine($"            {f.Name} = new OutputPort<{f.CSharpType}>(() => _{LowerFirst(f.Name)}Value);");
+                sb.AppendLine($"            {f.Name} = new OutputPort<{f.CSharpType}>(flow => flow.GetSlot<{result.Name}>(this).{f.Name});");
             }
 
             foreach (var f in cmdFields)
@@ -567,31 +563,12 @@ namespace Scaffold.GraphFlow.PackageGenerator
 
             sb.AppendLine("        }");
             sb.AppendLine();
-            sb.AppendLine($"        protected override {cmd.Name} BuildPayload() => new {cmd.Name} {{ {BuildPayloadInputs(cmdFields)} }};");
+            sb.AppendLine($"        protected override {cmd.Name} BuildPayload(Flow flow) => new {cmd.Name} {{ {BuildPayloadInputs(cmdFields)} }};");
             sb.AppendLine();
-            AppendWriteOutputsBody(sb, result, resultFields);
+            sb.AppendLine($"        protected override void WriteOutputs(Flow flow, {result.Name} result) => flow.SetSlot(this, result);");
             sb.AppendLine("    }");
             sb.AppendLine("}");
             spc.AddSource($"{leaf}DispatcherRuntime.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
-        }
-
-        static void AppendWriteOutputsBody(StringBuilder sb, INamedTypeSymbol result, System.Collections.Generic.IReadOnlyList<(string Name, string CSharpType)> fields)
-        {
-            if (fields.Count == 1)
-            {
-                var f = fields[0];
-                sb.AppendLine($"        protected override void WriteOutputs({result.Name} result) => _{LowerFirst(f.Name)}Value = result.{f.Name};");
-                return;
-            }
-
-            sb.AppendLine($"        protected override void WriteOutputs({result.Name} result)");
-            sb.AppendLine("        {");
-            foreach (var f in fields)
-            {
-                sb.AppendLine($"            _{LowerFirst(f.Name)}Value = result.{f.Name};");
-            }
-
-            sb.AppendLine("        }");
         }
 
         static string BuildPayloadInputs(System.Collections.Generic.IReadOnlyList<(string Name, string CSharpType)> cmdFields)
@@ -604,7 +581,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
                     sb.Append(", ");
                 }
 
-                sb.Append($"{f.Name} = In{f.Name}.Read()");
+                sb.Append($"{f.Name} = In{f.Name}.IsConnected ? In{f.Name}.Read(flow) : {f.Name}");
             }
 
             return sb.ToString();

@@ -10,6 +10,6 @@ namespace Scaffold.GraphFlow.Nodes
         public OutputPort<bool> Result = null!;
 
         partial void InitializePorts() =>
-            Result = new OutputPort<bool>(() => !Value.Read());
+            Result = new OutputPort<bool>(flow => !Value.Read(flow));
     }
 }

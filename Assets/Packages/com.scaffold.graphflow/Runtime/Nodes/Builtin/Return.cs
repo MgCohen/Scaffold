@@ -1,8 +1,10 @@
 using System;
-using System.Threading.Tasks;
 
 namespace Scaffold.GraphFlow.Nodes
 {
+    // Return<TResult>: hand-authored ctor — single-T generic NOT over a runner is
+    // outside the partial generator's eligibility filter, so we own the construction
+    // ourselves.
     [Serializable]
     [GraphNode(Category = "Flow")]
     public sealed class Return<TResult> : RuntimeNode
@@ -12,26 +14,21 @@ namespace Scaffold.GraphFlow.Nodes
 
         public Return()
         {
-            In = new FlowInPort(this);
             Value = new InputPort<TResult>();
+            In = FlowInPort.Sync(this, nameof(In),
+                flow => flow.Return(Value.Read(flow)));
             Ports.Add(In.Name, In);
             Ports.Add(nameof(Value), Value);
         }
-
-        public override Task Execute(Flow flow) => flow.Return(Value.Read());
     }
 
     [Serializable]
-    public sealed class Return : RuntimeNode
+    [GraphNode(Category = "Flow")]
+    public sealed partial class Return : RuntimeNode
     {
         public FlowInPort In = null!;
 
-        public Return()
-        {
-            In = new FlowInPort(this);
-            Ports.Add(In.Name, In);
-        }
-
-        public override Task Execute(Flow flow) => flow.Return();
+        partial void InitializePorts() =>
+            In = FlowInPort.Sync(this, nameof(In), flow => flow.Return());
     }
 }

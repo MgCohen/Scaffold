@@ -40,6 +40,18 @@ namespace Scaffold.GraphFlow.PackageGenerator
         internal string FieldName { get; }
     }
 
+    /// <summary>One <c>FlowInPort</c> field on a <c>[GraphNode]</c> class. The field name IS the
+    /// port name on every layer (editor mirror, registry, runtime <c>Ports</c> dict).</summary>
+    internal readonly struct GenericNodeFlowIn
+    {
+        internal GenericNodeFlowIn(string fieldName)
+        {
+            FieldName = fieldName;
+        }
+
+        internal string FieldName { get; }
+    }
+
     /// <summary>
     /// Parsed shape of a hand-written <c>RuntimeNode</c> (data) or <c>RuntimeNode&lt;TRunner&gt;</c>
     /// (flow) annotated with <c>[GraphNode]</c>. The generator emits a partial completing the runtime
@@ -59,7 +71,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             bool isGenericOverRunner,
             string? category,
             ImmutableArray<GenericNodeFlowOut> flowOuts,
-            bool hasFlowIn,
+            ImmutableArray<GenericNodeFlowIn> flowIns,
             ImmutableArray<GenericNodeInputField> inputs,
             ImmutableArray<GenericNodeOutputField> outputs,
             bool hasInitializePortsHook)
@@ -70,7 +82,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             IsGenericOverRunner = isGenericOverRunner;
             Category = category;
             FlowOuts = flowOuts;
-            HasFlowIn = hasFlowIn;
+            FlowIns = flowIns;
             Inputs = inputs;
             Outputs = outputs;
             HasInitializePortsHook = hasInitializePortsHook;
@@ -84,8 +96,10 @@ namespace Scaffold.GraphFlow.PackageGenerator
         internal bool IsGenericOverRunner { get; }
         internal string? Category { get; }
         internal ImmutableArray<GenericNodeFlowOut> FlowOuts { get; }
-        /// <summary>True when the node declares a <c>FlowInPort</c> field — the editor mirror should emit a flow input port.</summary>
-        internal bool HasFlowIn { get; }
+        /// <summary>FlowInPort fields — one per declared FlowIn. Field name IS port name (R14
+        /// — generator threads it through to the editor mirror + registry).</summary>
+        internal ImmutableArray<GenericNodeFlowIn> FlowIns { get; }
+        internal bool HasFlowIn => FlowIns.Length > 0;
         internal ImmutableArray<GenericNodeInputField> Inputs { get; }
         internal ImmutableArray<GenericNodeOutputField> Outputs { get; }
         /// <summary>True if the class declares <c>partial void InitializePorts()</c> with a body — the generated ctor calls it after constructing inputs.</summary>

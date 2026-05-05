@@ -1,6 +1,5 @@
 #nullable enable
 using System;
-using System.Threading.Tasks;
 
 namespace Scaffold.GraphFlow
 {
@@ -8,20 +7,20 @@ namespace Scaffold.GraphFlow
     public sealed class OnTrigger<TEvent> : EntryRuntimeNode<OnTrigger<TEvent>>, IOnTrigger
         where TEvent : class
     {
-        public TEvent? Event;
         public Timing Timing { get; set; }
-        public FlowOutPort FlowOut = null!;
+
+        public TEvent? Inner;
+
+        public FlowOutPort FlowOut;
+        public OutputPort<TEvent> Event;
 
         public OnTrigger()
         {
             FlowOut = new FlowOutPort(this, nameof(FlowOut));
+            Event = new OutputPort<TEvent>(
+                flow => flow.GetPayload<OnTrigger<TEvent>>()!.Inner!);
             Ports.Add(FlowOut.Name, FlowOut);
-        }
-
-        public override Task Execute(Flow flow)
-        {
-            if (Payload != null) Event = Payload.Event;
-            return flow.GoTo(FlowOut);
+            Ports.Add(nameof(Event), Event);
         }
     }
 }

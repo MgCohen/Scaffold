@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace Scaffold.GraphFlow
 {
@@ -12,29 +11,26 @@ namespace Scaffold.GraphFlow
 
         [NonSerialized] public readonly Dictionary<string, Port> Ports = new();
 
-        public virtual Task Execute(Flow flow) => Task.CompletedTask;
-
-        public Connection Bind(string dstPortName, RuntimeNode src, string srcPortName)
+        internal virtual void Build(in NodeBuildSlice slice)
         {
-            if (!Ports.TryGetValue(dstPortName, out var dstPort))
-                throw new ArgumentException($"Destination node has no port named '{dstPortName}'.");
-            if (!src.Ports.TryGetValue(srcPortName, out var srcPort))
-                throw new ArgumentException($"Source node has no port named '{srcPortName}'.");
-
-            return Connection.Bind(dstPort, srcPort);
+            for (int i = 0; i < slice.Data.Count; i++) slice.Data[i].Apply();
+            for (int i = 0; i < slice.Flow.Count; i++)
+            {
+                var f = slice.Flow[i];
+                f.Source.Connection = f.Connection;
+                f.Destination.Connection = f.Connection;
+            }
         }
+
+        public virtual void Initialize(GraphRunner runner) { }
     }
 
     [Serializable]
     public abstract class RuntimeNode<TRunner> : RuntimeNode where TRunner : GraphRunner
     {
-#nullable enable
-        [NonSerialized] TRunner? _runner;
-#nullable disable
+        protected static TRunner Runner(Flow flow) => (TRunner)flow.Runner;
 
-        internal void BindRunner(TRunner runner) => _runner = runner;
-
-        public sealed override Task Execute(Flow flow) => Execute(_runner, flow);
-        public abstract Task Execute(TRunner runner, Flow flow);
+        public sealed override void Initialize(GraphRunner runner) => Initialize((TRunner)runner);
+        public virtual void Initialize(TRunner runner) { }
     }
 }

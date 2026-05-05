@@ -25,19 +25,31 @@ namespace Scaffold.GraphFlow.PackageGenerator
 
             // Editor asms inherit [GraphPackage] from their runtime sibling via reference. The
             // runtime asm declares the package once; the editor asm (named `<Runtime>.Editor` by
-            // Unity asmdef convention) references it and picks the declaration up here. Only fall
-            // back to references when the current asm declared no package of its own — keeps
-            // legacy behavior for projects that still author both copies.
+            // Unity asmdef convention) references it and picks the declaration up here. Only the
+            // matching sibling counts — not every auto-referenced package, otherwise a sibling-A's
+            // editor pass would re-emit sibling-B's editor mirrors and clash on hardcoded hint names
+            // like `ReturnEditorNode.g.cs` (the trio emitter then aborts and emits no sources at
+            // all, breaking the `[MenuItem]` Create entry).
             if (builder.Count == 0 && GraphCompilationNames.IsEditorAssembly(compilation))
             {
-                foreach (var refAsm in compilation.SourceModule.ReferencedAssemblySymbols)
+                var editorAsmName = compilation.Assembly.Name ?? string.Empty;
+                const string editorSuffix = ".Editor";
+                var siblingRuntimeName = editorAsmName.EndsWith(editorSuffix, System.StringComparison.Ordinal)
+                    ? editorAsmName.Substring(0, editorAsmName.Length - editorSuffix.Length)
+                    : null;
+
+                if (siblingRuntimeName != null)
                 {
-                    ct.ThrowIfCancellationRequested();
-                    foreach (var attr in refAsm.GetAttributes())
+                    foreach (var refAsm in compilation.SourceModule.ReferencedAssemblySymbols)
                     {
-                        if (TryCreateModel(attr, graphPackageAttrType, out var model))
+                        ct.ThrowIfCancellationRequested();
+                        if (refAsm.Name != siblingRuntimeName) continue;
+                        foreach (var attr in refAsm.GetAttributes())
                         {
-                            builder.Add(model);
+                            if (TryCreateModel(attr, graphPackageAttrType, out var model))
+                            {
+                                builder.Add(model);
+                            }
                         }
                     }
                 }

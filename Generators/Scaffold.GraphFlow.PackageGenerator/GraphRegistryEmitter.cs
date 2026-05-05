@@ -90,7 +90,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             // <see cref="GraphCatalogEmitter.ResolveCatalogNamespace"/>; the registry pulls from it
             // via a fully-qualified reference so the using list stays minimal.
             var shimNs    = ResolveRegistryNamespace(package, compilation);
-            var shimFq    = shimNs + ".OnTriggerEditorNode";
+            var shimFq    = shimNs + ".OnTrigger";
             var catalogNs = GraphCatalogEmitter.ResolveCatalogNamespace(package, compilation);
             var catalogFq = catalogNs + "." + package.GraphStem + GraphCatalogEmitter.CatalogClassSuffix;
 
@@ -125,7 +125,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             // an EventType). The static registration enumerates the *union* of every event's field
             // names so the EFG-V03 edge-pairing validator can recognize them. The editor only
             // surfaces names that actually exist on the picked event, so the union is safe.
-            sb.AppendLine($"                DataOutputPortNames = new System.Collections.Generic.HashSet<string>({catalogFq}.AllEventDataOutputPortNames, System.StringComparer.Ordinal),");
+            sb.AppendLine($"                DataOutputPortNames = new System.Collections.Generic.HashSet<string>(System.Linq.Enumerable.Append({catalogFq}.AllEventDataOutputPortNames, global::Scaffold.GraphFlow.Editor.Nodes.OnTriggerEditorNode<{catalogFq}.EventType>.PayloadPortName), System.StringComparer.Ordinal),");
             sb.AppendLine($"                DataInputPortNames  = new System.Collections.Generic.HashSet<string>({catalogFq}.AllEventDataInputPortNames,  System.StringComparer.Ordinal),");
             sb.AppendLine("            });");
             sb.AppendLine("        }");
@@ -135,7 +135,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
         static void AppendReturnRegistration(StringBuilder sb, GraphPackageModel package, Compilation compilation, string runnerFq)
         {
             var shimNs    = ResolveRegistryNamespace(package, compilation);
-            var shimFq    = shimNs + ".ReturnEditorNode";
+            var shimFq    = shimNs + ".Return";
             var catalogNs = GraphCatalogEmitter.ResolveCatalogNamespace(package, compilation);
             var catalogFq = catalogNs + "." + package.GraphStem + GraphCatalogEmitter.CatalogClassSuffix;
             var baseFq    = $"global::Scaffold.GraphFlow.Editor.Nodes.ReturnEditorNode<{catalogFq}.ReturnType>";
@@ -279,7 +279,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             string runnerFq,
             string editorTypeFq,
             string runtimeTypeFq,
-            bool hasFlowIn,
+            IReadOnlyList<string> flowInputs,
             IReadOnlyList<string> flowOutputs,
             IReadOnlyList<(string Name, string CSharpType)> dataInputs,
             IReadOnlyList<string> dataOutputs)
@@ -289,11 +289,15 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine("            {");
             sb.AppendLine($"                EditorNodeType = typeof({editorTypeFq}),");
             sb.AppendLine($"                Factory = _ => new {runtimeTypeFq}(),");
-            if (hasFlowIn)
+            if (flowInputs.Count > 0)
             {
                 sb.AppendLine("                FlowInputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal)");
                 sb.AppendLine("                {");
-                sb.AppendLine($"                    \"FlowIn\",");
+                foreach (var name in flowInputs)
+                {
+                    sb.AppendLine($"                    \"{name}\",");
+                }
+
                 sb.AppendLine("                },");
             }
 

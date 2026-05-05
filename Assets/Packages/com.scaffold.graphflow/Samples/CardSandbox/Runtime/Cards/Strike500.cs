@@ -1,12 +1,10 @@
 #nullable enable
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using Scaffold.GraphFlow;
 using UnityEngine;
 
 namespace Scaffold.GraphFlow.CardSandbox.Cards
 {
-    /// <summary>"Strike 5" — OnPlay → DealDamage(5).</summary>
     public static class Strike500
     {
         public const int BaseDamage = 5;
@@ -27,23 +25,19 @@ namespace Scaffold.GraphFlow.CardSandbox.Cards
         }
     }
 
-    /// <summary>Strike500's effect node — runs DealDamageCommand with the card's BaseDamage.</summary>
     public sealed class Strike500Dispatcher : RuntimeNode<CardEffectRunner>
     {
-        public FlowInPort FlowIn = null!;
+        public FlowInPort FlowIn;
 
         public Strike500Dispatcher()
         {
-            FlowIn = new FlowInPort(this);
+            FlowIn = FlowInPort.Async(this, nameof(FlowIn), async flow =>
+            {
+                var cmd = new DealDamageCommand { Amount = Strike500.BaseDamage };
+                await cmd.Execute(Runner(flow), flow).ConfigureAwait(false);
+                return FlowOutPort.End;
+            });
             Ports.Add(FlowIn.Name, FlowIn);
-        }
-
-        public override async Task Execute(CardEffectRunner runner, Flow flow)
-        {
-            var scope = (ICardEffectScope)flow.Scope!;
-            var cmd = new DealDamageCommand { Amount = Strike500.BaseDamage };
-            await cmd.Execute(scope, flow).ConfigureAwait(false);
-            await flow.Stop().ConfigureAwait(false);
         }
     }
 }

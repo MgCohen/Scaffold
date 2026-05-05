@@ -14,6 +14,6 @@ namespace Scaffold.GraphFlow.M0.Smoke
         public OutputPort<string> Result = null!;
 
         partial void InitializePorts() =>
-            Result = new OutputPort<string>(() => Value.Read().ToString());
+            Result = new OutputPort<string>(flow => Value.Read(flow).ToString());
     }
 }
