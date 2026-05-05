@@ -28,7 +28,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             // Unity asmdef convention) references it and picks the declaration up here. Only fall
             // back to references when the current asm declared no package of its own — keeps
             // legacy behavior for projects that still author both copies.
-            if (builder.Count == 0 && IsEditorAssembly(compilation))
+            if (builder.Count == 0 && GraphCompilationNames.IsEditorAssembly(compilation))
             {
                 foreach (var refAsm in compilation.SourceModule.ReferencedAssemblySymbols)
                 {
@@ -44,12 +44,6 @@ namespace Scaffold.GraphFlow.PackageGenerator
             }
 
             return builder.ToImmutable();
-        }
-
-        static bool IsEditorAssembly(Compilation compilation)
-        {
-            var name = compilation.Assembly.Name;
-            return name != null && name.EndsWith(".Editor", System.StringComparison.Ordinal);
         }
 
         static bool TryCreateModel(AttributeData attr, INamedTypeSymbol graphPackageAttrType, out GraphPackageModel model)

@@ -144,7 +144,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
                     if (!PayloadDiscovery.IsCandidateType(type)) continue;
                     if (!HasAttribute(type, graphReturnTypeAttr)) continue;
 
-                    var typeFq = TrimGlobal(type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
+                    var typeFq = GraphCompilationNames.TrimGlobal(type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
                     result.Add(new GraphCatalogEmitter.ReturnDescriptor(type.Name, typeFq, "default!"));
                 }
             }
@@ -162,7 +162,5 @@ namespace Scaffold.GraphFlow.PackageGenerator
             return false;
         }
 
-        static string TrimGlobal(string fq) =>
-            fq.StartsWith("global::", System.StringComparison.Ordinal) ? fq.Substring(8) : fq;
     }
 }

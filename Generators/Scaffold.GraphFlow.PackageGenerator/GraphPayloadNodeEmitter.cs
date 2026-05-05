@@ -163,7 +163,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             var typeNs = payload.ContainingNamespace.IsGlobalNamespace ? "" : payload.ContainingNamespace.ToDisplayString();
             var runtimeTypeFq = string.IsNullOrEmpty(typeNs) ? leaf + "Runtime" : typeNs + "." + leaf + "Runtime";
             var payloadTypeFq = string.IsNullOrEmpty(typeNs) ? leaf : typeNs + "." + leaf;
-            var runnerFq = GraphRegistryEmitter.TrimGlobal(package.RunnerFullyQualified);
+            var runnerFq = GraphCompilationNames.TrimGlobal(package.RunnerFullyQualified);
             var fields = FieldsWithPort(payload, graphPortAttr, graphPortIgnoreAttr, package.Convention);
             var dataOuts = new System.Collections.Generic.List<string>();
             foreach (var f in fields)
@@ -180,7 +180,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             var editorTypeFq = GraphCompilationNames.EditorGraphToolkitNamespace(compilation) + "." + leaf + "DispatcherEditorNode";
             var typeNs = payload.ContainingNamespace.IsGlobalNamespace ? "" : payload.ContainingNamespace.ToDisplayString();
             var runtimeTypeFq = string.IsNullOrEmpty(typeNs) ? leaf + "DispatcherRuntime" : typeNs + "." + leaf + "DispatcherRuntime";
-            var runnerFq = GraphRegistryEmitter.TrimGlobal(package.RunnerFullyQualified);
+            var runnerFq = GraphCompilationNames.TrimGlobal(package.RunnerFullyQualified);
             var dataIns = FieldsWithPortFiltered(inputs, graphPortAttr, graphPortIgnoreAttr, package.Convention);
             return GraphRegistryEmitter.BuildExecutableActionRegistrationBlock(runnerFq, editorTypeFq, runtimeTypeFq, "FlowIn", dataIns);
         }
@@ -205,7 +205,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             var editorTypeFq = GraphCompilationNames.EditorGraphToolkitNamespace(compilation) + "." + leaf + "DispatcherEditorNode";
             var typeNs = cmd.ContainingNamespace.IsGlobalNamespace ? "" : cmd.ContainingNamespace.ToDisplayString();
             var runtimeTypeFq = string.IsNullOrEmpty(typeNs) ? leaf + "DispatcherRuntime" : typeNs + "." + leaf + "DispatcherRuntime";
-            var runnerFq = GraphRegistryEmitter.TrimGlobal(package.RunnerFullyQualified);
+            var runnerFq = GraphCompilationNames.TrimGlobal(package.RunnerFullyQualified);
             var dataIns = FieldsWithPort(cmd, graphPortAttr, graphPortIgnoreAttr, package.Convention);
             var resultFields = FieldsWithPort(result, graphPortAttr, graphPortIgnoreAttr, package.Convention);
             var dataOuts = new System.Collections.Generic.List<string>();

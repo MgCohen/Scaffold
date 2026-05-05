@@ -151,7 +151,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
         static void EmitEventEntry(StringBuilder sb, EventDescriptor e)
         {
             var fieldName = e.Type.Name;
-            var typeFq = TrimGlobal(e.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
+            var typeFq = GraphCompilationNames.TrimGlobal(e.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
             sb.AppendLine($"        public static readonly CatalogEntry {fieldName} = new(");
             sb.AppendLine($"            kinds: CatalogKind.Event,");
             sb.AppendLine($"            type:  typeof({typeFq}),");
@@ -165,8 +165,8 @@ namespace Scaffold.GraphFlow.PackageGenerator
         static void EmitCommandEntry(StringBuilder sb, CommandDescriptor c)
         {
             var fieldName = c.Command.Name;
-            var typeFq    = TrimGlobal(c.Command.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
-            var resultFq  = TrimGlobal(c.Result.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
+            var typeFq    = GraphCompilationNames.TrimGlobal(c.Command.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
+            var resultFq  = GraphCompilationNames.TrimGlobal(c.Result.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
             sb.AppendLine($"        public static readonly CatalogEntry {fieldName} = new(");
             sb.AppendLine($"            kinds: CatalogKind.Command,");
             sb.AppendLine($"            type:  typeof({typeFq}),");
@@ -181,7 +181,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
         static void EmitEntryEntry(StringBuilder sb, EntryDescriptor e)
         {
             var fieldName = e.Type.Name;
-            var typeFq    = TrimGlobal(e.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
+            var typeFq    = GraphCompilationNames.TrimGlobal(e.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
             sb.AppendLine($"        public static readonly CatalogEntry {fieldName} = new(");
             sb.AppendLine($"            kinds: CatalogKind.Entry,");
             sb.AppendLine($"            type:  typeof({typeFq}),");
@@ -216,7 +216,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine($"{indent}{{");
             foreach (var f in fields)
             {
-                var fTypeFq = TrimGlobal(f.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
+                var fTypeFq = GraphCompilationNames.TrimGlobal(f.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
                 // Two ports per event field — read (output) and write (input) — for Option F payload mutation.
                 sb.AppendLine($"{indent}    new PortMeta(\"{f.Name}\", typeof({fTypeFq}), PortDirection.Output),");
                 sb.AppendLine($"{indent}    new PortMeta(\"{f.Name}\", typeof({fTypeFq}), PortDirection.Input),");
@@ -237,13 +237,13 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine($"{indent}{{");
             foreach (var f in inputs)
             {
-                var fTypeFq = TrimGlobal(f.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
+                var fTypeFq = GraphCompilationNames.TrimGlobal(f.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
                 sb.AppendLine($"{indent}    new PortMeta(\"{f.Name}\", typeof({fTypeFq}), PortDirection.Input),");
             }
 
             foreach (var f in outputs)
             {
-                var fTypeFq = TrimGlobal(f.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
+                var fTypeFq = GraphCompilationNames.TrimGlobal(f.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
                 sb.AppendLine($"{indent}    new PortMeta(\"{f.Name}\", typeof({fTypeFq}), PortDirection.Output),");
             }
 
@@ -431,11 +431,6 @@ namespace Scaffold.GraphFlow.PackageGenerator
             var list = new List<string>(entries.Count);
             foreach (var e in entries) list.Add(e.Type.Name);
             return list;
-        }
-
-        static string TrimGlobal(string fq)
-        {
-            return fq.StartsWith("global::", System.StringComparison.Ordinal) ? fq.Substring(8) : fq;
         }
 
         static string EscapeStringLiteral(string s)

@@ -20,8 +20,17 @@ namespace Scaffold.GraphFlow.PackageGenerator
 
         internal static INamedTypeSymbol? TypeFromFullyQualified(Compilation compilation, string fullyQualified)
         {
-            var trimmed = fullyQualified.StartsWith("global::", System.StringComparison.Ordinal) ? fullyQualified.Substring(8) : fullyQualified;
+            var trimmed = TrimGlobal(fullyQualified);
             return compilation.GetTypeByMetadataName(trimmed);
+        }
+
+        internal static string TrimGlobal(string fq) =>
+            fq.StartsWith("global::", System.StringComparison.Ordinal) ? fq.Substring(8) : fq;
+
+        internal static bool IsEditorAssembly(Compilation compilation)
+        {
+            var name = compilation.Assembly.Name;
+            return name != null && name.EndsWith(".Editor", System.StringComparison.Ordinal);
         }
     }
 }

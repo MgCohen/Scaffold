@@ -92,7 +92,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
 
         static string BuildRegistrationBlock(GraphPackageModel package, Compilation compilation, GenericNodeModel node)
         {
-            var runnerFq = GraphRegistryEmitter.TrimGlobal(package.RunnerFullyQualified);
+            var runnerFq = GraphCompilationNames.TrimGlobal(package.RunnerFullyQualified);
             var editorTypeFq = GraphCompilationNames.EditorGraphToolkitNamespace(compilation) + "." + node.TypeName + "EditorNode";
             var runtimeTypeFq = ClosedRuntimeTypeFq(package, node);
 
@@ -117,7 +117,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
         {
             var fqNoGeneric = node.FullyQualifiedNoGeneric;
             return node.IsGenericOverRunner
-                ? fqNoGeneric + "<" + GraphRegistryEmitter.TrimGlobal(package.RunnerFullyQualified) + ">"
+                ? fqNoGeneric + "<" + GraphCompilationNames.TrimGlobal(package.RunnerFullyQualified) + ">"
                 : fqNoGeneric;
         }
 

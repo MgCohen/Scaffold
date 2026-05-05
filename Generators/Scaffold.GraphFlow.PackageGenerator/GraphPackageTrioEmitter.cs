@@ -15,7 +15,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
                 return;
             }
 
-            var editorAsm = IsEditorAssembly(compilation);
+            var editorAsm = GraphCompilationNames.IsEditorAssembly(compilation);
             if (editorAsm && packages.Length > 1)
             {
                 ReportMultiPackageBindings(spc, compilation, packages, cancellationToken);
@@ -233,12 +233,6 @@ namespace Scaffold.GraphFlow.PackageGenerator
             }
 
             GraphGenericNodeEmitter.EmitForPackage(spc, compilation, p, allNodes.ToImmutable(), inCurrentCompilation, registrations, editorAssembly);
-        }
-
-        static bool IsEditorAssembly(Compilation compilation)
-        {
-            var name = compilation.Assembly.Name;
-            return name != null && name.EndsWith(".Editor", System.StringComparison.Ordinal);
         }
 
         static void AddEditorSources(SourceProductionContext spc, Compilation compilation, GraphPackageModel p)
