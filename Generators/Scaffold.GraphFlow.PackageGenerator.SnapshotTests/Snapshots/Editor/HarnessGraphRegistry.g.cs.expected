@@ -104,7 +104,7 @@ namespace HarnessFixture.Generated
                     var typed = (HarnessFixture.Editor.GToolkit.EchoCmdDispatcherEditorNode)node;
                     {
                         var p = typed.GetInputPortByName("Magnitude");
-                        if (p != null && !p.isConnected && p.TryGetValue<int>(out var v))
+                        if (p != null && Scaffold.GraphFlow.Editor.PortValueResolver.TryResolve<int>(p, out var v))
                             rt.Magnitude = v;
                     }
                     return rt;
@@ -135,7 +135,7 @@ namespace HarnessFixture.Generated
                     var typed = (HarnessFixture.Editor.GToolkit.LogActionDispatcherEditorNode)node;
                     {
                         var p = typed.GetInputPortByName("Message");
-                        if (p != null && !p.isConnected && p.TryGetValue<string>(out var v))
+                        if (p != null && Scaffold.GraphFlow.Editor.PortValueResolver.TryResolve<string>(p, out var v))
                             rt.Message = v ?? "";
                     }
                     return rt;

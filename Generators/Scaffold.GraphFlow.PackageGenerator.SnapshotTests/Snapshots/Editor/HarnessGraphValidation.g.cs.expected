@@ -19,6 +19,7 @@ namespace HarnessFixture.Editor.GToolkit
             var entriesByType = new Dictionary<string, List<INode>>();
             foreach (var node in GetNodes())
             {
+                if (node is IConstantNode || node is IVariableNode) continue;
                 var reg = registry.Lookup(node.GetType());
                 if (reg == null)
                 {
