@@ -4,15 +4,11 @@ using Scaffold.GraphFlow;
 namespace Scaffold.GraphFlow.CardSandbox
 {
     /// <summary>
-    /// CardSandbox per-run scope. Inherits the package's empty <see cref="Scaffold.GraphFlow.IEffectScope"/>
-    /// marker so it can ride on <see cref="Flow.Scope"/>; adds the members the sample's dispatchers
-    /// actually need (event bus reference + the damage sink they write into).
-    ///
-    /// <para>Renamed from the M2-prep <c>IEffectScope</c> to <c>ICardEffectScope</c> to avoid colliding
-    /// with the package's marker of the same name. Production hosts would shape this however their
-    /// dispatcher commands need.</para>
+    /// CardSandbox per-run scope. Rides on <see cref="Flow.Scope"/> (typed as <c>object?</c>
+    /// at the framework level); dispatcher nodes downcast to this interface to reach the
+    /// sample's services (event bus + damage sink).
     /// </summary>
-    public interface ICardEffectScope : Scaffold.GraphFlow.IEffectScope
+    public interface ICardEffectScope
     {
         EventBus Bus { get; }
         DamageSink Damage { get; }

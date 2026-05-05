@@ -14,7 +14,7 @@ namespace Scaffold.GraphFlow
         readonly GraphExecutor<TRunner> _executor = new GraphExecutor<TRunner>();
         TRunner _runner = null!;
         List<RuntimeNode> _entryNodes = new();
-        Func<IEffectScope?>? _scopeFactory;
+        Func<object?>? _scopeFactory;
 
         /// <summary>
         /// All entry nodes discovered in the asset (anything assignable to
@@ -28,7 +28,7 @@ namespace Scaffold.GraphFlow
             _asset = asset;
         }
 
-        public void Initialize(TRunner runner, Func<IEffectScope?>? scopeFactory = null)
+        public void Initialize(TRunner runner, Func<object?>? scopeFactory = null)
         {
             _runner = runner;
             _scopeFactory = scopeFactory;

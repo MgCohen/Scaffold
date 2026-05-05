@@ -12,7 +12,7 @@ namespace Scaffold.GraphFlow
     /// </summary>
     public sealed class GraphExecutor<TRunner> where TRunner : GraphRunner
     {
-        public async Task<Flow> RunFlow(RuntimeNode start, TRunner runner, GraphAsset<TRunner> asset, IEffectScope? scope = null, CancellationToken ct = default)
+        public async Task<Flow> RunFlow(RuntimeNode start, TRunner runner, GraphAsset<TRunner> asset, object? scope = null, CancellationToken ct = default)
         {
             var flow = new Flow(ct) { Scope = scope, Runner = runner };
             RuntimeNode? current = start;

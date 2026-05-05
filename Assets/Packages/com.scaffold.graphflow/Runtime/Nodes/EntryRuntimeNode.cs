@@ -11,7 +11,7 @@ namespace Scaffold.GraphFlow
     [Serializable]
     public abstract class EntryRuntimeNodeBase : RuntimeNode
     {
-        public abstract IEntryBridge CreateBridge<TRunner>(TRunner runner, GraphAsset<TRunner> asset, GraphExecutor<TRunner> executor, Func<IEffectScope?>? scopeFactory)
+        public abstract IEntryBridge CreateBridge<TRunner>(TRunner runner, GraphAsset<TRunner> asset, GraphExecutor<TRunner> executor, Func<object?>? scopeFactory)
             where TRunner : GraphRunner;
     }
 
@@ -41,7 +41,7 @@ namespace Scaffold.GraphFlow
             return _runFromHere(payload);
         }
 
-        public override IEntryBridge CreateBridge<TRunner>(TRunner runner, GraphAsset<TRunner> asset, GraphExecutor<TRunner> executor, Func<IEffectScope?>? scopeFactory)
+        public override IEntryBridge CreateBridge<TRunner>(TRunner runner, GraphAsset<TRunner> asset, GraphExecutor<TRunner> executor, Func<object?>? scopeFactory)
             => new EntryBridge<TEntry, TRunner>(this, runner, asset, executor, scopeFactory);
     }
 
@@ -59,9 +59,9 @@ namespace Scaffold.GraphFlow
         readonly TRunner _runner;
         readonly GraphAsset<TRunner> _asset;
         readonly GraphExecutor<TRunner> _executor;
-        readonly Func<IEffectScope?>? _scopeFactory;
+        readonly Func<object?>? _scopeFactory;
 
-        public EntryBridge(EntryRuntimeNode<TEntry> node, TRunner runner, GraphAsset<TRunner> asset, GraphExecutor<TRunner> executor, Func<IEffectScope?>? scopeFactory)
+        public EntryBridge(EntryRuntimeNode<TEntry> node, TRunner runner, GraphAsset<TRunner> asset, GraphExecutor<TRunner> executor, Func<object?>? scopeFactory)
         {
             _node = node;
             _runner = runner;

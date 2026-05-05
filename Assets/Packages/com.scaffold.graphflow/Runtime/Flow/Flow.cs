@@ -37,7 +37,7 @@ namespace Scaffold.GraphFlow
         /// GraphController's BindRunner closure so dispatcher nodes can reach the host's services
         /// without resurrecting state on the long-lived runner. Mode-1 runners can leave it null.
         /// </summary>
-        public IEffectScope? Scope { get; internal set; }
+        public object? Scope { get; internal set; }
 
         /// <summary>
         /// Runner-agnostic access to the active <see cref="GraphRunner"/>. Set by <c>GraphExecutor</c>
