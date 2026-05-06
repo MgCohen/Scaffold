@@ -2,7 +2,8 @@
     "name": "Scaffold.Entities",
     "rootNamespace": "Scaffold.Entities",
     "references": [
-        "GUID:b967d18ed9aae19488f12b55c25800dd"
+        "GUID:b967d18ed9aae19488f12b55c25800dd",
+        "GUID:6400fecca3b5aba47aee1e8bb1fd9aec"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

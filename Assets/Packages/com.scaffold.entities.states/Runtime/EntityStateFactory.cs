@@ -1,5 +1,3 @@
-using System;
-
 using Scaffold.Entities;
 using Scaffold.States;
 
@@ -7,32 +5,10 @@ namespace Scaffold.Entities.States
 {
     public static class EntityStateFactory
     {
-        public static StateEntity<TDefinition> Create<TDefinition>(TDefinition definition, Store store, InstanceId instanceId) where TDefinition : IEntityDefinition
+        public static EntityInstance<TDefinition> Create<TDefinition>(TDefinition definition, Store store, Reference entityRef) where TDefinition : IEntityDefinition
         {
-            ValidateCreateArgs(definition, store, instanceId);
-            store.RegisterSlice(instanceId, EntityVariableState.Empty);
-            var storage = new StoreVariableStorage(store, instanceId, definition);
-            var entity = new StateEntity<TDefinition>();
-            entity.InitializeStateBacked(instanceId, definition, store, storage);
-            return entity;
-        }
-
-        private static void ValidateCreateArgs<TDefinition>(TDefinition definition, Store store, InstanceId instanceId) where TDefinition : IEntityDefinition
-        {
-            if (definition == null)
-            {
-                throw new ArgumentNullException(nameof(definition));
-            }
-
-            if (store == null)
-            {
-                throw new ArgumentNullException(nameof(store));
-            }
-
-            if (instanceId == null)
-            {
-                throw new ArgumentNullException(nameof(instanceId));
-            }
+            store.RegisterSlice(entityRef, EntityState.Empty);
+            return new EntityInstance<TDefinition>(definition, new StoreVariableStorage(store, entityRef));
         }
     }
 }

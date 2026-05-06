@@ -1,66 +1,52 @@
 #nullable enable
-
-using Scaffold.Entities;
 using Scaffold.States;
 
 namespace Scaffold.Entities.States
 {
     public sealed class GeneratedMutatorDispatcher : IMutatorDispatcher
     {
-        private readonly AddModifierMutator addModifier = new AddModifierMutator();
-        private readonly RemoveModifierMutator removeModifier = new RemoveModifierMutator();
-        private readonly SetBaseValueMutator setBaseValue = new SetBaseValueMutator();
-        private readonly AddEntityVariableMutator addEntityVariable = new AddEntityVariableMutator();
-        private readonly RemoveEntityVariableMutator removeEntityVariable = new RemoveEntityVariableMutator();
-        private readonly RemoveModifiersBySourceMutator removeModifiersBySource = new RemoveModifiersBySourceMutator();
+        private readonly AddModifierMutator addModifier = new();
+        private readonly RemoveModifierMutator removeModifier = new();
+        private readonly SetBaseValueMutator setBaseValue = new();
+        private readonly AddEntityVariableMutator addEntityVariable = new();
+        private readonly RemoveEntityVariableMutator removeEntityVariable = new();
+        private readonly RemoveModifiersBySourceMutator removeModifiersBySource = new();
 
         public bool TryDispatch<TPayload>(Store store, Reference reference, TPayload payload)
         {
-            if (typeof(TPayload) == typeof(AddModifierPayload))
+            if (payload is AddModifierPayload addMod)
             {
-                AddModifierPayload typed = (AddModifierPayload)(object)payload!;
-                Reference r = EntityStateReference.From(typed.EntityId);
-                store.ExecuteMutator(r, addModifier, typed);
+                store.ExecuteMutator(addMod.EntityRef, addModifier, addMod);
                 return true;
             }
 
-            if (typeof(TPayload) == typeof(SetBaseValuePayload))
+            if (payload is SetBaseValuePayload setBase)
             {
-                SetBaseValuePayload typed = (SetBaseValuePayload)(object)payload!;
-                Reference r = EntityStateReference.From(typed.EntityId);
-                store.ExecuteMutator(r, setBaseValue, typed);
+                store.ExecuteMutator(setBase.EntityRef, setBaseValue, setBase);
                 return true;
             }
 
-            if (typeof(TPayload) == typeof(AddEntityVariablePayload))
+            if (payload is AddEntityVariablePayload addVar)
             {
-                AddEntityVariablePayload typed = (AddEntityVariablePayload)(object)payload!;
-                Reference r = EntityStateReference.From(typed.EntityId);
-                store.ExecuteMutator(r, addEntityVariable, typed);
+                store.ExecuteMutator(addVar.EntityRef, addEntityVariable, addVar);
                 return true;
             }
 
-            if (typeof(TPayload) == typeof(RemoveEntityVariablePayload))
+            if (payload is RemoveEntityVariablePayload removeVar)
             {
-                RemoveEntityVariablePayload typed = (RemoveEntityVariablePayload)(object)payload!;
-                Reference r = EntityStateReference.From(typed.EntityId);
-                store.ExecuteMutator(r, removeEntityVariable, typed);
+                store.ExecuteMutator(removeVar.EntityRef, removeEntityVariable, removeVar);
                 return true;
             }
 
-            if (typeof(TPayload) == typeof(RemoveModifierPayload))
+            if (payload is RemoveModifierPayload removeMod)
             {
-                RemoveModifierPayload typed = (RemoveModifierPayload)(object)payload!;
-                Reference r = typed.GetReference();
-                store.ExecuteMutator(r, removeModifier, typed);
+                store.ExecuteMutator(removeMod.EntityRef, removeModifier, removeMod);
                 return true;
             }
 
-            if (typeof(TPayload) == typeof(RemoveModifiersBySourcePayload))
+            if (payload is RemoveModifiersBySourcePayload removeBySource)
             {
-                RemoveModifiersBySourcePayload typed = (RemoveModifiersBySourcePayload)(object)payload!;
-                Reference r = typed.GetReference();
-                store.ExecuteMutator(r, removeModifiersBySource, typed);
+                store.ExecuteMutator(removeBySource.EntityRef, removeModifiersBySource, removeBySource);
                 return true;
             }
 
