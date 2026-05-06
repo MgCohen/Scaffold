@@ -32,10 +32,6 @@ namespace Scaffold.GraphFlow.CardSandbox.Tests
             var s500 = builder.Build(Strike500.BuildAsset());
             var p1d = builder.Build(PlusOneDamage.BuildAsset());
 
-            // Wire triggers via the entry-catalog pattern. Pattern-match the typed
-            // OnTrigger<DamageDealt> entry, read its configured Timing, subscribe to the bus
-            // accordingly. Each delivery constructs a fresh OnTrigger payload carrying the live
-            // event reference + the same Timing.
             foreach (var card in new[] { s500, p1d })
             foreach (var entry in card.EntriesByPayload.Values)
             {
@@ -44,7 +40,7 @@ namespace Scaffold.GraphFlow.CardSandbox.Tests
                     case OnTrigger<DamageDealt> trig:
                         var owner = card;
                         bus.Subscribe<DamageDealt>(
-                            async e => await owner.Run(new OnTrigger<DamageDealt> { Inner = e, Timing = trig.Timing }),
+                            async e => await owner.Run(e),
                             trig.Timing);
                         break;
                 }

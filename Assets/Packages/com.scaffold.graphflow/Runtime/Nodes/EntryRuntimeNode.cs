@@ -8,12 +8,12 @@ namespace Scaffold.GraphFlow
     {
         public abstract Type PayloadType { get; }
 
-        FlowOutPort? _defaultOut;
-        bool _defaultOutResolved;
+        FlowOutPort _defaultOut = null!;
+        public FlowOutPort GetDefaultOut() => _defaultOut;
 
-        public FlowOutPort GetDefaultOut()
+        internal override void Build(in NodeBuildSlice slice)
         {
-            if (_defaultOutResolved) return _defaultOut!;
+            base.Build(slice);
 
             FlowOutPort? found = null;
             int count = 0;
@@ -31,9 +31,7 @@ namespace Scaffold.GraphFlow
                 throw new InvalidOperationException(
                     $"Entry {GetType().Name} has {count} FlowOutPorts — use RunFromFlowOut to pick one.");
 
-            _defaultOutResolved = true;
-            _defaultOut = found;
-            return _defaultOut!;
+            _defaultOut = found!;
         }
     }
 

@@ -1,4 +1,5 @@
 #nullable enable
+using System;
 using System.Collections.Generic;
 using System.Threading;
 
@@ -10,7 +11,7 @@ namespace Scaffold.GraphFlow
     {
         readonly object _payload;
         Dictionary<object, object>? _slots;
-        readonly List<Port> _touched = new();
+        Dictionary<Port, object?>? _cache;
         object? _result;
 
         public GraphRunner Runner { get; }
@@ -51,13 +52,16 @@ namespace Scaffold.GraphFlow
 
         public T? ReadResult<T>() => _result is T t ? t : default;
 
-        internal void RegisterTouched(Port p) => _touched.Add(p);
-
-        public void InvalidateAll()
+        internal T ReadCached<T>(Port port, Func<Flow, T> compute)
         {
-            foreach (var p in _touched) p.ClearCache(this);
-            _touched.Clear();
+            _cache ??= new();
+            if (_cache.TryGetValue(port, out var v)) return (T)v!;
+            var fresh = compute(this);
+            _cache[port] = fresh;
+            return fresh;
         }
+
+        public void InvalidateAll() => _cache?.Clear();
 
         public T GetSlot<T>(object owner) =>
             _slots != null && _slots.TryGetValue(owner, out var v) ? (T)v : default!;

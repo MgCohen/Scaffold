@@ -4,21 +4,18 @@ using System;
 namespace Scaffold.GraphFlow
 {
     [Serializable]
-    public sealed class OnTrigger<TEvent> : EntryRuntimeNode<OnTrigger<TEvent>>, IOnTrigger
+    public sealed class OnTrigger<TEvent> : EntryRuntimeNode<TEvent>, IOnTrigger
         where TEvent : class
     {
         public Timing Timing { get; set; }
 
-        public TEvent? Inner;
-
-        public FlowOutPort FlowOut;
-        public OutputPort<TEvent> Event;
+        public FlowOutPort FlowOut = null!;
+        public OutputPort<TEvent> Event = null!;
 
         public OnTrigger()
         {
             FlowOut = new FlowOutPort(this, nameof(FlowOut));
-            Event = new OutputPort<TEvent>(
-                flow => flow.GetPayload<OnTrigger<TEvent>>()!.Inner!);
+            Event = new OutputPort<TEvent>(flow => flow.GetPayload<TEvent>()!);
             Ports.Add(FlowOut.Name, FlowOut);
             Ports.Add(nameof(Event), Event);
         }
