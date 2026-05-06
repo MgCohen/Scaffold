@@ -20,6 +20,7 @@ namespace Scaffold.Entities.States
             builder.RegisterMutator(new AddEntityVariableMutator());
             builder.RegisterMutator(new RemoveEntityVariableMutator());
             builder.RegisterMutator(new RemoveModifiersBySourceMutator());
+            builder.RegisterMutator(new ClearModifiersMutator());
         }
     }
 }

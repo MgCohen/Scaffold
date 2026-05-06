@@ -5,8 +5,19 @@ using Scaffold.States;
 
 namespace Scaffold.Entities.States
 {
-    public static class StateEntityOps
+    public static class StoreEntities
     {
+        public static (EntityInstance<TDef> Instance, Ref<EntityInstance<TDef>> Ref) Spawn<TDef>(this Store store, TDef def)
+            where TDef : IEntityDefinition
+        {
+            var r = store.Catalog.AllocateRef<EntityInstance<TDef>>();
+            var storage = new StoreVariableStorage(store, r);
+            store.RegisterSlice(r, EntityState.Empty);
+            var instance = new EntityInstance<TDef>(def, storage);
+            store.Catalog.RegisterAt(r, instance);
+            return (instance, r);
+        }
+
         public static void RemoveModifiersFromSource(Store store, ModifierSource source)
         {
             var payloads = new List<object>();

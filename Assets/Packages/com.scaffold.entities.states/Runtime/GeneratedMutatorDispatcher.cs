@@ -11,6 +11,7 @@ namespace Scaffold.Entities.States
         private readonly AddEntityVariableMutator addEntityVariable = new();
         private readonly RemoveEntityVariableMutator removeEntityVariable = new();
         private readonly RemoveModifiersBySourceMutator removeModifiersBySource = new();
+        private readonly ClearModifiersMutator clearModifiers = new();
 
         public bool TryDispatch<TPayload>(Store store, Reference reference, TPayload payload)
         {
@@ -47,6 +48,12 @@ namespace Scaffold.Entities.States
             if (payload is RemoveModifiersBySourcePayload removeBySource)
             {
                 store.ExecuteMutator(removeBySource.EntityRef, removeModifiersBySource, removeBySource);
+                return true;
+            }
+
+            if (payload is ClearModifiersPayload clearMods)
+            {
+                store.ExecuteMutator(clearMods.EntityRef, clearModifiers, clearMods);
                 return true;
             }
 
