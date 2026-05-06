@@ -1,8 +1,0 @@
-is_global = true
-build_property.RootNamespace = LiveOps.Modules.DTO
-build_property.ProjectDir = C:\Unity\Scaffold\Tools\BackendTemplate\com.scaffold.example\Backend~\Scaffold\Example.DTO\
-build_property.EnableComHosting = 
-build_property.EnableGeneratedComInterfaceComImportInterop = 
-build_property.CsWinRTUseWindowsUIXamlProjections = false
-build_property.EffectiveAnalysisLevelStyle = 
-build_property.EnableCodeStyleSeverity = 
