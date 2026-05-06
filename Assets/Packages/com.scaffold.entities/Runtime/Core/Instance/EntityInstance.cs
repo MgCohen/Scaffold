@@ -1,62 +1,67 @@
+#nullable enable
 using System;
-using UnityEngine;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Scaffold.Entities
 {
-    [Serializable]
-    public partial class EntityInstance<TDefinition> : BaseEntityInstance<TDefinition>, IMutableEntity<TDefinition> where TDefinition : IEntityDefinition
+    public partial class EntityInstance<TDefinition> : IDisposable where TDefinition : IEntityDefinition
     {
-        [SerializeField] private LocalVariableStorage localStorage = new LocalVariableStorage();
+        public TDefinition Definition { get; }
+        public IEntityVariableStorage Storage { get; }
 
-        public void Initialize(InstanceId instanceId, TDefinition entityDefinition)
+        public EntityInstance(TDefinition definition, IEntityVariableStorage storage)
         {
-            if (entityDefinition == null)
+            Definition = definition ?? throw new ArgumentNullException(nameof(definition));
+            Storage = storage ?? throw new ArgumentNullException(nameof(storage));
+        }
+
+        public bool TryGetVariable<T>(Variable key, out T value)
+        {
+            bool hasAnchor = Storage.TryGetBase(key, out var anchor)
+                || Definition.TryGetDefaultValue(key, out anchor);
+
+            if (!hasAnchor || anchor == null)
             {
-                throw new ArgumentNullException(nameof(entityDefinition));
+                value = default!;
+                return false;
             }
 
-            if (entityDefinition is IDefinitionVariableBagProvider bagSource)
+            var mods = Storage.GetModifiers(key).ToList();
+            VariableValue folded = mods.Count > 0 ? anchor.ApplyModifiers(mods) : anchor;
+
+            if (folded is IVariableValue<T> typed)
             {
-                bagSource.RebuildLookup();
+                value = typed.Get();
+                return true;
             }
 
-            localStorage.WireToDefinition(entityDefinition);
-            Initialize(instanceId, entityDefinition, localStorage);
+            value = default!;
+            return false;
         }
 
-        public ModifierId AddModifier(EntityModifierEntry entry)
+        public T GetVariable<T>(Variable key)
         {
-            return localStorage.AddModifier(entry);
+            if (!TryGetVariable<T>(key, out var v))
+            {
+                throw new KeyNotFoundException(key?.Key ?? "?");
+            }
+            return v;
         }
 
-        public bool RemoveModifier(Variable key, ModifierId id)
-        {
-            return localStorage.RemoveModifier(key, id);
-        }
+        public IEnumerable<Variable> Variables => Storage.Variables.Union(Definition.DefinedVariables);
 
-        public void ClearModifiers()
-        {
-            localStorage.ClearModifiers();
-        }
+        public bool AddVariable(Variable key, VariableValue initial) => Storage.AddVariable(key, initial);
+        public bool RemoveVariable(Variable key) => Storage.RemoveVariable(key);
+        public bool SetBaseValue(Variable key, VariableValue value) => Storage.SetBaseValue(key, value);
 
-        public bool AddVariable(Variable key, VariableValue initialBase)
-        {
-            return localStorage.AddVariable(key, initialBase);
-        }
+        public ModifierId AddModifier(Variable key, VariableModifier mod, ModifierSource source = default, ModifierId? id = null)
+            => Storage.AddModifier(key, mod, source, id);
 
-        public bool RemoveVariable(Variable key)
-        {
-            return localStorage.RemoveVariable(key);
-        }
+        public bool RemoveModifier(Variable key, ModifierId id) => Storage.RemoveModifier(key, id);
+        public void ClearModifiers() => Storage.ClearModifiers();
+        public void RemoveModifiersFromSource(ModifierSource source) => Storage.RemoveModifiersFromSource(source);
 
-        internal bool ContainsModifiedValueCache(Variable key)
-        {
-            return localStorage.ContainsModifiedValueCache(key);
-        }
-
-        internal bool InstanceBagHasLocalKey(Variable key)
-        {
-            return localStorage.InstanceBagHasLocalKey(key);
-        }
+        public virtual void Dispose() { }
     }
 }

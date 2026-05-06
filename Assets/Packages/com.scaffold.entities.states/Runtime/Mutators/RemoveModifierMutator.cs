@@ -5,9 +5,9 @@ using Scaffold.States;
 namespace Scaffold.Entities.States
 {
     [Mutator]
-    internal sealed class RemoveModifierMutator : Mutator<EntityVariableState, RemoveModifierPayload>
+    internal sealed class RemoveModifierMutator : Mutator<EntityState, RemoveModifierPayload>
     {
-        public override EntityVariableState Change(EntityVariableState state, RemoveModifierPayload payload, IStateScope scope)
+        public override EntityState Change(EntityState state, RemoveModifierPayload payload, IStateScope scope)
         {
             return state.WithoutModifier(payload.Variable, payload.ModifierId);
         }

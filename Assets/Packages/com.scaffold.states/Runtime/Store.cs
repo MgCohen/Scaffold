@@ -18,6 +18,7 @@ namespace Scaffold.States
             this.eventHandler = eventHandler;
             this.mutatorRegistry = mutatorRegistry ?? new MutatorRegistry();
             this.mutatorDispatcher = mutatorDispatcher;
+            this.Catalog = new Catalog();
 
             this.map = new Map<Reference, Type, Slice>();
             this.aggregates = new Map<Reference, Type, AggregateSlice>();
@@ -44,6 +45,8 @@ namespace Scaffold.States
         }
 
         public IStateEventHandler Events => eventHandler;
+
+        public ICatalog Catalog { get; }
 
         private readonly Map<Reference, Type, Slice> map;
         private readonly Map<Reference, Type, AggregateSlice> aggregates;
