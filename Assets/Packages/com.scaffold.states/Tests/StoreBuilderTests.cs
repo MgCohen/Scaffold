@@ -22,11 +22,8 @@ namespace Scaffold.States.Tests
 
             Store store = builder.Build();
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(store.Get<TotalsDashboardState>(keyA).CounterValue, Is.EqualTo(0));
-                Assert.That(store.Get<TotalsDashboardState>(keyB).CounterValue, Is.EqualTo(0));
-            });
+            Assert.That(store.Get<TotalsDashboardState>(keyA).CounterValue, Is.EqualTo(0));
+            Assert.That(store.Get<TotalsDashboardState>(keyB).CounterValue, Is.EqualTo(0));
         }
 
         [Test]

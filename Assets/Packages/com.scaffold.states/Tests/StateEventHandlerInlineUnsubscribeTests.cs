@@ -15,11 +15,8 @@ namespace Scaffold.States.Tests
             var env = InlineUnsubscribeTestEnv.Create();
             CounterState payload = new(1);
             Assert.DoesNotThrow(() => env.Store.Events.Notify(Reference.Null, payload, StateChangeEvent.Updated));
-            Assert.Multiple(() =>
-            {
-                Assert.That(env.FirstFired, Is.EqualTo(1));
-                Assert.That(env.SecondFired, Is.EqualTo(1));
-            });
+            Assert.That(env.FirstFired, Is.EqualTo(1));
+            Assert.That(env.SecondFired, Is.EqualTo(1));
         }
 
         private sealed class InlineUnsubscribeTestEnv
