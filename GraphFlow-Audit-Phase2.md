@@ -100,6 +100,93 @@ unless a hot loop appears in profiling.
 
 ---
 
+## Node-state audit
+
+**Rule:** nodes are baked once and shared across every `Run` against a runner.
+Same applies to ports (owned by nodes) and to runners themselves. Per-run
+state belongs on `Flow` only — anything else is shared mutable state across
+concurrent runs.
+
+Walked every `RuntimeNode` subclass under `Runtime/`, `Samples/`, `Samples~/`,
+and `Tests/`. Six violations.
+
+### NS1. `EntryRuntimeNodeBase._defaultOut` / `_defaultOutResolved` — `Nodes/EntryRuntimeNode.cs:11-12`
+
+Lazy-cached on first `Run`. Idempotent (same value every time), so no
+observable bug today, but still a write to shared fields. Same fix as SM3.
+
+### NS2. `OnTrigger<TEvent>.Inner` — `Nodes/OnTrigger.cs:12`
+
+```csharp
+public TEvent? Inner;
+```
+
+Public mutable field on a `[Serializable]` node that is shared across runs.
+The current runtime path reads `Inner` off the **payload** instance
+(`flow.GetPayload<OnTrigger<TEvent>>()!.Inner!`), not off the baked node, so
+there is no live race today. But the type's shape — same class for baked
+node and dispatch payload — makes the violation latent: anyone who writes
+`bakedNode.Inner = x` (or assumes the baked node carries the event) breaks
+concurrent runs silently.
+
+### NS3. `OnTrigger<TEvent>.Timing` — `Nodes/OnTrigger.cs:10`
+
+```csharp
+public Timing Timing { get; set; }
+```
+
+Same pattern as NS2 — mutable property on a baked node. Used by the catalog
+for editor wiring. Either make it init-only / readonly after Build, or
+move it off the runtime node entirely (catalog metadata, not node state).
+
+### NS4. `OutputPort<T>._cache` — `Ports/OutputPort.cs:10`
+
+Cache lives on the port (owned by the node) and is mutated per `Read`.
+Concurrent runs on the same baked graph race the dictionary. Same finding
+as CC1 / H2 below — listed here too because it *is* node-state, just
+delegated to the port.
+
+### NS5. `MySmokeRunner.LastLogMessage` — `Samples~/M0Sandbox/.../MySmokeRunner.cs:7`
+
+```csharp
+public string LastLogMessage { get; private set; } = "";
+public void RecordLog(string message) => LastLogMessage = message;
+```
+
+Per-run mutable state on a shared runner. The runner is shared across every
+`Run` call; two concurrent runs would clobber each other's last-log. Sample
+code gets copy-pasted into real packages — this teaches the wrong shape.
+
+**Fix:** route per-run output through `flow.SetSlot` / `flow.Return`, or
+inject an external sink (e.g., `IGraphLogSink`) and write to that. The
+runner should hold *services*, not *state*.
+
+### NS6. `TestRunner.LastLogMessage` — `Tests/Fixtures.cs:9-10`
+
+Same pattern as NS5 in the test fixture. Tests run sequentially so it
+"works," but the fixture is the canonical "how to author a runner" example
+in the test pack — it propagates the bad shape.
+
+**Fix:** mirror NS5's resolution in the fixture.
+
+### Clean nodes (for the record)
+
+All built-ins (`Branch`, `Cancel`, `Loop`, `Wait`, `Add`, `Multiply`,
+`Subtract`, `And`, `Or`, `Not`, `GreaterThan`, `LessThan`, `IntToString`,
+`Return`, `Return<T>`) are stateless — port handles only. `Loop` uses
+`flow.SetSlot(this, …)` for its iteration counter, which is the correct
+pattern.
+
+Sample nodes (`Strike500Dispatcher`, `PlusOneDamageMutator`,
+`CardCommandDispatcher<,>`, `IntToStringRuntime`, `MyDispatcherBase<,>`)
+are stateless. Test nodes (`TestEntryRuntime`, `TestIntToStringRuntime`,
+`TestLogDispatcherRuntime`, `TestEchoDispatcherRuntime`) are stateless.
+
+`CardEffectRunner` and `SpikeRunner` carry only readonly service refs —
+clean.
+
+---
+
 ## Concurrency
 
 ### CC1. `OutputPort._cache` is **shared mutable state** across concurrent flows
@@ -253,10 +340,11 @@ still hold:
 
 | Priority | Item | Win |
 |---|---|---|
-| P0 | **CC1 + H2** (move cache onto Flow) | Fixes concurrency hazard *and* removes per-port dict alloc *and* removes H3 |
+| P0 | **CC1 + H2 + NS4** (move cache onto Flow) | Fixes concurrency hazard *and* removes per-port dict alloc *and* removes H3 *and* clears the OutputPort node-state violation |
 | P1 | **H1** (`ValueTask`-ify `FlowInPort.Invoke`) | One Task allocation removed per sync step |
-| P2 | **SM3** (resolve default flow-out at bake) | Cleaner semantics, removes lazy state |
-| P2 | **SM1** (drop node-as-payload in `OnTrigger`) | Removes two `!`s and a confusing pattern |
+| P1 | **NS5 + NS6** (drop `LastLogMessage` from sample/test runners) | Removes the wrong-shape exemplar before it gets copy-pasted |
+| P2 | **SM3 / NS1** (resolve default flow-out at bake) | Cleaner semantics, removes lazy state |
+| P2 | **SM1 / NS2 + NS3** (split `OnTrigger` node from payload, move `Timing` off the node) | Removes node-state surface and the two `!`s |
 | P3 | SM2, SM4, SM5, SM6 | Cosmetic / documentation |
 | P3 | H4 (typed slots) | Defer until profiling shows it |
 
