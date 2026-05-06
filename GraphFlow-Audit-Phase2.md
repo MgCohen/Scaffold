@@ -102,18 +102,29 @@ unless a hot loop appears in profiling.
 
 ## Node-state audit
 
-**Rule:** nodes are baked once and shared across every `Run` against a runner.
-Same applies to ports (owned by nodes) and to runners themselves. Per-run
-state belongs on `Flow` only — anything else is shared mutable state across
-concurrent runs.
+**Rule (refined):** nodes are baked once and shared across every `Run`
+against a runner. Same applies to ports (owned by nodes) and to runners.
+Per-run *mutable* state belongs on `Flow` only.
 
-Walked every `RuntimeNode` subclass under `Runtime/`, `Samples/`, `Samples~/`,
-and `Tests/`. Six violations.
+**Bake-time config is allowed.** A field that is set during construction or
+`Build()` and never written at runtime is configuration, not state — it
+doesn't fight across runs because nothing is writing it. Useful when the
+editor/catalog needs to read static metadata off a baked node (e.g.
+`OnTrigger.Timing`).
+
+The discipline is therefore: anything held on a node, port, or runner must
+be *unwritable* after `Build()`. Either no public setter, or `init`-only,
+or readonly-after-ctor — the language enforces the contract.
+
+Walked every `RuntimeNode` subclass under `Runtime/`, `Samples/`,
+`Samples~/`, and `Tests/`. Five violations + one to harden.
 
 ### NS1. `EntryRuntimeNodeBase._defaultOut` / `_defaultOutResolved` — `Nodes/EntryRuntimeNode.cs:11-12`
 
 Lazy-cached on first `Run`. Idempotent (same value every time), so no
-observable bug today, but still a write to shared fields. Same fix as SM3.
+observable bug today, but still a write to shared fields *after* `Build`.
+Resolve at Build time and the fields become bake-time config (allowed).
+Same fix as SM3.
 
 ### NS2. `OnTrigger<TEvent>.Inner` — `Nodes/OnTrigger.cs:12`
 
@@ -122,22 +133,47 @@ public TEvent? Inner;
 ```
 
 Public mutable field on a `[Serializable]` node that is shared across runs.
-The current runtime path reads `Inner` off the **payload** instance
+Unlike `Timing`, `Inner` is *per-run data* (the dispatched event), not
+config. The current runtime path reads `Inner` off the **payload** instance
 (`flow.GetPayload<OnTrigger<TEvent>>()!.Inner!`), not off the baked node, so
 there is no live race today. But the type's shape — same class for baked
 node and dispatch payload — makes the violation latent: anyone who writes
 `bakedNode.Inner = x` (or assumes the baked node carries the event) breaks
 concurrent runs silently.
 
-### NS3. `OnTrigger<TEvent>.Timing` — `Nodes/OnTrigger.cs:10`
+### NS3 (downgrade — harden, don't remove). `OnTrigger<TEvent>.Timing` — `Nodes/OnTrigger.cs:10`
 
 ```csharp
 public Timing Timing { get; set; }
 ```
 
-Same pattern as NS2 — mutable property on a baked node. Used by the catalog
-for editor wiring. Either make it init-only / readonly after Build, or
-move it off the runtime node entirely (catalog metadata, not node state).
+`Timing` **is** valid config-on-node — it's set at bake (object initializer
+or editor wiring), shared across runs without contention because nothing
+writes it at runtime, and the editor/catalog reads it for metadata. This
+is exactly the shape the rule allows.
+
+The only smell is that the contract isn't enforced by the type. Today
+nothing stops a runtime caller from writing `bakedNode.Timing = X` and
+breaking concurrent runs. Make it unwritable after construction:
+
+```csharp
+public Timing Timing { get; init; }
+```
+
+Update `IOnTrigger`:
+
+```csharp
+public interface IOnTrigger { Timing Timing { get; } }
+```
+
+Object-initializer syntax (`new OnTrigger<DamageDealt> { Timing = Timing.Before }`)
+still compiles; runtime mutation becomes a compile error. Unity's
+SerializeReference path uses field-level reflection (not the property
+setter), so deserialization is unaffected.
+
+This is the template for any future config-on-node: `init`-only or
+`readonly` after ctor. If a new field can't satisfy that, it isn't config
+— it's state, and it belongs on `Flow`.
 
 ### NS4. `OutputPort<T>._cache` — `Ports/OutputPort.cs:10`
 
@@ -153,13 +189,12 @@ public string LastLogMessage { get; private set; } = "";
 public void RecordLog(string message) => LastLogMessage = message;
 ```
 
-Per-run mutable state on a shared runner. The runner is shared across every
-`Run` call; two concurrent runs would clobber each other's last-log. Sample
-code gets copy-pasted into real packages — this teaches the wrong shape.
+Per-run mutable state on a shared runner. Two concurrent runs would clobber
+each other's last-log. Sample code gets copy-pasted into real packages —
+this teaches the wrong shape.
 
-**Fix:** route per-run output through `flow.SetSlot` / `flow.Return`, or
-inject an external sink (e.g., `IGraphLogSink`) and write to that. The
-runner should hold *services*, not *state*.
+**Fix:** inject a sink (e.g. `IGraphLogSink`) and write to that. The runner
+holds *services*, not *state*.
 
 ### NS6. `TestRunner.LastLogMessage` — `Tests/Fixtures.cs:9-10`
 
@@ -344,7 +379,8 @@ still hold:
 | P1 | **H1** (`ValueTask`-ify `FlowInPort.Invoke`) | One Task allocation removed per sync step |
 | P1 | **NS5 + NS6** (drop `LastLogMessage` from sample/test runners) | Removes the wrong-shape exemplar before it gets copy-pasted |
 | P2 | **SM3 / NS1** (resolve default flow-out at bake) | Cleaner semantics, removes lazy state |
-| P2 | **SM1 / NS2 + NS3** (split `OnTrigger` node from payload, move `Timing` off the node) | Removes node-state surface and the two `!`s |
+| P2 | **SM1 / NS2** (split `OnTrigger` node from payload — drop `Inner` from baked node) | Removes node-state surface and the two `!`s |
+| P2 | **NS3** (`Timing` becomes `init`-only) | Enforces config-vs-state at the type level; one-line change |
 | P3 | SM2, SM4, SM5, SM6 | Cosmetic / documentation |
 | P3 | H4 (typed slots) | Defer until profiling shows it |
 
