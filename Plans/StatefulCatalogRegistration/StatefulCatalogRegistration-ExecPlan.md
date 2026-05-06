@@ -37,8 +37,8 @@ This plan also resolves two design choices made in Plan A (PR #40), recorded in 
 ## Progress
 
   - [x] Decisions D1–D6 below resolved with rationale recorded in the Decision Log.
-  - [ ] Milestone 1 — `NullReference` moved out of `Reference.cs` (D4). One-line cleanup, can land standalone.
-  - [ ] Milestone 2 — Add `ISliceProvider`, `RegisterEntity` / `UnregisterEntity` extensions on `Store`, ref-rooted resolve extensions on `Ref<T>`, and slice-access extension on `Reference`. Unit + integration tests.
+  - [x] Milestone 1 — `NullReference` moved into `Assets/Packages/com.scaffold.states/Runtime/Abstractions/NullReference.cs` (D4).
+  - [x] Milestone 2 — Added `ISliceProvider`, `StoreEntityExtensions` (`RegisterEntity` / `UnregisterEntity`), `RefExtensions` (`Resolve` / `TryResolve` on `Ref<T>`), `ReferenceExtensions` (`GetSlice` / `TryGetSlice` on `Reference`); `IStoreScope` gained `ICatalog Catalog { get; }` so the ref-rooted sugar can take a single scope arg. Unit + snapshot-round-trip integration test in `StatefulRegistrationTests.cs`. **Pending Unity Test Runner pass** (no local Unity available in this environment).
   - [ ] Milestone 3 — Migrate one in-repo consumer (likely `com.scaffold.entities.states` `EntityBridge`) onto the new flow. Delete the manual choreography it replaces.
   - [ ] Milestone 4 — Update Plan B (`Plans/new state unification/entities-state-unification.md`) so it references this contract instead of redefining its own.
   - [ ] Outcomes & Retrospective filled in.
