@@ -8,7 +8,7 @@ This is the canonical walkthrough for adding a new feature module that spans eve
 
 ## 1. Mental model
 
-```
+```text
 ┌──────────────────────── Unity client ────────────────────────┐         ┌─────────── Cloud Code (UGS) ──────────┐
 │                                                              │         │                                       │
 │  View<ModuleXViewModel>  ──binds──▶  ModuleXViewModel        │         │   GameApiDispatcher                   │
@@ -45,7 +45,7 @@ Key contracts (all already exist in the repo):
 
 For a feature called `ModuleX`:
 
-```
+```text
 Assets/Packages/com.scaffold.modulex/
 ├── package.json
 ├── README.md                                    # follow Docs/Standards/Module-Documentation-Standard.md

@@ -4,7 +4,7 @@ Sample `Backend~/Scaffold/Example` + `Scaffold/Example.DTO` layout for a new Liv
 
 ## What's in the box
 
-```
+```text
 Backend~/Scaffold/
 ├── Example/
 │   ├── Scaffold.LiveOps.Example.csproj    # net6.0 runtime project; references Deploy/Core/LiveOps.Core + Example.DTO
