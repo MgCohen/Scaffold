@@ -34,6 +34,34 @@ namespace Scaffold.Entities.States
             return copy;
         }
 
+        public bool TryGetBase(Variable key, out VariableValue value)
+        {
+            if (BaseValues.TryGetValue(key, out var bv) && bv != null)
+            {
+                value = bv;
+                return true;
+            }
+            value = default!;
+            return false;
+        }
+
+        public IEnumerable<ActiveModifier> GetModifiers(Variable key)
+        {
+            if (ModifierStacks.TryGetValue(key, out var bucket) && bucket != null)
+                return bucket;
+            return Array.Empty<ActiveModifier>();
+        }
+
+        public IEnumerable<Variable> Variables
+        {
+            get
+            {
+                var keys = new HashSet<Variable>(BaseValues.Keys);
+                foreach (var k in ModifierStacks.Keys) keys.Add(k);
+                return keys;
+            }
+        }
+
         public EntityState WithModifier(Variable variable, ActiveModifier modifier)
         {
             if (variable == null)
@@ -161,6 +189,17 @@ namespace Scaffold.Entities.States
             return this with { ModifierStacks = nextStacks };
         }
 
+        public EntityState WithoutBase(Variable key)
+        {
+            if (!BaseValues.ContainsKey(key)) return this;
+            var next = CreateMutableValues(BaseValues);
+            next.Remove(key);
+            return this with { BaseValues = next };
+        }
+
+        public EntityState WithoutAllModifiers()
+            => this with { ModifierStacks = new Dictionary<Variable, IReadOnlyList<ActiveModifier>>() };
+
         private bool BuildStrippedModifierStacks(Dictionary<Variable, IReadOnlyList<ActiveModifier>> nextStacks, ModifierSource source)
         {
             bool changed = false;
@@ -234,80 +273,6 @@ namespace Scaffold.Entities.States
             {
                 nextStacks[variable] = rebuilt;
             }
-        }
-
-        public IReadOnlyDictionary<Variable, VariableValue> ResolveEffectiveValues(IEntityDefinition definition)
-        {
-            if (definition == null)
-            {
-                throw new ArgumentNullException(nameof(definition));
-            }
-
-            var keys = CollectKeysUnion(definition);
-            return PopulateEffectiveFromKeys(keys, definition);
-        }
-
-        private HashSet<Variable> CollectKeysUnion(IEntityDefinition definition)
-        {
-            var keys = new HashSet<Variable>();
-            foreach (var v in BaseValues.Keys)
-            {
-                keys.Add(v);
-            }
-
-            foreach (var v in ModifierStacks.Keys)
-            {
-                keys.Add(v);
-            }
-
-            foreach (var v in definition.DefinedVariables)
-            {
-                keys.Add(v);
-            }
-
-            return keys;
-        }
-
-        private Dictionary<Variable, VariableValue> PopulateEffectiveFromKeys(HashSet<Variable> keys, IEntityDefinition definition)
-        {
-            var result = new Dictionary<Variable, VariableValue>();
-            foreach (Variable variable in keys)
-            {
-                TryAddFoldedEffective(variable, definition, result);
-            }
-
-            return result;
-        }
-
-        private void TryAddFoldedEffective(Variable variable, IEntityDefinition definition, Dictionary<Variable, VariableValue> result)
-        {
-            if (!ModifierStacks.TryGetValue(variable, out IReadOnlyList<ActiveModifier>? bucket) || bucket == null || bucket.Count == 0)
-            {
-                return;
-            }
-
-            VariableValue? baseValue = ResolveBaseValueForVariable(variable, definition);
-            if (baseValue == null)
-            {
-                return;
-            }
-
-            result[variable] = baseValue.ApplyModifiers(bucket);
-        }
-
-        private VariableValue? ResolveBaseValueForVariable(Variable variable, IEntityDefinition definition)
-        {
-            if (BaseValues.TryGetValue(variable, out VariableValue? bv))
-            {
-                return bv;
-            }
-
-            if (definition.TryGetDefaultValue(variable, out VariableValue? dv))
-            {
-                return dv;
-            }
-
-            return null;
         }
 
         private EntityState RemoveModifierAt(Variable variable, IReadOnlyList<ActiveModifier> bucket, int idx)

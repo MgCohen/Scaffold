@@ -1,6 +1,5 @@
 #nullable enable
 using System.Collections.Generic;
-using System.Linq;
 using Scaffold.Entities;
 using Scaffold.States;
 
@@ -21,36 +20,11 @@ namespace Scaffold.Entities.States
 
         public IEntityVariableStorage? Parent => null;
 
-        public bool TryGetBase(Variable key, out VariableValue value)
-        {
-            if (Slice.BaseValues.TryGetValue(key, out var bv) && bv != null)
-            {
-                value = bv;
-                return true;
-            }
-            value = default!;
-            return false;
-        }
+        public bool TryGetBase(Variable key, out VariableValue value) => Slice.TryGetBase(key, out value);
 
-        public IEnumerable<ActiveModifier> GetModifiers(Variable key)
-        {
-            if (Slice.ModifierStacks.TryGetValue(key, out var bucket) && bucket != null)
-            {
-                return bucket.OrderBy(m => m.Modifier.Order);
-            }
-            return System.Array.Empty<ActiveModifier>();
-        }
+        public IEnumerable<ActiveModifier> GetModifiers(Variable key) => Slice.GetModifiers(key);
 
-        public IEnumerable<Variable> Variables
-        {
-            get
-            {
-                var s = Slice;
-                var seen = new HashSet<Variable>(s.BaseValues.Keys);
-                foreach (var k in s.ModifierStacks.Keys) seen.Add(k);
-                return seen;
-            }
-        }
+        public IEnumerable<Variable> Variables => Slice.Variables;
 
         public bool AddVariable(Variable key, VariableValue initial)
         {
@@ -85,14 +59,7 @@ namespace Scaffold.Entities.States
 
         public void ClearModifiers()
         {
-            var s = Slice;
-            foreach (var kv in s.ModifierStacks)
-            {
-                foreach (var mod in kv.Value)
-                {
-                    store.Execute(new RemoveModifierPayload(entityRef, kv.Key, mod.Id));
-                }
-            }
+            store.Execute(new ClearModifiersPayload(entityRef));
         }
 
         public void RemoveModifiersFromSource(ModifierSource source)
