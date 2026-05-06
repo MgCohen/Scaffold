@@ -7,6 +7,8 @@ tags: [#spike, #scaffold, #entities, #state]
 # Entities × State Unification
 
 > **Status: accepted.** Working design for how `Scaffold.States`, `Scaffold.Entities`, and `Scaffold.Entities.States` combine in this project. Captures package-level changes plus project-level shapes. Self-contained.
+>
+> **Post-merge rebase notice (2026-05-05):** main shipped a state refactor that deleted the `IReference` empty marker and replaced it with `public abstract record Reference`. Plan A landed on top of that base — `Ref<T>` is now `sealed record Ref<T>(Guid Id) : Reference` and there is **no `IRef` interface**. Plan B's "Final shapes" §1 (locked, written), §3 (bridge code samples), and parts of "What changes, where" / "Open items" still reference the old `IRef : IReference` shape — those are stale and will be rebased as Plan B begins. Plan A's surface and `com.scaffold.states` row in "What changes" are already updated.
 
 ## TL;DR
 
@@ -592,11 +594,11 @@ Lives in the consumer project, not in any Scaffold package.
 
 | Change | Reason |
 |---|---|
-| Add `Ref<T>` (`readonly struct` wrapping `Guid`), `IRef : IReference` non-generic marker (R2) | Typed identity primitive used as slice keys and as cross-slice reference values; existing `IReference`-typed Store APIs accept `Ref<T>` for free |
+| Add `Ref<T>` (`sealed record` wrapping `Guid`, deriving from `Reference`); no `IRef` marker — `Reference` is the polymorphic base on main (R2, rebased) | Typed identity primitive used as slice keys and as cross-slice reference values; existing `Reference`-typed Store APIs accept `Ref<T>` for free |
 | Add `ICatalogged` for objects that self-identify (returns `Guid`) | Stable across-run keys for objects with natural identity (asset GUID, declared key) |
 | Add `ICatalog` and expose as `Store.Catalog` (inline property in existing `Store.cs`, not partial; R1, R6) | Catalog API scoped under its own surface; Store stays sealed and `StoreBuilder` is untouched |
 | Catalog state is **not** snapshotted | Snapshots roll back slice contents; catalog and live handles remain |
-| `IPayloadReference.GetReference()` return type unchanged (R3) | Payloads with `IRef Target` plug into existing mutator wiring via `return Target;` |
+| `IPayloadReference.GetReference()` returns `Reference` (R3, rebased) | Payloads with `Ref<T> Target` plug into existing mutator wiring via `return Target;` because `Ref<T> : Reference` |
 | No-key `Get<TState>()` overload preserved (R12) | Global/singleton slices keyed by `Reference.Null` continue to work alongside ref-keyed slices |
 
 ### `com.scaffold.entities` (refactor)
@@ -607,12 +609,12 @@ Lives in the consumer project, not in any Scaffold package.
 | Drop `TryGetEffective` from `IEntityVariableStorage` (R8) | Handle folds on every read; effective-value caching is dropped — re-add as private optimization only if profiling demands |
 | Remove `Subscribe(Variable, …)` and `SubscribeToVariableStructuralChanges(...)` from `IEntityVariableStorage` | Reactivity is substrate-specific |
 | Delete `BaseEntityInstance<TDefinition>` (R4) | Single `EntityInstance<TDef>` class absorbs definition field, storage field, read accessors |
-| Delete `IReadOnlyEntity` / `IMutableEntity` interfaces | Single `EntityInstance<TDef>` class makes them redundant; polymorphism uses `IRef` (or the typed handle) |
+| Delete `IReadOnlyEntity` / `IMutableEntity` interfaces | Single `EntityInstance<TDef>` class makes them redundant; polymorphism uses `Reference` (or the typed `Ref<T>` handle) |
 | Strip `VariableBag`'s parent pointer (R9) | Definition default-fallback is handle-level only; storage `Parent` is overlays only — single layering mechanism |
 | `EntityDefinition` stays a definition — does **not** implement any source/storage interface | Definition is consulted by the handle, not part of the storage chain |
 | Simplify `LocalVariableStorage`: optional `Parent` ctor arg, drops subscription bookkeeping, drops effective-value cache | Single class covers base + overlay |
 | `EntityInstance<TDef>` orchestrates: chain reads → definition fallback → modifier application | Default-value lookup lives at one well-defined level; modifier semantics are explicit |
-| `ModifierSource` reshape: `(IRef Source, int Tag)` (R11) | Polymorphic source identity matches the rest of the system; `InstanceId` is gone |
+| `ModifierSource` reshape: `(Reference Source, int Tag)` (R11, rebased) | Polymorphic source identity matches the rest of the system; `InstanceId` is gone |
 | Replace `InstanceId(int)` with `Ref<T>(Guid)` everywhere; delete `InstanceId` at end of Plan B (R10) | Single identity primitive across runtime gameplay code |
 | Add `Entities.Local<TDef>(def)` factory | One-liner construction, no Store required |
 
@@ -664,13 +666,13 @@ Lives in the consumer project, not in any Scaffold package.
 | Adapter (`StoreVariableStorage`) LOC | 422 | ~50 |
 | Hops per mutation | 5–6 | 3 |
 | Special "Store-backed entity" class | `StateEntity<TDef>` | none — plain `EntityInstance<TDef>` |
-| Entity-handle interface tier | `IReadOnlyEntity` + `IMutableEntity` (+ subtypes) | gone — `EntityInstance<TDef>` + `IRef` |
+| Entity-handle interface tier | `IReadOnlyEntity` + `IMutableEntity` (+ subtypes) | gone — `EntityInstance<TDef>` + `Ref<TDef>` (which is a `Reference`) |
 | `EntityState` shape | `(Id, Definition, Bases, Modifiers)` — holds live ref | `(Bases, Modifiers)` — pure data, wire-ready |
 | Definition assignment record | inside `EntityState` (live ref) | none — definition lives on the handle, catalog persists across rollback |
 | Modifier ordering across overlays | unspecified | merged by `Order` across the full `Parent` chain; first chain base or definition default anchors |
 | Storage classes for base + overlay | 2 (`Local…`, `Overlay…`) | 1 (`LocalVariableStorage`, parametrized by `Parent`) |
 | `ClearModifiers` operation | client-side batch of `RemoveModifierPayload`s | first-class `ClearModifiersPayload` |
 | Card registry | undecided (state slice vs side dict) | side dict on engine service; mirrors catalog |
-| Runtime identity primitive | `InstanceId` + `IReference` + `Identifier<T>` (parallel mechanisms) | `Ref<T>` + `IRef` (single Scaffold primitive) |
+| Runtime identity primitive | `InstanceId` + `IReference` + `Identifier<T>` (parallel mechanisms) | `Ref<T> : Reference` (single Scaffold primitive; `IReference` already removed in main's state refactor) |
 | Snapshot rehydration of handles | engine responsibility (rebuild from slices) | none — catalog persists across rollback |
 | Per-variable subscription multiplexing | Built into adapter | Opt-in helper at call sites |
