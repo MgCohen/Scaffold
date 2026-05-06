@@ -239,14 +239,13 @@ switch (flow.Outcome)
 For trigger graphs (entry = `OnTrigger<TEvent>`):
 
 ```csharp
-// At init time, walk controller.EntryNodes and subscribe the right OnTrigger<T> instances.
-foreach (var entry in controller.EntryNodes)
+// At init time, walk runner.EntriesByPayload and subscribe each OnTrigger<T> entry
+// to the bus. The dispatched payload is the event itself — runner.Run<TEvent>(e)
+// resolves the entry through EntriesByPayload[typeof(TEvent)].
+foreach (var entry in runner.EntriesByPayload.Values)
 {
     if (entry is OnTrigger<DamageDealt> trig)
-        bus.Subscribe<DamageDealt>(async e => {
-            var payload = new OnTrigger<DamageDealt> { Event = e, Timing = trig.Timing };
-            await trig.Run(payload);
-        }, trig.Timing);
+        bus.Subscribe<DamageDealt>(async e => await runner.Run(e), trig.Timing);
 }
 ```
 
