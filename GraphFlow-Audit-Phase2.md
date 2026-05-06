@@ -224,23 +224,76 @@ clean.
 
 ## Concurrency
 
+**Decision: concurrent `Run` against the same runner is supported.**
+The G+4 invariant ("two concurrent runs = two flows, no shared state, async
+safety without locks") is normative — the implementation must enforce it.
+
 ### CC1. `OutputPort._cache` is **shared mutable state** across concurrent flows
 
-The `GraphFlow-Audit.md` G+4 invariant says "two concurrent runs = two flows,
-no shared state." That holds for `Flow` itself — but `OutputPort._cache`
-lives on the port, which is owned by the runner and shared across all flows
-that the runner dispatches. `Dictionary<,>` is not thread-safe; two flows
-hitting the same `Read(flow)` race on the underlying buckets.
+The current port-owned `Dictionary<Flow, T>` was chosen for two reasons:
 
-This isn't a hypothetical: anyone calling `runner.Run(...)` twice without
-awaiting the first violates the invariant silently.
+1. **Typed storage** — value-type outputs (`int`, `bool`, `float`) cache
+   without boxing.
+2. **Per-port invalidation locality** — `Flow._touched` collects ports
+   that hit the cache, and `Port.ClearCache(flow)` evicts at end-of-run on
+   the port itself.
 
-**Fix:** Same as H2 — move the cache onto `Flow`. Each run owns its own
-cache. The "no shared state" invariant becomes structural rather than
-documented.
+Both are real wins, but `Dictionary<,>` is not thread-safe; two flows
+reading the same `OutputPort<T>` on the same baked graph race the buckets.
+That violates the supported concurrency model.
 
-If concurrent runs aren't supposed to be supported, document that on
-`GraphRunner.Run` and add a debug-build assert (single-active-flow guard).
+**Fix:** move the cache to `Flow`. Each run owns its own cache → no shared
+mutable state → invariant becomes structural.
+
+```csharp
+// Runtime/Ports/OutputPort.cs
+public sealed class OutputPort<T> : Port
+{
+    readonly Func<Flow, T> _compute;
+    readonly bool _shouldCache;
+
+    public OutputPort(Func<Flow, T> compute, bool cache = true)
+    {
+        _compute = compute;
+        _shouldCache = cache;
+    }
+
+    public T Read(Flow flow) =>
+        _shouldCache ? flow.ReadCached(this, _compute) : _compute(flow);
+}
+
+// Runtime/Flow/Flow.cs
+Dictionary<Port, object?>? _cache;
+
+internal T ReadCached<T>(Port port, Func<Flow, T> compute)
+{
+    _cache ??= new();
+    if (_cache.TryGetValue(port, out var v)) return (T)v!;
+    var fresh = compute(this);
+    _cache[port] = fresh;
+    return fresh;
+}
+
+public void InvalidateAll() => _cache?.Clear();
+```
+
+Drop `Flow._touched`, `Flow.RegisterTouched`, `Port.ClearCache`,
+`OutputPort.ClearCache`. The `Port` base shrinks to just `ConnectFrom`.
+
+**Cost we accept:** value-type cached results box on cache miss (one alloc
+per miss), unbox on hit (no alloc). For an `OutputPort<int>` that's read N
+times in a run, that's one alloc instead of zero. Bounded; acceptable
+price for the concurrency invariant.
+
+**Boxing mitigation if it ever shows up in profiling:** mark cheap pure
+outputs (`Add`, `Subtract`, `GreaterThan`…) with `cache: false`. The
+recompute is just two upstream reads (themselves cached) plus an op —
+cheaper than the dict round-trip plus boxing. Today these default to
+`cache: true`; flipping the default for pure-arithmetic built-ins would
+remove the boxing surface for the common cases. Defer until profiling
+warrants.
+
+This change kills NS4, CC1, H2, and H3 in one move.
 
 ---
 
