@@ -52,11 +52,11 @@ pwsh -NoProfile -File .agents/scripts/refresh-liveops-template.ps1 -SkipGenerato
 
 ### 2.3 New feature package (bootstrap)
 
-1. Copy [`Tools/BackendTemplate/com.scaffold.example/`](../../Tools/BackendTemplate/com.scaffold.example/) to `Assets/Packages/com.scaffold.<yourfeature>/` (or copy only the `Backend~/` tree and rename `Example` to your feature).
-2. Add the new `.csproj` projects to `LiveOps/LiveOps.Deploy.sln` (and `LiveOps.sln` if you use the test project), for example with `dotnet sln add ...`.
-3. Develop under `LiveOps/Scaffold/<YourFeature>/` (preferred), then run **refresh** so `Backend~/` stays current.
+1. Copy [`Tools/BackendTemplate/com.scaffold.example/Backend~/`](../../Tools/BackendTemplate/com.scaffold.example/) into `Assets/Packages/com.scaffold.<yourfeature>/Backend~/` and rename `Example` → `<YourFeature>` everywhere (folders, `*.csproj` filenames + `AssemblyName`, namespaces `LiveOps.Modules.{Example|Example.DTO}`, `[LiveOpsKey("…")]` values).
+2. Develop under `LiveOps/Scaffold/<YourFeature>/` (preferred — this is the source of truth in the Scaffold repo), then run **refresh** so `Backend~/` stays current.
+3. **No `.sln` edit is required.** The deploy build globs every `LiveOps/Scaffold/**/*.csproj` as a `ProjectReference` via `LiveOps/Deploy/Build/Scaffold.LiveOps.Deploy.targets`, and **Install or Update Backend** auto-adds discovered csprojs to `LiveOps/LiveOps.Deploy.sln` under the matching `Scaffold/<Feature>` solution folder (`MapCsprojToSolutionFolder` → `dotnet sln add`; same logic in [`install-liveops-backend.ps1`](../../.agents/scripts/install-liveops-backend.ps1) and [`LiveOpsBackendInstall.cs`](../../Assets/Packages/com.scaffold.liveops/Editor/LiveOpsBackendInstall.cs)). If you use the test project at `LiveOps/Tests/LiveOps.Tests` and want it in your local `LiveOps.sln`, that one you do still maintain by hand.
 
-The [`create-module`](../../.agents/workflows/create-module.md) workflow includes an optional step for `Backend~/` when a module includes a `Scaffold.LiveOps.*` host slice.
+End-to-end walkthrough (View + ViewModel + client service + endpoints + keys): [`Docs/Standards/Module-Vertical-Slice.md`](../Standards/Module-Vertical-Slice.md). The [`create-module`](../../.agents/workflows/create-module.md) workflow includes a short Backend slice step that points to the same walkthrough.
 
 ---
 
@@ -77,9 +77,10 @@ pwsh -NoProfile -File .agents/scripts/install-liveops-backend.ps1
 
 **Unity menu (recommended in game repos; same merge logic as the script, shipped in the package):**
 
-- **Scaffold → LiveOps → Install or Update Backend**
+- **Scaffold → LiveOps → Install or Update Backend** — one-shot merge of every `Backend~/` into `LiveOps/`.
+- **Scaffold → LiveOps → Backend Window** ([`LiveOpsBackendWindowMenu.cs`](../../Assets/Packages/com.scaffold.liveops/Editor/LiveOpsBackendWindowMenu.cs)) — explorer view that lists every `com.scaffold.*/Backend~` package with per-package **Update** / **Refresh** (Refresh is dev-only, requires `SCAFFOLD_LIVEOPS_PACKAGE_DEV`), bulk **Update All** / **Refresh All**, and a **Deploy** action that runs `ugs deploy LiveOps/LiveOps.Deploy.sln` against the linked UGS project/environment.
 
-**What the install does (summary):** For every `Assets/Packages/*/Backend~/`, it **merges** that folder into the repo-root `LiveOps/` (adds/updates `Directory.Build.props`, `Deploy`, `Scaffold`, etc., using `robocopy /E` — it does **not** mirror-delete unrelated paths like a full `Game` tree wipe). It copies `LiveOps.Deploy.sln` from the **host** package (`com.scaffold.liveops/Backend~`) and creates `LiveOps/Game` if missing.
+**What the install does (summary):** For every `Assets/Packages/*/Backend~/`, it **merges** that folder into the repo-root `LiveOps/` (adds/updates `Directory.Build.props`, `Deploy`, `Scaffold`, etc., using `robocopy /E` — it does **not** mirror-delete unrelated paths like a full `Game` tree wipe). It copies `LiveOps.Deploy.sln` from the **host** package (`com.scaffold.liveops/Backend~`), then prunes missing `.csproj` entries and re-adds every discovered `LiveOps/Scaffold/**` and `LiveOps/Game/**` csproj with `dotnet sln add --solution-folder` using the path mapping in `LiveOpsBackendInstall.MapCsprojToSolutionFolder`. Manual hand-edits to the consumer's solution-folder layout are normalized on the next install. It also creates `LiveOps/Game` if missing.
 
 **It does not populate `LiveOps/Game`.** If you need game-only handlers or `IGameSetup` under source control, create `LiveOps/Game/**` in the game repo and add projects to the solution as needed.
 

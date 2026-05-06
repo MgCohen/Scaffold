@@ -4,9 +4,10 @@ using Scaffold.States;
 
 namespace Scaffold.Entities.States
 {
-    internal sealed class RemoveModifiersBySourceMutator : Mutator<EntityVariableState, RemoveModifiersBySourcePayload>
+    [Mutator]
+    internal sealed class RemoveModifiersBySourceMutator : Mutator<EntityState, RemoveModifiersBySourcePayload>
     {
-        public override EntityVariableState Change(EntityVariableState state, RemoveModifiersBySourcePayload payload, IStateScope scope)
+        public override EntityState Change(EntityState state, RemoveModifiersBySourcePayload payload, IStateScope scope)
         {
             return state.WithoutModifiersFromSource(payload.Source);
         }

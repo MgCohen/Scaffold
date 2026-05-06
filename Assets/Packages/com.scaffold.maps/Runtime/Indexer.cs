@@ -3,94 +3,127 @@ using System.Collections.Generic;
 
 namespace Scaffold.Maps
 {
-    public class Indexer<TPrimary, TSecondary, TValue>
+    /// <summary>
+    /// Predicate-based filtered view over map keys. Predicates filter by primary/secondary keys only — not by value;
+    /// mutating <c>map[index]</c> does not move entries in or out of the indexer set.
+    /// </summary>
+    public sealed class Indexer<TPrimary, TSecondary, TValue> : IReadOnlyIndexer<TPrimary, TSecondary, TValue>
     {
-        public Indexer(string name, Func<TPrimary, TSecondary, bool> predicate)
+        private readonly Map<TPrimary, TSecondary, TValue> owner;
+        private readonly Func<TPrimary, TSecondary, bool> keyPredicate;
+        private readonly HashSet<Index<TPrimary, TSecondary>> tracked;
+
+        internal Indexer(
+            Map<TPrimary, TSecondary, TValue> owner,
+            string name,
+            Func<TPrimary, TSecondary, bool> keyPredicate,
+            IEqualityComparer<Index<TPrimary, TSecondary>> indexComparer)
         {
+            this.owner = owner;
             Name = ValidateName(name);
-            this.predicate = ValidatePredicate(predicate);
-            holders = new List<Holder<TValue>>();
+            this.keyPredicate = ValidateKeyPredicate(keyPredicate);
+            tracked = new HashSet<Index<TPrimary, TSecondary>>(indexComparer);
+        }
+
+        internal static Indexer<TPrimary, TSecondary, TValue> CreateBound(
+            Map<TPrimary, TSecondary, TValue> owner,
+            string name,
+            Func<TPrimary, TSecondary, bool> keyPredicate)
+        {
+            IEqualityComparer<Index<TPrimary, TSecondary>> comparer =
+                EqualityComparer<Index<TPrimary, TSecondary>>.Default;
+            return new Indexer<TPrimary, TSecondary, TValue>(owner, name, keyPredicate, comparer);
         }
 
         public string Name { get; }
 
-        public IReadOnlyCollection<TValue> Values
+        /// <inheritdoc cref="TrackedCount"/>
+        public int Count => TrackedCount;
+
+        internal int TrackedCount => tracked.Count;
+
+        /// <summary>Lazy key-ordered view; <see cref="IndexerValuesView{TPrimary,TSecondary,TValue}.Count"/> is O(1).</summary>
+        public IndexerValuesView<TPrimary, TSecondary, TValue> Values =>
+            new IndexerValuesView<TPrimary, TSecondary, TValue>(this);
+
+        internal void Rebuild(IEnumerable<KeyValuePair<Index<TPrimary, TSecondary>, TValue>> entries)
         {
-            get
+            tracked.Clear();
+            foreach (KeyValuePair<Index<TPrimary, TSecondary>, TValue> entry in entries)
             {
-                List<TValue> result = new List<TValue>(holders.Count);
-                foreach (Holder<TValue> holder in holders)
-{
-    result.Add(holder.Value);
-}
-                return result;
+                Track(entry.Key);
             }
         }
 
-        public int Count
+        internal void Track(Index<TPrimary, TSecondary> index)
         {
-            get
+            if (keyPredicate(index.Primary, index.Secondary))
             {
-                return holders.Count;
-            }
-        }
-
-        private readonly Func<TPrimary, TSecondary, bool> predicate;
-        private readonly List<Holder<TValue>> holders;
-
-        internal void Rebuild(IEnumerable<KeyValuePair<Index<TPrimary, TSecondary>, Holder<TValue>>> entries)
-        {
-            holders.Clear();
-            foreach (KeyValuePair<Index<TPrimary, TSecondary>, Holder<TValue>> entry in entries)
-{
-    Track(entry.Key, entry.Value);
-}
-        }
-
-        internal void Track(Index<TPrimary, TSecondary> index, Holder<TValue> holder)
-        {
-            bool isMatch = predicate(index.Primary, index.Secondary);
-            if (isMatch)
-            {
-                if (holders.Contains(holder) == false)
-                {
-                    holders.Add(holder);
-                }
+                tracked.Add(index);
             }
             else
             {
-                holders.Remove(holder);
+                tracked.Remove(index);
             }
         }
 
-        internal void Untrack(Holder<TValue> holder)
+        internal void Untrack(Index<TPrimary, TSecondary> index)
         {
-            holders.Remove(holder);
+            tracked.Remove(index);
         }
 
         internal void Clear()
         {
-            holders.Clear();
+            tracked.Clear();
+        }
+
+        internal HashSet<Index<TPrimary, TSecondary>>.Enumerator GetTrackedKeyEnumerator()
+        {
+            return tracked.GetEnumerator();
+        }
+
+        internal bool OwnerTryGetValue(Index<TPrimary, TSecondary> index, out TValue value)
+        {
+            return owner.TryGetValue(index, out value);
+        }
+
+        internal IReadOnlyList<TValue> SnapshotValues()
+        {
+            if (tracked.Count == 0)
+            {
+                return Array.Empty<TValue>();
+            }
+
+            List<TValue> list = new List<TValue>(tracked.Count);
+            foreach (Index<TPrimary, TSecondary> index in tracked)
+            {
+                if (owner.TryGetValue(index, out TValue value))
+                {
+                    list.Add(value);
+                }
+            }
+
+            return list;
         }
 
         private string ValidateName(string name)
         {
-            bool isValid = string.IsNullOrWhiteSpace(name) == false;
-            if (isValid == false)
+            if (string.IsNullOrWhiteSpace(name))
             {
                 throw new ArgumentException("Indexer name cannot be null or empty.", nameof(name));
             }
+
             return name;
         }
 
-        private Func<TPrimary, TSecondary, bool> ValidatePredicate(Func<TPrimary, TSecondary, bool> predicate)
+        private Func<TPrimary, TSecondary, bool> ValidateKeyPredicate(Func<TPrimary, TSecondary, bool> keyPredicate)
         {
-            if (predicate == null)
+            if (keyPredicate is null)
             {
-                throw new ArgumentNullException(nameof(predicate));
+                throw new ArgumentNullException(nameof(keyPredicate));
             }
-            return predicate;
+
+            return keyPredicate;
         }
     }
 }
-

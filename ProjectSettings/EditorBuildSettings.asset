@@ -4,10 +4,7 @@
 EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
-  m_Scenes:
-  - enabled: 1
-    path: Assets/Packages/com.scaffold.graphflow/Samples/M0Sandbox/Smoke/M0PlayerSmoke.unity
-    guid: 072a98737c434b40ad43655871bbd012
+  m_Scenes: []
   m_configObjects:
     com.unity.addressableassets: {fileID: 11400000, guid: 00c603be39aa849d78b3ff2b67ca8a81, type: 2}
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}

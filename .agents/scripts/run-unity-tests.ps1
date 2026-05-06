@@ -1,12 +1,17 @@
 #!/usr/bin/env pwsh
 [CmdletBinding()]
 param(
-    [ValidateSet("EditMode", "PlayMode")]
+    [ValidateSet("EditMode", "PlayMode", "StandaloneWindows64")]
     [Parameter(Mandatory = $true)]
     [string]$TestPlatform,
     [string]$ProjectPath = (Get-Location).Path,
     [string]$UnityPath,
     [string[]]$AssemblyNames,
+    [string]$PerformanceTestResultsPath,
+    # Microbenchmarks tagged [Category("PerformanceBenchmark")] are skipped by default so EditMode runs stay fast.
+    [switch]$IncludePerformanceBenchmarks,
+    # Runs only microbenchmark tests (same category). Often paired with -PerformanceTestResultsPath.
+    [switch]$PerformanceBenchmarksOnly,
     [switch]$EnableCoverage,
     [string]$CoverageResultsPath,
     [string]$CoverageOptions,
@@ -24,14 +29,20 @@ $scriptDir = Split-Path -Parent $PSCommandPath
 $resolvedProjectPath = (Resolve-Path $ProjectPath).Path
 $testingSuiteConfig = Get-TestingSuiteConfig -ProjectPath $resolvedProjectPath
 $resolvedCoveragePath = $null
-$tempPrefix = if ($TestPlatform -eq "EditMode") { "unity-editmode-tests-" } else { "unity-playmode-tests-" }
+$lanePrefix = switch ($TestPlatform) {
+    "EditMode" { "editmode" }
+    "PlayMode" { "playmode" }
+    default    { "standalone" }
+}
+$tempPrefix = "unity-${lanePrefix}-tests-"
 $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ($tempPrefix + [guid]::NewGuid().ToString("N"))
 $null = New-Item -ItemType Directory -Path $tempRoot -Force
-$logName = if ($TestPlatform -eq "EditMode") { "editmode.log" } else { "playmode.log" }
-$resultsName = if ($TestPlatform -eq "EditMode") { "editmode-results.xml" } else { "playmode-results.xml" }
+$logName = "${lanePrefix}.log"
+$resultsName = "${lanePrefix}-results.xml"
 $logPath = Join-Path $tempRoot $logName
 $resultsPath = Join-Path $tempRoot $resultsName
 $scriptExitCode = 1
+$resolvedPerfPath = $null
 
 try {
     if ($TimeoutMinutes -lt 1) {
@@ -53,6 +64,20 @@ try {
         -AllowHubVersionFallback $true `
         -ExampleScriptHint ".agents/scripts/run-unity-tests.ps1"
 
+    if (-not [string]::IsNullOrWhiteSpace($PerformanceTestResultsPath)) {
+        $candidatePath = if ([System.IO.Path]::IsPathRooted($PerformanceTestResultsPath)) {
+            $PerformanceTestResultsPath
+        } else {
+            Join-Path $resolvedProjectPath $PerformanceTestResultsPath
+        }
+
+        $resolvedPerfPath = [System.IO.Path]::GetFullPath($candidatePath)
+        $perfDir = Split-Path -Parent $resolvedPerfPath
+        if (-not [string]::IsNullOrWhiteSpace($perfDir) -and -not (Test-Path -LiteralPath $perfDir)) {
+            $null = New-Item -ItemType Directory -Path $perfDir -Force
+        }
+    }
+
     $unityArgs = @(
         "-batchmode"
         "-accept-apiupdate"
@@ -62,6 +87,30 @@ try {
         "-testResults", $resultsPath
         "-logFile", $logPath
     )
+
+    if ($TestPlatform -eq "StandaloneWindows64") {
+        # Build a Standalone Player containing the test assemblies and run the tests inside it.
+        # Project's PlayerSettings.scriptingBackend (Standalone) controls Mono vs IL2CPP for this lane.
+        $unityArgs += @("-buildTarget", "StandaloneWindows64")
+    }
+
+    if ($resolvedPerfPath) {
+        $unityArgs += @("-perfTestResults", $resolvedPerfPath)
+    }
+
+    $performanceBenchmarkCategory = "PerformanceBenchmark"
+    if ($PerformanceBenchmarksOnly) {
+        $unityArgs += @("-testCategory", $performanceBenchmarkCategory)
+        Write-Host ("Test filter: -testCategory '{0}' (performance microbenchmarks only)" -f $performanceBenchmarkCategory)
+    }
+    elseif (-not $IncludePerformanceBenchmarks.IsPresent -and -not $resolvedPerfPath) {
+        $excludeExpr = ("!{0}" -f $performanceBenchmarkCategory)
+        $unityArgs += @("-testCategory", $excludeExpr)
+        Write-Host ("Test filter: -testCategory '{0}' (skipping performance microbenchmarks; use -IncludePerformanceBenchmarks or -PerformanceTestResultsPath to include them)" -f $excludeExpr)
+    }
+    elseif ($resolvedPerfPath -and -not $IncludePerformanceBenchmarks.IsPresent) {
+        Write-Host "Performance JSON path set: performance microbenchmarks will run (-perfTestResults)."
+    }
 
     if ($EnableCoverage) {
         $resolvedCoverageOptions = if ([string]::IsNullOrWhiteSpace($CoverageOptions)) {
@@ -114,11 +163,24 @@ try {
         Write-Host "-------"
         Write-Host ("Unity test run timed out after {0} minute(s)." -f $TimeoutMinutes)
         Write-Host $logTail
+        if ($resolvedPerfPath) {
+            Write-Host ""
+            Write-Host ("Performance JSON path (may be missing after timeout): {0}" -f $resolvedPerfPath)
+        }
         $scriptExitCode = 1
         return
     }
 
     $unityExitCode = [int]$unityProcess.ExitCode
+
+    if ($resolvedPerfPath) {
+        Write-Host ""
+        if (Test-Path -LiteralPath $resolvedPerfPath) {
+            Write-Host ("Performance JSON: {0}" -f $resolvedPerfPath)
+        } else {
+            Write-Host ("Warning: performance JSON was not created at {0}" -f $resolvedPerfPath)
+        }
+    }
 
     if (-not (Test-Path $resultsPath)) {
         $logTail = if (Test-Path $logPath) {
@@ -139,6 +201,10 @@ try {
         Write-Host "-------"
         Write-Host ("Unity exited with code {0} before producing test results." -f $unityExitCode)
         Write-Host $logTail
+        if ($resolvedPerfPath) {
+            Write-Host ""
+            Write-Host ("Performance JSON path (may be missing): {0}" -f $resolvedPerfPath)
+        }
         $scriptExitCode = 1
         return
     }

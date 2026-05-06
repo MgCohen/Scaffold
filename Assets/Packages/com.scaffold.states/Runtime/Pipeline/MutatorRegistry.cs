@@ -1,6 +1,7 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Scaffold.States
 {
@@ -10,11 +11,6 @@ namespace Scaffold.States
 
         public void Register<TState, TPayload>(Mutator<TState, TPayload> mutator) where TState : State
         {
-            if (mutator is null)
-            {
-                throw new ArgumentNullException(nameof(mutator));
-            }
-
             var key = typeof(TPayload);
             if (!registrations.TryGetValue(key, out List<IPayloadMutatorBinding>? list))
             {
@@ -26,7 +22,7 @@ namespace Scaffold.States
             list.Add(new RegisteredMutator<TState, TPayload>(mutator));
         }
 
-        internal bool TryGet(Type payloadType, out IReadOnlyList<IPayloadMutatorBinding>? bindings)
+        internal bool TryGet(Type payloadType, [NotNullWhen(true)] out IReadOnlyList<IPayloadMutatorBinding>? bindings)
         {
             if (registrations.TryGetValue(payloadType, out var list))
             {

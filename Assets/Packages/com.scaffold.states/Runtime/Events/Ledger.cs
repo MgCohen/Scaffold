@@ -1,6 +1,6 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace Scaffold.States
 {
@@ -8,26 +8,24 @@ namespace Scaffold.States
     {
         public Dictionary<Type, List<ISubscription>> Lookup = new();
 
-        public IEnumerable<ISubscription> Get(Type stateType)
+        public List<ISubscription>? Get(Type stateType)
         {
-            if (Lookup.ContainsKey(stateType))
-            {
-                return Lookup[stateType];
-            }
-            return Enumerable.Empty<ISubscription>();
+            return Lookup.TryGetValue(stateType, out var list) ? list : null;
         }
 
         public void Add(ISubscription sub)
         {
             Type type = sub.GetSubscriptionType();
-            if (!Lookup.ContainsKey(type))
+            if (!Lookup.TryGetValue(type, out var list))
             {
-                Lookup[type] = new List<ISubscription>();
+                list = new List<ISubscription>();
+                Lookup[type] = list;
             }
-            Lookup[type].Add(sub);
+
+            list.Add(sub);
         }
 
-        public bool RemoveSubscription<TState>(Action<IReference, TState, StateChangeEvent> action) where TState : BaseState
+        public bool RemoveSubscription<TState>(object removalKey) where TState : BaseState
         {
             Type stateType = typeof(TState);
             if (!Lookup.TryGetValue(stateType, out List<ISubscription>? list))
@@ -35,28 +33,21 @@ namespace Scaffold.States
                 return false;
             }
 
-            int idx = FindLastMatchIndex(list, action);
-            if (idx < 0) return false;
-            list.RemoveAt(idx);
-            if (list.Count == 0)
-            {
-                Lookup.Remove(stateType);
-            }
-
-            return true;
-        }
-
-        private int FindLastMatchIndex<TState>(List<ISubscription> list, Action<IReference, TState, StateChangeEvent> action) where TState : BaseState
-        {
             for (int i = list.Count - 1; i >= 0; i--)
             {
-                if (list[i] is TypedSubscription<TState> typed && typed.Matches(action))
+                if (list[i] is TypedSubscription<TState> typed && typed.MatchesRemoval(removalKey))
                 {
-                    return i;
+                    list.RemoveAt(i);
+                    if (list.Count == 0)
+                    {
+                        Lookup.Remove(stateType);
+                    }
+
+                    return true;
                 }
             }
 
-            return -1;
+            return false;
         }
     }
 }

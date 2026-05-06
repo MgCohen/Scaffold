@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using UnityEngine;
 
 namespace Scaffold.Ads
@@ -35,11 +36,11 @@ namespace Scaffold.Ads
         private IAdProvider adProvider;
         private bool isInitialized;
 
-        public async void InitializeAds(string userId, IRewardEndpointClient rewardClient)
+        public async Task InitializeAds(string userId, IRewardEndpointClient rewardClient)
         {
             if (isInitialized)
             {
-                return;
+                await Task.CompletedTask;
             }
             isInitialized = true;
 

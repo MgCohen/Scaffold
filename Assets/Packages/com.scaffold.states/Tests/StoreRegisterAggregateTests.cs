@@ -1,8 +1,9 @@
 #nullable enable
 
+using System;
 using NUnit.Framework;
 using Scaffold.States;
-using Scaffold.States.Samples;
+using Scaffold.States.Tests.Fixtures;
 
 namespace Scaffold.States.Tests
 {
@@ -14,7 +15,7 @@ namespace Scaffold.States.Tests
 
         private sealed record BumpPayload(SampleKey Target) : IPayloadReference
         {
-            public IReference GetReference() => Target;
+            public Reference GetReference() => Target;
         }
 
         private sealed class BumpMutator : Mutator<TestSourceState, BumpPayload>
@@ -32,9 +33,11 @@ namespace Scaffold.States.Tests
 
             private readonly SampleKey key;
 
-            public override void Wire(IStoreScope scope, IAggregateRebuild rebuild)
+            public override IDisposable Wire(IStoreScope scope, IAggregateRebuild rebuild)
             {
-                scope.Events.Subscribe<TestSourceState>(key, (_, _, _) => rebuild.RequestRebuild());
+                Action<Reference, TestSourceState, StateChangeEvent> cb = (_, _, _) => rebuild.RequestRebuild();
+                scope.Events.Subscribe<TestSourceState>(key, cb);
+                return new CallbackDisposable(() => scope.Events.Unsubscribe<TestSourceState>(key, cb));
             }
 
             protected override TestAggregateState BuildCore(IStateScope scope)

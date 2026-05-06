@@ -29,11 +29,11 @@ namespace Scaffold.States
             scratchpad.Reset();
         }
 
-        internal void RunMutatorBindingsWithoutCommit(object payload, IReadOnlyList<IPayloadMutatorBinding> mutators, IReference executeReference)
+        internal void RunMutatorBindingsWithoutCommit(object payload, IReadOnlyList<IPayloadMutatorBinding> mutators, Reference executeReference)
         {
-            foreach (var m in mutators)
+            for (int i = 0; i < mutators.Count; i++)
             {
-                m.Apply(payload, this, executeReference);
+                mutators[i].Apply(payload, this, executeReference);
             }
         }
 
@@ -42,19 +42,19 @@ namespace Scaffold.States
             scratchpad.Commit();
         }
 
-        internal void RunMutatorWithoutCommit<TState>(IReference r, Mutator<TState> mutator) where TState : State
+        internal void RunMutatorWithoutCommit<TState>(Reference r, Mutator<TState> mutator) where TState : State
         {
             TState stateOut = mutator.Change(Get<TState>(r), this);
             scratchpad.SetPending(r, stateOut);
         }
 
-        internal void RunTypedMutatorWithoutCommit<TState, TPayload>(IReference r, Mutator<TState, TPayload> mutator, TPayload payload) where TState : State
+        internal void RunTypedMutatorWithoutCommit<TState, TPayload>(Reference r, Mutator<TState, TPayload> mutator, TPayload payload) where TState : State
         {
             TState stateOut = mutator.Change(Get<TState>(r), payload, this);
             scratchpad.SetPending(r, stateOut);
         }
 
-        public void SetPending<TState>(IReference? reference, TState state) where TState : State
+        public void SetPending<TState>(Reference? reference, TState state) where TState : State
         {
             scratchpad.SetPending(reference, state);
         }
@@ -69,9 +69,14 @@ namespace Scaffold.States
             return scratchpad.Get<TState>();
         }
 
-        public TState Get<TState>(IReference? reference) where TState : BaseState
+        public TState Get<TState>(Reference? reference) where TState : BaseState
         {
             return scratchpad.Get<TState>(reference);
+        }
+
+        public bool TryGet<TState>(Reference? reference, out TState state) where TState : BaseState
+        {
+            return scratchpad.TryGet<TState>(reference, out state);
         }
     }
 }

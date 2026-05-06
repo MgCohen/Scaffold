@@ -4,6 +4,6 @@ namespace Scaffold.States
 {
     public interface IPayloadReference
     {
-        IReference GetReference();
+        Reference GetReference();
     }
 }

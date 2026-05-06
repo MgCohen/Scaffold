@@ -79,6 +79,36 @@ sequenceDiagram
   Events-->>View: Bubble callbacks by transform ancestry
 ```
 
+### Realistic — view + viewmodel + LiveOps client service
+
+A view should never call Cloud Code directly. Inject a typed client service into the `ViewModel` (constructor / VContainer) and let the view bind to read-only state plus invoke async commands. End-to-end module shape: [`Docs/Standards/Module-Vertical-Slice.md`](../../../Docs/Standards/Module-Vertical-Slice.md).
+
+```csharp
+// ViewModel constructor-injects the feature's client service (which owns the LiveOps call).
+public sealed class ModuleXViewModel : ViewModel
+{
+    private readonly IModuleXClientService service;
+
+    public ModuleXViewModel(IModuleXClientService service) { this.service = service; }
+
+    public int CallCount => service.CallCount;
+    public Task DoThing(string message) => service.DoThing(message);
+}
+
+// View binds read-only state and forwards user gestures into ViewModel commands.
+public sealed class ModuleXView : View<ModuleXViewModel>
+{
+    [SerializeField] private Button doThingButton;
+    [SerializeField] private TMP_Text callCountLabel;
+
+    protected override void OnBind()
+    {
+        Bind(() => Controller.CallCount, () => callCountLabel.text, c => c.ToString());
+        doThingButton.onClick.AddListener(() => _ = Controller.DoThing("hello"));
+    }
+}
+```
+
 ### Guard / Error path
 
 ```csharp

@@ -1,7 +1,5 @@
 #nullable enable
-
 using System.Collections.Generic;
-
 using Scaffold.Entities;
 using Scaffold.States;
 
@@ -11,70 +9,34 @@ namespace Scaffold.Entities.States
     {
         public static void RemoveModifiersFromSource(Store store, ModifierSource source)
         {
-            if (store == null)
+            var payloads = new List<object>();
+            foreach ((Reference reference, EntityState state) in store.EnumerateAllPairs<EntityState>())
             {
-                throw new System.ArgumentNullException(nameof(store));
+                if (HasAnyModifierFromSource(state, source))
+                {
+                    payloads.Add(new RemoveModifiersBySourcePayload(reference, source));
+                }
             }
 
-            List<object> payloads = BuildRemoveModifiersBySourcePayloads(store, source);
             if (payloads.Count > 0)
             {
                 store.ExecuteBatch(payloads);
             }
         }
 
-        private static List<object> BuildRemoveModifiersBySourcePayloads(Store store, ModifierSource source)
-        {
-            var payloads = new List<object>();
-            foreach ((IReference reference, EntityVariableState state) in store.EnumerateAll<EntityVariableState>())
-            {
-                TryAppendPayloadForSlice(reference, state, source, payloads);
-            }
-
-            return payloads;
-        }
-
-        private static void TryAppendPayloadForSlice(IReference reference, EntityVariableState state, ModifierSource source, List<object> payloads)
-        {
-            if (reference is not EntityStateReference entityRef)
-            {
-                return;
-            }
-
-            InstanceId entityId = entityRef.EntityId;
-
-            if (!HasAnyModifierFromSource(state, source))
-            {
-                return;
-            }
-
-            payloads.Add(new RemoveModifiersBySourcePayload(entityId, source));
-        }
-
-        private static bool HasAnyModifierFromSource(EntityVariableState state, ModifierSource source)
+        private static bool HasAnyModifierFromSource(EntityState state, ModifierSource source)
         {
             foreach (IReadOnlyList<ActiveModifier> bucket in state.ModifierStacks.Values)
             {
-                if (BucketContainsSource(bucket, source))
+                for (int i = 0; i < bucket.Count; i++)
                 {
-                    return true;
+                    var s = bucket[i].Source;
+                    if (s.HasValue && s.Value.Equals(source))
+                    {
+                        return true;
+                    }
                 }
             }
-
-            return false;
-        }
-
-        private static bool BucketContainsSource(IReadOnlyList<ActiveModifier> bucket, ModifierSource source)
-        {
-            for (int i = 0; i < bucket.Count; i++)
-            {
-                ActiveModifier am = bucket[i];
-                if (am.Source.HasValue && am.Source.Value.Equals(source))
-                {
-                    return true;
-                }
-            }
-
             return false;
         }
     }
