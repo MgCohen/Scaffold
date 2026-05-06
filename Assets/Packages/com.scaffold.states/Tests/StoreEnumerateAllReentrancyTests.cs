@@ -1,8 +1,11 @@
+#nullable enable
+
 using System.Collections.Generic;
 using NUnit.Framework;
 using Scaffold.States;
+using Scaffold.States.Tests.Fixtures;
 
-namespace Scaffold.Benchmarks.States
+namespace Scaffold.States.Tests
 {
     public sealed class StoreEnumerateAllReentrancyTests
     {
@@ -19,12 +22,12 @@ namespace Scaffold.Benchmarks.States
             store.SubscribeAllReferences<CounterState>((_, _, _) =>
             {
                 int innerCount = 0;
-                foreach (CounterState _inner in store.GetAll<CounterState>())
+                foreach (CounterState _ in store.GetAll<CounterState>())
                 {
                     innerCount++;
                 }
 
-                VolatileSink.Use(innerCount);
+                Assert.That(innerCount, Is.GreaterThan(0));
             });
         }
 
