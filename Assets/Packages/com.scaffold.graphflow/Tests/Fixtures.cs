@@ -1,20 +1,37 @@
 #nullable enable
 using System;
+using System.Collections.Generic;
 using Scaffold.GraphFlow;
 
 namespace Scaffold.GraphFlow.Tests
 {
+    public interface IGraphLogSink
+    {
+        void Record(string message);
+    }
+
+    public sealed class CollectingLogSink : IGraphLogSink
+    {
+        readonly List<string> _messages = new();
+        public IReadOnlyList<string> Messages => _messages;
+        public void Record(string message) => _messages.Add(message);
+    }
+
     public sealed class TestRunner : GraphRunner
     {
-        public string LastLogMessage { get; private set; } = "";
-        public void RecordLog(string message) => LastLogMessage = message;
+        public IGraphLogSink LogSink { get; }
 
-        public TestRunner(BakedGraph baked) : base(baked) { }
+        public TestRunner(BakedGraph baked, IGraphLogSink logSink) : base(baked)
+        {
+            LogSink = logSink;
+        }
     }
 
     public sealed class TestBuilder : GraphBuilder<TestRunner>
     {
-        protected override TestRunner CreateRunner(BakedGraph baked) => new(baked);
+        readonly IGraphLogSink _logSink;
+        public TestBuilder(IGraphLogSink logSink) { _logSink = logSink; }
+        protected override TestRunner CreateRunner(BakedGraph baked) => new(baked, _logSink);
     }
 
     public sealed class TestEntry : IGraphEntry
@@ -63,7 +80,7 @@ namespace Scaffold.GraphFlow.Tests
             Message = new InputPort<string>();
             FlowIn = FlowInPort.Sync(this, nameof(FlowIn), flow =>
             {
-                Runner(flow).RecordLog(Message.Read(flow) ?? "");
+                Runner(flow).LogSink.Record(Message.Read(flow) ?? "");
                 return FlowOutPort.End;
             });
             Ports.Add(FlowIn.Name, FlowIn);

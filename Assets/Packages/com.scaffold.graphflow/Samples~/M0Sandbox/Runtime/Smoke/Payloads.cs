@@ -18,7 +18,7 @@ namespace Scaffold.GraphFlow.M0.Smoke
 
         public Task Execute(MySmokeRunner runner)
         {
-            runner.RecordLog(Message);
+            runner.LogSink.Record(Message);
             return Task.CompletedTask;
         }
     }

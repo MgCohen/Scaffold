@@ -15,20 +15,22 @@ namespace Scaffold.GraphFlow.M0.PlayerSmoke
 
         void Awake()
         {
-            var runner = new MySmokeBuilder().Build(graph);
-            RunAsync(runner);
+            var sink = new CollectingLogSink();
+            var runner = new MySmokeBuilder(sink).Build(graph);
+            RunAsync(runner, sink);
         }
 
-        async void RunAsync(MySmokeRunner runner)
+        async void RunAsync(MySmokeRunner runner, CollectingLogSink sink)
         {
             int id = Random.Range(0, 50);
             Debug.Log($"[M0] Player smoke: Id ={id}");
             before.text = id.ToString();
             await runner.Run(new OnPlay { CardId = id });
-            PlayerPrefs.SetString(PrefsKey, runner.LastLogMessage);
+            var last = sink.Messages.Count > 0 ? sink.Messages[^1] : "";
+            PlayerPrefs.SetString(PrefsKey, last);
             PlayerPrefs.Save();
-            after.text = runner.LastLogMessage;
-            Debug.Log($"[M0] Player smoke: {PrefsKey}={runner.LastLogMessage}");
+            after.text = last;
+            Debug.Log($"[M0] Player smoke: {PrefsKey}={last}");
 #if !UNITY_EDITOR
             Application.Quit(0);
 #endif

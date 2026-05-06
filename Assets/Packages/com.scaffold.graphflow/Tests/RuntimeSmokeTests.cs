@@ -45,10 +45,11 @@ namespace Scaffold.GraphFlow.Tests
             asset.connections.Add(new Edge { fromNodeId = 1, fromPortName = EntryValuePortName, toNodeId = 2, toPortName = IntToStrIn });
             asset.connections.Add(new Edge { fromNodeId = 2, fromPortName = IntToStrOut,        toNodeId = 3, toPortName = LogMessage });
 
-            var runner = new TestBuilder().Build(asset);
+            var sink = new CollectingLogSink();
+            var runner = new TestBuilder(sink).Build(asset);
             await runner.Run(new TestEntry { Value = 42 });
 
-            Assert.AreEqual("42", runner.LastLogMessage);
+            Assert.AreEqual("42", sink.Messages[^1]);
         }
 
         [Test]
@@ -65,10 +66,11 @@ namespace Scaffold.GraphFlow.Tests
             asset.connections.Add(new Edge { fromNodeId = 1, fromPortName = EntryValuePortName, toNodeId = 2, toPortName = EchoMag });
             asset.connections.Add(new Edge { fromNodeId = 2, fromPortName = EchoSummary,        toNodeId = 3, toPortName = LogMessage });
 
-            var runner = new TestBuilder().Build(asset);
+            var sink = new CollectingLogSink();
+            var runner = new TestBuilder(sink).Build(asset);
             await runner.Run(new TestEntry { Value = 42 });
 
-            Assert.AreEqual("echo:42", runner.LastLogMessage);
+            Assert.AreEqual("echo:42", sink.Messages[^1]);
         }
 
         [Test]
@@ -87,7 +89,7 @@ namespace Scaffold.GraphFlow.Tests
             asset.flowEdges.Add(new Edge { fromNodeId = 3, fromPortName = BranchFalse,  toNodeId = 5, toPortName = CancelFlowIn });
             asset.connections.Add(new Edge { fromNodeId = 2, fromPortName = NotResult, toNodeId = 3, toPortName = BranchCondition });
 
-            var runner = new TestBuilder().Build(asset);
+            var runner = new TestBuilder(new CollectingLogSink()).Build(asset);
             var flow = await runner.Run(new TestEntry { Value = 0 });
 
             Assert.AreEqual(Outcome.Returned, flow.Outcome, "Return path was taken; Outcome should be Returned.");
@@ -112,7 +114,7 @@ namespace Scaffold.GraphFlow.Tests
             asset.connections.Add(new Edge { fromNodeId = 2, fromPortName = NotResult, toNodeId = 3, toPortName = NotValue });
             asset.connections.Add(new Edge { fromNodeId = 3, fromPortName = NotResult, toNodeId = 4, toPortName = BranchCondition });
 
-            var runner = new TestBuilder().Build(asset);
+            var runner = new TestBuilder(new CollectingLogSink()).Build(asset);
             var flow = await runner.Run(new TestEntry { Value = 0 });
 
             Assert.AreEqual(Outcome.Cancelled, flow.Outcome, "False branch reaches Cancel.");
@@ -130,7 +132,7 @@ namespace Scaffold.GraphFlow.Tests
             asset.flowEdges.Add(new Edge { fromNodeId = 1, fromPortName = EntryFlowOut, toNodeId = 3, toPortName = ReturnFlowIn });
             asset.connections.Add(new Edge { fromNodeId = 2, fromPortName = NotResult, toNodeId = 3, toPortName = ReturnValue });
 
-            var runner = new TestBuilder().Build(asset);
+            var runner = new TestBuilder(new CollectingLogSink()).Build(asset);
             var flow = await runner.Run(new TestEntry { Value = 0 });
 
             Assert.AreEqual(Outcome.Returned, flow.Outcome);

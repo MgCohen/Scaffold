@@ -7,6 +7,9 @@ namespace Scaffold.GraphFlow
     public sealed class OnTrigger<TEvent> : EntryRuntimeNode<TEvent>, IOnTrigger
         where TEvent : class
     {
+        // Bake-time only. The package generator's registry factory writes Timing once
+        // when the editor option is materialized into the runtime node. Never mutated
+        // during a Run — treating this as per-run state would race across concurrent flows.
         public Timing Timing { get; set; }
 
         public FlowOutPort FlowOut = null!;
