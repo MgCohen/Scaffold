@@ -8,7 +8,7 @@ A minimal end-to-end sketch of the **Two-Phase Tick + Spatial Query Service + Hu
 
 ## Layers
 
-```
+```text
 Domain (pure C#)            ViewModel (pure C#)         View (MonoBehaviour)
 ─────────────────           ───────────────────         ─────────────────────
 HeroModel                   HeroViewModel : ITickable   HeroView    ─► HeroViewModel
