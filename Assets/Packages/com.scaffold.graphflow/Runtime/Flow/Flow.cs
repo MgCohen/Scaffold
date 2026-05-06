@@ -30,24 +30,24 @@ namespace Scaffold.GraphFlow
 
         public T? GetPayload<T>() where T : class => _payload as T;
 
-        public FlowOutPort Return<T>(T value)
+        public FlowOutPort? Return<T>(T value)
         {
             _result = value;
             Outcome = Outcome.Returned;
-            return FlowOutPort.End;
+            return null;
         }
 
-        public FlowOutPort Return()
+        public FlowOutPort? Return()
         {
             _result = null;
             Outcome = Outcome.Returned;
-            return FlowOutPort.End;
+            return null;
         }
 
-        public FlowOutPort Cancel()
+        public FlowOutPort? Cancel()
         {
             Outcome = Outcome.Cancelled;
-            return FlowOutPort.End;
+            return null;
         }
 
         public T? ReadResult<T>() => _result is T t ? t : default;

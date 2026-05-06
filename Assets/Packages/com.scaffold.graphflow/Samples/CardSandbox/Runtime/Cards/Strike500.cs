@@ -35,7 +35,7 @@ namespace Scaffold.GraphFlow.CardSandbox.Cards
             {
                 var cmd = new DealDamageCommand { Amount = Strike500.BaseDamage };
                 await cmd.Execute(Runner(flow), flow).ConfigureAwait(false);
-                return FlowOutPort.End;
+                return null;
             });
             Ports.Add(FlowIn.Name, FlowIn);
         }

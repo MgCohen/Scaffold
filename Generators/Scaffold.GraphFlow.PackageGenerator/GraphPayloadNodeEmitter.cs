@@ -420,7 +420,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
 
             sb.AppendLine("                };");
             sb.AppendLine("                await payload.Execute(Runner(flow)).ConfigureAwait(false);");
-            sb.AppendLine("                return FlowOutPort.End;");
+            sb.AppendLine("                return null;");
             sb.AppendLine("            });");
             sb.AppendLine($"            Ports.Add(FlowIn.Name, FlowIn);");
             foreach (var f in inputFields)

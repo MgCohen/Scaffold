@@ -1,16 +1,15 @@
 #nullable enable
-using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 namespace Scaffold.GraphFlow
 {
     public abstract class GraphBuilder<TRunner> where TRunner : GraphRunner
     {
-        readonly Dictionary<GraphAsset, BakedGraph> _cache = new();
+        readonly ConditionalWeakTable<GraphAsset, BakedGraph> _cache = new();
 
         public TRunner Build(GraphAsset<TRunner> asset)
         {
-            if (!_cache.TryGetValue(asset, out var baked))
-                _cache[asset] = baked = GraphTopology.Bake(asset);
+            var baked = _cache.GetValue(asset, a => GraphTopology.Bake(a));
 
             var runner = CreateRunner(baked);
             foreach (var n in baked.Nodes) n.Initialize(runner);

@@ -57,7 +57,7 @@ namespace Scaffold.GraphFlow
             while (current != null)
             {
                 var next = await current.Invoke(flow).ConfigureAwait(false);
-                if (ReferenceEquals(next, FlowOutPort.End)) break;
+                if (next == null) break;
                 current = next.Connection?.Destination;
             }
         }

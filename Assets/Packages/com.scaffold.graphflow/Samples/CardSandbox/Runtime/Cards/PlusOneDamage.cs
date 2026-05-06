@@ -46,7 +46,7 @@ namespace Scaffold.GraphFlow.CardSandbox.Cards
             {
                 var evt = Event.Read(flow);
                 if (evt != null) evt.Amount += 1;
-                return FlowOutPort.End;
+                return null;
             });
             Ports.Add(FlowIn.Name, FlowIn);
             Ports.Add(nameof(Event), Event);

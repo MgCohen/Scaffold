@@ -81,7 +81,7 @@ namespace Scaffold.GraphFlow.Tests
             FlowIn = FlowInPort.Sync(this, nameof(FlowIn), flow =>
             {
                 Runner(flow).LogSink.Record(Message.Read(flow) ?? "");
-                return FlowOutPort.End;
+                return null;
             });
             Ports.Add(FlowIn.Name, FlowIn);
             Ports.Add(nameof(Message), Message);

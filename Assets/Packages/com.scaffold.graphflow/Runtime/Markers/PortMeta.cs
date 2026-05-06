@@ -8,7 +8,6 @@ namespace Scaffold.GraphFlow
         Output,
     }
 
-    [Serializable]
     public readonly struct PortMeta
     {
         public string        Name      { get; }
