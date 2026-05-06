@@ -6,7 +6,7 @@ namespace Scaffold.States
 {
     public sealed class AggregateSlice : BaseSlice<AggregateState>
     {
-        public AggregateSlice(IReference reference, IAggregateProvider provider) : base(reference)
+        public AggregateSlice(Reference reference, IAggregateProvider provider) : base(reference)
         {
             this.provider = provider ?? throw new ArgumentNullException(nameof(provider));
         }
@@ -15,6 +15,7 @@ namespace Scaffold.States
 
         private readonly IAggregateProvider provider;
         private Store? attachedStore;
+        private IDisposable? wireSubscription;
 
         internal BaseState BuildForScope(IStateScope scope)
         {
@@ -24,9 +25,17 @@ namespace Scaffold.States
         internal void OnAttachedToStore(Store store)
         {
             attachedStore = store;
-            provider.Wire(store, new RebuildCallback(this));
+            wireSubscription?.Dispose();
+            wireSubscription = provider.Wire(store, new RebuildCallback(this));
             var built = provider.Build(store);
             ReplaceState((AggregateState)built);
+        }
+
+        internal void DisposeWireSubscription()
+        {
+            wireSubscription?.Dispose();
+            wireSubscription = null;
+            attachedStore = null;
         }
 
         public sealed override void Set(State state)

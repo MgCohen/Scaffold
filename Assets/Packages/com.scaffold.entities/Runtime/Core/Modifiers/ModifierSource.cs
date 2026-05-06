@@ -1,43 +1,31 @@
 #nullable enable
-
 using System;
+using Scaffold.States;
 
 namespace Scaffold.Entities
 {
     public readonly struct ModifierSource : IEquatable<ModifierSource>
     {
-        public ModifierSource(InstanceId source, int tag = 0)
+        public ModifierSource(Reference source, int tag = 0)
         {
-            Source = source ?? throw new ArgumentNullException(nameof(source));
+            Source = source;
             Tag = tag;
         }
 
-        public InstanceId Source { get; }
+        public Reference? Source { get; }
         public int Tag { get; }
 
-        public override bool Equals(object? obj)
-        {
-            return obj is ModifierSource other && Equals(other);
-        }
+        public override bool Equals(object? obj) => obj is ModifierSource other && Equals(other);
 
         public bool Equals(ModifierSource other)
         {
+            if (Source is null) return other.Source is null && Tag == other.Tag;
             return Source.Equals(other.Source) && Tag == other.Tag;
         }
 
-        public override int GetHashCode()
-        {
-            return HashCode.Combine(Source, Tag);
-        }
+        public override int GetHashCode() => HashCode.Combine(Source, Tag);
 
-        public static bool operator ==(ModifierSource left, ModifierSource right)
-        {
-            return left.Equals(right);
-        }
-
-        public static bool operator !=(ModifierSource left, ModifierSource right)
-        {
-            return !left.Equals(right);
-        }
+        public static bool operator ==(ModifierSource left, ModifierSource right) => left.Equals(right);
+        public static bool operator !=(ModifierSource left, ModifierSource right) => !left.Equals(right);
     }
 }

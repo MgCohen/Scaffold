@@ -10,6 +10,7 @@ namespace Scaffold.Maps
             predicateIndexers = new Dictionary<string, Indexer<TPrimary, TSecondary, TValue>>();
         }
 
+        /// <inheritdoc />
         public TValue this[TPrimary primary, TSecondary secondary]
         {
             get
@@ -20,9 +21,9 @@ namespace Scaffold.Maps
             set
             {
                 Index<TPrimary, TSecondary> index = new Index<TPrimary, TSecondary>(primary, secondary);
-                if (TryGetHolder(index, out Holder<TValue> holder))
+                if (TryGetValue(index, out _))
                 {
-                    holder.Value = value;
+                    base[index] = value;
                     return;
                 }
 
@@ -30,17 +31,15 @@ namespace Scaffold.Maps
             }
         }
 
+        /// <inheritdoc />
         public override TValue this[Index<TPrimary, TSecondary> index]
         {
-            get
-            {
-                return base[index];
-            }
+            get => base[index];
             set
             {
-                if (TryGetHolder(index, out Holder<TValue> holder))
+                if (TryGetValue(index, out _))
                 {
-                    holder.Value = value;
+                    base[index] = value;
                     return;
                 }
 
@@ -50,108 +49,81 @@ namespace Scaffold.Maps
 
         private readonly Dictionary<string, Indexer<TPrimary, TSecondary, TValue>> predicateIndexers;
 
-        public void Add(TPrimary primary, TValue value)
-        {
-            if (predicateIndexers == null)
-            {
-                throw new InvalidOperationException("Map indexers were not initialized.");
-            }
-
-            Add(primary, default, value);
-        }
-
-        public void Add(TSecondary secondary, TValue value)
-        {
-            if (predicateIndexers == null)
-            {
-                throw new InvalidOperationException("Map indexers were not initialized.");
-            }
-
-            Add(default, secondary, value);
-        }
-
+        /// <inheritdoc />
         public void Add(TPrimary primary, TSecondary secondary, TValue value)
         {
-            if (predicateIndexers == null)
-            {
-                throw new InvalidOperationException("Map indexers were not initialized.");
-            }
-
             Index<TPrimary, TSecondary> index = new Index<TPrimary, TSecondary>(primary, secondary);
             Add(index, value);
         }
 
+        /// <inheritdoc />
         public void Add(Index<TPrimary, TSecondary> index, TValue value)
         {
-            if (predicateIndexers == null)
-            {
-                throw new InvalidOperationException("Map indexers were not initialized.");
-            }
-
-            Holder<TValue> holder = new Holder<TValue>(value);
-            base.Add(index, holder);
+            base.Add(index, value);
             foreach (Indexer<TPrimary, TSecondary, TValue> indexer in predicateIndexers.Values)
             {
-                indexer.Track(index, holder);
+                indexer.Track(index);
             }
         }
 
+        /// <inheritdoc />
         public bool Contains(TPrimary primary, TSecondary secondary)
         {
-            if (predicateIndexers == null)
-            {
-                throw new InvalidOperationException("Map indexers were not initialized.");
-            }
-
             Index<TPrimary, TSecondary> index = new Index<TPrimary, TSecondary>(primary, secondary);
             return ContainsKey(index);
         }
 
+        /// <inheritdoc />
         public bool TryGetValue(TPrimary primary, TSecondary secondary, out TValue value)
         {
-            if (predicateIndexers == null)
-            {
-                throw new InvalidOperationException("Map indexers were not initialized.");
-            }
-
             Index<TPrimary, TSecondary> index = new Index<TPrimary, TSecondary>(primary, secondary);
             return TryGetValue(index, out value);
         }
 
-        public Indexer<TPrimary, TSecondary, TValue> AddIndexer(string name, Func<TPrimary, TSecondary, bool> predicate)
+        /// <summary>
+        /// Registers a named indexer. The predicate evaluates only composite keys — not stored values —
+        /// so value updates do not reclassify indexer membership.
+        /// </summary>
+        public Indexer<TPrimary, TSecondary, TValue> AddIndexer(string name, Func<TPrimary, TSecondary, bool> keyPredicate)
         {
-            if (predicateIndexers == null) throw new InvalidOperationException("Map indexers were not initialized.");
-            if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Indexer name cannot be empty.", nameof(name));
-            if (predicate == null) throw new ArgumentNullException(nameof(predicate));
-            Indexer<TPrimary, TSecondary, TValue> indexer = new Indexer<TPrimary, TSecondary, TValue>(name, predicate);
-            IEnumerable<KeyValuePair<Index<TPrimary, TSecondary>, Holder<TValue>>> entries = GetEntries();
-            indexer.Rebuild(entries);
-            predicateIndexers.Add(indexer.Name, indexer);
-            return indexer;
-        }
-
-        public bool TryGetIndexer(string name, out Indexer<TPrimary, TSecondary, TValue> indexer)
-        {
-            if (predicateIndexers == null)
-            {
-                throw new InvalidOperationException("Map indexers were not initialized.");
-            }
-
             if (string.IsNullOrWhiteSpace(name))
             {
                 throw new ArgumentException("Indexer name cannot be empty.", nameof(name));
             }
 
-            return predicateIndexers.TryGetValue(name, out indexer);
-        }
-
-        public bool RemoveIndexer(string name)
-        {
-            if (predicateIndexers == null)
+            if (keyPredicate is null)
             {
-                throw new InvalidOperationException("Map indexers were not initialized.");
+                throw new ArgumentNullException(nameof(keyPredicate));
             }
 
+            if (predicateIndexers.ContainsKey(name))
+            {
+                throw new InvalidOperationException($"Indexer '{name}' already exists.");
+            }
+
+            Indexer<TPrimary, TSecondary, TValue> indexer =
+                Indexer<TPrimary, TSecondary, TValue>.CreateBound(this, name, keyPredicate);
+            indexer.Rebuild(GetEntries());
+            predicateIndexers.Add(indexer.Name, indexer);
+            return indexer;
+        }
+
+        /// <inheritdoc />
+        public bool TryGetIndexer(string name, out IReadOnlyIndexer<TPrimary, TSecondary, TValue> indexer)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                throw new ArgumentException("Indexer name cannot be empty.", nameof(name));
+            }
+
+            bool found = predicateIndexers.TryGetValue(name, out Indexer<TPrimary, TSecondary, TValue> concrete);
+            indexer = concrete;
+            return found;
+        }
+
+        /// <inheritdoc />
+        public bool RemoveIndexer(string name)
+        {
             if (string.IsNullOrWhiteSpace(name))
             {
                 throw new ArgumentException("Indexer name cannot be empty.", nameof(name));
@@ -160,45 +132,51 @@ namespace Scaffold.Maps
             return predicateIndexers.Remove(name);
         }
 
+        /// <inheritdoc />
         public IReadOnlyCollection<TValue> GetIndexedValues(string name)
         {
-            if (predicateIndexers == null)
-            {
-                throw new InvalidOperationException("Map indexers were not initialized.");
-            }
-
             if (string.IsNullOrWhiteSpace(name))
             {
                 throw new ArgumentException("Indexer name cannot be empty.", nameof(name));
             }
 
-            Indexer<TPrimary, TSecondary, TValue> indexer = predicateIndexers[name];
-            return indexer.Values;
-        }
-
-        public bool Remove(TPrimary primary, TSecondary secondary)
-        {
-            if (predicateIndexers == null)
+            if (!predicateIndexers.TryGetValue(name, out Indexer<TPrimary, TSecondary, TValue> indexer))
             {
-                throw new InvalidOperationException("Map indexers were not initialized.");
+                throw new KeyNotFoundException($"Indexer '{name}' not registered. Call AddIndexer first.");
             }
 
+            return indexer.SnapshotValues();
+        }
+
+        /// <inheritdoc />
+        public bool Remove(TPrimary primary, TSecondary secondary)
+        {
             Index<TPrimary, TSecondary> index = new Index<TPrimary, TSecondary>(primary, secondary);
             return Remove(index);
         }
 
+        /// <inheritdoc />
         public override bool Remove(Index<TPrimary, TSecondary> index)
         {
-            if (predicateIndexers == null) throw new InvalidOperationException("Map indexers were not initialized.");
-            if (!TryGetHolder(index, out Holder<TValue> holder)) return false;
-            if (!base.Remove(index)) return false;
+            if (!ContainsKey(index))
+            {
+                return false;
+            }
+
+            if (!base.Remove(index))
+            {
+                return false;
+            }
+
             foreach (Indexer<TPrimary, TSecondary, TValue> indexer in predicateIndexers.Values)
             {
-                indexer.Untrack(holder);
+                indexer.Untrack(index);
             }
+
             return true;
         }
 
+        /// <inheritdoc />
         public override void Clear()
         {
             base.Clear();
@@ -208,68 +186,51 @@ namespace Scaffold.Maps
             }
         }
 
+        /// <inheritdoc />
         public IReadOnlyList<KeyValuePair<TSecondary, TValue>> GetAll(TPrimary primary)
         {
-            if (predicateIndexers == null)
-            {
-                throw new InvalidOperationException("Map indexers were not initialized.");
-            }
-
             List<KeyValuePair<TSecondary, TValue>> list = new List<KeyValuePair<TSecondary, TValue>>();
             IEqualityComparer<TPrimary> comparer = EqualityComparer<TPrimary>.Default;
-            foreach (KeyValuePair<Index<TPrimary, TSecondary>, Holder<TValue>> entry in GetEntries())
+            foreach (KeyValuePair<Index<TPrimary, TSecondary>, TValue> entry in GetEntries())
             {
                 if (comparer.Equals(entry.Key.Primary, primary))
                 {
-                    list.Add(new KeyValuePair<TSecondary, TValue>(entry.Key.Secondary, entry.Value.Value));
+                    list.Add(new KeyValuePair<TSecondary, TValue>(entry.Key.Secondary, entry.Value));
                 }
             }
 
             return list;
         }
 
+        /// <inheritdoc />
         public IReadOnlyList<KeyValuePair<TPrimary, TValue>> GetAll(TSecondary secondary)
         {
-            if (predicateIndexers == null)
-            {
-                throw new InvalidOperationException("Map indexers were not initialized.");
-            }
-
             List<KeyValuePair<TPrimary, TValue>> list = new List<KeyValuePair<TPrimary, TValue>>();
             IEqualityComparer<TSecondary> comparer = EqualityComparer<TSecondary>.Default;
-            foreach (KeyValuePair<Index<TPrimary, TSecondary>, Holder<TValue>> entry in GetEntries())
+            foreach (KeyValuePair<Index<TPrimary, TSecondary>, TValue> entry in GetEntries())
             {
                 if (comparer.Equals(entry.Key.Secondary, secondary))
                 {
-                    list.Add(new KeyValuePair<TPrimary, TValue>(entry.Key.Primary, entry.Value.Value));
+                    list.Add(new KeyValuePair<TPrimary, TValue>(entry.Key.Primary, entry.Value));
                 }
             }
 
             return list;
         }
 
+        /// <inheritdoc />
         public void GetAll(TSecondary secondary, ICollection<TValue> results)
         {
-            if (predicateIndexers == null)
-            {
-                throw new InvalidOperationException("Map indexers were not initialized.");
-            }
-
             if (results is null)
             {
                 throw new ArgumentNullException(nameof(results));
             }
 
-            ForEachMatchingSecondary(secondary, (_, holder) => results.Add(holder.Value));
+            ForEachMatchingSecondary(secondary, (_, v) => results.Add(v));
         }
 
         internal void AddPrimaryKeysForSecondary(TSecondary secondary, ICollection<TPrimary> primaryKeys)
         {
-            if (predicateIndexers == null)
-            {
-                throw new InvalidOperationException("Map indexers were not initialized.");
-            }
-
             if (primaryKeys is null)
             {
                 throw new ArgumentNullException(nameof(primaryKeys));
@@ -278,25 +239,21 @@ namespace Scaffold.Maps
             ForEachMatchingSecondary(secondary, (index, _) => primaryKeys.Add(index.Primary));
         }
 
+        /// <inheritdoc />
         public void GetAll(TPrimary primary, ICollection<TValue> results)
         {
-            if (predicateIndexers == null)
-            {
-                throw new InvalidOperationException("Map indexers were not initialized.");
-            }
-
             if (results is null)
             {
                 throw new ArgumentNullException(nameof(results));
             }
 
-            ForEachMatchingPrimary(primary, (_, holder) => results.Add(holder.Value));
+            ForEachMatchingPrimary(primary, (_, v) => results.Add(v));
         }
 
-        private void ForEachMatchingPrimary(TPrimary primary, Action<Index<TPrimary, TSecondary>, Holder<TValue>> onMatch)
+        private void ForEachMatchingPrimary(TPrimary primary, Action<Index<TPrimary, TSecondary>, TValue> onMatch)
         {
             IEqualityComparer<TPrimary> comparer = EqualityComparer<TPrimary>.Default;
-            foreach (KeyValuePair<Index<TPrimary, TSecondary>, Holder<TValue>> entry in GetEntries())
+            foreach (KeyValuePair<Index<TPrimary, TSecondary>, TValue> entry in GetEntries())
             {
                 if (comparer.Equals(entry.Key.Primary, primary))
                 {
@@ -305,10 +262,10 @@ namespace Scaffold.Maps
             }
         }
 
-        private void ForEachMatchingSecondary(TSecondary secondary, Action<Index<TPrimary, TSecondary>, Holder<TValue>> onMatch)
+        private void ForEachMatchingSecondary(TSecondary secondary, Action<Index<TPrimary, TSecondary>, TValue> onMatch)
         {
             IEqualityComparer<TSecondary> comparer = EqualityComparer<TSecondary>.Default;
-            foreach (KeyValuePair<Index<TPrimary, TSecondary>, Holder<TValue>> entry in GetEntries())
+            foreach (KeyValuePair<Index<TPrimary, TSecondary>, TValue> entry in GetEntries())
             {
                 if (comparer.Equals(entry.Key.Secondary, secondary))
                 {
@@ -317,36 +274,28 @@ namespace Scaffold.Maps
             }
         }
 
+        /// <inheritdoc />
         public IReadOnlyCollection<TPrimary> GetPrimaryKeys()
         {
-            if (predicateIndexers == null)
-            {
-                throw new InvalidOperationException("Map indexers were not initialized.");
-            }
-
             HashSet<TPrimary> keys = new HashSet<TPrimary>(EqualityComparer<TPrimary>.Default);
-            foreach (KeyValuePair<Index<TPrimary, TSecondary>, Holder<TValue>> entry in GetEntries())
+            foreach (KeyValuePair<Index<TPrimary, TSecondary>, TValue> entry in GetEntries())
             {
                 keys.Add(entry.Key.Primary);
             }
 
-            return new List<TPrimary>(keys);
+            return keys;
         }
 
+        /// <inheritdoc />
         public IReadOnlyCollection<TSecondary> GetSecondaryKeys()
         {
-            if (predicateIndexers == null)
-            {
-                throw new InvalidOperationException("Map indexers were not initialized.");
-            }
-
             HashSet<TSecondary> keys = new HashSet<TSecondary>(EqualityComparer<TSecondary>.Default);
-            foreach (KeyValuePair<Index<TPrimary, TSecondary>, Holder<TValue>> entry in GetEntries())
+            foreach (KeyValuePair<Index<TPrimary, TSecondary>, TValue> entry in GetEntries())
             {
                 keys.Add(entry.Key.Secondary);
             }
 
-            return new List<TSecondary>(keys);
+            return keys;
         }
     }
 }

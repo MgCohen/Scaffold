@@ -24,14 +24,14 @@ namespace Scaffold.Ads.Levelplay.Test
             Initialize();
         }
 
-        private void Initialize(string userId = "")
+        private async void Initialize(string userId = "")
         {
             if (AdManager == null)
             {
                 return;
             }
 
-            AdManager.InitializeAds(userId, CreateRewardEndpointClient());
+            await AdManager.InitializeAds(userId, CreateRewardEndpointClient());
             AssignAdManagerToTesters();
         }
 

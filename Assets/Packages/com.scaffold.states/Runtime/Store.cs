@@ -9,67 +9,147 @@ namespace Scaffold.States
     public sealed class Store : IStoreScope
     {
         public Store(IStateEventHandler eventHandler, MutatorRegistry mutatorRegistry, params BaseSlice[] slices)
+            : this(eventHandler, mutatorRegistry, null, slices)
+        {
+        }
+
+        public Store(IStateEventHandler eventHandler, MutatorRegistry mutatorRegistry, IMutatorDispatcher? mutatorDispatcher, params BaseSlice[] slices)
         {
             this.eventHandler = eventHandler;
             this.mutatorRegistry = mutatorRegistry ?? new MutatorRegistry();
+            this.mutatorDispatcher = mutatorDispatcher;
+            this.Catalog = new Catalog();
 
-            this.map = new Map<IReference, Type, Slice>();
-            this.aggregates = new Map<IReference, Type, AggregateSlice>();
+            this.map = new Map<Reference, Type, Slice>();
+            this.aggregates = new Map<Reference, Type, AggregateSlice>();
+            mutatorRunnerPool = new Pool<MutatorRunner>(() => new MutatorRunner(new Scratchpad(this)), null, initialSize: 2);
+            baseSliceListPool = new Pool<List<BaseSlice>>(static () => new List<BaseSlice>(), null, initialSize: 2);
 
             foreach (var baseSlice in slices)
             {
                 if (baseSlice is Slice slice)
                 {
                     map.Add(slice.Reference, slice.StateType, slice);
+                    AddSliceToIndex(slice);
                 }
                 else
                 {
                     if (baseSlice is AggregateSlice aSlice)
                     {
                         aggregates.Add(aSlice.Reference, aSlice.StateType, aSlice);
+                        AddSliceToIndex(aSlice);
                         aSlice.OnAttachedToStore(this);
                     }
                 }
             }
-
-            mutatorRunnerPool = new Pool<MutatorRunner>(() => new MutatorRunner(new Scratchpad(this)), null, initialSize: 2);
         }
 
         public IStateEventHandler Events => eventHandler;
 
-        private readonly Map<IReference, Type, Slice> map;
-        private readonly Map<IReference, Type, AggregateSlice> aggregates;
+        public ICatalog Catalog { get; }
+
+        private readonly Map<Reference, Type, Slice> map;
+        private readonly Map<Reference, Type, AggregateSlice> aggregates;
         private readonly IStateEventHandler eventHandler;
         private readonly MutatorRegistry mutatorRegistry;
+        private readonly IMutatorDispatcher? mutatorDispatcher;
         private readonly Pool<MutatorRunner> mutatorRunnerPool;
-        private readonly List<Slice> mapSliceBuffer = new List<Slice>();
-        private readonly List<AggregateSlice> aggregateSliceBuffer = new List<AggregateSlice>();
-        private readonly List<BaseSlice> sliceBuffer = new List<BaseSlice>();
-        private readonly List<(IReference Reference, Type StateType)> pruneBuffer = new List<(IReference Reference, Type StateType)>();
+        private readonly Pool<List<BaseSlice>> baseSliceListPool;
+        private readonly Dictionary<Type, List<BaseSlice>> slicesByStateType = new();
 
         #region Subscriptions
-        public void Subscribe<TState>(Action<IReference, TState, StateChangeEvent> action) where TState : BaseState
+        public void Subscribe<TState>(Action<Reference, TState, StateChangeEvent> action) where TState : BaseState
         {
             Subscribe(Reference.Null, action);
         }
 
-        public void Subscribe<TState>(IReference reference, Action<IReference, TState, StateChangeEvent> action) where TState : BaseState
+        public void Subscribe<TState>(Reference reference, Action<Reference, TState, StateChangeEvent> action) where TState : BaseState
         {
+            if (action is null)
+            {
+                throw new ArgumentNullException(nameof(action));
+            }
+
             eventHandler.Subscribe(reference, action);
         }
 
-        public void Unsubscribe<TState>(IReference reference, Action<IReference, TState, StateChangeEvent> action) where TState : BaseState
+        public void Unsubscribe<TState>(Reference reference, Action<Reference, TState, StateChangeEvent> action) where TState : BaseState
         {
+            if (action is null)
+            {
+                throw new ArgumentNullException(nameof(action));
+            }
+
             eventHandler.Unsubscribe(reference, action);
         }
 
-        public void SubscribeAllReferences<TState>(Action<IReference, TState, StateChangeEvent> action) where TState : BaseState
+        public void SubscribeAllReferences<TState>(Action<Reference, TState, StateChangeEvent> action) where TState : BaseState
         {
+            if (action is null)
+            {
+                throw new ArgumentNullException(nameof(action));
+            }
+
             eventHandler.SubscribeAllReferences(action);
         }
 
-        public void SubscribeAny(Action<IReference, BaseState, StateChangeEvent> action)
+        public void Subscribe<TState>(Reference reference, Action<TState, StateChangeEvent> action) where TState : BaseState
         {
+            if (action is null)
+            {
+                throw new ArgumentNullException(nameof(action));
+            }
+
+            eventHandler.Subscribe(reference, action);
+        }
+
+        public void Subscribe<TState>(Reference reference, Action<TState> action) where TState : BaseState
+        {
+            if (action is null)
+            {
+                throw new ArgumentNullException(nameof(action));
+            }
+
+            eventHandler.Subscribe(reference, action);
+        }
+
+        public void Unsubscribe<TState>(Reference reference, Action<TState, StateChangeEvent> action) where TState : BaseState
+        {
+            if (action is null)
+            {
+                throw new ArgumentNullException(nameof(action));
+            }
+
+            eventHandler.Unsubscribe(reference, action);
+        }
+
+        public void Unsubscribe<TState>(Reference reference, Action<TState> action) where TState : BaseState
+        {
+            if (action is null)
+            {
+                throw new ArgumentNullException(nameof(action));
+            }
+
+            eventHandler.Unsubscribe(reference, action);
+        }
+
+        public void UnsubscribeAllReferences<TState>(Action<Reference, TState, StateChangeEvent> action) where TState : BaseState
+        {
+            if (action is null)
+            {
+                throw new ArgumentNullException(nameof(action));
+            }
+
+            eventHandler.UnsubscribeAllReferences(action);
+        }
+
+        public void SubscribeAny(Action<Reference, BaseState, StateChangeEvent> action)
+        {
+            if (action is null)
+            {
+                throw new ArgumentNullException(nameof(action));
+            }
+
             eventHandler.SubscribeAny(action);
         }
         #endregion
@@ -80,8 +160,7 @@ namespace Scaffold.States
             Snapshot snapshot = new Snapshot();
             foreach (var entry in map)
             {
-                var state = entry.Value.State as State;
-                snapshot.Add(entry.Key.Primary, entry.Key.Secondary, state);
+                snapshot.Add(entry.Key.Primary, entry.Key.Secondary, (State)entry.Value.State);
             }
             return snapshot;
         }
@@ -101,7 +180,7 @@ namespace Scaffold.States
         {
             foreach (var entry in snapshot)
             {
-                IReference r = entry.Key.Primary;
+                Reference r = entry.Key.Primary;
                 Type t = entry.Key.Secondary;
                 State value = entry.Value;
                 if (TryGetSlice(r, t, out _))
@@ -115,20 +194,21 @@ namespace Scaffold.States
             }
         }
 
-        private void ReregisterCanonicalSliceFromSnapshot(IReference r, Type t, State value)
+        private void ReregisterCanonicalSliceFromSnapshot(Reference r, Type t, State value)
         {
             Slice slice = Slice.Create(r, value);
             ThrowIfSliceConflict(r, t, map.Contains(r, t), aggregates.Contains(r, t));
             map.Add(r, t, slice);
+            AddSliceToIndex(slice);
             eventHandler.Notify(r, value, StateChangeEvent.Created);
         }
 
         private void PruneCanonicalSlicesNotInSnapshot(Snapshot snapshot)
         {
-            pruneBuffer.Clear();
+            var pruneBuffer = new List<(Reference Reference, Type StateType)>();
             foreach (var entry in map)
             {
-                IReference r = entry.Key.Primary;
+                Reference r = entry.Key.Primary;
                 Type t = entry.Key.Secondary;
                 if (!snapshot.Contains(r, t))
                 {
@@ -136,7 +216,7 @@ namespace Scaffold.States
                 }
             }
 
-            foreach ((IReference r, Type t) in pruneBuffer)
+            foreach ((Reference r, Type t) in pruneBuffer)
             {
                 UnregisterSlice(r, t);
             }
@@ -150,9 +230,9 @@ namespace Scaffold.States
             ExecuteMutator(Reference.Null, mutator);
         }
 
-        public void ExecuteMutator<TState>(IReference? reference, Mutator<TState> mutator) where TState : State
+        public void ExecuteMutator<TState>(Reference? reference, Mutator<TState> mutator) where TState : State
         {
-            var r = reference ?? Reference.Null;
+            var r = FromReference(reference);
             MutatorRunner runner = mutatorRunnerPool.Take();
             try
             {
@@ -170,12 +250,12 @@ namespace Scaffold.States
             ExecuteMutator(Reference.Null, mutator, payload);
         }
 
-        public void ExecuteMutator<TState, TPayload>(IReference? reference, Mutator<TState, TPayload> mutator, TPayload payload) where TState : State
+        public void ExecuteMutator<TState, TPayload>(Reference? reference, Mutator<TState, TPayload> mutator, TPayload payload) where TState : State
         {
             MutatorRunner runner = mutatorRunnerPool.Take();
             try
             {
-                runner.RunTypedMutatorWithoutCommit(reference ?? Reference.Null, mutator, payload);
+                runner.RunTypedMutatorWithoutCommit(FromReference(reference), mutator, payload);
                 runner.CommitOverlay();
             }
             finally
@@ -189,14 +269,19 @@ namespace Scaffold.States
             Execute(Reference.Null, payload);
         }
 
-        public void Execute<TPayload>(IReference? reference, TPayload payload)
+        public void Execute<TPayload>(Reference? reference, TPayload payload)
         {
             if (payload is null)
             {
                 throw new ArgumentNullException(nameof(payload));
             }
 
-            var r = reference ?? Reference.Null;
+            var r = FromReference(reference);
+            if (mutatorDispatcher != null && mutatorDispatcher.TryDispatch(this, r, payload))
+            {
+                return;
+            }
+
             MutatorRunner runner = mutatorRunnerPool.Take();
             try
             {
@@ -221,7 +306,19 @@ namespace Scaffold.States
                 return;
             }
 
+            ThrowIfBatchContainsNull(payloads);
             RunExecuteBatchWithPool(payloads);
+        }
+
+        private void ThrowIfBatchContainsNull(IReadOnlyList<object> payloads)
+        {
+            for (int i = 0; i < payloads.Count; i++)
+            {
+                if (payloads[i] is null)
+                {
+                    throw new ArgumentException("Batch contains a null command payload.", nameof(payloads));
+                }
+            }
         }
 
         private void RunExecuteBatchWithPool(IReadOnlyList<object> payloads)
@@ -240,29 +337,18 @@ namespace Scaffold.States
 
         private void ApplyBatchWithoutCommit(MutatorRunner runner, IReadOnlyList<object> payloads)
         {
-            foreach (object payload in payloads)
+            for (int i = 0; i < payloads.Count; i++)
             {
-                ApplyOnePayloadToOverlay(runner, payload, payloads);
+                RunRegisteredMutatorsWithoutCommit(runner, payloads[i], Reference.Null);
             }
         }
 
-        private void ApplyOnePayloadToOverlay(MutatorRunner runner, object payload, IReadOnlyList<object> payloads)
-        {
-            if (payload is null)
-            {
-                throw new ArgumentException("Batch contains a null command payload.", nameof(payloads));
-            }
-
-            RunRegisteredMutatorsWithoutCommit(runner, payload, Reference.Null);
-        }
-
-        private void RunRegisteredMutatorsWithoutCommit(MutatorRunner runner, object payload, IReference executeReference)
+        private void RunRegisteredMutatorsWithoutCommit(MutatorRunner runner, object payload, Reference executeReference)
         {
             Type payloadType = payload.GetType();
-            if (!mutatorRegistry.TryGet(payloadType, out IReadOnlyList<IPayloadMutatorBinding>? bindings) || bindings == null || bindings.Count == 0)
+            if (!mutatorRegistry.TryGet(payloadType, out var bindings) || bindings.Count == 0)
             {
-                UnityEngine.Debug.LogWarning($"[Store] No mutators registered for payload type {payloadType.FullName}.");
-                return;
+                throw new MutatorNotRegisteredException(payloadType);
             }
 
             runner.RunMutatorBindingsWithoutCommit(payload, bindings, executeReference);
@@ -281,38 +367,39 @@ namespace Scaffold.States
 
         #region Slice registration
 
-        public void RegisterSlice(IReference? reference, State state)
+        public void RegisterSlice(Reference? reference, State state)
         {
             if (state is null)
             {
                 throw new ArgumentNullException(nameof(state));
             }
 
-            var r = reference ?? Reference.Null;
+            var r = FromReference(reference);
             Slice slice = Slice.Create(r, state);
             Type t = slice.StateType;
             ThrowIfSliceConflict(r, t, map.Contains(r, t), aggregates.Contains(r, t));
             map.Add(r, t, slice);
+            AddSliceToIndex(slice);
             eventHandler.Notify(r, state, StateChangeEvent.Created);
         }
 
-        public bool UnregisterSlice<TState>(IReference? reference) where TState : State
+        public bool UnregisterSlice<TState>(Reference? reference) where TState : State
         {
             return UnregisterSlice(reference, typeof(TState));
         }
 
-        public bool UnregisterSlice(IReference? reference, Type stateType)
+        public bool UnregisterSlice(Reference? reference, Type stateType)
         {
             if (stateType is null)
             {
                 throw new ArgumentNullException(nameof(stateType));
             }
 
-            var r = reference ?? Reference.Null;
+            var r = FromReference(reference);
             return TryRemoveCanonicalSliceAndNotify(r, stateType);
         }
 
-        private bool TryRemoveCanonicalSliceAndNotify(IReference r, Type stateType)
+        private bool TryRemoveCanonicalSliceAndNotify(Reference r, Type stateType)
         {
             if (!map.TryGetValue(r, stateType, out Slice slice))
             {
@@ -329,6 +416,8 @@ namespace Scaffold.States
                 return false;
             }
 
+            RemoveSliceFromIndex(slice);
+
             eventHandler.Notify(r, lastState, StateChangeEvent.Removed);
             return true;
         }
@@ -337,23 +426,54 @@ namespace Scaffold.States
 
         #region Aggregate registration
 
-        public void RegisterAggregate(IReference? reference, IAggregateProvider provider)
+        public void RegisterAggregate(Reference? reference, IAggregateProvider provider)
         {
             if (provider is null)
             {
                 throw new ArgumentNullException(nameof(provider));
             }
 
-            var r = reference ?? Reference.Null;
+            var r = FromReference(reference);
             var aSlice = new AggregateSlice(r, provider);
             Type t = aSlice.StateType;
             ThrowIfSliceConflict(r, t, map.Contains(r, t), aggregates.Contains(r, t));
             aggregates.Add(r, t, aSlice);
+            AddSliceToIndex(aSlice);
             aSlice.OnAttachedToStore(this);
             eventHandler.Notify(r, aSlice.State, StateChangeEvent.Created);
         }
 
-        private void ThrowIfSliceConflict(IReference r, Type t, bool hasCanonical, bool hasAggregate)
+        public bool UnregisterAggregate<TAggregate>(Reference? reference) where TAggregate : AggregateState
+        {
+            return UnregisterAggregate(reference, typeof(TAggregate));
+        }
+
+        public bool UnregisterAggregate(Reference? reference, Type aggregateStateType)
+        {
+            if (aggregateStateType is null)
+            {
+                throw new ArgumentNullException(nameof(aggregateStateType));
+            }
+
+            var r = FromReference(reference);
+            if (!aggregates.TryGetValue(r, aggregateStateType, out AggregateSlice? slice))
+            {
+                return false;
+            }
+
+            if (!aggregates.Remove(r, aggregateStateType))
+            {
+                return false;
+            }
+
+            RemoveSliceFromIndex(slice);
+            slice.DisposeWireSubscription();
+            BaseState lastState = slice.State;
+            eventHandler.Notify(r, lastState, StateChangeEvent.Removed);
+            return true;
+        }
+
+        private void ThrowIfSliceConflict(Reference r, Type t, bool hasCanonical, bool hasAggregate)
         {
             if (hasCanonical)
             {
@@ -371,9 +491,13 @@ namespace Scaffold.States
         #endregion
 
         #region Setters
-        private void Set(IReference reference, State state)
+        private void Set(Reference reference, State state)
         {
-            BaseSlice slice = GetSlice(reference, state.GetType());
+            if (!TryGetSlice(reference, state.GetType(), out BaseSlice slice))
+            {
+                throw new KeyNotFoundException($"No slice registered for state type {state.GetType().Name} at the given reference.");
+            }
+
             slice.Set(state);
             eventHandler.Notify(reference, state, StateChangeEvent.Updated);
         }
@@ -385,9 +509,9 @@ namespace Scaffold.States
             return Get<TState>(Reference.Null);
         }
 
-        public TState Get<TState>(IReference? reference) where TState : BaseState
+        public TState Get<TState>(Reference? reference) where TState : BaseState
         {
-            var r = reference ?? Reference.Null;
+            var r = FromReference(reference);
             var t = typeof(TState);
             if (!TryGetSlice(r, t, out BaseSlice slice))
             {
@@ -396,61 +520,121 @@ namespace Scaffold.States
             return (TState)slice.State;
         }
 
-        public IEnumerable<TState> GetAll<TState>() where TState : BaseState
+        public bool TryGet<TState>(Reference? reference, out TState state) where TState : BaseState
         {
-            Type stateType = typeof(TState);
-            FillSlices(stateType, sliceBuffer);
-            return EnumerateSliceStates<TState>();
+            Reference r = FromReference(reference);
+            if (TryGetSlice(r, typeof(TState), out BaseSlice slice))
+            {
+                if (slice is AggregateSlice aSlice)
+                {
+                    state = (TState)aSlice.BuildForScope(this);
+                    return true;
+                }
+                state = (TState)slice.State;
+                return true;
+            }
+
+            state = default!;
+            return false;
         }
 
-        public IEnumerable<(IReference Reference, TState State)> EnumerateAll<TState>() where TState : BaseState
+        public IEnumerable<TState> GetAll<TState>() where TState : BaseState
         {
-            FillSlices(typeof(TState), sliceBuffer);
-            for (int i = 0; i < sliceBuffer.Count; i++)
+            return IterateSlicesAsStates<TState>(typeof(TState));
+        }
+
+        public EnumerateAllPairsResult<TState> EnumerateAllPairs<TState>() where TState : BaseState
+        {
+            return new EnumerateAllPairsResult<TState>(this);
+        }
+
+        public EnumerateAllResult<TState> EnumerateAll<TState>() where TState : BaseState
+        {
+            return new EnumerateAllResult<TState>(this);
+        }
+
+        private IEnumerable<TState> IterateSlicesAsStates<TState>(Type stateType) where TState : BaseState
+        {
+            List<BaseSlice> buffer = baseSliceListPool.Take();
+            try
             {
-                if (sliceBuffer[i].State is TState ts)
+                FillSlices(stateType, buffer);
+                foreach (TState ts in YieldStatesFromBuffer<TState>(buffer))
                 {
-                    yield return (sliceBuffer[i].Reference, ts);
+                    yield return ts;
                 }
+            }
+            finally
+            {
+                baseSliceListPool.Return(buffer);
             }
         }
 
-        private IEnumerable<TState> EnumerateSliceStates<TState>() where TState : BaseState
+        private IEnumerable<TState> YieldStatesFromBuffer<TState>(List<BaseSlice> buffer) where TState : BaseState
         {
-            for (int i = 0; i < sliceBuffer.Count; i++)
+            for (int i = 0; i < buffer.Count; i++)
             {
-                if (sliceBuffer[i].State is TState ts)
+                if (buffer[i].State is TState ts)
                 {
                     yield return ts;
                 }
             }
         }
 
+        internal List<BaseSlice> RentFilledEnumerationBuffer(Type stateType)
+        {
+            List<BaseSlice> buffer = baseSliceListPool.Take();
+            FillSlices(stateType, buffer);
+            return buffer;
+        }
+
+        internal void ReturnEnumerationBuffer(List<BaseSlice> buffer)
+        {
+            baseSliceListPool.Return(buffer);
+        }
+
         private void FillSlices(Type stateType, List<BaseSlice> buffer)
         {
             buffer.Clear();
-            mapSliceBuffer.Clear();
-            map.GetAll(stateType, mapSliceBuffer);
-            for (int i = 0; i < mapSliceBuffer.Count; i++)
+            if (!slicesByStateType.TryGetValue(stateType, out List<BaseSlice>? list))
             {
-                buffer.Add(mapSliceBuffer[i]);
+                return;
             }
 
-            aggregateSliceBuffer.Clear();
-            aggregates.GetAll(stateType, aggregateSliceBuffer);
-            for (int i = 0; i < aggregateSliceBuffer.Count; i++)
+            for (int i = 0; i < list.Count; i++)
             {
-                buffer.Add(aggregateSliceBuffer[i]);
+                buffer.Add(list[i]);
             }
         }
 
-        private BaseSlice GetSlice(IReference reference, Type type)
+        private void AddSliceToIndex(BaseSlice slice)
         {
-            TryGetSlice(reference, type, out BaseSlice slice);
-            return slice;
+            Type t = slice.StateType;
+            if (!slicesByStateType.TryGetValue(t, out List<BaseSlice>? row))
+            {
+                row = new List<BaseSlice>();
+                slicesByStateType[t] = row;
+            }
+
+            row.Add(slice);
         }
 
-        private bool TryGetSlice(IReference reference, Type type, out BaseSlice slice)
+        private void RemoveSliceFromIndex(BaseSlice slice)
+        {
+            Type t = slice.StateType;
+            if (!slicesByStateType.TryGetValue(t, out List<BaseSlice>? row))
+            {
+                return;
+            }
+
+            row.Remove(slice);
+            if (row.Count == 0)
+            {
+                slicesByStateType.Remove(t);
+            }
+        }
+
+        private bool TryGetSlice(Reference reference, Type type, out BaseSlice slice)
         {
             if (map.TryGetValue(reference, type, out var tSlice))
             {
@@ -469,6 +653,11 @@ namespace Scaffold.States
         }
         #endregion
 
+        private Reference FromReference(Reference? reference)
+        {
+            return reference ?? Reference.Null;
+        }
+
         private sealed class Scratchpad : IStoreScratchpad
         {
             public Scratchpad(Store owner)
@@ -479,12 +668,13 @@ namespace Scaffold.States
             private readonly Store owner;
             private readonly Snapshot overlay = new Snapshot();
             private readonly List<BaseSlice> sliceBuffer = new List<BaseSlice>();
-            private readonly HashSet<IReference> refSet =
-                new HashSet<IReference>(ReferenceByValueEqualityComparer.Instance);
+            private readonly HashSet<Reference> refSet = new HashSet<Reference>();
 
             public void Reset()
             {
                 overlay.Clear();
+                sliceBuffer.Clear();
+                refSet.Clear();
             }
 
             public void Commit()
@@ -492,7 +682,7 @@ namespace Scaffold.States
                 owner.ApplySnapshot(overlay);
             }
 
-            public void SetPending<TState>(IReference? reference, TState state) where TState : State
+            public void SetPending<TState>(Reference? reference, TState state) where TState : State
             {
                 overlay.Set(reference, state);
             }
@@ -508,13 +698,13 @@ namespace Scaffold.States
                 }
 
                 CollectOverlayRefs(stateType, refSet);
-                foreach (IReference r in refSet)
+                foreach (Reference r in refSet)
                 {
                     yield return Get<TState>(r);
                 }
             }
 
-            private void CollectOverlayRefs(Type stateType, HashSet<IReference> refs)
+            private void CollectOverlayRefs(Type stateType, HashSet<Reference> refs)
             {
                 IEqualityComparer<Type> comparer = EqualityComparer<Type>.Default;
                 foreach (var entry in overlay)
@@ -531,9 +721,9 @@ namespace Scaffold.States
                 return Get<TState>(Reference.Null);
             }
 
-            public TState Get<TState>(IReference? reference) where TState : BaseState
+            public TState Get<TState>(Reference? reference) where TState : BaseState
             {
-                var r = reference ?? Reference.Null;
+                var r = owner.FromReference(reference);
                 if (overlay.TryGetValue(r, typeof(TState), out var fromOverlay))
                 {
                     return (TState)(object)fromOverlay!;
@@ -551,33 +741,28 @@ namespace Scaffold.States
                 return owner.Get<TState>(r);
             }
 
-            private sealed class ReferenceByValueEqualityComparer : IEqualityComparer<IReference>
+            public bool TryGet<TState>(Reference? reference, out TState state) where TState : BaseState
             {
-                internal static ReferenceByValueEqualityComparer Instance { get; } = new ReferenceByValueEqualityComparer();
-
-                private ReferenceByValueEqualityComparer()
+                Reference r = owner.FromReference(reference);
+                if (overlay.TryGetValue(r, typeof(TState), out var fromOverlay))
                 {
+                    state = (TState)(object)fromOverlay!;
+                    return true;
                 }
 
-                public bool Equals(IReference? x, IReference? y)
+                if (owner.TryGetSlice(r, typeof(TState), out BaseSlice slice))
                 {
-                    if (ReferenceEquals(x, y))
+                    if (slice is AggregateSlice aSlice)
                     {
+                        state = (TState)aSlice.BuildForScope(this);
                         return true;
                     }
-
-                    if (x is null || y is null)
-                    {
-                        return false;
-                    }
-
-                    return x.Equals(y);
+                    state = (TState)(object)slice.State!;
+                    return true;
                 }
 
-                public int GetHashCode(IReference obj)
-                {
-                    return obj?.GetHashCode() ?? 0;
-                }
+                state = default!;
+                return false;
             }
         }
     }

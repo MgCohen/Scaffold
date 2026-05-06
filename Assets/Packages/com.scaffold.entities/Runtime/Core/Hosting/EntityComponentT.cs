@@ -1,77 +1,28 @@
 #nullable enable
-using System;
 using UnityEngine;
 
 namespace Scaffold.Entities
 {
-    public partial class EntityComponent<TDefinition> : EntityComponent, IMutableEntity<TDefinition> where TDefinition : IEntityDefinition
+    public partial class EntityComponent<TDefinition> : EntityComponent where TDefinition : IEntityDefinition
     {
-        internal EntityInstance<TDefinition> Instance => instance;
-        [SerializeField] private EntityInstance<TDefinition> instance;
+        [SerializeField] private TDefinition definition = default!;
 
-        public InstanceId Id => Instance.Id;
+        private EntityInstance<TDefinition>? instance;
 
-        internal TDefinition Definition => Instance.Definition;
+        public TDefinition Definition => definition;
 
-        public void InitializeFromDefinition(InstanceId instanceId, TDefinition entityDefinition)
-        {
-            instance = new EntityInstance<TDefinition>();
-            instance.Initialize(instanceId, entityDefinition);
-        }
+        public EntityInstance<TDefinition> Instance
+            => instance ??= new EntityInstance<TDefinition>(definition, new LocalVariableStorage());
 
-        public void InitializeFromInstance(EntityInstance<TDefinition> instance)
-        {
-            this.instance = instance;
-        }
-
-        public T GetVariable<T>(Variable key)
-        {
-            return Instance.GetVariable<T>(key);
-        }
-
-        public bool TryGetVariable<T>(Variable key, out T value)
-        {
-            return Instance.TryGetVariable(key, out value);
-        }
-
-        public ModifierId AddModifier(EntityModifierEntry entry)
-        {
-            return Instance.AddModifier(entry);
-        }
-
-        public bool RemoveModifier(Variable key, ModifierId id)
-        {
-            return Instance.RemoveModifier(key, id);
-        }
-
-        public void ClearModifiers()
-        {
-            Instance.ClearModifiers();
-        }
-
-        public IDisposable Subscribe(Variable key, Action<VariableValue> onChange)
-        {
-            return Instance.Subscribe(key, onChange);
-        }
-
-        public void Unsubscribe(Variable key, Action<VariableValue> onChange)
-        {
-            Instance.Unsubscribe(key, onChange);
-        }
-
-        public bool AddVariable(Variable key, VariableValue initialBase)
-        {
-            return Instance.AddVariable(key, initialBase);
-        }
-
-        public bool RemoveVariable(Variable key)
-        {
-            return Instance.RemoveVariable(key);
-        }
-
-        public IDisposable SubscribeToVariableStructuralChanges(Action<VariableStructuralChange, Variable, VariableValue?> handler)
-        {
-            return Instance.SubscribeToVariableStructuralChanges(handler);
-        }
+        public T GetVariable<T>(Variable key) => Instance.GetVariable<T>(key);
+        public bool TryGetVariable<T>(Variable key, out T value) => Instance.TryGetVariable(key, out value);
+        public bool AddVariable(Variable key, VariableValue initial) => Instance.AddVariable(key, initial);
+        public bool RemoveVariable(Variable key) => Instance.RemoveVariable(key);
+        public bool SetBaseValue(Variable key, VariableValue value) => Instance.SetBaseValue(key, value);
+        public ModifierId AddModifier(Variable key, VariableModifier mod, ModifierSource source = default, ModifierId? id = null)
+            => Instance.AddModifier(key, mod, source, id);
+        public bool RemoveModifier(Variable key, ModifierId id) => Instance.RemoveModifier(key, id);
+        public void ClearModifiers() => Instance.ClearModifiers();
+        public void RemoveModifiersFromSource(ModifierSource source) => Instance.RemoveModifiersFromSource(source);
     }
 }

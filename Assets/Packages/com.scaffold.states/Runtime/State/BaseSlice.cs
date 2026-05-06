@@ -6,19 +6,19 @@ namespace Scaffold.States
 {
     public abstract class BaseSlice
     {
-        protected BaseSlice(IReference reference, BaseState state)
+        protected BaseSlice(Reference reference, BaseState state)
         {
             Reference = reference;
             State = state;
         }
 
-        protected BaseSlice(IReference reference)
+        protected BaseSlice(Reference reference)
         {
             Reference = reference;
             State = null!;
         }
 
-        public IReference Reference { get; }
+        public Reference Reference { get; }
 
         public BaseState State { get; protected set; }
 
@@ -32,12 +32,12 @@ namespace Scaffold.States
 
     public abstract class BaseSlice<T> : BaseSlice where T : BaseState
     {
-        protected BaseSlice(IReference reference, T state) : base(reference, state)
+        protected BaseSlice(Reference reference, T state) : base(reference, state)
         {
 
         }
 
-        protected BaseSlice(IReference reference) : base(reference)
+        protected BaseSlice(Reference reference) : base(reference)
         {
 
         }

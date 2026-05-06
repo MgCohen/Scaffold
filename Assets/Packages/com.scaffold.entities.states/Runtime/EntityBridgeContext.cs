@@ -1,22 +1,25 @@
+#nullable enable
+using System;
 using Scaffold.States;
 
 namespace Scaffold.Entities.States
 {
     public static class EntityBridgeContext
     {
-        public static void RegisterMutators(Store store)
+        public static void RegisterMutators(StoreBuilder builder)
         {
-            if (store == null)
+            if (builder is null)
             {
-                throw new System.ArgumentNullException(nameof(store));
+                throw new ArgumentNullException(nameof(builder));
             }
 
-            store.RegisterMutator(new AddModifierMutator());
-            store.RegisterMutator(new RemoveModifierMutator());
-            store.RegisterMutator(new SetBaseValueMutator());
-            store.RegisterMutator(new AddEntityVariableMutator());
-            store.RegisterMutator(new RemoveEntityVariableMutator());
-            store.RegisterMutator(new RemoveModifiersBySourceMutator());
+            builder.UseMutatorDispatcher(new GeneratedMutatorDispatcher());
+            builder.RegisterMutator(new AddModifierMutator());
+            builder.RegisterMutator(new RemoveModifierMutator());
+            builder.RegisterMutator(new SetBaseValueMutator());
+            builder.RegisterMutator(new AddEntityVariableMutator());
+            builder.RegisterMutator(new RemoveEntityVariableMutator());
+            builder.RegisterMutator(new RemoveModifiersBySourceMutator());
         }
     }
 }

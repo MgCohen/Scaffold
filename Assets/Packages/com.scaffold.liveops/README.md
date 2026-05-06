@@ -32,11 +32,11 @@
 
 ## Registration
 
-`LiveOpsInstaller` registers `LiveOpsService` as `ILiveOpsService` and `Scaffold.AppFlow.IAsyncInitializable` (scoped). Register it from your application composition root alongside other installers (for example `[CurrencyClientInstaller](../../GearEngine/Scripts/Game/Campaign/Bootstrap/Currency/CurrencyClientInstaller.cs)` when you use currency client modules). UGS and Cloud Code should be registered on the same main scope per your startup plan.
+`LiveOpsInstaller` registers `LiveOpsService` as `ILiveOpsService` and `Scaffold.AppFlow.IAsyncInitializable` (scoped). Register it from your application composition root alongside other installers. UGS and Cloud Code should be registered on the same main scope per your startup plan.
 
 Register each concrete handler with `AsImplementedInterfaces()` so `IResponseHandler` and `IResponseHandler<T>` are both registered (for example `builder.Register<MyHandler>(Lifetime.Scoped).AsImplementedInterfaces()` or `builder.RegisterInstance(handler).AsImplementedInterfaces()`). Multiple handlers for the same nested response type are all invoked. Dispatch resolves the handler collection from `ILayerResolver` (current top scope) on first nested dispatch, which avoids constructor ordering issues between `LiveOpsService` and handler registration.
 
-Register concrete feature modules as `IGameClientModule` and `IAsyncInitializable` when they should hydrate during bootstrap (see `[LiveOpsLayer](../../GearEngine/Scripts/App/Bootstrap/Layers/LiveOpsLayer.cs)` and the `Campaign*Installer` types under `Game.Campaign`). `LiveOpsService` does not enumerate client modules; it only stores `GameData` from the initial `GameDataRequest`.
+Register concrete feature modules as `IGameClientModule` and `IAsyncInitializable` when they should hydrate during bootstrap. `LiveOpsService` does not enumerate client modules; it only stores `GameData` from the initial `GameDataRequest`. The bootstrap layer that runs `LiveOpsService` must finish before the layer that runs feature modules — see [`Docs/Standards/Module-Vertical-Slice.md`](../../../Docs/Standards/Module-Vertical-Slice.md) §6 for the full registration shape.
 
 ## Tests
 
@@ -80,7 +80,16 @@ Build `**LiveOps/LiveOps.sln**` (local, includes tests) or `**LiveOps/LiveOps.De
 
 **Backend `**Backend~`** flow:** in this repo, run `**pwsh -File .agents/scripts/refresh-liveops-template.ps1`** to push `**LiveOps/`** into every `**Assets/Packages/*/Backend~**` (host + feature packages), or use **Scaffold > LiveOps > Refresh Backend Template** (only in projects that define `**SCAFFOLD_LIVEOPS_PACKAGE_DEV`** for the **Editor** platform, as in this repository). For every consumer, use **Scaffold > LiveOps > Install or Update Backend** (in-package, no `**.agents**` copy required) or, from a Scaffold checkout, `**install-liveops-backend.ps1**`, to merge all `**Backend~`** trees into `**LiveOps/**` while preserving `**LiveOps/Game**`. **Scaffold > LiveOps > Backend Window** lists `**com.scaffold.*/Backend~**` packages, per-package Update/Refresh (dev), full **Update All** / **Refresh All** (dev), and **Deploy** (merge + `**ugs deploy LiveOps/LiveOps.Deploy.sln**` using the UGS CLI and linked project/environment). Step-by-step (authoring vs consumer, CLI vs menu, and AI guidance): `[Docs/LiveOps/Backend-Authoring-Guide.md](../../../Docs/LiveOps/Backend-Authoring-Guide.md)`.
 
-**Adding a feature module (Scaffold):** add `**LiveOps/Scaffold/<Feature>/`** and `**LiveOps/Scaffold/<Feature.DTO>/`** with `**[LiveOpsKey]**` as in `**Docs/Core/LiveOpsKeys.md**`, and ship the same tree from `**Assets/Packages/com.scaffold.<feature>/Backend~/Scaffold/**`. Copy from `**Tools/BackendTemplate/com.scaffold.example**` for a minimal runnable pair of csprojs. `**Scaffold.LiveOps.Bootstrap.Generators**` drives `**LiveOpsManifest**`, `**LiveOpsKeys**`, and per-DTO-assembly `**LiveOpsKeyRuntimeMap**` (`**LOPSKEY001**` / `**LOPSKEY002**`). Rebuild the deploy project. For game-specific code, add projects under `**LiveOps/Game/**` and implement `**IGameSetup**` in the consumer assembly for extra DI (optional).
+**Adding a feature module (Scaffold):**
+
+1. Copy `Tools/BackendTemplate/com.scaffold.example/Backend~/` into `Assets/Packages/com.scaffold.<feature>/Backend~/` and rename `Example` → `<Feature>` everywhere (folders, csproj names + `AssemblyName`, namespaces `LiveOps.Modules.{Example|Example.DTO}`, `[LiveOpsKey("…")]` values, class names).
+2. Mirror the renamed tree to `LiveOps/Scaffold/<Feature>/` and `LiveOps/Scaffold/<Feature>.DTO/` (this is the source of truth in the Scaffold repo; the package's `Backend~/` is a shipped snapshot).
+3. Add `[LiveOpsKey]` on persistence/config/snapshot DTOs and `ModuleRequest` subtypes — see [`Docs/Core/LiveOpsKeys.md`](../../../Docs/Core/LiveOpsKeys.md). `Scaffold.LiveOps.Bootstrap.Generators` then drives `LiveOpsManifest`, `LiveOpsKeys`, and per-DTO-assembly `LiveOpsKeyRuntimeMap` (`LOPSKEY001` for duplicate wire keys / `LOPSKEY002` for missing analyzer reference on a DTO project).
+4. Rebuild the deploy project: `dotnet build LiveOps/LiveOps.sln -c Release`. The DTO project's `CopyDtoToUnityPlugins` target writes `Scaffold.LiveOps.<Feature>.DTO.dll` into `Assets/Plugins/Scaffold.LiveOps.DTO/` so Unity picks it up.
+5. Run `pwsh -File .agents/scripts/refresh-liveops-template.ps1` (or **Scaffold → LiveOps → Refresh Backend Template**) to push `LiveOps/` back into the package's `Backend~/`. Commit both trees.
+6. (Optional) For game-specific code, add projects under `LiveOps/Game/<Module>/` (consumer-only — never overwritten by install) and implement `IGameSetup` in the consumer assembly for extra DI.
+
+End-to-end (View + ViewModel + client service + endpoints + keys + installer): [`Docs/Standards/Module-Vertical-Slice.md`](../../../Docs/Standards/Module-Vertical-Slice.md).
 
 **IGameSetup:** `**LiveOps.Core`** defines `**IGameSetup.Configure(ICloudCodeConfig, GameApiRegistry)`**; `**ModuleConfig**` discovers implementations in assemblies marked with `**AssemblyMetadata("ScaffoldLiveOpsAssembly", "true")**` (MSBuild) after `**InstallFromManifest**`.
 

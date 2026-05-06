@@ -168,6 +168,13 @@ Utility/**/bin
 # LiveOps package Backend~ templates (shipped via UPM Git so consumer projects can install them).
 !Assets/Packages/**/Backend~/**/*.csproj
 !Assets/Packages/**/Backend~/**/*.sln
+# Backend template under Tools/ (canonical copy-paste source for new feature modules).
+!Tools/BackendTemplate/**/*.csproj
+!Tools/BackendTemplate/**/*.sln
+Tools/BackendTemplate/**/obj
+Tools/BackendTemplate/**/bin
+Assets/Packages/**/Backend~/**/obj
+Assets/Packages/**/Backend~/**/bin
 # Centralized build output (LiveOps/Directory.Build.props redirects bin/obj here).
 LiveOps/.artifacts/
 # Legacy in-tree bin/obj (kept ignored in case anyone restores the old layout locally).

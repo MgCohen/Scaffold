@@ -4,9 +4,10 @@ using Scaffold.States;
 
 namespace Scaffold.Entities.States
 {
-    internal sealed class SetBaseValueMutator : Mutator<EntityVariableState, SetBaseValuePayload>
+    [Mutator]
+    internal sealed class SetBaseValueMutator : Mutator<EntityState, SetBaseValuePayload>
     {
-        public override EntityVariableState Change(EntityVariableState state, SetBaseValuePayload payload, IStateScope scope)
+        public override EntityState Change(EntityState state, SetBaseValuePayload payload, IStateScope scope)
         {
             return state.WithBaseValue(payload.Variable, payload.Value);
         }

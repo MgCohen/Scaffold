@@ -6,4 +6,6 @@ Authoritative documentation (Cloud Code module layout and Unity client): `[Asset
 
 **Operations (author vs consumer, CLI vs Unity, `LiveOps/` vs `Backend~/`):** [Backend-Authoring-Guide.md](Backend-Authoring-Guide.md).
 
+**End-to-end vertical slice (View + ViewModel + client service + endpoints + keys + installer):** [`../Standards/Module-Vertical-Slice.md`](../Standards/Module-Vertical-Slice.md).
+
 Backend cache/batch behavior is documented under **Cloud Code data pipeline (backend)** in the package README.
