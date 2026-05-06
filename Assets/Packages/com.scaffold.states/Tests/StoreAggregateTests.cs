@@ -21,11 +21,8 @@ namespace Scaffold.States.Tests
 
             Assert.That(seen.Count, Is.GreaterThanOrEqualTo(1));
             TotalsDashboardState last = seen[^1];
-            Assert.Multiple(() =>
-            {
-                Assert.That(last.CounterValue, Is.EqualTo(2));
-                Assert.That(last.NoteCharacterCount, Is.EqualTo(2));
-            });
+            Assert.That(last.CounterValue, Is.EqualTo(2));
+            Assert.That(last.NoteCharacterCount, Is.EqualTo(2));
         }
 
         [Test]
@@ -51,11 +48,8 @@ namespace Scaffold.States.Tests
             Assert.That(store.UnregisterAggregate<TotalsDashboardState>(null), Is.True);
 
             store.Execute(new CombinedTickPayload(1));
-            Assert.Multiple(() =>
-            {
-                Assert.That(demo.TotalsProvider.CanonicalSubscriptionNotifications, Is.EqualTo(2));
-                Assert.That(store.Get<CounterState>().Value, Is.EqualTo(2));
-            });
+            Assert.That(demo.TotalsProvider.CanonicalSubscriptionNotifications, Is.EqualTo(2));
+            Assert.That(store.Get<CounterState>().Value, Is.EqualTo(2));
         }
     }
 }

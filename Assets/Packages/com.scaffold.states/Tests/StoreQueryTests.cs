@@ -18,11 +18,8 @@ namespace Scaffold.States.Tests
 
             bool found = store.TryGet<CounterState>(new SampleKey("missing"), out CounterState state);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(found, Is.False);
-                Assert.That(state, Is.Null);
-            });
+            Assert.That(found, Is.False);
+            Assert.That(state, Is.Null);
         }
 
         [Test]
@@ -35,11 +32,8 @@ namespace Scaffold.States.Tests
 
             bool found = store.TryGet<CounterState>(key, out CounterState state);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(found, Is.True);
-                Assert.That(state.Value, Is.EqualTo(7));
-            });
+            Assert.That(found, Is.True);
+            Assert.That(state.Value, Is.EqualTo(7));
         }
 
         [Test]
@@ -50,11 +44,8 @@ namespace Scaffold.States.Tests
 
             bool found = store.TryGet<TotalsDashboardState>(Reference.Null, out TotalsDashboardState state);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(found, Is.True);
-                Assert.That(state, Is.Not.Null);
-            });
+            Assert.That(found, Is.True);
+            Assert.That(state, Is.Not.Null);
         }
 
         [Test]
@@ -73,11 +64,8 @@ namespace Scaffold.States.Tests
                 pairs.Add(pair);
             }
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(pairs.Count, Is.EqualTo(2));
-                Assert.That(pairs.Sum(p => p.State.Value), Is.EqualTo(3));
-            });
+            Assert.That(pairs.Count, Is.EqualTo(2));
+            Assert.That(pairs.Sum(p => p.State.Value), Is.EqualTo(3));
         }
     }
 }

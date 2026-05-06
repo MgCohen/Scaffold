@@ -21,11 +21,8 @@ namespace Scaffold.States.Tests
             var key = new SampleKey("X");
             store.RegisterSlice(key, new CounterState(99));
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(store.Get<CounterState>(key).Value, Is.EqualTo(99));
-                Assert.That(keys, Does.Contain(key));
-            });
+            Assert.That(store.Get<CounterState>(key).Value, Is.EqualTo(99));
+            Assert.That(keys, Does.Contain(key));
         }
 
         [Test]

@@ -29,13 +29,10 @@ namespace Scaffold.States.Tests
 
             store.Execute(new CombinedTickPayload(3));
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(store.Get<CounterState>().Value, Is.EqualTo(3));
-                Assert.That(store.Get<NotesState>().Text, Is.EqualTo("aaa"));
-                Assert.That(store.Get<TotalsDashboardState>().CounterValue, Is.EqualTo(3));
-                Assert.That(store.Get<TotalsDashboardState>().NoteCharacterCount, Is.EqualTo(3));
-            });
+            Assert.That(store.Get<CounterState>().Value, Is.EqualTo(3));
+            Assert.That(store.Get<NotesState>().Text, Is.EqualTo("aaa"));
+            Assert.That(store.Get<TotalsDashboardState>().CounterValue, Is.EqualTo(3));
+            Assert.That(store.Get<TotalsDashboardState>().NoteCharacterCount, Is.EqualTo(3));
         }
 
         [Test]
@@ -64,11 +61,8 @@ namespace Scaffold.States.Tests
 
             store.Execute(keyB, new RoutedCounterPayload(keyA, 5));
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(store.Get<CounterState>(keyA).Value, Is.EqualTo(0));
-                Assert.That(store.Get<CounterState>(keyB).Value, Is.EqualTo(5));
-            });
+            Assert.That(store.Get<CounterState>(keyA).Value, Is.EqualTo(0));
+            Assert.That(store.Get<CounterState>(keyB).Value, Is.EqualTo(5));
         }
 
         [Test]
@@ -83,11 +77,8 @@ namespace Scaffold.States.Tests
                 new CombinedTickPayload(2),
             });
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(store.Get<CounterState>().Value, Is.EqualTo(3));
-                Assert.That(store.Get<NotesState>().Text.Length, Is.EqualTo(3));
-            });
+            Assert.That(store.Get<CounterState>().Value, Is.EqualTo(3));
+            Assert.That(store.Get<NotesState>().Text.Length, Is.EqualTo(3));
         }
 
         [Test]

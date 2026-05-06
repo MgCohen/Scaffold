@@ -84,12 +84,9 @@ namespace Scaffold.States.Tests
             store.Subscribe<CounterState>(Reference.Null, (s, e) => { received = s; receivedEvent = e; });
             store.ExecuteMutator<CounterState>(new IncrementCounterMutator(5));
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(received, Is.Not.Null);
-                Assert.That(received!.Value, Is.EqualTo(5));
-                Assert.That(receivedEvent, Is.EqualTo(StateChangeEvent.Updated));
-            });
+            Assert.That(received, Is.Not.Null);
+            Assert.That(received!.Value, Is.EqualTo(5));
+            Assert.That(receivedEvent, Is.EqualTo(StateChangeEvent.Updated));
         }
 
         [Test]

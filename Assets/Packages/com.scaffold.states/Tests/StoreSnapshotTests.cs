@@ -30,11 +30,8 @@ namespace Scaffold.States.Tests
             store.LoadSnapshot(snap1);
 
             Assert.Throws<KeyNotFoundException>(() => store.Get<CounterState>(keyC));
-            Assert.Multiple(() =>
-            {
-                Assert.That(store.Get<CounterState>(keyA).Value, Is.EqualTo(1));
-                Assert.That(store.Get<CounterState>(keyB).Value, Is.EqualTo(2));
-            });
+            Assert.That(store.Get<CounterState>(keyA).Value, Is.EqualTo(1));
+            Assert.That(store.Get<CounterState>(keyB).Value, Is.EqualTo(2));
         }
 
         [Test]
