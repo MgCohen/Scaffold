@@ -1,6 +1,7 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace Scaffold.Entities
@@ -8,30 +9,53 @@ namespace Scaffold.Entities
     [Serializable]
     public sealed partial class LocalVariableStorage : IEntityVariableStorage
     {
-        internal VariableBag InstanceBaseBag => instanceBaseBag;
+        public IEntityVariableStorage? Parent { get; }
 
         [SerializeField] private VariableBag instanceBaseBag = new VariableBag();
 
-        internal VariableBag InstanceEffectiveBag => instanceEffectiveBag;
+        [NonSerialized] private Dictionary<Variable, List<ActiveModifier>> modifiers = new();
 
-        [SerializeField] private VariableBag instanceEffectiveBag = new VariableBag();
+        public LocalVariableStorage() { }
+
+        public LocalVariableStorage(IEntityVariableStorage? parent)
+        {
+            Parent = parent;
+        }
+
+        internal VariableBag InstanceBaseBag => instanceBaseBag;
+
+        public bool TryGetBase(Variable key, out VariableValue value)
+        {
+            if (instanceBaseBag.TryGetBase(key, out value))
+            {
+                return true;
+            }
+
+            if (Parent != null)
+            {
+                return Parent.TryGetBase(key, out value);
+            }
+
+            value = default!;
+            return false;
+        }
+
+        public IEnumerable<ActiveModifier> GetModifiers(Variable key)
+        {
+            IEnumerable<ActiveModifier> local = modifiers.TryGetValue(key, out var list)
+                ? list
+                : Array.Empty<ActiveModifier>();
+            IEnumerable<ActiveModifier> parentMods = Parent != null
+                ? Parent.GetModifiers(key)
+                : Array.Empty<ActiveModifier>();
+            return local.Concat(parentMods).OrderBy(m => m.Modifier.Order);
+        }
 
         public IEnumerable<Variable> Variables
         {
             get
             {
                 var seen = new HashSet<Variable>();
-                if (wiredDefinition != null)
-                {
-                    foreach (Variable v in wiredDefinition.DefinedVariables)
-                    {
-                        if (seen.Add(v))
-                        {
-                            yield return v;
-                        }
-                    }
-                }
-
                 foreach (Variable v in instanceBaseBag.LocalKeys)
                 {
                     if (seen.Add(v))
@@ -40,177 +64,89 @@ namespace Scaffold.Entities
                     }
                 }
 
-                foreach (Variable v in modifierHandler.ModifiedVariables)
+                foreach (Variable v in modifiers.Keys)
                 {
                     if (seen.Add(v))
                     {
                         yield return v;
                     }
                 }
+
+                if (Parent != null)
+                {
+                    foreach (Variable v in Parent.Variables)
+                    {
+                        if (seen.Add(v))
+                        {
+                            yield return v;
+                        }
+                    }
+                }
             }
         }
 
-        [NonSerialized] private VariableModifierHandler modifierHandler = new();
-        [NonSerialized] private VariableNotifier notifier = new();
-        [NonSerialized] private IEntityDefinition wiredDefinition = default!;
-
-        internal void WireToDefinition(IEntityDefinition entityDefinition)
+        public bool AddVariable(Variable key, VariableValue initial)
         {
-            wiredDefinition = entityDefinition ?? throw new ArgumentNullException(nameof(entityDefinition));
-            instanceBaseBag.SetParent(
-                entityDefinition is IDefinitionVariableBagProvider bagProvider
-                    ? bagProvider.Bag
-                    : null);
-
-            instanceBaseBag.RebuildCache();
-            instanceEffectiveBag.SetParent(instanceBaseBag);
-            instanceEffectiveBag.RebuildCache();
+            return instanceBaseBag.Add(key, initial);
         }
 
-        public IDisposable Subscribe(Variable key, Action<VariableValue> onChange)
-        {
-            if (key == null || onChange == null)
-            {
-                return EmptyDisposable.Instance;
-            }
-
-            notifier.Add(key, onChange);
-
-            if (instanceEffectiveBag.TryGetBase(key, out VariableValue current))
-            {
-                onChange(current);
-            }
-
-            return new CallbackDisposable(() => notifier.Remove(key, onChange));
-        }
-
-        public void Unsubscribe(Variable key, Action<VariableValue> onChange)
-        {
-            if (key == null || onChange == null)
-            {
-                return;
-            }
-
-            notifier.Remove(key, onChange);
-        }
-
-        public IDisposable SubscribeToVariableStructuralChanges(Action<VariableStructuralChange, Variable, VariableValue?> handler)
-        {
-            if (handler == null)
-            {
-                return EmptyDisposable.Instance;
-            }
-
-            void Structural(VariableStructuralChange kindArg, Variable keyArg, VariableValue? value)
-            {
-                handler(kindArg, keyArg, value);
-            }
-
-            instanceBaseBag.OnVariableStructuralChange += Structural;
-            return new CallbackDisposable(() => instanceBaseBag.OnVariableStructuralChange -= Structural);
-        }
-
-        public bool TryGetEffective(Variable key, out VariableValue value)
-        {
-            return instanceEffectiveBag.TryGetBase(key, out value);
-        }
-
-        public bool TryGetBase(Variable key, out VariableValue value)
-        {
-            return instanceBaseBag.TryGetBase(key, out value);
-        }
-
-        internal bool ContainsModifiedValueCache(Variable key)
-        {
-            return instanceEffectiveBag != null && instanceEffectiveBag.HasLocalKey(key);
-        }
-
-        internal bool InstanceBagHasLocalKey(Variable key)
-        {
-            return instanceBaseBag != null && instanceBaseBag.HasLocalKey(key);
-        }
-
-        internal ModifierId AddModifier(EntityModifierEntry entry)
-        {
-            if (entry == null)
-            {
-                return default;
-            }
-
-            ModifierId id = modifierHandler.AddModifier(entry);
-            if (id.Id == default)
-            {
-                return default;
-            }
-
-            RecalculateAndNotify(entry.Key);
-            return id;
-        }
-
-        internal bool RemoveModifier(Variable key, ModifierId id)
-        {
-            bool removed = modifierHandler.RemoveModifier(key, id);
-            if (removed && key != null)
-            {
-                RecalculateAndNotify(key);
-            }
-
-            return removed;
-        }
-
-        internal void ClearModifiers()
-        {
-            List<Variable> affectedKeys = new List<Variable>(modifierHandler.ModifiedVariables);
-            modifierHandler.ClearModifiers();
-            for (int i = 0; i < affectedKeys.Count; i++)
-            {
-                RecalculateAndNotify(affectedKeys[i]);
-            }
-        }
-
-        internal bool AddVariable(Variable key, VariableValue initialBase)
-        {
-            if (!instanceBaseBag.Add(key, initialBase))
-            {
-                return false;
-            }
-
-            RecalculateAndNotify(key);
-            return true;
-        }
-
-        internal bool RemoveVariable(Variable key)
+        public bool RemoveVariable(Variable key)
         {
             if (!instanceBaseBag.Remove(key))
             {
                 return false;
             }
 
-            instanceEffectiveBag.RemoveLocalSilent(key);
-            modifierHandler.ClearModifiersForKey(key);
-            notifier.ClearKey(key);
+            modifiers.Remove(key);
             return true;
         }
 
-        internal void RecalculateAndNotify(Variable key)
+        public bool SetBaseValue(Variable key, VariableValue value)
         {
-            if (!instanceBaseBag.TryGetBase(key, out VariableValue baseValue))
+            if (instanceBaseBag.HasLocalKey(key))
             {
-                return;
+                instanceBaseBag.SetLocalSilent(key, value);
+                return true;
             }
 
-            VariableValue effective = modifierHandler.GetEffective(key, baseValue);
+            return instanceBaseBag.Add(key, value);
+        }
 
-            if (modifierHandler.HasModifiersFor(key))
+        public ModifierId AddModifier(Variable key, VariableModifier mod, ModifierSource source = default, ModifierId? id = null)
+        {
+            ModifierId resolvedId = id ?? ModifierId.New();
+            var active = new ActiveModifier(resolvedId, mod, source);
+            if (!modifiers.TryGetValue(key, out var list))
             {
-                instanceEffectiveBag.SetLocalSilent(key, effective);
-            }
-            else
-            {
-                instanceEffectiveBag.RemoveLocalSilent(key);
+                list = new List<ActiveModifier>();
+                modifiers[key] = list;
             }
 
-            notifier.Notify(key, effective);
+            list.Add(active);
+            return resolvedId;
+        }
+
+        public bool RemoveModifier(Variable key, ModifierId id)
+        {
+            if (!modifiers.TryGetValue(key, out var list))
+            {
+                return false;
+            }
+
+            return list.RemoveAll(m => m.Id == id) > 0;
+        }
+
+        public void ClearModifiers()
+        {
+            modifiers.Clear();
+        }
+
+        public void RemoveModifiersFromSource(ModifierSource source)
+        {
+            foreach (var list in modifiers.Values)
+            {
+                list.RemoveAll(m => m.Source.HasValue && m.Source.Value.Equals(source));
+            }
         }
     }
 }

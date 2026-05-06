@@ -3,11 +3,8 @@ using Scaffold.States;
 
 namespace Scaffold.Entities.States
 {
-    public sealed record RemoveModifierPayload(InstanceId EntityId, Variable Variable, ModifierId ModifierId) : IPayloadReference
+    public sealed record RemoveModifierPayload(Reference EntityRef, Variable Variable, ModifierId ModifierId) : IPayloadReference
     {
-        public Reference GetReference()
-        {
-            return EntityStateReference.From(EntityId);
-        }
+        public Reference GetReference() => EntityRef;
     }
 }

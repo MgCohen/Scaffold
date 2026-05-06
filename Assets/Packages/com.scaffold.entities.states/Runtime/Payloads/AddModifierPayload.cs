@@ -1,6 +1,10 @@
 using Scaffold.Entities;
+using Scaffold.States;
 
 namespace Scaffold.Entities.States
 {
-    public sealed record AddModifierPayload(InstanceId EntityId, Variable Variable, VariableModifier Modifier, ModifierId ModifierId, ModifierSource? Source = null);
+    public sealed record AddModifierPayload(Reference EntityRef, Variable Variable, VariableModifier Modifier, ModifierId ModifierId, ModifierSource? Source = null) : IPayloadReference
+    {
+        public Reference GetReference() => EntityRef;
+    }
 }

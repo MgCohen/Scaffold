@@ -8,9 +8,9 @@ using Scaffold.States;
 
 namespace Scaffold.Entities.States
 {
-    public sealed record EntityVariableState(IReadOnlyDictionary<Variable, VariableValue> BaseValues, IReadOnlyDictionary<Variable, IReadOnlyList<ActiveModifier>> ModifierStacks) : State
+    public sealed record EntityState(IReadOnlyDictionary<Variable, VariableValue> BaseValues, IReadOnlyDictionary<Variable, IReadOnlyList<ActiveModifier>> ModifierStacks) : State
     {
-        public static EntityVariableState Empty { get; } = new EntityVariableState(new Dictionary<Variable, VariableValue>(), new Dictionary<Variable, IReadOnlyList<ActiveModifier>>());
+        public static EntityState Empty { get; } = new EntityState(new Dictionary<Variable, VariableValue>(), new Dictionary<Variable, IReadOnlyList<ActiveModifier>>());
 
         internal static Dictionary<Variable, VariableValue> CreateMutableValues(IReadOnlyDictionary<Variable, VariableValue> source)
         {
@@ -34,7 +34,7 @@ namespace Scaffold.Entities.States
             return copy;
         }
 
-        public EntityVariableState WithModifier(Variable variable, ActiveModifier modifier)
+        public EntityState WithModifier(Variable variable, ActiveModifier modifier)
         {
             if (variable == null)
             {
@@ -49,7 +49,7 @@ namespace Scaffold.Entities.States
             return this with { ModifierStacks = nextStacks };
         }
 
-        public EntityVariableState WithoutModifier(Variable variable, ModifierId modifierId)
+        public EntityState WithoutModifier(Variable variable, ModifierId modifierId)
         {
             if (variable == null)
             {
@@ -70,7 +70,7 @@ namespace Scaffold.Entities.States
             return RemoveModifierAt(variable, existing, idx);
         }
 
-        public EntityVariableState WithBaseValue(Variable variable, VariableValue value)
+        public EntityState WithBaseValue(Variable variable, VariableValue value)
         {
             if (variable == null)
             {
@@ -87,7 +87,7 @@ namespace Scaffold.Entities.States
             return this with { BaseValues = nextBases };
         }
 
-        public EntityVariableState WithVariable(Variable variable, VariableValue initialValue)
+        public EntityState WithVariable(Variable variable, VariableValue initialValue)
         {
             if (variable == null)
             {
@@ -109,7 +109,7 @@ namespace Scaffold.Entities.States
             return this with { BaseValues = nextBases };
         }
 
-        public EntityVariableState WithoutVariable(Variable variable)
+        public EntityState WithoutVariable(Variable variable)
         {
             if (variable == null)
             {
@@ -129,7 +129,7 @@ namespace Scaffold.Entities.States
             return BaseValues.ContainsKey(variable) || ModifierStacks.ContainsKey(variable);
         }
 
-        private EntityVariableState BuildWithoutVariable(Variable variable)
+        private EntityState BuildWithoutVariable(Variable variable)
         {
             Dictionary<Variable, VariableValue>? nextBases = BaseValues.ContainsKey(variable) ? CreateMutableValues(BaseValues) : null;
             if (nextBases != null)
@@ -150,7 +150,7 @@ namespace Scaffold.Entities.States
             };
         }
 
-        public EntityVariableState WithoutModifiersFromSource(ModifierSource source)
+        public EntityState WithoutModifiersFromSource(ModifierSource source)
         {
             var nextStacks = CreateMutableStacks(ModifierStacks);
             if (!BuildStrippedModifierStacks(nextStacks, source))
@@ -310,7 +310,7 @@ namespace Scaffold.Entities.States
             return null;
         }
 
-        private EntityVariableState RemoveModifierAt(Variable variable, IReadOnlyList<ActiveModifier> bucket, int idx)
+        private EntityState RemoveModifierAt(Variable variable, IReadOnlyList<ActiveModifier> bucket, int idx)
         {
             var nextStacks = CreateMutableStacks(ModifierStacks);
             var nextBucket = new List<ActiveModifier>(bucket);

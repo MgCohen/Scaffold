@@ -1,21 +1,22 @@
 #nullable enable
-using System;
 using System.Collections.Generic;
 
 namespace Scaffold.Entities
 {
     public interface IEntityVariableStorage
     {
-        bool TryGetEffective(Variable key, out VariableValue value);
+        IEntityVariableStorage? Parent { get; }
 
         bool TryGetBase(Variable key, out VariableValue value);
-
+        IEnumerable<ActiveModifier> GetModifiers(Variable key);
         IEnumerable<Variable> Variables { get; }
 
-        IDisposable Subscribe(Variable key, Action<VariableValue> callback);
-
-        void Unsubscribe(Variable key, Action<VariableValue> callback);
-
-        IDisposable SubscribeToVariableStructuralChanges(Action<VariableStructuralChange, Variable, VariableValue?> handler);
+        bool AddVariable(Variable key, VariableValue initial);
+        bool RemoveVariable(Variable key);
+        bool SetBaseValue(Variable key, VariableValue value);
+        ModifierId AddModifier(Variable key, VariableModifier mod, ModifierSource source = default, ModifierId? id = null);
+        bool RemoveModifier(Variable key, ModifierId id);
+        void ClearModifiers();
+        void RemoveModifiersFromSource(ModifierSource source);
     }
 }
