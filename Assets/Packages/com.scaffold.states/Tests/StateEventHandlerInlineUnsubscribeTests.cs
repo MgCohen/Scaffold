@@ -1,7 +1,11 @@
+#nullable enable
+
+using System;
 using NUnit.Framework;
 using Scaffold.States;
+using Scaffold.States.Tests.Fixtures;
 
-namespace Scaffold.Benchmarks.States
+namespace Scaffold.States.Tests
 {
     public sealed class StateEventHandlerInlineUnsubscribeTests
     {
@@ -33,7 +37,7 @@ namespace Scaffold.Benchmarks.States
                 var builder = new StoreBuilder();
                 builder.AddState(new CounterState(0));
                 env.Store = builder.Build();
-                System.Action<Reference, CounterState, StateChangeEvent> selfCancel = null!;
+                Action<Reference, CounterState, StateChangeEvent> selfCancel = null!;
                 selfCancel = (_, _, _) => { env.FirstFired++; env.Store.Unsubscribe(Reference.Null, selfCancel); };
 
                 env.Store.Subscribe(Reference.Null, selfCancel);
