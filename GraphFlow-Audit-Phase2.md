@@ -397,10 +397,12 @@ If a single `GraphBuilder` instance is used across many `GraphAsset` loads
 and the user never unloads the builder, baked graphs accumulate forever.
 Each `BakedGraph` retains every node and the entries dictionary.
 
-**Fix:** Document the lifetime contract on `GraphBuilder` ("one per asset
-or one per scene; not a singleton"), or add a `ConditionalWeakTable<>` so
-the cache disappears with the asset. Likely a non-issue in practice since
-builders are short-lived per scene; flag-only.
+**Fix:** doc-only contract — `GraphBuilder` is one-per-scene, not a
+singleton. The Dictionary releases naturally when the builder goes out of
+scope. (Earlier draft recommended `ConditionalWeakTable<>`; that's
+overengineering — CWT hides cache-eviction behavior, adds internal
+locking/compaction, and solves a hypothetical leak that the lifetime
+contract already covers.)
 
 ---
 
@@ -438,3 +440,42 @@ still hold:
 | P3 | H4 (typed slots) | Defer until profiling shows it |
 
 P0 is one change that resolves three findings — start there.
+
+---
+
+## Resolution log
+
+Final disposition after the implementation pass. See commit history on
+branch `claude/analyzer-checks-report-9qANu` for the patches.
+
+| Finding | Disposition | Notes |
+|---|---|---|
+| **CC1 + H2 + H3 + NS4** | ✓ applied | Cache moved to `Flow.ReadCached`. `Port` base shrank to `ConnectFrom` only. `Flow._touched` / `RegisterTouched` / `Port.ClearCache` deleted. Boxing on value-type cached results accepted as the cost of the concurrency invariant. |
+| **NS1 / SM3** | ✓ applied | `EntryRuntimeNodeBase` resolves `_defaultOut` in an override of `Build()`. `_defaultOutResolved` deleted. Validation now fires at bake instead of first dispatch. |
+| **NS2 / SM1** | ✓ applied | `OnTrigger<TEvent>` now extends `EntryRuntimeNode<TEvent>` directly. `Inner` field deleted. `Strike500Tests` updated: `await owner.Run(e)` instead of `await owner.Run(new OnTrigger<DamageDealt> { Inner = e, Timing = trig.Timing })`. No package-generator changes needed — catalog already keys off `EntryRuntimeNode<T>.PayloadType`. |
+| **NS3** | ⚠ doc-only (Option 1) | `init` would have been the type-level enforcement, but the package generator emits `trig.Timing = pickedTiming` at bake time via the `IOnTrigger` interface. `init` blocks post-construction property writes even via interface, so the generator-emitted code wouldn't compile. Kept `Timing { get; set; }`; added a comment marking it bake-time-only. The discipline is doc-enforced rather than type-enforced. |
+| **NS5** | ✓ applied | `MySmokeRunner` now holds `IGraphLogSink`; `MySmokeBuilder` takes the sink in its ctor. `Log.Execute` writes via `runner.LogSink.Record`. `M0PlayerSmokeVerifier` reads from the sink. `IGraphLogSink` + `CollectingLogSink` defined locally in the M0 sample asm (not promoted to runtime). |
+| **NS6** | ✓ applied | Same shape in `Tests/Fixtures.cs`. `RuntimeSmokeTests` instantiate a `CollectingLogSink` per case and assert against `sink.Messages[^1]`. |
+| **H1** | ✓ applied | `FlowInPort.Invoke` now returns `ValueTask<FlowOutPort?>`. Sync handlers wrap the result in `new ValueTask<>(handler(flow))` — no Task allocation per sync node fire. `GraphRunner.RunFromInPort` unchanged at the call site (`await … ConfigureAwait(false)` works identically on `ValueTask<T>`). |
+| **H4** | ⏸ deferred | Boxing on `Flow.SetSlot<int>` in `Loop.Continue`. Defer until profiling shows it; typed-slot specialization isn't worth the complexity yet. |
+| **SM2** | ✓ applied (with generator change) | `FlowOutPort.End` deleted. `FlowInPort.Invoke` returns `ValueTask<FlowOutPort?>`; `null` means end-of-flow. `Flow.Return / Return<T> / Cancel` return `null`. Three sample/test callsites updated. **Generator side:** `GraphPayloadNodeEmitter.cs` now emits `return null;` instead of `return FlowOutPort.End;` — needs the source-generator DLL rebuild + redeploy per `CLAUDE.md`. |
+| **SM4** | ✓ applied | `[Serializable]` removed from `PortMeta`. |
+| **SM5** | ✗ skipped | Audit's own conclusion was "Acceptable as-is." Making `Port.ConnectFrom` abstract would force `OutputPort`, `FlowInPort`, `FlowOutPort` to declare throwing overrides — more code, not less. |
+| **SM6** | ✗ reverted | First pass switched to `ConditionalWeakTable`; reverted. CWT was the wrong tool (hides eviction behavior, adds internal locking/compaction) for a hypothetical leak that's already covered by the "one builder per scene" lifetime contract. Dictionary kept; doc contract is the only fix. |
+
+### Pre-existing follow-up flagged during the implementation pass
+
+- **Snapshot expected files in `Generators/Scaffold.GraphFlow.PackageGenerator.SnapshotTests/Snapshots/Runtime/`** describe an older `Execute(runner, flow)` override emit shape (`FlowIn = new FlowInPort(this)`) that doesn't match the current `FlowInPort.Async(...)`-based emit at all. Pre-existing stale; not introduced by Phase-2 work, but the snapshot tests will fail until they're regenerated. Out of audit scope.
+- **README.md sections 239–247** still reference the old `OnTrigger { Inner = … }` payload pattern. Doc rot; not touched in this pass.
+
+### Source generator rebuild required
+
+SM2 modified `Generators/Scaffold.GraphFlow.PackageGenerator/GraphPayloadNodeEmitter.cs`. Per `CLAUDE.md`:
+
+```bash
+dotnet build Generators/Scaffold.GraphFlow.PackageGenerator/Scaffold.GraphFlow.PackageGenerator.csproj -c Release
+cp Generators/Scaffold.GraphFlow.PackageGenerator/bin/Release/netstandard2.0/Scaffold.GraphFlow.PackageGenerator.dll \
+   Assets/Packages/com.scaffold.graphflow/Generators/Scaffold.GraphFlow.PackageGenerator.dll
+```
+
+Then in Unity: right-click the DLL in the Project window → Reimport.

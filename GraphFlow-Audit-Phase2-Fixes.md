@@ -1,5 +1,15 @@
 # GraphFlow Phase-2 Fixes
 
+> **Status: applied.** See `GraphFlow-Audit-Phase2.md` § Resolution log
+> for the final disposition of each item, plus deviations from the
+> original plan (NS3 stayed as a `get; set;` with a doc comment because
+> the package generator's bake-time write blocks `init`-only; SM5
+> intentionally skipped; SM6 reverted from `ConditionalWeakTable` to the
+> original `Dictionary` after review).
+>
+> The patches below are the *original* fix specs as proposed. Kept as a
+> historical record of the planned shape.
+
 Concrete patches for each finding in `GraphFlow-Audit-Phase2.md`. Apply
 in the order listed — NS4 first (biggest correctness win, foundation for
 the others), then NS1, then NS2/NS3, then NS5/NS6, then H1, then minor
