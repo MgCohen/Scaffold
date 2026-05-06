@@ -1,9 +1,5 @@
 fileFormatVersion: 2
-<<<<<<<< HEAD:Assets/LevelPlay/Editor/ISUnityAdsAdapterDependencies.xml.meta
-guid: c37e4e6c20cfd4e5d892a9a7f340e836
-========
 guid: 5d0643fc489f2a24ba3345181876a0b1
->>>>>>>> c05ec8bb96aa023da2b56fa79ef3d7c10441055e:Assets/Packages/AAGen-0.3.0/package.json.meta
 TextScriptImporter:
   externalObjects: {}
   userData: 

@@ -1,9 +1,5 @@
 fileFormatVersion: 2
-<<<<<<<< HEAD:Assets/LevelPlay/Editor/LevelPlayVersions.json.meta
 guid: de5290f03bb424bd991dc94c7f880bba
-========
-guid: 9978b75f7b0b7fc44bd2396915dd6f35
->>>>>>>> c05ec8bb96aa023da2b56fa79ef3d7c10441055e:Assets/Packages/com.scaffold.autopacker/package.json.meta
 TextScriptImporter:
   externalObjects: {}
   userData: 

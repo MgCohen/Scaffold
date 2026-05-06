@@ -1,0 +1,25 @@
+{
+    "name": "Scaffold.GraphFlow.Spike.Editor",
+    "rootNamespace": "Scaffold.GraphFlow.Spike.Editor",
+    "references": [
+        "GUID:b13665e99cedac1faa8a90387e6163c3",
+        "GUID:27a1badd3cd9fec2c48b5539d5746add",
+        "GUID:bab7af28f08a411c9af5ef2f6d191216",
+        "GUID:78d83f106afb440f84be7f3da9e310e9",
+        "GUID:69cc6723df1508c43a53a553fbf802b3",
+        "Scaffold.GraphFlow.Spike",
+        "Unity.GraphToolkit.Common.Editor",
+        "Unity.GraphToolkit.Editor"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

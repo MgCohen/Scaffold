@@ -1,0 +1,16 @@
+{
+    "name": "Scaffold.GraphFlow",
+    "rootNamespace": "Scaffold.GraphFlow",
+    "references": [
+        "GUID:b13665e99cedac1faa8a90387e6163c3"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

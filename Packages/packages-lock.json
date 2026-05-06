@@ -14,6 +14,13 @@
       "dependencies": {},
       "hash": "c2af83c9d4f8cdaada9d4a0e94de2f195d8e1d01"
     },
+    "com.scaffold.schemas": {
+      "version": "https://github.com/ScaffoldLibrary/Schemas.git",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {},
+      "hash": "09b1ce52e83c7ca53985081a3ab0d601c2d22bb3"
+    },
     "com.unity.2d.animation": {
       "version": "13.0.4",
       "depth": 0,
@@ -199,6 +206,15 @@
       "depth": 1,
       "source": "builtin",
       "dependencies": {}
+    },
+    "com.unity.graphtoolkit": {
+      "version": "0.4.0-exp.2",
+      "depth": 0,
+      "source": "registry",
+      "dependencies": {
+        "com.unity.modules.uielements": "1.0.0"
+      },
+      "url": "https://packages.unity.com"
     },
     "com.unity.ide.rider": {
       "version": "3.0.39",
