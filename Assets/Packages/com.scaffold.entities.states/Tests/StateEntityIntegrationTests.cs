@@ -89,10 +89,13 @@ namespace Scaffold.Entities.States.Tests
             storeB.Execute(idB, new AddModifierPayload(idB, hp, new FloatAddModifier(5f), ModifierId.New()));
             EntityVariableState stateA = storeA.Get<EntityVariableState>(idA);
             EntityVariableState stateB = storeB.Get<EntityVariableState>(idB);
-            Assert.That(stateA.ModifierStacks.ContainsKey(hp), Is.True);
-            Assert.That(stateB.ModifierStacks.ContainsKey(hp), Is.True);
-            Assert.That(stateA.ModifierStacks[hp].Count, Is.EqualTo(stateB.ModifierStacks[hp].Count));
-            Assert.That(entityA.GetVariable<float>(hp), Is.EqualTo(15f));
+            Assert.Multiple(() =>
+            {
+                Assert.That(stateA.ModifierStacks.ContainsKey(hp), Is.True);
+                Assert.That(stateB.ModifierStacks.ContainsKey(hp), Is.True);
+                Assert.That(stateA.ModifierStacks[hp].Count, Is.EqualTo(stateB.ModifierStacks[hp].Count));
+                Assert.That(entityA.GetVariable<float>(hp), Is.EqualTo(15f));
+            });
         }
 
         [Test]
@@ -141,44 +144,33 @@ namespace Scaffold.Entities.States.Tests
         [Test]
         public void TwoEntities_SnapshotRoundTrip_RestoresBothEntities()
         {
-            var heroDef = new EntityDefinition();
-            heroDef.AddVariable(hp, new FloatVariableValue(10f));
-            var goblinDef = new EntityDefinition();
-            goblinDef.AddVariable(hp, new FloatVariableValue(30f));
-            var builder = new StoreBuilder();
-            EntityBridgeContext.RegisterMutators(builder);
-            var store = builder.Build();
-            var heroId = new InstanceId(1);
-            var goblinId = new InstanceId(2);
-            StateEntity<EntityDefinition> hero = EntityStateFactory.Create(heroDef, store, heroId);
-            StateEntity<EntityDefinition> goblin = EntityStateFactory.Create(goblinDef, store, goblinId);
+            var (store, hero, goblin, heroId, goblinId) = CreateTwoEntities();
             Snapshot snapshot = store.SaveSnapshot();
             store.Execute(heroId, new AddModifierPayload(heroId, hp, new FloatAddModifier(5f), ModifierId.New()));
             store.Execute(goblinId, new AddModifierPayload(goblinId, hp, new FloatAddModifier(3f), ModifierId.New()));
-            Assert.That(hero.GetVariable<float>(hp), Is.EqualTo(15f));
-            Assert.That(goblin.GetVariable<float>(hp), Is.EqualTo(33f));
+            Assert.Multiple(() =>
+            {
+                Assert.That(hero.GetVariable<float>(hp), Is.EqualTo(15f));
+                Assert.That(goblin.GetVariable<float>(hp), Is.EqualTo(33f));
+            });
             store.LoadSnapshot(snapshot);
-            Assert.That(hero.GetVariable<float>(hp), Is.EqualTo(10f));
-            Assert.That(goblin.GetVariable<float>(hp), Is.EqualTo(30f));
+            Assert.Multiple(() =>
+            {
+                Assert.That(hero.GetVariable<float>(hp), Is.EqualTo(10f));
+                Assert.That(goblin.GetVariable<float>(hp), Is.EqualTo(30f));
+            });
         }
 
         [Test]
         public void TwoEntities_AddModifierAppliesOnceToTargetOnly()
         {
-            var heroDef = new EntityDefinition();
-            heroDef.AddVariable(hp, new FloatVariableValue(10f));
-            var goblinDef = new EntityDefinition();
-            goblinDef.AddVariable(hp, new FloatVariableValue(30f));
-            var builder = new StoreBuilder();
-            EntityBridgeContext.RegisterMutators(builder);
-            var store = builder.Build();
-            var heroId = new InstanceId(1);
-            var goblinId = new InstanceId(2);
-            StateEntity<EntityDefinition> hero = EntityStateFactory.Create(heroDef, store, heroId);
-            StateEntity<EntityDefinition> goblin = EntityStateFactory.Create(goblinDef, store, goblinId);
+            var (store, hero, goblin, heroId, _) = CreateTwoEntities();
             store.Execute(heroId, new AddModifierPayload(heroId, hp, new FloatAddModifier(5f), ModifierId.New()));
-            Assert.That(hero.GetVariable<float>(hp), Is.EqualTo(15f));
-            Assert.That(goblin.GetVariable<float>(hp), Is.EqualTo(30f));
+            Assert.Multiple(() =>
+            {
+                Assert.That(hero.GetVariable<float>(hp), Is.EqualTo(15f));
+                Assert.That(goblin.GetVariable<float>(hp), Is.EqualTo(30f));
+            });
         }
 
         [Test]
@@ -245,25 +237,18 @@ namespace Scaffold.Entities.States.Tests
         [Test]
         public void TwoEntities_DistinctMidSnapshotStates_RestoreIndependently()
         {
-            var heroDef = new EntityDefinition();
-            heroDef.AddVariable(hp, new FloatVariableValue(10f));
-            var goblinDef = new EntityDefinition();
-            goblinDef.AddVariable(hp, new FloatVariableValue(30f));
-            var builder = new StoreBuilder();
-            EntityBridgeContext.RegisterMutators(builder);
-            var store = builder.Build();
-            var heroId = new InstanceId(1);
-            var goblinId = new InstanceId(2);
-            StateEntity<EntityDefinition> hero = EntityStateFactory.Create(heroDef, store, heroId);
-            StateEntity<EntityDefinition> goblin = EntityStateFactory.Create(goblinDef, store, goblinId);
+            var (store, hero, goblin, heroId, goblinId) = CreateTwoEntities();
             store.Execute(heroId, new AddModifierPayload(heroId, hp, new FloatAddModifier(5f), ModifierId.New()));
             store.Execute(goblinId, new AddModifierPayload(goblinId, hp, new FloatAddModifier(3f), ModifierId.New()));
             Snapshot snapshot = store.SaveSnapshot();
             store.Execute(heroId, new AddModifierPayload(heroId, hp, new FloatMultiplyModifier(2f), ModifierId.New()));
             store.Execute(goblinId, new AddModifierPayload(goblinId, hp, new FloatAddModifier(10f), ModifierId.New()));
             store.LoadSnapshot(snapshot);
-            Assert.That(hero.GetVariable<float>(hp), Is.EqualTo(15f));
-            Assert.That(goblin.GetVariable<float>(hp), Is.EqualTo(33f));
+            Assert.Multiple(() =>
+            {
+                Assert.That(hero.GetVariable<float>(hp), Is.EqualTo(15f));
+                Assert.That(goblin.GetVariable<float>(hp), Is.EqualTo(33f));
+            });
         }
 
         [Test]
@@ -352,17 +337,12 @@ namespace Scaffold.Entities.States.Tests
         [Test]
         public void TwoEntities_ResolveTheirOwnDefaults()
         {
-            var heroDef = new EntityDefinition();
-            heroDef.AddVariable(hp, new FloatVariableValue(10f));
-            var goblinDef = new EntityDefinition();
-            goblinDef.AddVariable(hp, new FloatVariableValue(30f));
-            var builder = new StoreBuilder();
-            EntityBridgeContext.RegisterMutators(builder);
-            var store = builder.Build();
-            StateEntity<EntityDefinition> hero = EntityStateFactory.Create(heroDef, store, new InstanceId(1));
-            StateEntity<EntityDefinition> goblin = EntityStateFactory.Create(goblinDef, store, new InstanceId(2));
-            Assert.That(hero.GetVariable<float>(hp), Is.EqualTo(10f));
-            Assert.That(goblin.GetVariable<float>(hp), Is.EqualTo(30f));
+            var (_, hero, goblin, _, _) = CreateTwoEntities();
+            Assert.Multiple(() =>
+            {
+                Assert.That(hero.GetVariable<float>(hp), Is.EqualTo(10f));
+                Assert.That(goblin.GetVariable<float>(hp), Is.EqualTo(30f));
+            });
         }
 
         [Test]
@@ -454,32 +434,26 @@ namespace Scaffold.Entities.States.Tests
         [Test]
         public void RemoveModifiersFromSource_GlobalSweep_ClearsAcrossEveryEntity()
         {
-            var heroDef = new EntityDefinition();
-            heroDef.AddVariable(hp, new FloatVariableValue(10f));
-            var goblinDef = new EntityDefinition();
-            goblinDef.AddVariable(hp, new FloatVariableValue(30f));
-
-            var builder = new StoreBuilder();
-            EntityBridgeContext.RegisterMutators(builder);
-            var store = builder.Build();
-
-            var heroId = new InstanceId(1);
-            var goblinId = new InstanceId(2);
-            StateEntity<EntityDefinition> hero = EntityStateFactory.Create(heroDef, store, heroId);
-            StateEntity<EntityDefinition> goblin = EntityStateFactory.Create(goblinDef, store, goblinId);
+            var (store, hero, goblin, heroId, goblinId) = CreateTwoEntities();
 
             var auraSource = new ModifierSource(new InstanceId(999));
             store.Execute(heroId, new AddModifierPayload(heroId, hp, new FloatAddModifier(5f), ModifierId.New(), auraSource));
             store.Execute(goblinId, new AddModifierPayload(goblinId, hp, new FloatAddModifier(3f), ModifierId.New(), auraSource));
             store.Execute(heroId, new AddModifierPayload(heroId, hp, new FloatAddModifier(2f), ModifierId.New()));
 
-            Assert.That(hero.GetVariable<float>(hp), Is.EqualTo(17f));
-            Assert.That(goblin.GetVariable<float>(hp), Is.EqualTo(33f));
+            Assert.Multiple(() =>
+            {
+                Assert.That(hero.GetVariable<float>(hp), Is.EqualTo(17f));
+                Assert.That(goblin.GetVariable<float>(hp), Is.EqualTo(33f));
+            });
 
             StateEntityOps.RemoveModifiersFromSource(store, auraSource);
 
-            Assert.That(hero.GetVariable<float>(hp), Is.EqualTo(12f));
-            Assert.That(goblin.GetVariable<float>(hp), Is.EqualTo(30f));
+            Assert.Multiple(() =>
+            {
+                Assert.That(hero.GetVariable<float>(hp), Is.EqualTo(12f));
+                Assert.That(goblin.GetVariable<float>(hp), Is.EqualTo(30f));
+            });
         }
 
         [Test]
@@ -582,6 +556,23 @@ namespace Scaffold.Entities.States.Tests
             var id = new InstanceId(1);
             StateEntity<EntityDefinition> entity = EntityStateFactory.Create(def, store, id);
             return (store, def, entity, id);
+        }
+
+        private static (Store store, StateEntity<EntityDefinition> hero, StateEntity<EntityDefinition> goblin, InstanceId heroId, InstanceId goblinId) CreateTwoEntities(
+            float heroHp = 10f, float goblinHp = 30f)
+        {
+            var heroDef = new EntityDefinition();
+            heroDef.AddVariable(hp, new FloatVariableValue(heroHp));
+            var goblinDef = new EntityDefinition();
+            goblinDef.AddVariable(hp, new FloatVariableValue(goblinHp));
+            var builder = new StoreBuilder();
+            EntityBridgeContext.RegisterMutators(builder);
+            var store = builder.Build();
+            var heroId = new InstanceId(1);
+            var goblinId = new InstanceId(2);
+            StateEntity<EntityDefinition> hero = EntityStateFactory.Create(heroDef, store, heroId);
+            StateEntity<EntityDefinition> goblin = EntityStateFactory.Create(goblinDef, store, goblinId);
+            return (store, hero, goblin, heroId, goblinId);
         }
     }
 }
