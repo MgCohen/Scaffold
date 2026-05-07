@@ -14,5 +14,8 @@ namespace Scaffold.States
         bool TryResolve<T>(Ref<T> @ref, [MaybeNullWhen(false)] out T obj);
 
         void Unregister<T>(Ref<T> @ref);
+
+        void RegisterFactory<T>(ICatalogFactory<T> factory);
+        void RegisterStub<T>(T stub);
     }
 }
