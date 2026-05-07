@@ -12,6 +12,7 @@ namespace Scaffold.States
         private IMutatorDispatcher? mutatorDispatcher;
         private readonly HashSet<(Reference Reference, Type StateType)> registeredAggregates = new();
         private readonly HashSet<(Reference Reference, Type StateType)> registeredCanonical = new();
+        private readonly List<Action<ICatalog>> catalogConfigurators = new List<Action<ICatalog>>();
 
         public void AddEventHandler(IStateEventHandler eventHandler)
         {
@@ -95,10 +96,27 @@ namespace Scaffold.States
             entries.Add(slice);
         }
 
+        public void RegisterCatalogFactory<T>(ICatalogFactory<T> factory)
+        {
+            if (factory is null) throw new ArgumentNullException(nameof(factory));
+            catalogConfigurators.Add(catalog => catalog.RegisterFactory(factory));
+        }
+
+        public void RegisterCatalogStub<T>(T stub)
+        {
+            if (stub is null) throw new ArgumentNullException(nameof(stub));
+            catalogConfigurators.Add(catalog => catalog.RegisterStub(stub));
+        }
+
         public Store Build()
         {
             IStateEventHandler stateHandler = eventHandler ?? GetDefaultStateEventHandler();
-            return new Store(stateHandler, mutatorRegistry ?? new MutatorRegistry(), mutatorDispatcher, entries.ToArray());
+            var store = new Store(stateHandler, mutatorRegistry ?? new MutatorRegistry(), mutatorDispatcher, entries.ToArray());
+            for (int i = 0; i < catalogConfigurators.Count; i++)
+            {
+                catalogConfigurators[i](store.Catalog);
+            }
+            return store;
         }
 
         private IStateEventHandler GetDefaultStateEventHandler()
