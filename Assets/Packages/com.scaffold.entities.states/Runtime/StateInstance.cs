@@ -13,8 +13,18 @@ namespace Scaffold.Entities.States
             : base(definition, storage) { }
 
         public virtual IEnumerable<State> ProvideInitialSlices()
-            => Definition is ISliceProvider provider
-                ? provider.ProvideInitialSlices()
-                : Array.Empty<State>();
+        {
+            if (Definition is ISliceProvider provider)
+            {
+                return provider.ProvideInitialSlices();
+            }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            UnityEngine.Debug.LogWarning(
+                $"{typeof(TDefinition).Name} does not implement ISliceProvider; " +
+                $"{GetType().Name} will return no initial slices.");
+#endif
+            return Array.Empty<State>();
+        }
     }
 }

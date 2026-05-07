@@ -83,7 +83,7 @@ namespace Scaffold.States
 
                 if (entries.TryGetValue(@ref, out T? current))
                 {
-                    if (ReferenceEquals(current, obj))
+                    if (EqualityComparer<T>.Default.Equals(current!, obj))
                     {
                         return @ref;
                     }
@@ -104,7 +104,7 @@ namespace Scaffold.States
 
                 if (entries.TryGetValue(@ref, out T? current))
                 {
-                    if (ReferenceEquals(current, obj))
+                    if (EqualityComparer<T>.Default.Equals(current!, obj))
                     {
                         return;
                     }
