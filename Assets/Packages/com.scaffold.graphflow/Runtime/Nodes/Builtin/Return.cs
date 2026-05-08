@@ -2,9 +2,6 @@ using System;
 
 namespace Scaffold.GraphFlow.Nodes
 {
-    // Return<TResult>: hand-authored ctor — single-T generic NOT over a runner is
-    // outside the partial generator's eligibility filter, so we own the construction
-    // ourselves.
     [Serializable]
     [GraphNode(Category = "Flow")]
     public sealed class Return<TResult> : RuntimeNode

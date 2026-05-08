@@ -6,22 +6,15 @@ namespace Scaffold.GraphFlow
 {
     public readonly struct NodeBuildSlice
     {
-        public IReadOnlyList<DataBinding> Data { get; }
+        public IReadOnlyList<Action> Data { get; }
         public IReadOnlyList<FlowBinding> Flow { get; }
 
-        public NodeBuildSlice(IReadOnlyList<DataBinding> data,
+        public NodeBuildSlice(IReadOnlyList<Action> data,
                               IReadOnlyList<FlowBinding> flow)
         {
             Data = data;
             Flow = flow;
         }
-    }
-
-    public readonly struct DataBinding
-    {
-        readonly Action _apply;
-        public DataBinding(Action apply) { _apply = apply; }
-        public void Apply() => _apply();
     }
 
     public readonly struct FlowBinding
