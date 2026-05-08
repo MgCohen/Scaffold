@@ -1,4 +1,5 @@
 #nullable enable
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 
 namespace Scaffold.GraphFlow
@@ -13,5 +14,9 @@ namespace Scaffold.GraphFlow
 
         // Introspection / save-load API. Not used on hot paths.
         bool TryGetCell(string id, [MaybeNullWhen(false)] out VariableCell cell);
+
+        // Enumerates cells owned by this bag (not parents). Used by inspector,
+        // save/load, and debug tooling.
+        IEnumerable<VariableCell> Cells { get; }
     }
 }

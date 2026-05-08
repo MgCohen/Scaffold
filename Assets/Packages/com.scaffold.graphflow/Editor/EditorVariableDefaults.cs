@@ -1,12 +1,18 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using Unity.GraphToolkit.Editor;
 
 namespace Scaffold.GraphFlow.Editor
 {
     /// <summary>Builds a typed <see cref="VariableDefault"/> from a GT <see cref="IVariable"/>.
-    /// Dispatches on <c>variable.dataType</c> to call the typed
-    /// <c>TryGetDefaultValue&lt;T&gt;</c> overload — no boxing, no reflection.</summary>
+    /// Known types (int, float, bool, string, Object) are dispatched directly. Unknown types
+    /// are resolved via reflection — any <see cref="VariableDefault{T}"/> subclass visible to
+    /// the runtime assembly is discovered automatically.</summary>
     static class EditorVariableDefaults
     {
+        static Dictionary<Type, Type>? s_defaultByValueType;
+
         public static VariableDefault? CreateFor(IVariable variable)
         {
             if (variable == null) return null;
@@ -22,7 +28,37 @@ namespace Scaffold.GraphFlow.Editor
                 variable.TryGetDefaultValue(out UnityEngine.Object v);
                 return new ObjectDefault { value = v };
             }
-            return null;
+
+            return TryCreateViaReflection(t);
+        }
+
+        static VariableDefault? TryCreateViaReflection(Type valueType)
+        {
+            if (s_defaultByValueType == null)
+            {
+                s_defaultByValueType = new Dictionary<Type, Type>();
+                var baseType = typeof(VariableDefault<>);
+                foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    Type[] types;
+                    try { types = asm.GetTypes(); }
+                    catch { continue; }
+
+                    foreach (var candidate in types)
+                    {
+                        if (candidate.IsAbstract || candidate.IsGenericTypeDefinition) continue;
+                        var bt = candidate.BaseType;
+                        if (bt == null || !bt.IsGenericType || bt.GetGenericTypeDefinition() != baseType) continue;
+                        var tArg = bt.GetGenericArguments()[0];
+                        s_defaultByValueType.TryAdd(tArg, candidate);
+                    }
+                }
+            }
+
+            if (!s_defaultByValueType.TryGetValue(valueType, out var defaultType))
+                return null;
+
+            return Activator.CreateInstance(defaultType) as VariableDefault;
         }
     }
 }

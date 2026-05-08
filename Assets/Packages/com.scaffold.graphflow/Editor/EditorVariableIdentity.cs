@@ -5,49 +5,37 @@ using Unity.GraphToolkit.Editor;
 
 namespace Scaffold.GraphFlow.Editor
 {
-    /// <summary>Stable editor variable identity. Mirrors <see cref="EditorNodeIdentity"/> —
-    /// reads the persisted Unity <c>Hash128</c> GUID from the IVariable's backing toolkit
-    /// model via the non-public <c>m_Implementation</c> field. Falls back to a
-    /// name-prefixed pseudo-id if reflection fails (stable across editor sessions but
-    /// fragile under rename — flag if hit at scale).</summary>
+    /// <summary>Stable editor variable identity. Reads the persisted Unity <c>Hash128</c>
+    /// GUID from the IVariable's concrete type. GT variable models inherit <c>Guid</c> from
+    /// the <c>Model</c> base class. Hard-fails on reflection drift so baked assets never
+    /// silently degrade to rename-fragile name-based ids.</summary>
     static class EditorVariableIdentity
     {
-        static readonly Dictionary<Type, FieldInfo?> s_implFieldByType = new();
+        static readonly Dictionary<Type, PropertyInfo?> s_guidPropByType = new();
 
-        internal static string? GetStableGuid(IVariable variable)
+        internal static string GetStableGuid(IVariable variable)
         {
-            if (variable == null) return null;
+            if (variable == null)
+                throw new ArgumentNullException(nameof(variable));
 
             var type = variable.GetType();
-            if (!s_implFieldByType.TryGetValue(type, out var implField))
+            if (!s_guidPropByType.TryGetValue(type, out var guidProp))
             {
-                // Private fields aren't returned by GetField from a derived type — we must
-                // walk the BaseType chain with DeclaredOnly until we find m_Implementation.
-                for (var t = type; t != null && implField == null; t = t.BaseType)
-                    implField = t.GetField("m_Implementation",
-                        BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly);
-                s_implFieldByType[type] = implField;
+                guidProp = type.GetProperty("Guid", BindingFlags.Public | BindingFlags.Instance);
+                s_guidPropByType[type] = guidProp;
             }
 
-            if (implField != null)
-            {
-                try
-                {
-                    var impl = implField.GetValue(variable);
-                    if (impl != null)
-                    {
-                        var guidProp = impl.GetType().GetProperty("Guid", BindingFlags.Public | BindingFlags.Instance);
-                        var hashGuid = guidProp?.GetValue(impl)?.ToString();
-                        if (!string.IsNullOrWhiteSpace(hashGuid)) return hashGuid;
-                    }
-                }
-                catch (Exception)
-                {
-                    // Reflection drift — fall through to the name-based fallback.
-                }
-            }
+            if (guidProp == null)
+                throw new InvalidOperationException(
+                    $"GraphFlow: Guid property not found on {type.FullName} — GT version drift. " +
+                    "Update the reflection contract in EditorVariableIdentity.");
 
-            return string.IsNullOrEmpty(variable.name) ? null : "name:" + variable.name;
+            var s = guidProp.GetValue(variable)?.ToString();
+            if (string.IsNullOrWhiteSpace(s))
+                throw new InvalidOperationException(
+                    $"GraphFlow: Guid was empty for variable '{variable.name}'.");
+
+            return s;
         }
     }
 }

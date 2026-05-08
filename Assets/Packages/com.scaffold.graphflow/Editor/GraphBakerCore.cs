@@ -189,11 +189,17 @@ namespace Scaffold.GraphFlow.Editor
                     result.LogError($"Variable {v.name} has unsupported DataType {v.dataType?.FullName ?? "<null>"}.");
                     return (variables, variableEdges);
                 }
+                var varType = v.dataType!;
+                if (varType.AssemblyQualifiedName != def.ValueType.AssemblyQualifiedName)
+                {
+                    result.LogError($"Variable '{v.name}': dataType ({varType.FullName}) does not match default value type ({def.ValueType.FullName}).");
+                    return (variables, variableEdges);
+                }
                 variables.Add(new RuntimeVariable
                 {
                     id = id!,
                     name = v.name ?? string.Empty,
-                    typeName = v.dataType!.AssemblyQualifiedName,
+                    typeName = varType.AssemblyQualifiedName,
                     defaultValue = def,
                 });
                 idByVariable[v] = id!;
@@ -217,6 +223,7 @@ namespace Scaffold.GraphFlow.Editor
                     continue;
                 }
 
+                var varType = vn.variable.dataType;
                 foreach (var port in n.GetOutputPorts())
                 {
                     var connected = new List<IPort>();
@@ -229,6 +236,14 @@ namespace Scaffold.GraphFlow.Editor
                         if (!toReg.DataInputPortNames.Contains(other.name))
                         {
                             result.LogError($"Variable edge from {n.GetType().Name} to {toEditor.GetType().Name}.{other.name}: destination is not a declared data input.");
+                            return (variables, variableEdges);
+                        }
+
+                        var portType = other.dataType;
+                        if (varType != null && portType != null && !portType.IsAssignableFrom(varType))
+                        {
+                            result.LogError(
+                                $"Variable '{vn.variable.name}' ({varType.Name}) is incompatible with port {toEditor.GetType().Name}.{other.name} ({portType.Name}).");
                             return (variables, variableEdges);
                         }
 

@@ -1,18 +1,13 @@
 #nullable enable
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace Scaffold.GraphFlow
 {
     public abstract class GraphBuilder<TRunner> where TRunner : GraphRunner
     {
-        readonly Dictionary<GraphAsset, BakedGraph> _cache = new();
-
         public TRunner Build(GraphAsset<TRunner> asset)
         {
-            if (!_cache.TryGetValue(asset, out var baked))
-                _cache[asset] = baked = GraphTopology.Bake(asset);
-
+            var baked = GraphTopology.Bake(asset);
             var runner = CreateRunner(baked);
             runner.SeedVariables(baked.Variables);
             WireVariableEdges(baked, runner);
