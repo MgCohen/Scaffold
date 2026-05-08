@@ -127,7 +127,7 @@ differ on *encoding*.
 What GT actually exposes (verified against the on-disk samples in
 `Assets/Samples/Graph Toolkit/0.4.0-exp.2/` and Unity's API docs):
 
-- `IVariable` — `Name`, `DataType`, `Kind` (Local/Input/Output),
+- `IVariable` — `name`, `dataType`, `Kind` (Local/Input/Output),
   `TryGetDefaultValue<T>(out T)`. Read-only.
 - `IVariableNode.variable` — pointer to the `IVariable` for nodes
   dropped on canvas.
@@ -680,7 +680,7 @@ real use case.
 
 ### 2. Variable identity — GUID source
 
-GT's `IVariable` exposes `Name` and `DataType` publicly but not a
+GT's `IVariable` exposes `name` and `dataType` publicly but not a
 GUID. We have two options:
 
 - **Reflection on the GT model implementation field** — same trick

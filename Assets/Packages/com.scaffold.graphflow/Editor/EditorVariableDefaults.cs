@@ -3,7 +3,7 @@ using Unity.GraphToolkit.Editor;
 namespace Scaffold.GraphFlow.Editor
 {
     /// <summary>Builds a typed <see cref="VariableDefault"/> from a GT <see cref="IVariable"/>.
-    /// Dispatches on <c>variable.DataType</c> to call the typed
+    /// Dispatches on <c>variable.dataType</c> to call the typed
     /// <c>TryGetDefaultValue&lt;T&gt;</c> overload — no boxing, no reflection.</summary>
     static class EditorVariableDefaults
     {
