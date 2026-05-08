@@ -19,7 +19,7 @@ namespace Scaffold.GraphFlow.Nodes
         public FlowOutPort Done = null!;
         VariableCell<int>? _cell;
         public override void Initialize(GraphRunner runner) =>
-            runner.Variables.TryGetCell<int>(variableId, out _cell!);
+            runner.Variables.TryGetCell<int>(variableId, out _cell);
         partial void InitializePorts() =>
             In = FlowInPort.Sync(this, nameof(In), flow =>
             {
@@ -37,7 +37,7 @@ namespace Scaffold.GraphFlow.Nodes
         public FlowOutPort Done = null!;
         VariableCell<float>? _cell;
         public override void Initialize(GraphRunner runner) =>
-            runner.Variables.TryGetCell<float>(variableId, out _cell!);
+            runner.Variables.TryGetCell<float>(variableId, out _cell);
         partial void InitializePorts() =>
             In = FlowInPort.Sync(this, nameof(In), flow =>
             {
@@ -55,7 +55,7 @@ namespace Scaffold.GraphFlow.Nodes
         public FlowOutPort Done = null!;
         VariableCell<bool>? _cell;
         public override void Initialize(GraphRunner runner) =>
-            runner.Variables.TryGetCell<bool>(variableId, out _cell!);
+            runner.Variables.TryGetCell<bool>(variableId, out _cell);
         partial void InitializePorts() =>
             In = FlowInPort.Sync(this, nameof(In), flow =>
             {
@@ -73,7 +73,7 @@ namespace Scaffold.GraphFlow.Nodes
         public FlowOutPort Done = null!;
         VariableCell<string>? _cell;
         public override void Initialize(GraphRunner runner) =>
-            runner.Variables.TryGetCell<string>(variableId, out _cell!);
+            runner.Variables.TryGetCell<string>(variableId, out _cell);
         partial void InitializePorts() =>
             In = FlowInPort.Sync(this, nameof(In), flow =>
             {
@@ -91,7 +91,7 @@ namespace Scaffold.GraphFlow.Nodes
         public FlowOutPort Done = null!;
         VariableCell<UnityEngine.Object>? _cell;
         public override void Initialize(GraphRunner runner) =>
-            runner.Variables.TryGetCell<UnityEngine.Object>(variableId, out _cell!);
+            runner.Variables.TryGetCell<UnityEngine.Object>(variableId, out _cell);
         partial void InitializePorts() =>
             In = FlowInPort.Sync(this, nameof(In), flow =>
             {

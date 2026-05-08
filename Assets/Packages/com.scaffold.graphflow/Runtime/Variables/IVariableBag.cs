@@ -1,4 +1,6 @@
 #nullable enable
+using System.Diagnostics.CodeAnalysis;
+
 namespace Scaffold.GraphFlow
 {
     public interface IVariableBag
@@ -7,9 +9,9 @@ namespace Scaffold.GraphFlow
 
         // Hot-path API. Callers cache the typed cell once at Initialize / bake
         // time; steady-state reads/writes go through cell.Value directly.
-        bool TryGetCell<T>(string id, out VariableCell<T> cell);
+        bool TryGetCell<T>(string id, [MaybeNullWhen(false)] out VariableCell<T> cell);
 
         // Introspection / save-load API. Not used on hot paths.
-        bool TryGetCell(string id, out VariableCell cell);
+        bool TryGetCell(string id, [MaybeNullWhen(false)] out VariableCell cell);
     }
 }

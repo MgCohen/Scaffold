@@ -212,7 +212,15 @@ namespace Scaffold.GraphFlow.Editor
             {
                 if (n is not IVariableNode vn) continue;
                 if (vn.variable == null) continue;
-                if (!idByVariable.TryGetValue(vn.variable, out var variableId)) continue;
+                if (!idByVariable.TryGetValue(vn.variable, out var variableId))
+                {
+                    // Orphaned variable node — references a blackboard variable that was
+                    // deleted or otherwise didn't make it into editorGraph.GetVariables().
+                    // Surface as a warning so the designer notices, then skip.
+                    UnityEngine.Debug.LogWarning(
+                        $"GraphFlow bake: variable node {n.GetType().Name} references unknown variable '{vn.variable.Name}'; edge skipped.");
+                    continue;
+                }
 
                 foreach (var port in n.GetOutputPorts())
                 {

@@ -20,8 +20,14 @@ namespace Scaffold.GraphFlow.Editor
 
             var type = variable.GetType();
             if (!s_implFieldByType.TryGetValue(type, out var implField))
-                s_implFieldByType[type] = implField =
-                    type.GetField("m_Implementation", BindingFlags.NonPublic | BindingFlags.Instance);
+            {
+                // Private fields aren't returned by GetField from a derived type — we must
+                // walk the BaseType chain with DeclaredOnly until we find m_Implementation.
+                for (var t = type; t != null && implField == null; t = t.BaseType)
+                    implField = t.GetField("m_Implementation",
+                        BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly);
+                s_implFieldByType[type] = implField;
+            }
 
             if (implField != null)
             {

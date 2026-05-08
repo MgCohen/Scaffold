@@ -21,7 +21,7 @@ namespace Scaffold.GraphFlow.Nodes
         public OutputPort<int> Value = null!;
         VariableCell<int>? _cell;
         public override void Initialize(GraphRunner runner) =>
-            runner.Variables.TryGetCell<int>(variableId, out _cell!);
+            runner.Variables.TryGetCell<int>(variableId, out _cell);
         partial void InitializePorts() =>
             Value = new OutputPort<int>(_ => _cell != null ? _cell.Value : default, cache: false);
     }
@@ -33,7 +33,7 @@ namespace Scaffold.GraphFlow.Nodes
         public OutputPort<float> Value = null!;
         VariableCell<float>? _cell;
         public override void Initialize(GraphRunner runner) =>
-            runner.Variables.TryGetCell<float>(variableId, out _cell!);
+            runner.Variables.TryGetCell<float>(variableId, out _cell);
         partial void InitializePorts() =>
             Value = new OutputPort<float>(_ => _cell != null ? _cell.Value : default, cache: false);
     }
@@ -45,7 +45,7 @@ namespace Scaffold.GraphFlow.Nodes
         public OutputPort<bool> Value = null!;
         VariableCell<bool>? _cell;
         public override void Initialize(GraphRunner runner) =>
-            runner.Variables.TryGetCell<bool>(variableId, out _cell!);
+            runner.Variables.TryGetCell<bool>(variableId, out _cell);
         partial void InitializePorts() =>
             Value = new OutputPort<bool>(_ => _cell != null && _cell.Value, cache: false);
     }
@@ -57,9 +57,12 @@ namespace Scaffold.GraphFlow.Nodes
         public OutputPort<string> Value = null!;
         VariableCell<string>? _cell;
         public override void Initialize(GraphRunner runner) =>
-            runner.Variables.TryGetCell<string>(variableId, out _cell!);
+            runner.Variables.TryGetCell<string>(variableId, out _cell);
+        // Coalesce both the cell ref and the cell's nullable string value — VariableCell<string>'s
+        // backing field defaults to null, so a present cell with an unset Value would still
+        // bubble null out of an OutputPort<string>.
         partial void InitializePorts() =>
-            Value = new OutputPort<string>(_ => _cell != null ? _cell.Value : string.Empty, cache: false);
+            Value = new OutputPort<string>(_ => _cell?.Value ?? string.Empty, cache: false);
     }
 
     [Serializable, GraphNode(Category = "Variables/Get")]
@@ -69,7 +72,7 @@ namespace Scaffold.GraphFlow.Nodes
         public OutputPort<UnityEngine.Object> Value = null!;
         VariableCell<UnityEngine.Object>? _cell;
         public override void Initialize(GraphRunner runner) =>
-            runner.Variables.TryGetCell<UnityEngine.Object>(variableId, out _cell!);
+            runner.Variables.TryGetCell<UnityEngine.Object>(variableId, out _cell);
         partial void InitializePorts() =>
             Value = new OutputPort<UnityEngine.Object>(_ => _cell != null ? _cell.Value : null!, cache: false);
     }

@@ -43,6 +43,7 @@ namespace Scaffold.GraphFlow.Tests
             // we poke it via reflection (one reflective set per node init, never on hot path).
             var field = node.GetType().GetField("variableId",
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            Assert.IsNotNull(field, $"Reflection: 'variableId' field not found on {node.GetType().Name}.");
             field!.SetValue(node, id);
         }
 
