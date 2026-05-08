@@ -6,14 +6,13 @@ using Unity.GraphToolkit.Editor;
 namespace HarnessFixture.Editor.GToolkit
 {
     [Serializable]
-    public sealed class MultiplyEditorNode : Node
+    public sealed class HarnessIntToString : Node
     {
 
         protected override void OnDefinePorts(IPortDefinitionContext context)
         {
-            context.AddInputPort<int>("A").Build();
-            context.AddInputPort<int>("B").Build();
-            context.AddOutputPort<int>("Result").Build();
+            context.AddInputPort<int>("Value").Build();
+            context.AddOutputPort<string>("Result").Build();
         }
     }
 }

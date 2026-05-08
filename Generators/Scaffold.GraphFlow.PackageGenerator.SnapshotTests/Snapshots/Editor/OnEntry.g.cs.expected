@@ -6,15 +6,17 @@ using Unity.GraphToolkit.Editor;
 namespace HarnessFixture.Editor.GToolkit
 {
     [Serializable]
-    public sealed class CancelEditorNode : Node
+    public sealed class OnEntry : Node
     {
 
         protected override void OnDefinePorts(IPortDefinitionContext context)
         {
-            context.AddInputPort("FlowIn")
+            context.AddOutputPort("FlowOut")
                 .WithDisplayName(string.Empty)
                 .WithConnectorUI(PortConnectorUI.Arrowhead)
                 .Build();
+            context.AddOutputPort<HarnessFixture.OnEntry>("Payload").Build();
+            context.AddOutputPort<int>("Value").Build();
         }
     }
 }

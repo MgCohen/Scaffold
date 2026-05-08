@@ -6,7 +6,7 @@ using Unity.GraphToolkit.Editor;
 namespace HarnessFixture.Editor.GToolkit
 {
     [Serializable]
-    public sealed class LessThanEditorNode : Node
+    public sealed class GreaterThan : Node
     {
 
         protected override void OnDefinePorts(IPortDefinitionContext context)

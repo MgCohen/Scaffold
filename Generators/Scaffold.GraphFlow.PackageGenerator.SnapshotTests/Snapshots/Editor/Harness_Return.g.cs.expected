@@ -10,7 +10,7 @@ namespace HarnessFixture.Generated
 {
     [Serializable]
     [UseWithGraph(typeof(HarnessGraph))]
-    public sealed class ReturnEditorNode : ReturnEditorNode<HarnessCatalog.ReturnType>
+    public sealed class Return : global::Scaffold.GraphFlow.Editor.Nodes.ReturnEditorNode<HarnessCatalog.ReturnType>
     {
         protected override Type? GetResultType(HarnessCatalog.ReturnType picked)
             => HarnessCatalog.Resolve(picked)?.Type;

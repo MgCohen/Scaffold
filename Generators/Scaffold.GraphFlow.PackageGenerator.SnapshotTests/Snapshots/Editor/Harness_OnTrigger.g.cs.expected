@@ -12,7 +12,7 @@ namespace HarnessFixture.Generated
 {
     [Serializable]
     [UseWithGraph(typeof(HarnessGraph))]
-    public sealed class OnTriggerEditorNode : OnTriggerEditorNode<HarnessCatalog.EventType>
+    public sealed class OnTrigger : global::Scaffold.GraphFlow.Editor.Nodes.OnTriggerEditorNode<HarnessCatalog.EventType>
     {
         protected override IReadOnlyList<PortMeta>? GetPorts(HarnessCatalog.EventType picked)
             => HarnessCatalog.Resolve(picked)?.Ports;

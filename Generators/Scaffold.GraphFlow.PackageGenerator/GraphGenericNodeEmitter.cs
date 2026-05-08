@@ -98,7 +98,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine("    }");
             sb.AppendLine("}");
 
-            spc.AddSource($"{node.TypeName}.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
+            spc.AddSource($"{node.TypeName}.Editor.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
         }
 
         static string BuildRegistrationBlock(GraphPackageModel package, Compilation compilation, GenericNodeModel node)

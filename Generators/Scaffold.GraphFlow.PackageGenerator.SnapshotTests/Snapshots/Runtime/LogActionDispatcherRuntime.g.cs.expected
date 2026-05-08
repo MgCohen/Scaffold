@@ -7,30 +7,25 @@ using Scaffold.GraphFlow;
 namespace HarnessFixture
 {
     [Serializable]
-    public sealed partial class LogActionDispatcherRuntime : RuntimeNode<HarnessRunner>
+    public sealed class LogActionDispatcherRuntime : RuntimeNode<HarnessRunner>
     {
-        public FlowInPort FlowIn = null!;
-
-        public string Message = "";
-
-        public InputPort<string> InMessage = null!;
+        public FlowInPort FlowIn;
+        public InputPort<string> Message;
 
         public LogActionDispatcherRuntime()
         {
-            FlowIn = new FlowInPort(this);
-            InMessage = new InputPort<string>(() => Message);
-            Ports.Add(FlowIn.Name, FlowIn);
-            Ports.Add("Message", InMessage);
-        }
-
-        public override async Task Execute(HarnessRunner runner, Flow flow)
-        {
-            var payload = new LogAction
+            Message = new InputPort<string>();
+            FlowIn = FlowInPort.Async(this, nameof(FlowIn), async flow =>
             {
-                Message = InMessage.Read(),
-            };
-            await payload.Execute(runner).ConfigureAwait(false);
-            // No flow.GoTo → default-on-no-call is Stop (terminal action).
+                var payload = new LogAction
+                {
+                    Message = Message.Read(flow),
+                };
+                await payload.Execute(Runner(flow)).ConfigureAwait(false);
+                return null;
+            });
+            Ports.Add(FlowIn.Name, FlowIn);
+            Ports.Add("Message", Message);
         }
     }
 }
