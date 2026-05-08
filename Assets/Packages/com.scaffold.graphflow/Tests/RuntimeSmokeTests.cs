@@ -6,6 +6,9 @@ namespace Scaffold.GraphFlow.Tests
 {
     public sealed class RuntimeSmokeTests
     {
+        [TearDown]
+        public void TearDown() => TestGraph.DestroyAll();
+
         [Test]
         public async Task Mode1_Entry_IntToString_Log()
         {

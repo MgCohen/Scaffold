@@ -1,3 +1,4 @@
+using System;
 using Scaffold.GraphFlow.Editor.GToolkit;
 using Unity.GraphToolkit.Editor;
 using UnityEditor;
@@ -36,7 +37,17 @@ namespace Scaffold.GraphFlow.Editor
                 }
             }
 
-            var bake = GraphBakerCore.Bake<TRunner, TAsset>(graph, previous, Registry);
+            GraphBakeResult<TAsset> bake;
+            try
+            {
+                bake = GraphBakerCore.Bake<TRunner, TAsset>(graph, previous, Registry);
+            }
+            catch (InvalidOperationException ex)
+            {
+                ctx.LogImportError($"{ex.Message} ({ctx.assetPath})", null);
+                return;
+            }
+
             foreach (var msg in bake.Diagnostics)
                 ctx.LogImportError($"{msg} ({ctx.assetPath})", null);
 
