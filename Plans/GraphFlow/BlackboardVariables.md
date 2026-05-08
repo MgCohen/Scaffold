@@ -666,6 +666,117 @@ of GT; phase 3 is the only one touching GT internals.
 
 ---
 
+## Post-v1 follow-up backlog
+
+Captured after the implementation landed. Organized by priority — the
+"likely-to-bite" items are real bugs or hardening gaps that a real
+consumer is most likely to hit; the rest is deferred-but-known scope.
+
+### Likely to bite (fix soon)
+
+1. **Multi-runner footgun.** `GraphBuilder` caches `BakedGraph` per
+   asset and `WireVariableEdges` mutates the cached `RuntimeNode`
+   ports in place. Two runners off the same builder over the same
+   asset → second `Build` rewires the first runner's ports. Same
+   constraint already applies to Get/Set/Observe `Initialize` cell
+   caching. Fix: per-`Build` cloning of node port state, or stop
+   caching `BakedGraph`. Documented at `GraphBuilder.cs:26-31`.
+2. **No bake-time type validation on `VariableEdge`.** Designer wires
+   a `string` `IVariableNode` to an `int` `InputPort` → bake accepts,
+   runtime silently fails (`TryGetCell<int>` returns false on the
+   wrong type, port reads `default(T)`). The information is in GT
+   (`port.dataType` + `variable.dataType`); add an early `LogError`
+   in `BakeVariables`.
+3. **Better DX for unsupported `VariableDefault` types.** Today
+   `EditorVariableDefaults.CreateFor` only knows about
+   int/float/bool/string/Object; anything else surfaces a generic
+   "unsupported dataType" bake error. Consumers can author a
+   `VariableDefault<Vector3>` runtime-side, but the *editor* mapping
+   doesn't auto-pick it up — there's no registry. Either add a
+   reflection-driven discovery pass (find all `VariableDefault<T>`
+   subclasses and map by `T`) or make consumers register.
+4. **`RuntimeVariable.typeName` is descriptive-only and can drift.**
+   Runtime uses `defaultValue.ValueType` to seed the cell; `typeName`
+   isn't load-bearing. Drop it, or assert at bake that
+   `typeName == defaultValue.ValueType.AssemblyQualifiedName`.
+5. **No introspection API on `IVariableBag`.** Inspector views,
+   save/load, debug tooling all need an `Enumerate()` / `Cells`
+   surface. `TryGetCell` is keyed lookup only. Add when one of those
+   features actually lands.
+6. **Identity-drift posture mismatch.** The merged-in
+   `EditorNodeIdentity` hard-fails on reflection drift (returns
+   null, baker errors). `EditorVariableIdentity` falls back to
+   `"name:" + variable.name`. Pick one — either both hard-fail or
+   both fall back. Hard-fail is safer (rename-fragile fallback can
+   silently break baked assets).
+
+### Test-coverage gaps
+
+7. **Zero coverage on the editor bake path.** `EditorVariableIdentity`,
+   `EditorVariableDefaults`, `BakeVariables` are entirely untested —
+   they need a real GT graph. The casing bug (`Name` → `name`) that
+   landed only post-Unity is exactly the class of issue editor tests
+   would catch. At minimum: one round-trip test that authors a graph
+   in code (using GT's editor API), bakes it, and asserts the
+   resulting `RuntimeVariable[]`.
+8. **No cycle-detection test on the parent bag chain.** Q9 — trivial
+   to add a visited set if a real consumer ever wires a cyclic
+   parent.
+9. **No test for unconnected variable-bound port.** When `variableId`
+   doesn't resolve, the builder logs a warning and leaves the port
+   reading `default(T)`. Behavior is intentional but untested.
+10. **No re-bake regression test.** Author → bake → rename a
+    variable in the GT blackboard → re-bake. Should preserve baked
+    edges (GUID-based identity) or surface a clean error. Untested.
+11. **No multi-`Build` test.** Calling `Build` on the same asset
+    twice with the same builder — does anything corrupt? See item
+    #1.
+
+### Deferred (already-known scope)
+
+12. **External-class two-way binding.** FlowCanvas-style
+    consumer-supplied object exposing the same fields, kept in sync
+    via `cell.Changed`. The lesser-priority item from the original
+    ask. Slottable cleanly when wanted.
+13. **Generator-driven Get/Set/Observe trio emission per
+    `VariableDefault<T>`.** v1 ships hand-authored 15 typed
+    concretes. Adding a new `T` is one subclass + one trio + meta
+    file × 3. Generator emission would replace the hand-authored
+    set, no runtime change.
+14. **Editor variable-id picker drawer.** `variableId` is a plain
+    `[SerializeField] string` — designers paste GUIDs.
+15. **Observe subscription teardown.** Subscriptions to parent-bag
+    cells outlive the runner, leaking a runner-keepalive. Add an
+    explicit teardown / `IDisposable` on `GraphRunner` when it
+    matters.
+16. **Per-flow variable declarations (Q7).** Flow-layer bag is
+    structurally present but always empty. When a real designer
+    feature asks for "scratch state per Run," tag variables with a
+    scope enum at bake and route flow-scoped ones into
+    `flow.Variables`.
+17. **Subgraph parameters (Q7).** GT's `IVariable.Kind`
+    (Local/Input/Output) is currently ignored. When subgraphs land,
+    Input/Output become subgraph parameters and naturally live on
+    the per-call flow bag.
+18. **Real GT-authored sample asset.** Phase 6's "sample" is the
+    `VariableEndToEndTests` integration test — same code paths,
+    no `.asset` on disk. Needs Unity to author.
+
+### Behavioral quirks worth knowing (not bugs)
+
+- **Type-mismatch shadows the parent.** Child bag declaring `hp` at
+  the wrong type fully shadows the parent's `hp`, by design. Comment
+  in `InMemoryVariableBag.TryGetCell<T>` documents.
+- **`Object` cells can hold null.** `VariableCell<UnityEngine.Object>`
+  null values are valid; `GetObjectVariable` returns `null!`
+  (forgiving) in that case.
+- **`Flow.Variables` allocates per `Run()` if touched.** Lazy — only
+  pays when accessed. High-frequency runners that touch variables
+  every frame eat one allocation each run. Acceptable for v1; pool
+  or skip flow layer if it ever shows up in profiles.
+
+---
+
 ## Open questions / concerns / gaps
 
 ### 1. Initial `VariableDefault` set
