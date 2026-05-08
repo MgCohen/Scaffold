@@ -67,8 +67,9 @@ namespace Scaffold.GraphFlow
                     entries[entry.PayloadType] = entry;
             }
 
-            var variables = asset.variables ?? (IReadOnlyList<RuntimeVariable>)Array.Empty<RuntimeVariable>();
-            return new BakedGraph(nodes, entries, variables);
+            var variables     = asset.variables     ?? (IReadOnlyList<RuntimeVariable>)Array.Empty<RuntimeVariable>();
+            var variableEdges = asset.variableEdges ?? (IReadOnlyList<VariableEdge>)Array.Empty<VariableEdge>();
+            return new BakedGraph(nodes, entries, variables, variableEdges, byId);
         }
     }
 }

@@ -123,10 +123,15 @@ namespace Scaffold.GraphFlow.Editor
                 }
             }
 
+            var (variables, variableEdges) = BakeVariables(editorGraph, editorNodes, editorToRuntime, editorToRegistration, result);
+            if (result.HasErrors) return result;
+
             var asset = ScriptableObject.CreateInstance<TAsset>();
             asset.nodes = new List<RuntimeNode>(editorToRuntime.Values);
             asset.connections = dataConnections;
             asset.flowEdges = flowEdges;
+            asset.variables = variables;
+            asset.variableEdges = variableEdges;
             asset.schemaVersion = SchemaVersion;
 
             result.Asset = asset;
@@ -157,6 +162,84 @@ namespace Scaffold.GraphFlow.Editor
                 return false;
             into.Add(new Edge { fromNodeId = fromNodeId, fromPortName = fromPortName, toNodeId = toNodeId, toPortName = toPortName });
             return true;
+        }
+
+        static (List<RuntimeVariable> variables, List<VariableEdge> variableEdges)
+            BakeVariables<TRunner, TAsset>(
+                Graph<TRunner> editorGraph,
+                List<INode> editorNodes,
+                Dictionary<INode, RuntimeNode> editorToRuntime,
+                Dictionary<INode, GraphPackageRegistry<TRunner>.NodeRegistration> editorToRegistration,
+                GraphBakeResult<TAsset> result)
+            where TRunner : GraphRunner
+            where TAsset : GraphAsset<TRunner>
+        {
+            var variables = new List<RuntimeVariable>();
+            var variableEdges = new List<VariableEdge>();
+
+            // 1. Declared variables from the GT blackboard panel.
+            var idByVariable = new Dictionary<IVariable, string>();
+            foreach (var v in editorGraph.GetVariables())
+            {
+                if (v == null) continue;
+                var id = EditorVariableIdentity.GetStableGuid(v);
+                if (string.IsNullOrEmpty(id))
+                {
+                    result.LogError($"Variable {v.Name ?? "<unnamed>"} has no stable identity — cannot bake.");
+                    return (variables, variableEdges);
+                }
+                var def = EditorVariableDefaults.CreateFor(v);
+                if (def == null)
+                {
+                    result.LogError($"Variable {v.Name} has unsupported DataType {v.DataType?.FullName ?? "<null>"}.");
+                    return (variables, variableEdges);
+                }
+                variables.Add(new RuntimeVariable
+                {
+                    id = id!,
+                    name = v.Name ?? string.Empty,
+                    typeName = v.DataType!.AssemblyQualifiedName,
+                    defaultValue = def,
+                });
+                idByVariable[v] = id!;
+            }
+
+            // 2. Edges sourced from IVariableNode → runtime data input ports.
+            //    Variable nodes are not registered runtime nodes (they were skipped
+            //    in the main loop). They're sources only; the destination must be a
+            //    declared data input on a runtime node.
+            foreach (var n in editorNodes)
+            {
+                if (n is not IVariableNode vn) continue;
+                if (vn.variable == null) continue;
+                if (!idByVariable.TryGetValue(vn.variable, out var variableId)) continue;
+
+                foreach (var port in n.GetOutputPorts())
+                {
+                    var connected = new List<IPort>();
+                    port.GetConnectedPorts(connected);
+                    foreach (var other in connected)
+                    {
+                        var toEditor = other.GetNode();
+                        if (toEditor == null || !editorToRuntime.TryGetValue(toEditor, out var toRuntime)) continue;
+                        var toReg = editorToRegistration[toEditor];
+                        if (!toReg.DataInputPortNames.Contains(other.name))
+                        {
+                            result.LogError($"Variable edge from {n.GetType().Name} to {toEditor.GetType().Name}.{other.name}: destination is not a declared data input.");
+                            return (variables, variableEdges);
+                        }
+
+                        variableEdges.Add(new VariableEdge
+                        {
+                            variableId = variableId,
+                            toNodeId = toRuntime.nodeId,
+                            toPortName = other.name,
+                        });
+                    }
+                }
+            }
+
+            return (variables, variableEdges);
         }
 
         static Dictionary<string, int> RecoverGuidMap<TRunner, TAsset>(TAsset? previous)
