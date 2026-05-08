@@ -40,10 +40,10 @@ namespace Scaffold.GraphFlow.Editor
             foreach (var msg in bake.Diagnostics)
                 ctx.LogImportError($"{msg} ({ctx.assetPath})", null);
 
-            if (bake.HasErrors || bake.Asset == null)
+            if (bake.HasErrors)
                 return;
 
-            bake.Asset.name = "Runtime";
+            bake.Asset!.name = "Runtime";
             ctx.AddObjectToAsset("Runtime", bake.Asset);
             ctx.SetMainObject(bake.Asset);
         }

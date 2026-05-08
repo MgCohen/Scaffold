@@ -159,7 +159,7 @@ namespace Scaffold.GraphFlow.Editor
             where TAsset : GraphAsset<TRunner>
         {
             var map = new Dictionary<string, int>(StringComparer.Ordinal);
-            if (previous?.nodes == null)
+            if (previous == null)
                 return map;
 
             foreach (var n in previous.nodes)
