@@ -17,9 +17,7 @@ namespace HarnessFixture.Generated
             ports: new[]
             {
                 new PortMeta("Amount", typeof(int), PortDirection.Output),
-                new PortMeta("Amount", typeof(int), PortDirection.Input),
                 new PortMeta("Label", typeof(string), PortDirection.Output),
-                new PortMeta("Label", typeof(string), PortDirection.Input),
             },
             createRuntime: () => new global::Scaffold.GraphFlow.OnTrigger<HarnessFixture.HarnessEvent>()
         );
@@ -42,7 +40,6 @@ namespace HarnessFixture.Generated
             ports: new[]
             {
                 new PortMeta("Value", typeof(int), PortDirection.Output),
-                new PortMeta("Value", typeof(int), PortDirection.Input),
             },
             createRuntime: () => new HarnessFixture.OnEntryRuntime()
         );
@@ -112,8 +109,6 @@ namespace HarnessFixture.Generated
 
         public static readonly System.Collections.Generic.IReadOnlyList<string> AllEventDataInputPortNames = new string[]
         {
-            "Amount",
-            "Label",
         };
 
         // ============ Per-concern picker enums ============

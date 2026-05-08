@@ -4,60 +4,34 @@ using Unity.GraphToolkit.Editor;
 
 namespace Scaffold.GraphFlow.Editor
 {
-    /// <summary>Stable editor node identity — reads each <see cref="Node"/>&apos;s persisted Unity <c>Hash128</c> GUID from the backing toolkit model.</summary>
-    /// <remarks>
-    /// Graph Toolkit <c>0.4.x</c> does not expose a public GUID on <see cref="Node"/>; identity lives on the internal
-    /// model base type (<c>Unity.GraphToolkit.Editor.Model.Guid</c>), reachable via non-public field <c>m_Implementation</c>.
-    /// Reading <c>Guid</c> assigns a new stable value while the serialized <c>Hash128</c> is still default (new nodes).
-    /// </remarks>
     static class EditorNodeIdentity
     {
-        static readonly FieldInfo? s_NodeImplementation =
-            typeof(Node).GetField("m_Implementation", BindingFlags.NonPublic | BindingFlags.Instance);
+        static readonly FieldInfo s_NodeImplementation =
+            typeof(Node).GetField("m_Implementation", BindingFlags.NonPublic | BindingFlags.Instance)
+            ?? throw new InvalidOperationException(
+                "GraphFlow: GraphToolkit Node.m_Implementation field not found — version drift. " +
+                "Update the reflection contract in EditorNodeIdentity.");
 
-        internal static string? GetStableGuid(INode node)
+        internal static string GetStableGuid(INode node)
         {
             if (node is not Node toolkitNode)
-                return null;
+                throw new InvalidOperationException(
+                    $"GraphFlow: editor node {node.GetType().FullName} does not derive from Unity.GraphToolkit.Editor.Node.");
 
-            object? impl;
-            try
-            {
-                impl = s_NodeImplementation?.GetValue(toolkitNode);
-            }
-            catch (Exception)
-            {
-                return null;
-            }
+            var impl = s_NodeImplementation.GetValue(toolkitNode)
+                ?? throw new InvalidOperationException(
+                    $"GraphFlow: Node.m_Implementation is null on {node.GetType().FullName}.");
 
-            if (impl == null)
-                return null;
+            var guidProp = impl.GetType().GetProperty("Guid", BindingFlags.Public | BindingFlags.Instance)
+                ?? throw new InvalidOperationException(
+                    "GraphFlow: GraphToolkit Implementation.Guid property not found — version drift.");
 
-            PropertyInfo? guidProp;
-            try
-            {
-                guidProp = impl.GetType().GetProperty("Guid", BindingFlags.Public | BindingFlags.Instance);
-            }
-            catch (Exception)
-            {
-                return null;
-            }
+            var s = guidProp.GetValue(impl)?.ToString();
+            if (string.IsNullOrWhiteSpace(s))
+                throw new InvalidOperationException(
+                    $"GraphFlow: Implementation.Guid was empty for {node.GetType().FullName}.");
 
-            if (guidProp == null)
-                return null;
-
-            object? hashGuid;
-            try
-            {
-                hashGuid = guidProp.GetValue(impl);
-            }
-            catch (Exception)
-            {
-                return null;
-            }
-
-            var s = hashGuid?.ToString();
-            return string.IsNullOrWhiteSpace(s) ? null : s;
+            return s;
         }
     }
 }

@@ -2,9 +2,46 @@
 using System;
 using System.Collections.Generic;
 using Scaffold.GraphFlow;
+using UnityEngine;
 
 namespace Scaffold.GraphFlow.Tests
 {
+    public static class TestGraph
+    {
+        static readonly List<TestGraphAsset> _live = new();
+
+        public static TestGraphAsset With(params RuntimeNode[] nodes)
+        {
+            var asset = ScriptableObject.CreateInstance<TestGraphAsset>();
+            asset.nodes = new List<RuntimeNode>(nodes);
+            for (var i = 0; i < nodes.Length; i++) nodes[i].nodeId = i + 1;
+            _live.Add(asset);
+            return asset;
+        }
+
+        public static void DestroyAll()
+        {
+            foreach (var a in _live)
+                if (a != null) UnityEngine.Object.DestroyImmediate(a);
+            _live.Clear();
+        }
+    }
+
+    public static class GraphAssetWiring
+    {
+        public static TAsset Flow<TAsset>(this TAsset a, RuntimeNode from, string fromPort, RuntimeNode to, string toPort) where TAsset : GraphAsset
+        {
+            a.flowEdges.Add(new Edge { fromNodeId = from.nodeId, fromPortName = fromPort, toNodeId = to.nodeId, toPortName = toPort });
+            return a;
+        }
+
+        public static TAsset Data<TAsset>(this TAsset a, RuntimeNode from, string fromPort, RuntimeNode to, string toPort) where TAsset : GraphAsset
+        {
+            a.connections.Add(new Edge { fromNodeId = from.nodeId, fromPortName = fromPort, toNodeId = to.nodeId, toPortName = toPort });
+            return a;
+        }
+    }
+
     public interface IGraphLogSink
     {
         void Record(string message);

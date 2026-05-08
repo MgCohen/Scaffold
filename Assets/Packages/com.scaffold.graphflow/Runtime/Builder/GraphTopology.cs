@@ -15,7 +15,7 @@ namespace Scaffold.GraphFlow
                 if (n != null) byId[n.nodeId] = n;
             }
 
-            var dataByDest = new Dictionary<int, List<DataBinding>>();
+            var dataByDest = new Dictionary<int, List<Action>>();
             var flowByDest = new Dictionary<int, List<FlowBinding>>();
 
             foreach (var c in asset.connections)
@@ -27,11 +27,10 @@ namespace Scaffold.GraphFlow
 
                 var src = srcPort;
                 var dst = dstPort;
-                var binding = new DataBinding(() => dst.ConnectFrom(src));
 
                 if (!dataByDest.TryGetValue(c.toNodeId, out var list))
-                    dataByDest[c.toNodeId] = list = new List<DataBinding>();
-                list.Add(binding);
+                    dataByDest[c.toNodeId] = list = new List<Action>();
+                list.Add(() => dst.ConnectFrom(src));
             }
 
             foreach (var e in asset.flowEdges)
@@ -49,13 +48,13 @@ namespace Scaffold.GraphFlow
                 list.Add(binding);
             }
 
-            var emptyData = Array.Empty<DataBinding>();
+            var emptyData = Array.Empty<Action>();
             var emptyFlow = Array.Empty<FlowBinding>();
 
             foreach (var n in nodes)
             {
                 if (n == null) continue;
-                IReadOnlyList<DataBinding> data = dataByDest.TryGetValue(n.nodeId, out var d) ? d : emptyData;
+                IReadOnlyList<Action> data = dataByDest.TryGetValue(n.nodeId, out var d) ? d : emptyData;
                 IReadOnlyList<FlowBinding> flow = flowByDest.TryGetValue(n.nodeId, out var f) ? f : emptyFlow;
                 n.Build(new NodeBuildSlice(data, flow));
             }

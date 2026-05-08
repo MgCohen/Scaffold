@@ -78,9 +78,12 @@ namespace Scaffold.GraphFlow.PackageGenerator
 
         static void ReadDisplayAndStrings(AttributeData attr, INamedTypeSymbol runner, out GraphPackageModel model)
         {
+            const string runnerSuffix = "Runner";
             var fq = runner.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
             var ns = runner.ContainingNamespace.IsGlobalNamespace ? "" : runner.ContainingNamespace.ToDisplayString();
-            var stem = RunnerStem.FromTypeName(runner.Name);
+            var stem = runner.Name.EndsWith(runnerSuffix, System.StringComparison.Ordinal) && runner.Name.Length > runnerSuffix.Length
+                ? runner.Name.Substring(0, runner.Name.Length - runnerSuffix.Length)
+                : runner.Name;
             AttributeNamedArguments.ReadPackageStrings(attr, out var ext, out var menu, out var reg);
             var frameworkNs = GraphFrameworkNamespaceFromRunner(runner);
             var dispatcherMeta = AttributeNamedArguments.TryGetNamedType(attr, "DispatcherBase") is { } dBase

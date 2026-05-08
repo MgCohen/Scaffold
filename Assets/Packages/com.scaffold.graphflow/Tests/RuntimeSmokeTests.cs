@@ -1,49 +1,25 @@
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Scaffold.GraphFlow.Nodes;
-using UnityEngine;
 
 namespace Scaffold.GraphFlow.Tests
 {
     public sealed class RuntimeSmokeTests
     {
-        const string EntryFlowOut       = "FlowOut";
-        const string EntryValuePortName = "Value";
-
-        const string EchoFlowIn   = "FlowIn";
-        const string EchoFlowOut  = "FlowOut";
-        const string EchoMag      = "Magnitude";
-        const string EchoSummary  = "Summary";
-
-        const string LogFlowIn    = "FlowIn";
-        const string LogMessage   = "Message";
-
-        const string IntToStrIn   = "Value";
-        const string IntToStrOut  = "Result";
-
-        const string BranchFlowIn    = "In";
-        const string BranchCondition = "Condition";
-        const string BranchTrue      = "True";
-        const string BranchFalse     = "False";
-        const string NotValue        = "Value";
-        const string NotResult       = "Result";
-        const string ReturnFlowIn    = "In";
-        const string ReturnValue     = "Value";
-        const string CancelFlowIn    = "In";
+        [TearDown]
+        public void TearDown() => TestGraph.DestroyAll();
 
         [Test]
         public async Task Mode1_Entry_IntToString_Log()
         {
-            var entry = new TestEntryRuntime          { nodeId = 1, editorGuid = "a" };
-            var conv  = new TestIntToStringRuntime    { nodeId = 2, editorGuid = "b" };
-            var log   = new TestLogDispatcherRuntime  { nodeId = 3, editorGuid = "c" };
+            var entry = new TestEntryRuntime();
+            var conv  = new TestIntToStringRuntime();
+            var log   = new TestLogDispatcherRuntime();
 
-            var asset = ScriptableObject.CreateInstance<TestGraphAsset>();
-            asset.nodes = new List<RuntimeNode> { entry, conv, log };
-            asset.flowEdges.Add(new Edge { fromNodeId = 1, fromPortName = EntryFlowOut,    toNodeId = 3, toPortName = LogFlowIn });
-            asset.connections.Add(new Edge { fromNodeId = 1, fromPortName = EntryValuePortName, toNodeId = 2, toPortName = IntToStrIn });
-            asset.connections.Add(new Edge { fromNodeId = 2, fromPortName = IntToStrOut,        toNodeId = 3, toPortName = LogMessage });
+            var asset = TestGraph.With(entry, conv, log)
+                .Flow(entry, "FlowOut", log, "FlowIn")
+                .Data(entry, "Value", conv, "Value")
+                .Data(conv,  "Result", log, "Message");
 
             var sink = new CollectingLogSink();
             var runner = new TestBuilder(sink).Build(asset);
@@ -55,16 +31,15 @@ namespace Scaffold.GraphFlow.Tests
         [Test]
         public async Task Mode2_Entry_Echo_Log_BuildPayload_WriteOutputs()
         {
-            var entry = new TestEntryRuntime           { nodeId = 1, editorGuid = "a" };
-            var echo  = new TestEchoDispatcherRuntime  { nodeId = 2, editorGuid = "b" };
-            var log   = new TestLogDispatcherRuntime   { nodeId = 3, editorGuid = "c" };
+            var entry = new TestEntryRuntime();
+            var echo  = new TestEchoDispatcherRuntime();
+            var log   = new TestLogDispatcherRuntime();
 
-            var asset = ScriptableObject.CreateInstance<TestGraphAsset>();
-            asset.nodes = new List<RuntimeNode> { entry, echo, log };
-            asset.flowEdges.Add(new Edge { fromNodeId = 1, fromPortName = EntryFlowOut, toNodeId = 2, toPortName = EchoFlowIn });
-            asset.flowEdges.Add(new Edge { fromNodeId = 2, fromPortName = EchoFlowOut,  toNodeId = 3, toPortName = LogFlowIn });
-            asset.connections.Add(new Edge { fromNodeId = 1, fromPortName = EntryValuePortName, toNodeId = 2, toPortName = EchoMag });
-            asset.connections.Add(new Edge { fromNodeId = 2, fromPortName = EchoSummary,        toNodeId = 3, toPortName = LogMessage });
+            var asset = TestGraph.With(entry, echo, log)
+                .Flow(entry, "FlowOut",  echo, "FlowIn")
+                .Flow(echo,  "FlowOut",  log,  "FlowIn")
+                .Data(entry, "Value",    echo, "Magnitude")
+                .Data(echo,  "Summary",  log,  "Message");
 
             var sink = new CollectingLogSink();
             var runner = new TestBuilder(sink).Build(asset);
@@ -76,18 +51,17 @@ namespace Scaffold.GraphFlow.Tests
         [Test]
         public async Task M2_Entry_Not_Branch_Return_TruePath()
         {
-            var entry  = new TestEntryRuntime { nodeId = 1, editorGuid = "a" };
-            var not    = new Not              { nodeId = 2, editorGuid = "b" };
-            var branch = new Branch           { nodeId = 3, editorGuid = "c" };
-            var ret    = new Return<bool>     { nodeId = 4, editorGuid = "d" };
-            var cancel = new Cancel           { nodeId = 5, editorGuid = "e" };
+            var entry  = new TestEntryRuntime();
+            var not    = new Not();
+            var branch = new Branch();
+            var ret    = new Return<bool>();
+            var cancel = new Cancel();
 
-            var asset = ScriptableObject.CreateInstance<TestGraphAsset>();
-            asset.nodes = new List<RuntimeNode> { entry, not, branch, ret, cancel };
-            asset.flowEdges.Add(new Edge { fromNodeId = 1, fromPortName = EntryFlowOut, toNodeId = 3, toPortName = BranchFlowIn });
-            asset.flowEdges.Add(new Edge { fromNodeId = 3, fromPortName = BranchTrue,   toNodeId = 4, toPortName = ReturnFlowIn });
-            asset.flowEdges.Add(new Edge { fromNodeId = 3, fromPortName = BranchFalse,  toNodeId = 5, toPortName = CancelFlowIn });
-            asset.connections.Add(new Edge { fromNodeId = 2, fromPortName = NotResult, toNodeId = 3, toPortName = BranchCondition });
+            var asset = TestGraph.With(entry, not, branch, ret, cancel)
+                .Flow(entry,  "FlowOut", branch, "In")
+                .Flow(branch, "True",    ret,    "In")
+                .Flow(branch, "False",   cancel, "In")
+                .Data(not,    "Result",  branch, "Condition");
 
             var runner = new TestBuilder(new CollectingLogSink()).Build(asset);
             var flow = await runner.Run(new TestEntry { Value = 0 });
@@ -99,20 +73,19 @@ namespace Scaffold.GraphFlow.Tests
         [Test]
         public async Task M2_Branch_False_Cancel_Path()
         {
-            var entry  = new TestEntryRuntime { nodeId = 1, editorGuid = "a" };
-            var notA   = new Not              { nodeId = 2, editorGuid = "b" };
-            var notB   = new Not              { nodeId = 3, editorGuid = "c" };
-            var branch = new Branch           { nodeId = 4, editorGuid = "d" };
-            var ret    = new Return<bool>     { nodeId = 5, editorGuid = "e" };
-            var cancel = new Cancel           { nodeId = 6, editorGuid = "f" };
+            var entry  = new TestEntryRuntime();
+            var notA   = new Not();
+            var notB   = new Not();
+            var branch = new Branch();
+            var ret    = new Return<bool>();
+            var cancel = new Cancel();
 
-            var asset = ScriptableObject.CreateInstance<TestGraphAsset>();
-            asset.nodes = new List<RuntimeNode> { entry, notA, notB, branch, ret, cancel };
-            asset.flowEdges.Add(new Edge { fromNodeId = 1, fromPortName = EntryFlowOut, toNodeId = 4, toPortName = BranchFlowIn });
-            asset.flowEdges.Add(new Edge { fromNodeId = 4, fromPortName = BranchTrue,   toNodeId = 5, toPortName = ReturnFlowIn });
-            asset.flowEdges.Add(new Edge { fromNodeId = 4, fromPortName = BranchFalse,  toNodeId = 6, toPortName = CancelFlowIn });
-            asset.connections.Add(new Edge { fromNodeId = 2, fromPortName = NotResult, toNodeId = 3, toPortName = NotValue });
-            asset.connections.Add(new Edge { fromNodeId = 3, fromPortName = NotResult, toNodeId = 4, toPortName = BranchCondition });
+            var asset = TestGraph.With(entry, notA, notB, branch, ret, cancel)
+                .Flow(entry,  "FlowOut", branch, "In")
+                .Flow(branch, "True",    ret,    "In")
+                .Flow(branch, "False",   cancel, "In")
+                .Data(notA,   "Result",  notB,   "Value")
+                .Data(notB,   "Result",  branch, "Condition");
 
             var runner = new TestBuilder(new CollectingLogSink()).Build(asset);
             var flow = await runner.Run(new TestEntry { Value = 0 });
@@ -123,14 +96,13 @@ namespace Scaffold.GraphFlow.Tests
         [Test]
         public async Task M3_Return_Stores_Bool_Value()
         {
-            var entry = new TestEntryRuntime { nodeId = 1, editorGuid = "a" };
-            var not   = new Not              { nodeId = 2, editorGuid = "b" };
-            var ret   = new Return<bool>     { nodeId = 3, editorGuid = "c" };
+            var entry = new TestEntryRuntime();
+            var not   = new Not();
+            var ret   = new Return<bool>();
 
-            var asset = ScriptableObject.CreateInstance<TestGraphAsset>();
-            asset.nodes = new List<RuntimeNode> { entry, not, ret };
-            asset.flowEdges.Add(new Edge { fromNodeId = 1, fromPortName = EntryFlowOut, toNodeId = 3, toPortName = ReturnFlowIn });
-            asset.connections.Add(new Edge { fromNodeId = 2, fromPortName = NotResult, toNodeId = 3, toPortName = ReturnValue });
+            var asset = TestGraph.With(entry, not, ret)
+                .Flow(entry, "FlowOut", ret, "In")
+                .Data(not,   "Result",  ret, "Value");
 
             var runner = new TestBuilder(new CollectingLogSink()).Build(asset);
             var flow = await runner.Run(new TestEntry { Value = 0 });
