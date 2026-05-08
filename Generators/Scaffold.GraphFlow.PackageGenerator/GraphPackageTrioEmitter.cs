@@ -1,5 +1,6 @@
 using System.Threading;
 using System.Collections.Immutable;
+using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
@@ -16,12 +17,13 @@ namespace Scaffold.GraphFlow.PackageGenerator
             }
 
             var editorAsm = GraphCompilationNames.IsEditorAssembly(compilation);
-            if (editorAsm && packages.Length > 1)
+            var ordered = packages.Sort(static (a, b) => string.CompareOrdinal(a.RunnerFullyQualified, b.RunnerFullyQualified));
+            if (editorAsm && ordered.Length > 1)
             {
-                ReportMultiPackageBindings(spc, compilation, packages, cancellationToken);
+                ReportMultiPackageBindings(spc, compilation, ordered, cancellationToken);
             }
 
-            foreach (var p in packages)
+            foreach (var p in ordered)
             {
                 DispatchOnePackage(spc, compilation, editorAsm, p, cancellationToken);
             }
@@ -63,7 +65,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
                 assemblies.Add(entry.asm);
             }
 
-            foreach (var asm in assemblies)
+            foreach (var asm in assemblies.OrderBy(a => a.Name, System.StringComparer.Ordinal))
             {
                 foreach (var type in GraphPayloadTypeWalker.AllNamedTypesInAssembly(asm, ct))
                 {
@@ -221,7 +223,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             var dedupe = new System.Collections.Generic.HashSet<string>();
             var allNodes = ImmutableArray.CreateBuilder<GenericNodeModel>();
             var inCurrentCompilation = new System.Collections.Generic.HashSet<string>();
-            foreach (var asm in asms)
+            foreach (var asm in asms.OrderBy(a => a.Name, System.StringComparer.Ordinal))
             {
                 var parsed = GenericNodeParser.Parse(compilation, asm, ct);
                 var isCurrent = SymbolEqualityComparer.Default.Equals(asm, compilation.Assembly);

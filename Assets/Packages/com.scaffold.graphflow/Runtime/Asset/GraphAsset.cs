@@ -20,12 +20,8 @@ namespace Scaffold.GraphFlow
         public List<Edge> flowEdges = new();
         public int schemaVersion;
 
-        // Strip unresolvable SerializeReference entries on load. Class renames /
-        // assembly moves leave behind null managed references in already-baked assets;
-        // NaughtyAttributes' inspector walks every property path and logs "target object
-        // is null" for each null intermediate, spamming the console on every editor tick.
-        // Drop them silently — the bake step is the source of truth, the user can re-bake
-        // to recover.
+        // Strip null SerializeReference entries on load — class renames in baked assets
+        // leave dangling managed refs that NaughtyAttributes' inspector logs on every tick.
         void ISerializationCallbackReceiver.OnBeforeSerialize() { }
         void ISerializationCallbackReceiver.OnAfterDeserialize()
         {

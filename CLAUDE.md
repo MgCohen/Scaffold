@@ -16,7 +16,7 @@ cp Generators/Scaffold.GraphFlow.PackageGenerator/bin/Release/netstandard2.0/Sca
 PowerShell equivalent (also syncs `AttributesLib.dll`):
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File Generators/Scaffold.GraphFlow/sync-unity-dlls.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File Generators/sync-unity-dlls.ps1
 ```
 
 After the DLL is copied, Unity still needs to reimport it. Tell the user to

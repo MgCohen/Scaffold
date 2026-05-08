@@ -79,7 +79,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             foreach (var p in node.FlowOuts)
             {
                 sb.AppendLine($"            context.AddOutputPort(\"{p.FieldName}\")");
-                sb.AppendLine($"                .WithDisplayName(\"{p.FieldName}\")");
+                sb.AppendLine($"                .WithDisplayName(\"{(node.FlowOuts.Length == 1 ? string.Empty : p.FieldName)}\")");
                 sb.AppendLine("                .WithConnectorUI(PortConnectorUI.Arrowhead)");
                 sb.AppendLine("                .Build();");
             }
@@ -98,7 +98,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine("    }");
             sb.AppendLine("}");
 
-            spc.AddSource($"{node.TypeName}.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
+            spc.AddSource($"{node.TypeName}.Editor.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
         }
 
         static string BuildRegistrationBlock(GraphPackageModel package, Compilation compilation, GenericNodeModel node)

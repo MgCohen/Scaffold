@@ -6,11 +6,6 @@
   "unity": "6000.3",
   "samples": [
     {
-      "displayName": "M0 Smoke Sandbox",
-      "description": "Smoke-test sandbox: dispatcher, payloads, and the .gfmsmoke graph asset that exercises the M0 runtime end-to-end.",
-      "path": "Samples~/M0Sandbox"
-    },
-    {
       "displayName": "Card Sandbox",
       "description": "Mode-2 loop demonstration: entry-catalog + event-bus trigger model.",
       "path": "Samples/CardSandbox"
