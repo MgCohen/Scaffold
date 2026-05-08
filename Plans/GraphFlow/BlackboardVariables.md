@@ -654,11 +654,11 @@ discipline. Suggested ordering:
 | 4 | `GetVariableNode<T>` / `SetVariableNode<T>` for int / float / bool / string / Object. Hand-authored typed concretes — generator-driven trio emission deferred until a real consumer asks. | Runtime | shipped |
 | 5 | `ObserveVariableNode<T>` + cell `Changed` events. New `internal RunObserver` seam on `GraphRunner`. Lifecycle (subscription teardown) deferred. | Runtime | shipped |
 | 6 | End-to-end test (`VariableEndToEndTests`) exercising graph-level + global vars, variable-bound ports, Get/Set/Observe in one graph. Real GT-authored sample asset still pending Unity. | Tests | shipped (test-only) |
-| later | External-class two-way binding (FlowCanvas-style passed-in object exposing the same fields, kept in sync via cell `Changed`). | Runtime |
-| later | Per-flow declarations + subgraph parameters (Q7). | Bake + Runtime |
-| later | Source-generator emission of Get/Set/Observe trios per registered `VariableDefault<T>` — replaces the hand-authored concretes once a consumer needs additional types. | Generator |
-| later | Editor variable-picker drawer for the `variableId` `[SerializeField] string` on Get/Set/Observe nodes. | Editor |
-| later | Subscription teardown for Observe nodes that target parent-bag cells. | Runtime |
+| later | External-class two-way binding (FlowCanvas-style passed-in object exposing the same fields, kept in sync via cell `Changed`). | Runtime | deferred |
+| later | Per-flow declarations + subgraph parameters (Q7). | Bake + Runtime | deferred |
+| later | Source-generator emission of Get/Set/Observe trios per registered `VariableDefault<T>` — replaces the hand-authored concretes once a consumer needs additional types. | Generator | deferred |
+| later | Editor variable-picker drawer for the `variableId` `[SerializeField] string` on Get/Set/Observe nodes. | Editor | deferred |
+| later | Subscription teardown for Observe nodes that target parent-bag cells. | Runtime | deferred |
 
 Each phase ends with the snapshot harness green and Unity batchmode
 compile zero `error CS` lines. Phases 1+2 are trivially independent

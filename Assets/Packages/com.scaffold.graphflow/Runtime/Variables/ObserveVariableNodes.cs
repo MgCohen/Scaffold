@@ -100,7 +100,7 @@ namespace Scaffold.GraphFlow.Nodes
         VariableCell<UnityEngine.Object>? _cell;
 
         partial void InitializePorts() =>
-            NewValue = new OutputPort<UnityEngine.Object>(flow => flow.GetPayload<VariableChangePayload<UnityEngine.Object>>()?.Value ?? null!);
+            NewValue = new OutputPort<UnityEngine.Object>(flow => flow.GetPayload<VariableChangePayload<UnityEngine.Object>>()?.Value ?? default!);
 
         public override void Initialize(GraphRunner runner)
         {

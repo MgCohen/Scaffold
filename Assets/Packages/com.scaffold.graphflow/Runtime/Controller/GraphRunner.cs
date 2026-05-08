@@ -52,12 +52,25 @@ namespace Scaffold.GraphFlow
         // Used by ObserveVariableNode<T> on cell.Changed to drive a flow from the
         // observer's FlowOut. Internal to avoid widening the public surface for
         // arbitrary "drive a flow from X" needs — observers go through this seam.
+        //
+        // Observers are fire-and-forget at the call site (`_ = runner.RunObserver(...)`),
+        // so any unhandled exception in the spawned flow would otherwise be lost in
+        // the discarded Task and only resurface as UnobservedTaskException at GC
+        // time. Catch and log here so failures show up immediately with their
+        // original stack — without making the public surface awkward.
         internal async Task RunObserver(FlowOutPort flowOut, object payload, CancellationToken ct = default)
         {
-            var flow = NewFlow(payload, ct);
-            var dest = flowOut.Connection?.Destination;
-            if (dest != null) await RunFromInPort(dest, flow);
-            flow.InvalidateAll();
+            try
+            {
+                var flow = NewFlow(payload, ct);
+                var dest = flowOut.Connection?.Destination;
+                if (dest != null) await RunFromInPort(dest, flow);
+                flow.InvalidateAll();
+            }
+            catch (Exception e)
+            {
+                UnityEngine.Debug.LogException(e);
+            }
         }
 
         Flow NewFlow(object payload, CancellationToken ct) => new Flow(payload, this, ct);

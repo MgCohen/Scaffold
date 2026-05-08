@@ -41,13 +41,7 @@ namespace Scaffold.GraphFlow.Tests
             var asset = ScriptableObject.CreateInstance<ParentedAsset>();
             asset.nodes.Add(new CapturingEntry { nodeId = 1, editorGuid = "a" });
             foreach (var (id, def) in vars)
-                asset.variables.Add(new RuntimeVariable
-                {
-                    id = id,
-                    name = id,
-                    typeName = def.ValueType.AssemblyQualifiedName,
-                    defaultValue = def,
-                });
+                asset.variables.Add(VariableTestHelpers.Var(id, def));
             return asset;
         }
 
@@ -68,7 +62,7 @@ namespace Scaffold.GraphFlow.Tests
         {
             var global = new InMemoryVariableBag(new[]
             {
-                new RuntimeVariable { id = "score", name = "score", typeName = typeof(int).AssemblyQualifiedName, defaultValue = new IntDefault { value = 100 } },
+                VariableTestHelpers.Var("score", new IntDefault { value = 100 }),
             });
             var asset  = Asset(("hp", new IntDefault { value = 5 }));
             var runner = new ParentedBuilder(global).Build(asset);

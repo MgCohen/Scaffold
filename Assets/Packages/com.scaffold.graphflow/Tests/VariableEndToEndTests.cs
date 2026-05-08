@@ -42,25 +42,6 @@ namespace Scaffold.GraphFlow.Tests
         }
 
         [System.Serializable]
-        public sealed class IntRecorder : RuntimeNode
-        {
-            public FlowInPort In = null!;
-            public InputPort<int> Value = null!;
-            public readonly System.Collections.Generic.List<int> Recorded = new();
-            public IntRecorder()
-            {
-                Value = new InputPort<int>();
-                In = FlowInPort.Sync(this, nameof(In), flow =>
-                {
-                    Recorded.Add(Value.Read(flow));
-                    return null;
-                });
-                Ports.Add(In.Name, In);
-                Ports.Add(nameof(Value), Value);
-            }
-        }
-
-        [System.Serializable]
         public sealed class IntLiteral : RuntimeNode
         {
             public int Value;
@@ -70,14 +51,6 @@ namespace Scaffold.GraphFlow.Tests
                 Out = new OutputPort<int>(_ => Value, cache: false);
                 Ports.Add(nameof(Out), Out);
             }
-        }
-
-        static void SetVariableId(RuntimeNode node, string id)
-        {
-            var field = node.GetType().GetField("variableId",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            Assert.IsNotNull(field, $"Reflection: 'variableId' field not found on {node.GetType().Name}.");
-            field!.SetValue(node, id);
         }
 
         // Wires up:
@@ -94,13 +67,7 @@ namespace Scaffold.GraphFlow.Tests
             // Parent bag (consumer-supplied global state).
             var globalBag = new InMemoryVariableBag(new[]
             {
-                new RuntimeVariable
-                {
-                    id = "score",
-                    name = "score",
-                    typeName = typeof(int).AssemblyQualifiedName,
-                    defaultValue = new IntDefault { value = 0 },
-                },
+                VariableTestHelpers.Var("score", new IntDefault { value = 0 }),
             });
 
             var asset = ScriptableObject.CreateInstance<ScopedAsset>();
@@ -112,9 +79,9 @@ namespace Scaffold.GraphFlow.Tests
             var observeRec = new IntRecorder    { nodeId = 5, editorGuid = "obsRec"   };
             var hpLit    = new IntLiteral       { nodeId = 6, editorGuid = "hpLit",    Value = 75 };
             var scoreLit = new IntLiteral       { nodeId = 7, editorGuid = "scoreLit", Value = 250 };
-            SetVariableId(setHp,    "hp");
-            SetVariableId(setScore, "score");
-            SetVariableId(observe,  "hp");
+            VariableTestHelpers.SetVariableId(setHp,    "hp");
+            VariableTestHelpers.SetVariableId(setScore, "score");
+            VariableTestHelpers.SetVariableId(observe,  "hp");
 
             asset.nodes.Add(start);
             asset.nodes.Add(setHp);
@@ -125,18 +92,8 @@ namespace Scaffold.GraphFlow.Tests
             asset.nodes.Add(scoreLit);
 
             // Graph-layer declarations.
-            asset.variables.Add(new RuntimeVariable
-            {
-                id = "hp", name = "hp",
-                typeName = typeof(int).AssemblyQualifiedName,
-                defaultValue = new IntDefault { value = 100 },
-            });
-            asset.variables.Add(new RuntimeVariable
-            {
-                id = "name", name = "name",
-                typeName = typeof(string).AssemblyQualifiedName,
-                defaultValue = new StringDefault { value = "hero" },
-            });
+            asset.variables.Add(VariableTestHelpers.Var("hp",   new IntDefault    { value = 100 }));
+            asset.variables.Add(VariableTestHelpers.Var("name", new StringDefault { value = "hero" }));
 
             // Flow: Start → SetHp → SetScore.
             asset.flowEdges.Add(new Edge { fromNodeId = 1, fromPortName = nameof(Start.FlowOut),    toNodeId = 2, toPortName = nameof(SetIntVariable.In)   });
@@ -192,12 +149,7 @@ namespace Scaffold.GraphFlow.Tests
             asset.nodes.Add(start);
             asset.nodes.Add(doubler);
             asset.nodes.Add(rec);
-            asset.variables.Add(new RuntimeVariable
-            {
-                id = "speed", name = "speed",
-                typeName = typeof(int).AssemblyQualifiedName,
-                defaultValue = new IntDefault { value = 21 },
-            });
+            asset.variables.Add(VariableTestHelpers.Var("speed", new IntDefault { value = 21 }));
             asset.variableEdges.Add(new VariableEdge { variableId = "speed", toNodeId = 2, toPortName = nameof(Doubler.In) });
             asset.connections.Add(new Edge          { fromNodeId = 2, fromPortName = nameof(Doubler.Out),  toNodeId = 3, toPortName = nameof(IntRecorder.Value) });
             asset.flowEdges.Add(new Edge            { fromNodeId = 1, fromPortName = nameof(Start.FlowOut), toNodeId = 3, toPortName = nameof(IntRecorder.In)    });

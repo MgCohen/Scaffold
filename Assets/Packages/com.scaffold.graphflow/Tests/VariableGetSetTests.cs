@@ -37,32 +37,16 @@ namespace Scaffold.GraphFlow.Tests
             }
         }
 
-        static void SetVariableId(RuntimeNode node, string id)
-        {
-            // The [SerializeField] private string is set by Unity's serializer; for tests
-            // we poke it via reflection (one reflective set per node init, never on hot path).
-            var field = node.GetType().GetField("variableId",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            Assert.IsNotNull(field, $"Reflection: 'variableId' field not found on {node.GetType().Name}.");
-            field!.SetValue(node, id);
-        }
-
         [Test]
         public async Task GetIntVariableReadsCellValue()
         {
             var asset = ScriptableObject.CreateInstance<BareAsset>();
             var entry = new Entry { nodeId = 1, editorGuid = "a" };
             var get   = new GetIntVariable { nodeId = 2, editorGuid = "b" };
-            SetVariableId(get, "hp");
+            VariableTestHelpers.SetVariableId(get, "hp");
             asset.nodes.Add(entry);
             asset.nodes.Add(get);
-            asset.variables.Add(new RuntimeVariable
-            {
-                id = "hp",
-                name = "hp",
-                typeName = typeof(int).AssemblyQualifiedName,
-                defaultValue = new IntDefault { value = 7 },
-            });
+            asset.variables.Add(VariableTestHelpers.Var("hp", new IntDefault { value = 7 }));
 
             var runner = new BareBuilder().Build(asset);
             var flow = await runner.Run(new EmptyEntry());
@@ -83,18 +67,12 @@ namespace Scaffold.GraphFlow.Tests
             var entry  = new Entry          { nodeId = 1, editorGuid = "a" };
             var lit    = new IntLiteral     { nodeId = 2, editorGuid = "b", Value = 99 };
             var setter = new SetIntVariable { nodeId = 3, editorGuid = "c" };
-            SetVariableId(setter, "hp");
+            VariableTestHelpers.SetVariableId(setter, "hp");
 
             asset.nodes.Add(entry);
             asset.nodes.Add(lit);
             asset.nodes.Add(setter);
-            asset.variables.Add(new RuntimeVariable
-            {
-                id = "hp",
-                name = "hp",
-                typeName = typeof(int).AssemblyQualifiedName,
-                defaultValue = new IntDefault { value = 0 },
-            });
+            asset.variables.Add(VariableTestHelpers.Var("hp", new IntDefault { value = 0 }));
             asset.connections.Add(new Edge { fromNodeId = 2, fromPortName = nameof(IntLiteral.Out), toNodeId = 3, toPortName = nameof(SetIntVariable.NewValue) });
             asset.flowEdges.Add(new Edge   { fromNodeId = 1, fromPortName = nameof(Entry.FlowOut),  toNodeId = 3, toPortName = nameof(SetIntVariable.In) });
 
@@ -111,7 +89,7 @@ namespace Scaffold.GraphFlow.Tests
             var asset = ScriptableObject.CreateInstance<BareAsset>();
             asset.nodes.Add(new Entry { nodeId = 1, editorGuid = "a" });
             var get = new GetIntVariable { nodeId = 2, editorGuid = "b" };
-            SetVariableId(get, "missing");
+            VariableTestHelpers.SetVariableId(get, "missing");
             asset.nodes.Add(get);
 
             var runner = new BareBuilder().Build(asset);
