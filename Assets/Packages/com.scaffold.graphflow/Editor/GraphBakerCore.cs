@@ -185,20 +185,20 @@ namespace Scaffold.GraphFlow.Editor
                 var id = EditorVariableIdentity.GetStableGuid(v);
                 if (string.IsNullOrEmpty(id))
                 {
-                    result.LogError($"Variable {v.Name ?? "<unnamed>"} has no stable identity — cannot bake.");
+                    result.LogError($"Variable {v.name ?? "<unnamed>"} has no stable identity — cannot bake.");
                     return (variables, variableEdges);
                 }
                 var def = EditorVariableDefaults.CreateFor(v);
                 if (def == null)
                 {
-                    result.LogError($"Variable {v.Name} has unsupported DataType {v.DataType?.FullName ?? "<null>"}.");
+                    result.LogError($"Variable {v.name} has unsupported DataType {v.dataType?.FullName ?? "<null>"}.");
                     return (variables, variableEdges);
                 }
                 variables.Add(new RuntimeVariable
                 {
                     id = id!,
-                    name = v.Name ?? string.Empty,
-                    typeName = v.DataType!.AssemblyQualifiedName,
+                    name = v.name ?? string.Empty,
+                    typeName = v.dataType!.AssemblyQualifiedName,
                     defaultValue = def,
                 });
                 idByVariable[v] = id!;
@@ -218,7 +218,7 @@ namespace Scaffold.GraphFlow.Editor
                     // deleted or otherwise didn't make it into editorGraph.GetVariables().
                     // Surface as a warning so the designer notices, then skip.
                     UnityEngine.Debug.LogWarning(
-                        $"GraphFlow bake: variable node {n.GetType().Name} references unknown variable '{vn.variable.Name}'; edge skipped.");
+                        $"GraphFlow bake: variable node {n.GetType().Name} references unknown variable '{vn.variable.name}'; edge skipped.");
                     continue;
                 }
 

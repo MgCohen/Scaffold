@@ -47,7 +47,7 @@ namespace Scaffold.GraphFlow.Editor
                 }
             }
 
-            return string.IsNullOrEmpty(variable.Name) ? null : "name:" + variable.Name;
+            return string.IsNullOrEmpty(variable.name) ? null : "name:" + variable.name;
         }
     }
 }

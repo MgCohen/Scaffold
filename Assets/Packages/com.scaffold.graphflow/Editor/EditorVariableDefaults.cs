@@ -10,7 +10,7 @@ namespace Scaffold.GraphFlow.Editor
         public static VariableDefault? CreateFor(IVariable variable)
         {
             if (variable == null) return null;
-            var t = variable.DataType;
+            var t = variable.dataType;
             if (t == null) return null;
 
             if (t == typeof(int))    { variable.TryGetDefaultValue(out int v);    return new IntDefault    { value = v }; }
