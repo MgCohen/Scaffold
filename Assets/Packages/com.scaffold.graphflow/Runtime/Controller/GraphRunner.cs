@@ -49,6 +49,17 @@ namespace Scaffold.GraphFlow
             return flow.ReadResult<TResult>();
         }
 
+        // Used by ObserveVariableNode<T> on cell.Changed to drive a flow from the
+        // observer's FlowOut. Internal to avoid widening the public surface for
+        // arbitrary "drive a flow from X" needs — observers go through this seam.
+        internal async Task RunObserver(FlowOutPort flowOut, object payload, CancellationToken ct = default)
+        {
+            var flow = NewFlow(payload, ct);
+            var dest = flowOut.Connection?.Destination;
+            if (dest != null) await RunFromInPort(dest, flow);
+            flow.InvalidateAll();
+        }
+
         Flow NewFlow(object payload, CancellationToken ct) => new Flow(payload, this, ct);
 
         async Task<Flow> RunFromEntry(EntryRuntimeNodeBase entry, Flow flow)
