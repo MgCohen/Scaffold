@@ -1,0 +1,110 @@
+#nullable enable
+using System.Threading.Tasks;
+using NUnit.Framework;
+using UnityEngine;
+
+namespace Scaffold.GraphFlow.Tests
+{
+    public sealed class VariableWiringTests
+    {
+        sealed class ParentedRunner : GraphRunner
+        {
+            readonly IVariableBag? _parent;
+            public ParentedRunner(BakedGraph baked, IVariableBag? parent) : base(baked) { _parent = parent; }
+            protected override IVariableBag? CreateParentBag() => _parent;
+        }
+
+        sealed class ParentedBuilder : GraphBuilder<ParentedRunner>
+        {
+            readonly IVariableBag? _parent;
+            public ParentedBuilder(IVariableBag? parent) { _parent = parent; }
+            protected override ParentedRunner CreateRunner(BakedGraph baked) => new(baked, _parent);
+        }
+
+        sealed class ParentedAsset : GraphAsset<ParentedRunner> { }
+
+        public sealed class EmptyEntry : IGraphEntry { }
+
+        [System.Serializable]
+        public sealed class CapturingEntry : EntryRuntimeNode<EmptyEntry>
+        {
+            public FlowOutPort FlowOut;
+            public CapturingEntry()
+            {
+                FlowOut = new FlowOutPort(this, nameof(FlowOut));
+                Ports.Add(FlowOut.Name, FlowOut);
+            }
+        }
+
+        static ParentedAsset Asset(params (string id, VariableDefault def)[] vars)
+        {
+            var asset = ScriptableObject.CreateInstance<ParentedAsset>();
+            asset.nodes.Add(new CapturingEntry { nodeId = 1, editorGuid = "a" });
+            foreach (var (id, def) in vars)
+                asset.variables.Add(new RuntimeVariable
+                {
+                    id = id,
+                    name = id,
+                    typeName = def.ValueType.AssemblyQualifiedName,
+                    defaultValue = def,
+                });
+            return asset;
+        }
+
+        [Test]
+        public void RunnerVariablesSeededFromAsset()
+        {
+            var asset  = Asset(("hp", new IntDefault { value = 9 }));
+            var runner = new ParentedBuilder(parent: null).Build(asset);
+
+            Assert.IsNotNull(runner.Variables);
+            Assert.IsNull(runner.Variables.Parent);
+            Assert.IsTrue(runner.Variables.TryGetCell<int>("hp", out var hp));
+            Assert.AreEqual(9, hp.Value);
+        }
+
+        [Test]
+        public void RunnerParentBagComesFromCreateParentBag()
+        {
+            var global = new InMemoryVariableBag(new[]
+            {
+                new RuntimeVariable { id = "score", name = "score", typeName = typeof(int).AssemblyQualifiedName, defaultValue = new IntDefault { value = 100 } },
+            });
+            var asset  = Asset(("hp", new IntDefault { value = 5 }));
+            var runner = new ParentedBuilder(global).Build(asset);
+
+            Assert.AreSame(global, runner.Variables.Parent);
+            Assert.IsTrue(runner.Variables.TryGetCell<int>("score", out var score));
+            Assert.AreEqual(100, score.Value);
+        }
+
+        [Test]
+        public async Task FlowVariablesParentChainsToRunner()
+        {
+            var asset  = Asset(("hp", new IntDefault { value = 1 }));
+            var runner = new ParentedBuilder(parent: null).Build(asset);
+
+            var flow = await runner.Run(new EmptyEntry());
+
+            Assert.IsNotNull(flow.Variables);
+            Assert.AreSame(runner.Variables, flow.Variables.Parent);
+            Assert.IsTrue(flow.Variables.TryGetCell<int>("hp", out var hp));
+            Assert.AreEqual(1, hp.Value);
+        }
+
+        [Test]
+        public async Task SetThroughFlowHitsRunnerOwnedCell()
+        {
+            var asset  = Asset(("hp", new IntDefault { value = 1 }));
+            var runner = new ParentedBuilder(parent: null).Build(asset);
+            var flow   = await runner.Run(new EmptyEntry());
+
+            Assert.IsTrue(flow.Variables.TryGetCell<int>("hp", out var fromFlow));
+            fromFlow.Value = 99;
+
+            Assert.IsTrue(runner.Variables.TryGetCell<int>("hp", out var fromRunner));
+            Assert.AreSame(fromFlow, fromRunner);
+            Assert.AreEqual(99, fromRunner.Value);
+        }
+    }
+}

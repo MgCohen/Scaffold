@@ -13,6 +13,7 @@ namespace Scaffold.GraphFlow
                 _cache[asset] = baked = GraphTopology.Bake(asset);
 
             var runner = CreateRunner(baked);
+            runner.SeedVariables(baked.Variables);
             foreach (var n in baked.Nodes) n.Initialize(runner);
             runner.Initialize();
             return runner;

@@ -10,12 +10,21 @@ namespace Scaffold.GraphFlow
     {
         public IReadOnlyList<RuntimeNode> Nodes { get; }
         public IReadOnlyDictionary<Type, EntryRuntimeNodeBase> EntriesByPayload { get; }
+        public IVariableBag Variables { get; private set; } = null!;
 
         protected GraphRunner(BakedGraph baked)
         {
             Nodes = baked.Nodes;
             EntriesByPayload = baked.EntriesByPayload;
         }
+
+        /// <summary>Override to inject the outermost (parent / global) bag —
+        /// shared variables, save state, network store, entities VariableBag
+        /// adapter, ... GraphFlow runtime never references the consumer's types.</summary>
+        protected virtual IVariableBag? CreateParentBag() => null;
+
+        internal void SeedVariables(IReadOnlyList<RuntimeVariable> seed)
+            => Variables = new InMemoryVariableBag(seed, CreateParentBag());
 
         public virtual void Initialize() { }
 

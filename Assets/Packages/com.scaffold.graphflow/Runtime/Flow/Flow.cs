@@ -13,9 +13,13 @@ namespace Scaffold.GraphFlow
         Dictionary<object, object>? _slots;
         Dictionary<Port, object?>? _cache;
         object? _result;
+        IVariableBag? _variables;
 
         public GraphRunner Runner { get; }
         public CancellationToken Token { get; }
+
+        public IVariableBag Variables =>
+            _variables ??= new InMemoryVariableBag(Array.Empty<RuntimeVariable>(), Runner.Variables);
 
         public Outcome Outcome { get; private set; } = Outcome.Running;
         public bool IsCancelled => Outcome == Outcome.Cancelled;

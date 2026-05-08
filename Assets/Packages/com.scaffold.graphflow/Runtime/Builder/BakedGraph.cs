@@ -8,13 +8,16 @@ namespace Scaffold.GraphFlow
     {
         public IReadOnlyList<RuntimeNode> Nodes { get; }
         public IReadOnlyDictionary<Type, EntryRuntimeNodeBase> EntriesByPayload { get; }
+        public IReadOnlyList<RuntimeVariable> Variables { get; }
 
         internal BakedGraph(
             IReadOnlyList<RuntimeNode> nodes,
-            IReadOnlyDictionary<Type, EntryRuntimeNodeBase> entries)
+            IReadOnlyDictionary<Type, EntryRuntimeNodeBase> entries,
+            IReadOnlyList<RuntimeVariable> variables)
         {
             Nodes = nodes;
             EntriesByPayload = entries;
+            Variables = variables;
         }
     }
 }
