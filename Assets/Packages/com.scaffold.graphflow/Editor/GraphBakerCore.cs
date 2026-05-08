@@ -72,11 +72,6 @@ namespace Scaffold.GraphFlow.Editor
                 }
 
                 var guid = EditorNodeIdentity.GetStableGuid(n);
-                if (string.IsNullOrEmpty(guid))
-                {
-                    result.LogError($"Node {n.GetType().Name} has no stable editor guid — cannot bake.");
-                    return result;
-                }
 
                 if (!guidToNodeId.TryGetValue(guid, out var nodeId))
                 {
