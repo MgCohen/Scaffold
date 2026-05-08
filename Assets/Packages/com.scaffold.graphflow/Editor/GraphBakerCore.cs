@@ -94,7 +94,7 @@ namespace Scaffold.GraphFlow.Editor
             var dataConnections = new List<Edge>();
             var flowEdges = new List<Edge>();
 
-            foreach (var pair in editorToRuntime)
+            foreach (var pair in editorToRuntime.OrderBy(p => p.Value.nodeId))
             {
                 var editorNode = pair.Key;
                 var fromRuntime = pair.Value;
@@ -124,9 +124,9 @@ namespace Scaffold.GraphFlow.Editor
             }
 
             var asset = ScriptableObject.CreateInstance<TAsset>();
-            asset.nodes = new List<RuntimeNode>(editorToRuntime.Values);
-            asset.connections = dataConnections;
-            asset.flowEdges = flowEdges;
+            asset.nodes = editorToRuntime.Values.OrderBy(n => n.nodeId).ToList();
+            asset.connections = SortEdges(dataConnections);
+            asset.flowEdges = SortEdges(flowEdges);
             asset.schemaVersion = SchemaVersion;
 
             result.Asset = asset;
@@ -184,5 +184,12 @@ namespace Scaffold.GraphFlow.Editor
                     max = id;
             return max + 1;
         }
+
+        static List<Edge> SortEdges(List<Edge> edges) => edges
+            .OrderBy(e => e.fromNodeId)
+            .ThenBy(e => e.fromPortName, StringComparer.Ordinal)
+            .ThenBy(e => e.toNodeId)
+            .ThenBy(e => e.toPortName, StringComparer.Ordinal)
+            .ToList();
     }
 }
