@@ -1,8 +1,12 @@
 # Blackboard & Variables — Plan & Research
 
-Status: **Draft v2 — three-layer bag chain + typed cells.** Companion
-follow-up to `ExecPlan-v2.md` §"v1 ships **without** a designer-managed
-blackboard" — this doc resolves that v2 deferral.
+Status: **v1 implementation landed** — Phases 1–6 shipped behind PR #49
+on `claude/graph-flow-blackboard-vars-IsUNX`. This doc remains the
+design-of-record; deviations and deferrals are called out in the
+phasing table and open-questions sections.
+
+Companion follow-up to `ExecPlan-v2.md` §"v1 ships **without** a
+designer-managed blackboard" — this doc resolves that v2 deferral.
 
 v2 supersedes v1 on two points:
 
@@ -642,16 +646,19 @@ per-type-emission machinery already used for typed ports.
 Build green at every commit, mirror the M3 / Runner-Redesign
 discipline. Suggested ordering:
 
-| Phase | Lands | Touches |
-|---|---|---|
-| 1 | `VariableCell` / `VariableCell<T>`, `IVariableBag`, `InMemoryVariableBag`, `VariableDefault`/`VariableDefault<T>` + initial 5 subclasses, `RuntimeVariable`, `VariableEdge`. Schema bump on `GraphAsset` (empty lists, non-breaking). | Runtime |
-| 2 | Three-layer chain wired: `GraphRunner.Variables` seeded by `GraphBuilder` from `asset.variables` with `CreateParentBag()` parent; `Flow.Variables` chained on top per `Run()`. | Runtime |
-| 3 | Bake-time emission of `RuntimeVariable[]`; stop skipping `IVariableNode`; emit `VariableEdge[]`; cell-cached `OutputPort<T>` for variable-bound input ports. | Editor + Runtime |
-| 4 | `GetVariableNode<T>` / `SetVariableNode<T>` + source-generator emission for the registered defaults. | Generator + Runtime |
-| 5 | `ObserveVariableNode<T>` + cell `Changed` events. | Runtime |
-| 6 | Sample (CardSandbox or fresh) graph using the variable system end-to-end. | Sample |
-| later | External-class two-way binding (FlowCanvas-style passed-in object exposing the same fields, kept in sync via cell `Changed`). Deferred — lesser priority. | Runtime |
+| Phase | Lands | Touches | Status |
+|---|---|---|---|
+| 1 | `VariableCell` / `VariableCell<T>`, `IVariableBag`, `InMemoryVariableBag`, `VariableDefault`/`VariableDefault<T>` + initial 5 subclasses, `RuntimeVariable`, `VariableEdge`. Schema bump on `GraphAsset` (empty lists, non-breaking). | Runtime | shipped |
+| 2 | Three-layer chain wired: `GraphRunner.Variables` seeded by `GraphBuilder` from `asset.variables` with `CreateParentBag()` parent; `Flow.Variables` chained on top per `Run()`. | Runtime | shipped |
+| 3 | Bake-time emission of `RuntimeVariable[]`; stop skipping `IVariableNode`; emit `VariableEdge[]`; cell-cached `OutputPort<T>` for variable-bound input ports. | Editor + Runtime | shipped |
+| 4 | `GetVariableNode<T>` / `SetVariableNode<T>` for int / float / bool / string / Object. Hand-authored typed concretes — generator-driven trio emission deferred until a real consumer asks. | Runtime | shipped |
+| 5 | `ObserveVariableNode<T>` + cell `Changed` events. New `internal RunObserver` seam on `GraphRunner`. Lifecycle (subscription teardown) deferred. | Runtime | shipped |
+| 6 | End-to-end test (`VariableEndToEndTests`) exercising graph-level + global vars, variable-bound ports, Get/Set/Observe in one graph. Real GT-authored sample asset still pending Unity. | Tests | shipped (test-only) |
+| later | External-class two-way binding (FlowCanvas-style passed-in object exposing the same fields, kept in sync via cell `Changed`). | Runtime |
 | later | Per-flow declarations + subgraph parameters (Q7). | Bake + Runtime |
+| later | Source-generator emission of Get/Set/Observe trios per registered `VariableDefault<T>` — replaces the hand-authored concretes once a consumer needs additional types. | Generator |
+| later | Editor variable-picker drawer for the `variableId` `[SerializeField] string` on Get/Set/Observe nodes. | Editor |
+| later | Subscription teardown for Observe nodes that target parent-bag cells. | Runtime |
 
 Each phase ends with the snapshot harness green and Unity batchmode
 compile zero `error CS` lines. Phases 1+2 are trivially independent
