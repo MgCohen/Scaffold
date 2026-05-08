@@ -8,12 +8,22 @@ namespace Scaffold.GraphFlow.Tests
 {
     public static class TestGraph
     {
+        static readonly List<TestGraphAsset> _live = new();
+
         public static TestGraphAsset With(params RuntimeNode[] nodes)
         {
             var asset = ScriptableObject.CreateInstance<TestGraphAsset>();
             asset.nodes = new List<RuntimeNode>(nodes);
             for (var i = 0; i < nodes.Length; i++) nodes[i].nodeId = i + 1;
+            _live.Add(asset);
             return asset;
+        }
+
+        public static void DestroyAll()
+        {
+            foreach (var a in _live)
+                if (a != null) Object.DestroyImmediate(a);
+            _live.Clear();
         }
     }
 

@@ -16,7 +16,7 @@ namespace HarnessFixture.Editor.GToolkit
                 .WithConnectorUI(PortConnectorUI.Arrowhead)
                 .Build();
             context.AddOutputPort("Out")
-                .WithDisplayName("Out")
+                .WithDisplayName("")
                 .WithConnectorUI(PortConnectorUI.Arrowhead)
                 .Build();
             context.AddInputPort<float>("Seconds").Build();

@@ -79,7 +79,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             foreach (var p in node.FlowOuts)
             {
                 sb.AppendLine($"            context.AddOutputPort(\"{p.FieldName}\")");
-                sb.AppendLine($"                .WithDisplayName(\"{p.FieldName}\")");
+                sb.AppendLine($"                .WithDisplayName(\"{(node.FlowOuts.Length == 1 ? string.Empty : p.FieldName)}\")");
                 sb.AppendLine("                .WithConnectorUI(PortConnectorUI.Arrowhead)");
                 sb.AppendLine("                .Build();");
             }
