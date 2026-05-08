@@ -22,7 +22,7 @@ namespace Scaffold.GraphFlow.Tests
         public static void DestroyAll()
         {
             foreach (var a in _live)
-                if (a != null) Object.DestroyImmediate(a);
+                if (a != null) UnityEngine.Object.DestroyImmediate(a);
             _live.Clear();
         }
     }
