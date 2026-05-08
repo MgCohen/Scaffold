@@ -16,7 +16,6 @@ namespace Scaffold.GraphFlow.CardSandbox.Tests
             var builder = new CardEffectBuilder(bus, sink);
 
             var runner = builder.Build(Strike500.BuildAsset());
-
             await runner.Run(new OnPlay());
 
             Assert.AreEqual(5, sink.LastAmount);
@@ -30,25 +29,23 @@ namespace Scaffold.GraphFlow.CardSandbox.Tests
             var builder = new CardEffectBuilder(bus, sink);
 
             var s500 = builder.Build(Strike500.BuildAsset());
-            var p1d = builder.Build(PlusOneDamage.BuildAsset());
+            var p1d  = builder.Build(PlusOneDamage.BuildAsset());
 
-            foreach (var card in new[] { s500, p1d })
-            foreach (var entry in card.EntriesByPayload.Values)
-            {
-                switch (entry)
-                {
-                    case OnTrigger<DamageDealt> trig:
-                        var owner = card;
-                        bus.Subscribe<DamageDealt>(
-                            async e => await owner.Run(e),
-                            trig.Timing);
-                        break;
-                }
-            }
+            SubscribeDamageDealtTriggers(s500, bus);
+            SubscribeDamageDealtTriggers(p1d, bus);
 
             await s500.Run(new OnPlay());
 
             Assert.AreEqual(6, sink.LastAmount);
+        }
+
+        static void SubscribeDamageDealtTriggers(GraphRunner card, EventBus bus)
+        {
+            foreach (var entry in card.EntriesByPayload.Values)
+            {
+                if (entry is OnTrigger<DamageDealt> trig)
+                    bus.Subscribe<DamageDealt>(async e => await card.Run(e), trig.Timing);
+            }
         }
     }
 }
