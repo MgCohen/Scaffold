@@ -18,6 +18,8 @@ namespace Scaffold.GraphFlow
         [SerializeReference] public List<RuntimeNode> nodes = new();
         public List<Edge> connections = new();
         public List<Edge> flowEdges = new();
+        public List<RuntimeVariable> variables = new();
+        public List<VariableEdge> variableEdges = new();
         public int schemaVersion;
 
         // Strip unresolvable SerializeReference entries on load. Class renames /

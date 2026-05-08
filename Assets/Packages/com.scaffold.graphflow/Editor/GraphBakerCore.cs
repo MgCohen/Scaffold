@@ -28,7 +28,7 @@ namespace Scaffold.GraphFlow.Editor
     /// </summary>
     public static class GraphBakerCore
     {
-        public const int SchemaVersion = 3;
+        public const int SchemaVersion = 4;
 
         public static GraphBakeResult<TAsset> Bake<TRunner, TAsset>(
             Graph<TRunner> editorGraph,
