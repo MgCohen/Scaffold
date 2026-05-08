@@ -426,8 +426,14 @@ Notes:
 - `EqualityComparer<T>.Default.Equals` does no boxing for value types
   and resolves to the `IEquatable<T>` implementation when available.
 - The non-generic `TryGetCell` exists for introspection (inspector,
-  save/load); it's not used on the hot path. Walking the parent chain
-  in `TryGetCell<T>` is direct generic code — no `is T` test, no cast.
+  save/load); it's not used on the hot path. `TryGetCell<T>` itself
+  does one `raw is VariableCell<T>` pattern match per call to bridge
+  the dictionary's non-generic value type to the typed cell — no
+  boxing, no reflection. Hot-path callers (Get/Set/Observe nodes,
+  variable-bound port closures) call `TryGetCell<T>` exactly once at
+  Initialize / bake time and cache the resulting `VariableCell<T>`
+  reference, so steady-state reads/writes skip even that pattern
+  match.
 
 ### 4. In-memory bag (default implementation)
 
@@ -755,8 +761,9 @@ does not change the v1 wire format.
 ### 8. Save / load
 
 FlowCanvas's `BlackboardSource` is JSON-serializable for save games.
-Our `InMemoryVariableBag` isn't — `VariableCell.Value` is `object?`.
-Two paths when this comes up:
+Our `InMemoryVariableBag` isn't directly persistence-ready — values
+live in typed `VariableCell<T>` instances keyed by `string` id, which
+needs a small per-type (de)serializer. Two paths when this comes up:
 
 - **Snapshot via `RuntimeVariable[]` round-trip** — cheap if all
   cells map to known `VariableDefault` subclasses; lossy for unknown
@@ -771,8 +778,8 @@ anyway.
 
 If a consumer's parent bag itself has a parent, the chain walks
 correctly. But there's no cycle detection. Trivial to add (visited
-set in `TryGet`); cheap to skip in the v1 sketch. Add when adding
-sample tests.
+set in `TryGetCell<T>` / `TryGetCell`); cheap to skip in the v1
+sketch. Add when adding sample tests.
 
 ### 10. `IVariableNode` editor preview
 
