@@ -5,6 +5,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 
+
 namespace Scaffold.GraphFlow.PackageGenerator
 {
     [Generator]
@@ -65,10 +66,6 @@ namespace Scaffold.GraphFlow.PackageGenerator
             }
 
             var hasInitHook = type.GetMembers("InitializePorts").OfType<IMethodSymbol>().Any();
-            // The partial calls InitializePorts() whenever the user owns
-            // construction of any port — outputs (typed lambdas) or flow-ins
-            // (handler-required FlowInPort.Sync / FlowInPort.Async). The
-            // partial only emits the declaration, the user provides the body.
             var needsInitCall = hasInitHook || outputs.Count > 0 || flowIns.Count > 0;
 
             var sb = new StringBuilder();

@@ -24,7 +24,7 @@ namespace Scaffold.GraphFlow.Tests
         // Constructs a RuntimeVariable from a typed default with the AssemblyQualifiedName
         // null-forgiving call colocated here (Type.AssemblyQualifiedName is `string?`
         // under nullable annotations; provably non-null for compile-time typeof()).
-        public static RuntimeVariable Var(string id, VariableDefault def) => new()
+        public static RuntimeVariable Var(string id, BlackboardVariable def) => new()
         {
             id = id,
             name = id,

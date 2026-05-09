@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Scaffold.GraphFlow
 {
     // Class, not struct: Unity's [SerializeReference] is ignored on fields of
-    // value types, so a polymorphic VariableDefault inside a struct would
+    // value types, so a polymorphic BlackboardVariable inside a struct would
     // silently fail to serialize. https://docs.unity3d.com/ScriptReference/SerializeReference.html
     [Serializable]
     public sealed class RuntimeVariable
@@ -12,7 +12,7 @@ namespace Scaffold.GraphFlow
         public string id = string.Empty;
         public string name = string.Empty;
         public string typeName = string.Empty;
-        [SerializeReference] public VariableDefault defaultValue;
+        [SerializeReference] public BlackboardVariable defaultValue;
     }
 
     [Serializable]

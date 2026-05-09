@@ -3,6 +3,7 @@ using Scaffold.GraphFlow.Editor.GToolkit;
 using Unity.GraphToolkit.Editor;
 using UnityEditor;
 using UnityEditor.AssetImporters;
+using UnityEngine;
 
 namespace Scaffold.GraphFlow.Editor
 {
@@ -23,7 +24,10 @@ namespace Scaffold.GraphFlow.Editor
             var graph = GraphDatabase.LoadGraphForImporter<TGraph>(ctx.assetPath);
             if (graph == null)
             {
-                ctx.LogImportError($"Failed to load graph for importer: {typeof(TGraph).Name} ({ctx.assetPath})", null);
+                var placeholder = ScriptableObject.CreateInstance<TAsset>();
+                placeholder.name = "Runtime";
+                ctx.AddObjectToAsset("Runtime", placeholder);
+                ctx.SetMainObject(placeholder);
                 return;
             }
 
@@ -45,6 +49,7 @@ namespace Scaffold.GraphFlow.Editor
             catch (InvalidOperationException ex)
             {
                 ctx.LogImportError($"{ex.Message} ({ctx.assetPath})", null);
+                EmitPlaceholder(ctx);
                 return;
             }
 
@@ -52,11 +57,22 @@ namespace Scaffold.GraphFlow.Editor
                 ctx.LogImportError($"{msg} ({ctx.assetPath})", null);
 
             if (bake.HasErrors)
+            {
+                EmitPlaceholder(ctx);
                 return;
+            }
 
             bake.Asset!.name = "Runtime";
             ctx.AddObjectToAsset("Runtime", bake.Asset);
             ctx.SetMainObject(bake.Asset);
+        }
+
+        void EmitPlaceholder(AssetImportContext ctx)
+        {
+            var placeholder = ScriptableObject.CreateInstance<TAsset>();
+            placeholder.name = "Runtime";
+            ctx.AddObjectToAsset("Runtime", placeholder);
+            ctx.SetMainObject(placeholder);
         }
     }
 }

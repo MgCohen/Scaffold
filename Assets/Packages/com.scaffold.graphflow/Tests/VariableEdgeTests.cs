@@ -54,7 +54,7 @@ namespace Scaffold.GraphFlow.Tests
             var doubler = new Doubler { nodeId = 2, editorGuid = "b" };
             asset.nodes.Add(entry);
             asset.nodes.Add(doubler);
-            asset.variables.Add(VariableTestHelpers.Var("speed", new IntDefault { value = 21 }));
+            asset.variables.Add(VariableTestHelpers.Var("speed", new BlackboardInt { value = 21 }));
             asset.variableEdges.Add(new VariableEdge
             {
                 variableId = "speed",
@@ -75,7 +75,7 @@ namespace Scaffold.GraphFlow.Tests
             asset.nodes.Add(new EntryWithDoubler { nodeId = 1, editorGuid = "a" });
             var doubler = new Doubler { nodeId = 2, editorGuid = "b" };
             asset.nodes.Add(doubler);
-            asset.variables.Add(VariableTestHelpers.Var("speed", new IntDefault { value = 1 }));
+            asset.variables.Add(VariableTestHelpers.Var("speed", new BlackboardInt { value = 1 }));
             asset.variableEdges.Add(new VariableEdge
             {
                 variableId = "speed",

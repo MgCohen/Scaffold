@@ -131,7 +131,7 @@ Same body in three places:
 ### G2. `IsEditorAssembly` defined twice
 
 - `Generators/.../GraphPackageAssemblyParser.cs:49-53`
-- `Generators/.../GraphPackageTrioEmitter.cs:229-233`
+- `Generators/.../GraphPackageEmitter.cs:229-233`
 
 Identical implementation.
 

@@ -61,6 +61,14 @@ namespace Scaffold.GraphFlow.PackageGenerator
             { Label = label; TypeFq = typeFq; DefaultLiteral = defaultLiteral; }
         }
 
+        internal sealed class VariableDescriptor
+        {
+            internal string Label { get; }
+            internal string TypeFq { get; }
+            internal VariableDescriptor(string label, string typeFq)
+            { Label = label; TypeFq = typeFq; }
+        }
+
         /// <summary>
         /// Emits a single <c>&lt;Stem&gt;Catalog</c> static class into the package's runtime asm.
         /// Called only on the runtime-asm pass (editor pass uses the same catalog by reference).
@@ -72,7 +80,8 @@ namespace Scaffold.GraphFlow.PackageGenerator
             IReadOnlyList<EventDescriptor> events,
             IReadOnlyList<CommandDescriptor> commands,
             IReadOnlyList<EntryDescriptor> entries,
-            IReadOnlyList<ReturnDescriptor> returns)
+            IReadOnlyList<ReturnDescriptor> returns,
+            IReadOnlyList<VariableDescriptor> variables)
         {
             var ns = ResolveCatalogNamespace(package, compilation);
             var typeName = package.GraphStem + CatalogClassSuffix;
@@ -90,11 +99,11 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine($"    public static class {typeName}");
             sb.AppendLine("    {");
 
-            EmitEntries(sb, package, events, commands, entries, returns);
-            EmitIndex(sb, events, commands, entries, returns);
+            EmitEntries(sb, package, events, commands, entries, returns, variables);
+            EmitIndex(sb, events, commands, entries, returns, variables);
             EmitEventPortUnions(sb, events);
-            EmitChoiceEnums(sb, events, commands, entries, returns);
-            EmitResolvers(sb, events, commands, entries, returns);
+            EmitChoiceEnums(sb, events, commands, entries, returns, variables);
+            EmitResolvers(sb, events, commands, entries, returns, variables);
 
             sb.AppendLine("    }");
             sb.AppendLine("}");
@@ -122,7 +131,8 @@ namespace Scaffold.GraphFlow.PackageGenerator
             IReadOnlyList<EventDescriptor> events,
             IReadOnlyList<CommandDescriptor> commands,
             IReadOnlyList<EntryDescriptor> entries,
-            IReadOnlyList<ReturnDescriptor> returns)
+            IReadOnlyList<ReturnDescriptor> returns,
+            IReadOnlyList<VariableDescriptor> variables)
         {
             sb.AppendLine("        // ============ Entries (uniform shape, Kinds discriminator) ============");
             sb.AppendLine();
@@ -145,6 +155,11 @@ namespace Scaffold.GraphFlow.PackageGenerator
             foreach (var r in returns)
             {
                 EmitReturnEntry(sb, r);
+            }
+
+            foreach (var v in variables)
+            {
+                EmitVariableEntry(sb, v);
             }
         }
 
@@ -204,6 +219,17 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine();
         }
 
+        static void EmitVariableEntry(StringBuilder sb, VariableDescriptor v)
+        {
+            var fieldName = "Var" + v.Label;
+            sb.AppendLine($"        public static readonly CatalogEntry {fieldName} = new(");
+            sb.AppendLine($"            kinds: CatalogKind.Variable,");
+            sb.AppendLine($"            type:  typeof({v.TypeFq}),");
+            sb.AppendLine($"            ports: System.Array.Empty<PortMeta>()");
+            sb.AppendLine($"        );");
+            sb.AppendLine();
+        }
+
         static void EmitEventPortsArray(StringBuilder sb, IReadOnlyList<IFieldSymbol> fields, string indent)
         {
             if (fields.Count == 0)
@@ -257,7 +283,8 @@ namespace Scaffold.GraphFlow.PackageGenerator
             IReadOnlyList<EventDescriptor> events,
             IReadOnlyList<CommandDescriptor> commands,
             IReadOnlyList<EntryDescriptor> entries,
-            IReadOnlyList<ReturnDescriptor> returns)
+            IReadOnlyList<ReturnDescriptor> returns,
+            IReadOnlyList<VariableDescriptor> variables)
         {
             sb.AppendLine("        // ============ Index ============");
             sb.AppendLine();
@@ -282,6 +309,11 @@ namespace Scaffold.GraphFlow.PackageGenerator
             foreach (var r in returns)
             {
                 sb.AppendLine($"            {r.Label},");
+            }
+
+            foreach (var v in variables)
+            {
+                sb.AppendLine($"            Var{v.Label},");
             }
 
             sb.AppendLine("        };");
@@ -343,7 +375,8 @@ namespace Scaffold.GraphFlow.PackageGenerator
             IReadOnlyList<EventDescriptor> events,
             IReadOnlyList<CommandDescriptor> commands,
             IReadOnlyList<EntryDescriptor> entries,
-            IReadOnlyList<ReturnDescriptor> returns)
+            IReadOnlyList<ReturnDescriptor> returns,
+            IReadOnlyList<VariableDescriptor> variables)
         {
             sb.AppendLine("        // ============ Per-concern picker enums ============");
             sb.AppendLine("        // GraphToolkit's AddOption<TEnum> shows all values unfiltered — one enum per concern");
@@ -354,6 +387,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             EmitChoiceEnum(sb, "ReturnType", GetReturnLabels(returns));
             EmitChoiceEnum(sb, "CommandType", GetCommandLabels(commands));
             EmitChoiceEnum(sb, "EntryType", GetEntryLabels(entries));
+            EmitChoiceEnum(sb, "VariableType", GetVariableLabels(variables));
         }
 
         static void EmitChoiceEnum(StringBuilder sb, string enumName, IReadOnlyList<string> labels)
@@ -377,7 +411,8 @@ namespace Scaffold.GraphFlow.PackageGenerator
             IReadOnlyList<EventDescriptor> events,
             IReadOnlyList<CommandDescriptor> commands,
             IReadOnlyList<EntryDescriptor> entries,
-            IReadOnlyList<ReturnDescriptor> returns)
+            IReadOnlyList<ReturnDescriptor> returns,
+            IReadOnlyList<VariableDescriptor> variables)
         {
             sb.AppendLine("        // ============ Resolve ============");
             sb.AppendLine();
@@ -386,6 +421,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             EmitResolver(sb, "ReturnType", GetReturnLabels(returns), e => e);
             EmitResolver(sb, "CommandType", GetCommandLabels(commands), e => e);
             EmitResolver(sb, "EntryType", GetEntryLabels(entries), e => e);
+            EmitResolver(sb, "VariableType", GetVariableLabels(variables), l => "Var" + l);
         }
 
         static void EmitResolver(StringBuilder sb, string enumName, IReadOnlyList<string> labels, System.Func<string, string> labelToFieldName)
@@ -429,6 +465,13 @@ namespace Scaffold.GraphFlow.PackageGenerator
         {
             var list = new List<string>(entries.Count);
             foreach (var e in entries) list.Add(e.Type.Name);
+            return list;
+        }
+
+        static IReadOnlyList<string> GetVariableLabels(IReadOnlyList<VariableDescriptor> variables)
+        {
+            var list = new List<string>(variables.Count);
+            foreach (var v in variables) list.Add(v.Label);
             return list;
         }
 

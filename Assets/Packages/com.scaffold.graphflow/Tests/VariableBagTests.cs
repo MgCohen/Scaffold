@@ -5,7 +5,7 @@ namespace Scaffold.GraphFlow.Tests
 {
     public sealed class VariableBagTests
     {
-        static IEnumerable<RuntimeVariable> Seed(params (string id, VariableDefault def)[] entries)
+        static IEnumerable<RuntimeVariable> Seed(params (string id, BlackboardVariable def)[] entries)
         {
             foreach (var (id, def) in entries)
                 yield return new RuntimeVariable { id = id, name = id, typeName = def.ValueType.AssemblyQualifiedName, defaultValue = def };
@@ -15,8 +15,8 @@ namespace Scaffold.GraphFlow.Tests
         public void SeedsTypedCellsFromDefaults()
         {
             var bag = new InMemoryVariableBag(Seed(
-                ("hp",   new IntDefault   { value = 7 }),
-                ("name", new StringDefault{ value = "alice" })));
+                ("hp",   new BlackboardInt   { value = 7 }),
+                ("name", new BlackboardString{ value = "alice" })));
 
             Assert.IsTrue(bag.TryGetCell<int>("hp", out var hp));
             Assert.AreEqual(7, hp.Value);
@@ -28,7 +28,7 @@ namespace Scaffold.GraphFlow.Tests
         [Test]
         public void TypeMismatchReturnsFalse()
         {
-            var bag = new InMemoryVariableBag(Seed(("hp", new IntDefault { value = 1 })));
+            var bag = new InMemoryVariableBag(Seed(("hp", new BlackboardInt { value = 1 })));
             Assert.IsFalse(bag.TryGetCell<float>("hp", out _));
         }
 
@@ -42,8 +42,8 @@ namespace Scaffold.GraphFlow.Tests
         [Test]
         public void LookupCascadesThroughParents()
         {
-            var global = new InMemoryVariableBag(Seed(("score", new IntDefault { value = 100 })));
-            var graph  = new InMemoryVariableBag(Seed(("hp",    new IntDefault { value = 5 })),   global);
+            var global = new InMemoryVariableBag(Seed(("score", new BlackboardInt { value = 100 })));
+            var graph  = new InMemoryVariableBag(Seed(("hp",    new BlackboardInt { value = 5 })),   global);
             var flow   = new InMemoryVariableBag(System.Array.Empty<RuntimeVariable>(),          graph);
 
             Assert.IsTrue(flow.TryGetCell<int>("hp",    out var hp));     Assert.AreEqual(5,   hp.Value);
@@ -55,8 +55,8 @@ namespace Scaffold.GraphFlow.Tests
         {
             // Cached cell ref means writes target the bag that owns the id —
             // no explicit "find owner" walk on the hot path.
-            var global = new InMemoryVariableBag(Seed(("score", new IntDefault { value = 100 })));
-            var graph  = new InMemoryVariableBag(Seed(("hp",    new IntDefault { value = 5 })),   global);
+            var global = new InMemoryVariableBag(Seed(("score", new BlackboardInt { value = 100 })));
+            var graph  = new InMemoryVariableBag(Seed(("hp",    new BlackboardInt { value = 5 })),   global);
             var flow   = new InMemoryVariableBag(System.Array.Empty<RuntimeVariable>(),          graph);
 
             Assert.IsTrue(flow.TryGetCell<int>("score", out var scoreFromFlow));
@@ -74,7 +74,7 @@ namespace Scaffold.GraphFlow.Tests
         [Test]
         public void ChangedFiresOnDistinctValueOnly()
         {
-            var bag = new InMemoryVariableBag(Seed(("hp", new IntDefault { value = 0 })));
+            var bag = new InMemoryVariableBag(Seed(("hp", new BlackboardInt { value = 0 })));
             Assert.IsTrue(bag.TryGetCell<int>("hp", out var hp));
 
             int fires = 0;
@@ -93,7 +93,7 @@ namespace Scaffold.GraphFlow.Tests
         [Test]
         public void NonGenericTryGetCellReturnsBaseCell()
         {
-            var bag = new InMemoryVariableBag(Seed(("hp", new IntDefault { value = 3 })));
+            var bag = new InMemoryVariableBag(Seed(("hp", new BlackboardInt { value = 3 })));
             Assert.IsTrue(bag.TryGetCell("hp", out var raw));
             Assert.AreEqual(typeof(int), raw.Type);
             Assert.AreEqual("hp", raw.Id);

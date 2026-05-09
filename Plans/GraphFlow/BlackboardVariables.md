@@ -635,7 +635,7 @@ lookup per Run, no boxing, no cast.
 subscribes to `cell.Changed` in `OnFlowStart`, unsubscribes in
 `OnFlowEnd`. The handler is `Action<T>`, again no boxing.
 
-The source generator (`GraphPackageTrioEmitter`) emits one Get/Set/
+The source generator (`GraphPackageEmitter`) emits one Get/Set/
 Observe trio per registered `VariableDefault<T>` subclass — same
 per-type-emission machinery already used for typed ports.
 

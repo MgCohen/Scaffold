@@ -183,7 +183,7 @@ namespace Scaffold.GraphFlow.Editor
                     result.LogError($"Variable {v.name ?? "<unnamed>"} has no stable identity — cannot bake.");
                     return (variables, variableEdges);
                 }
-                var def = EditorVariableDefaults.CreateFor(v);
+                var def = EditorBlackboardVariables.CreateFor(v);
                 if (def == null)
                 {
                     result.LogError($"Variable {v.name} has unsupported DataType {v.dataType?.FullName ?? "<null>"}.");

@@ -13,9 +13,9 @@ namespace Scaffold.GraphFlow.CardSandbox.Showcase
             var asset = ScriptableObject.CreateInstance<CardEffectGraphAsset>();
 
             // --- Variables (blackboard) ---
-            asset.variables.Add(Var("hp",     new IntDefault    { value = 100 }));
-            asset.variables.Add(Var("attack", new IntDefault    { value = 10 }));
-            asset.variables.Add(Var("name",   new StringDefault { value = "Hero" }));
+            asset.variables.Add(Var("hp",     new BlackboardInt    { value = 100 }));
+            asset.variables.Add(Var("attack", new BlackboardInt    { value = 10 }));
+            asset.variables.Add(Var("name",   new BlackboardString { value = "Hero" }));
 
             // --- Nodes ---
             //
@@ -31,10 +31,10 @@ namespace Scaffold.GraphFlow.CardSandbox.Showcase
             //                     └──────────────────────────────────┘
 
             var entry      = new OnPlayRuntime   { nodeId = 1, editorGuid = "showcase-entry" };
-            var getAttack  = new GetIntVariable  { nodeId = 2, editorGuid = "showcase-getAtk" };
+            var getAttack  = new GetVariable<int>  { nodeId = 2, editorGuid = "showcase-getAtk" };
             var dealDamage = new DealDamageNode  { nodeId = 3, editorGuid = "showcase-deal" };
             var logger     = new LogNode         { nodeId = 4, editorGuid = "showcase-log" };
-            var observeHp  = new ObserveIntVariable { nodeId = 5, editorGuid = "showcase-obsHp" };
+            var observeHp  = new ObserveVariable<int> { nodeId = 5, editorGuid = "showcase-obsHp" };
             var obsLogger  = new LogNode         { nodeId = 6, editorGuid = "showcase-obsLog" };
 
             SetVariableId(getAttack, "attack");
@@ -45,11 +45,11 @@ namespace Scaffold.GraphFlow.CardSandbox.Showcase
             // Flow edges
             asset.flowEdges.Add(new Edge { fromNodeId = 1, fromPortName = nameof(OnPlayRuntime.FlowOut),   toNodeId = 3, toPortName = nameof(DealDamageNode.FlowIn) });
             asset.flowEdges.Add(new Edge { fromNodeId = 3, fromPortName = nameof(DealDamageNode.Done),     toNodeId = 4, toPortName = nameof(LogNode.FlowIn) });
-            asset.flowEdges.Add(new Edge { fromNodeId = 5, fromPortName = nameof(ObserveIntVariable.FlowOut), toNodeId = 6, toPortName = nameof(LogNode.FlowIn) });
+            asset.flowEdges.Add(new Edge { fromNodeId = 5, fromPortName = nameof(ObserveVariable<int>.FlowOut), toNodeId = 6, toPortName = nameof(LogNode.FlowIn) });
 
             // Data edges
-            asset.connections.Add(new Edge { fromNodeId = 2, fromPortName = nameof(GetIntVariable.Value),       toNodeId = 3, toPortName = nameof(DealDamageNode.Amount) });
-            asset.connections.Add(new Edge { fromNodeId = 5, fromPortName = nameof(ObserveIntVariable.NewValue), toNodeId = 6, toPortName = nameof(LogNode.Value) });
+            asset.connections.Add(new Edge { fromNodeId = 2, fromPortName = nameof(GetVariable<int>.Value),       toNodeId = 3, toPortName = nameof(DealDamageNode.Amount) });
+            asset.connections.Add(new Edge { fromNodeId = 5, fromPortName = nameof(ObserveVariable<int>.NewValue), toNodeId = 6, toPortName = nameof(LogNode.Value) });
 
             // Variable-bound input: DealDamage.Label reads the "name" variable directly (no Get node)
             asset.variableEdges.Add(new VariableEdge { variableId = "name", toNodeId = 3, toPortName = nameof(DealDamageNode.Label) });
@@ -57,7 +57,7 @@ namespace Scaffold.GraphFlow.CardSandbox.Showcase
             return asset;
         }
 
-        static RuntimeVariable Var(string id, VariableDefault def) => new()
+        static RuntimeVariable Var(string id, BlackboardVariable def) => new()
         {
             id = id,
             name = id,

@@ -38,15 +38,15 @@ namespace Scaffold.GraphFlow.Tests
         }
 
         [Test]
-        public async Task GetIntVariableReadsCellValue()
+        public async Task GetVariableReadsCellValue()
         {
             var asset = ScriptableObject.CreateInstance<BareAsset>();
             var entry = new Entry { nodeId = 1, editorGuid = "a" };
-            var get   = new GetIntVariable { nodeId = 2, editorGuid = "b" };
+            var get   = new GetVariable<int> { nodeId = 2, editorGuid = "b" };
             VariableTestHelpers.SetVariableId(get, "hp");
             asset.nodes.Add(entry);
             asset.nodes.Add(get);
-            asset.variables.Add(VariableTestHelpers.Var("hp", new IntDefault { value = 7 }));
+            asset.variables.Add(VariableTestHelpers.Var("hp", new BlackboardInt { value = 7 }));
 
             var runner = new BareBuilder().Build(asset);
             var flow = await runner.Run(new EmptyEntry());
@@ -61,20 +61,20 @@ namespace Scaffold.GraphFlow.Tests
         }
 
         [Test]
-        public async Task SetIntVariableWritesCellThroughFlowExecution()
+        public async Task SetVariableWritesCellThroughFlowExecution()
         {
             var asset = ScriptableObject.CreateInstance<BareAsset>();
             var entry  = new Entry          { nodeId = 1, editorGuid = "a" };
             var lit    = new IntLiteral     { nodeId = 2, editorGuid = "b", Value = 99 };
-            var setter = new SetIntVariable { nodeId = 3, editorGuid = "c" };
+            var setter = new SetVariable<int> { nodeId = 3, editorGuid = "c" };
             VariableTestHelpers.SetVariableId(setter, "hp");
 
             asset.nodes.Add(entry);
             asset.nodes.Add(lit);
             asset.nodes.Add(setter);
-            asset.variables.Add(VariableTestHelpers.Var("hp", new IntDefault { value = 0 }));
-            asset.connections.Add(new Edge { fromNodeId = 2, fromPortName = nameof(IntLiteral.Out), toNodeId = 3, toPortName = nameof(SetIntVariable.NewValue) });
-            asset.flowEdges.Add(new Edge   { fromNodeId = 1, fromPortName = nameof(Entry.FlowOut),  toNodeId = 3, toPortName = nameof(SetIntVariable.In) });
+            asset.variables.Add(VariableTestHelpers.Var("hp", new BlackboardInt { value = 0 }));
+            asset.connections.Add(new Edge { fromNodeId = 2, fromPortName = nameof(IntLiteral.Out), toNodeId = 3, toPortName = nameof(SetVariable<int>.NewValue) });
+            asset.flowEdges.Add(new Edge   { fromNodeId = 1, fromPortName = nameof(Entry.FlowOut),  toNodeId = 3, toPortName = nameof(SetVariable<int>.In) });
 
             var runner = new BareBuilder().Build(asset);
             await runner.Run(new EmptyEntry());
@@ -88,7 +88,7 @@ namespace Scaffold.GraphFlow.Tests
         {
             var asset = ScriptableObject.CreateInstance<BareAsset>();
             asset.nodes.Add(new Entry { nodeId = 1, editorGuid = "a" });
-            var get = new GetIntVariable { nodeId = 2, editorGuid = "b" };
+            var get = new GetVariable<int> { nodeId = 2, editorGuid = "b" };
             VariableTestHelpers.SetVariableId(get, "missing");
             asset.nodes.Add(get);
 

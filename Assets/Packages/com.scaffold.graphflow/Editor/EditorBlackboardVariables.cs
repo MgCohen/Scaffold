@@ -5,39 +5,39 @@ using Unity.GraphToolkit.Editor;
 
 namespace Scaffold.GraphFlow.Editor
 {
-    /// <summary>Builds a typed <see cref="VariableDefault"/> from a GT <see cref="IVariable"/>.
+    /// <summary>Builds a typed <see cref="BlackboardVariable"/> from a GT <see cref="IVariable"/>.
     /// Known types (int, float, bool, string, Object) are dispatched directly. Unknown types
-    /// are resolved via reflection — any <see cref="VariableDefault{T}"/> subclass visible to
+    /// are resolved via reflection — any <see cref="BlackboardVariable{T}"/> subclass visible to
     /// the runtime assembly is discovered automatically.</summary>
-    static class EditorVariableDefaults
+    static class EditorBlackboardVariables
     {
         static Dictionary<Type, Type>? s_defaultByValueType;
 
-        public static VariableDefault? CreateFor(IVariable variable)
+        public static BlackboardVariable? CreateFor(IVariable variable)
         {
             if (variable == null) return null;
             var t = variable.dataType;
             if (t == null) return null;
 
-            if (t == typeof(int))    { variable.TryGetDefaultValue(out int v);    return new IntDefault    { value = v }; }
-            if (t == typeof(float))  { variable.TryGetDefaultValue(out float v);  return new FloatDefault  { value = v }; }
-            if (t == typeof(bool))   { variable.TryGetDefaultValue(out bool v);   return new BoolDefault   { value = v }; }
-            if (t == typeof(string)) { variable.TryGetDefaultValue(out string v); return new StringDefault { value = v ?? string.Empty }; }
+            if (t == typeof(int))    { variable.TryGetDefaultValue(out int v);    return new BlackboardInt    { value = v }; }
+            if (t == typeof(float))  { variable.TryGetDefaultValue(out float v);  return new BlackboardFloat  { value = v }; }
+            if (t == typeof(bool))   { variable.TryGetDefaultValue(out bool v);   return new BlackboardBool   { value = v }; }
+            if (t == typeof(string)) { variable.TryGetDefaultValue(out string v); return new BlackboardString { value = v ?? string.Empty }; }
             if (typeof(UnityEngine.Object).IsAssignableFrom(t))
             {
                 variable.TryGetDefaultValue(out UnityEngine.Object v);
-                return new ObjectDefault { value = v };
+                return new BlackboardObject { value = v };
             }
 
             return TryCreateViaReflection(t);
         }
 
-        static VariableDefault? TryCreateViaReflection(Type valueType)
+        static BlackboardVariable? TryCreateViaReflection(Type valueType)
         {
             if (s_defaultByValueType == null)
             {
                 s_defaultByValueType = new Dictionary<Type, Type>();
-                var baseType = typeof(VariableDefault<>);
+                var baseType = typeof(BlackboardVariable<>);
                 foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
                 {
                     Type[] types;
@@ -58,7 +58,7 @@ namespace Scaffold.GraphFlow.Editor
             if (!s_defaultByValueType.TryGetValue(valueType, out var defaultType))
                 return null;
 
-            return Activator.CreateInstance(defaultType) as VariableDefault;
+            return Activator.CreateInstance(defaultType) as BlackboardVariable;
         }
     }
 }

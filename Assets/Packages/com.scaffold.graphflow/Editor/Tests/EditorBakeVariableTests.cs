@@ -98,18 +98,18 @@ namespace Scaffold.GraphFlow.EditorTests
 
             var health = vars.FirstOrDefault(v => v.name == "health");
             Assert.IsNotNull(health, "Expected 'health' variable in baked output.");
-            Assert.IsInstanceOf<IntDefault>(health!.defaultValue);
-            Assert.AreEqual(100, ((IntDefault)health.defaultValue).value);
+            Assert.IsInstanceOf<BlackboardInt>(health!.defaultValue);
+            Assert.AreEqual(100, ((BlackboardInt)health.defaultValue).value);
 
             var speed = vars.FirstOrDefault(v => v.name == "speed");
             Assert.IsNotNull(speed, "Expected 'speed' variable in baked output.");
-            Assert.IsInstanceOf<FloatDefault>(speed!.defaultValue);
-            Assert.AreEqual(3.5f, ((FloatDefault)speed.defaultValue).value);
+            Assert.IsInstanceOf<BlackboardFloat>(speed!.defaultValue);
+            Assert.AreEqual(3.5f, ((BlackboardFloat)speed.defaultValue).value);
 
             var playerName = vars.FirstOrDefault(v => v.name == "playerName");
             Assert.IsNotNull(playerName, "Expected 'playerName' variable in baked output.");
-            Assert.IsInstanceOf<StringDefault>(playerName!.defaultValue);
-            Assert.AreEqual("hero", ((StringDefault)playerName.defaultValue).value);
+            Assert.IsInstanceOf<BlackboardString>(playerName!.defaultValue);
+            Assert.AreEqual("hero", ((BlackboardString)playerName.defaultValue).value);
         }
 
         // Item 7 (cont.): Verify EditorVariableIdentity produces stable GUIDs —

@@ -18,15 +18,15 @@ namespace Scaffold.GraphFlow.Tests
         public async Task CellChangeFiresObserverFlowWithNewValue()
         {
             var asset = ScriptableObject.CreateInstance<BareAsset>();
-            var observe  = new ObserveIntVariable { nodeId = 1, editorGuid = "a" };
+            var observe  = new ObserveVariable<int> { nodeId = 1, editorGuid = "a" };
             var recorder = new IntRecorder       { nodeId = 2, editorGuid = "b" };
             VariableTestHelpers.SetVariableId(observe, "hp");
 
             asset.nodes.Add(observe);
             asset.nodes.Add(recorder);
-            asset.variables.Add(VariableTestHelpers.Var("hp", new IntDefault { value = 0 }));
-            asset.flowEdges.Add(new Edge   { fromNodeId = 1, fromPortName = nameof(ObserveIntVariable.FlowOut),  toNodeId = 2, toPortName = nameof(IntRecorder.In) });
-            asset.connections.Add(new Edge { fromNodeId = 1, fromPortName = nameof(ObserveIntVariable.NewValue), toNodeId = 2, toPortName = nameof(IntRecorder.Value) });
+            asset.variables.Add(VariableTestHelpers.Var("hp", new BlackboardInt { value = 0 }));
+            asset.flowEdges.Add(new Edge   { fromNodeId = 1, fromPortName = nameof(ObserveVariable<int>.FlowOut),  toNodeId = 2, toPortName = nameof(IntRecorder.In) });
+            asset.connections.Add(new Edge { fromNodeId = 1, fromPortName = nameof(ObserveVariable<int>.NewValue), toNodeId = 2, toPortName = nameof(IntRecorder.Value) });
 
             var runner = new BareBuilder().Build(asset);
             Assert.IsTrue(runner.Variables.TryGetCell<int>("hp", out var cell));

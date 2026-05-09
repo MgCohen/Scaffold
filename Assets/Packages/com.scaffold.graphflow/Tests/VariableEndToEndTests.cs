@@ -67,15 +67,15 @@ namespace Scaffold.GraphFlow.Tests
             // Parent bag (consumer-supplied global state).
             var globalBag = new InMemoryVariableBag(new[]
             {
-                VariableTestHelpers.Var("score", new IntDefault { value = 0 }),
+                VariableTestHelpers.Var("score", new BlackboardInt { value = 0 }),
             });
 
             var asset = ScriptableObject.CreateInstance<ScopedAsset>();
 
             var start    = new Start            { nodeId = 1, editorGuid = "start"    };
-            var setHp    = new SetIntVariable   { nodeId = 2, editorGuid = "setHp"    };
-            var setScore = new SetIntVariable   { nodeId = 3, editorGuid = "setScore" };
-            var observe  = new ObserveIntVariable{ nodeId = 4, editorGuid = "observe" };
+            var setHp    = new SetVariable<int>   { nodeId = 2, editorGuid = "setHp"    };
+            var setScore = new SetVariable<int>   { nodeId = 3, editorGuid = "setScore" };
+            var observe  = new ObserveVariable<int>{ nodeId = 4, editorGuid = "observe" };
             var observeRec = new IntRecorder    { nodeId = 5, editorGuid = "obsRec"   };
             var hpLit    = new IntLiteral       { nodeId = 6, editorGuid = "hpLit",    Value = 75 };
             var scoreLit = new IntLiteral       { nodeId = 7, editorGuid = "scoreLit", Value = 250 };
@@ -92,20 +92,20 @@ namespace Scaffold.GraphFlow.Tests
             asset.nodes.Add(scoreLit);
 
             // Graph-layer declarations.
-            asset.variables.Add(VariableTestHelpers.Var("hp",   new IntDefault    { value = 100 }));
-            asset.variables.Add(VariableTestHelpers.Var("name", new StringDefault { value = "hero" }));
+            asset.variables.Add(VariableTestHelpers.Var("hp",   new BlackboardInt    { value = 100 }));
+            asset.variables.Add(VariableTestHelpers.Var("name", new BlackboardString { value = "hero" }));
 
             // Flow: Start → SetHp → SetScore.
-            asset.flowEdges.Add(new Edge { fromNodeId = 1, fromPortName = nameof(Start.FlowOut),    toNodeId = 2, toPortName = nameof(SetIntVariable.In)   });
-            asset.flowEdges.Add(new Edge { fromNodeId = 2, fromPortName = nameof(SetIntVariable.Done), toNodeId = 3, toPortName = nameof(SetIntVariable.In) });
+            asset.flowEdges.Add(new Edge { fromNodeId = 1, fromPortName = nameof(Start.FlowOut),    toNodeId = 2, toPortName = nameof(SetVariable<int>.In)   });
+            asset.flowEdges.Add(new Edge { fromNodeId = 2, fromPortName = nameof(SetVariable<int>.Done), toNodeId = 3, toPortName = nameof(SetVariable<int>.In) });
 
             // Data: literals into the setters' NewValue ports.
-            asset.connections.Add(new Edge { fromNodeId = 6, fromPortName = nameof(IntLiteral.Out), toNodeId = 2, toPortName = nameof(SetIntVariable.NewValue) });
-            asset.connections.Add(new Edge { fromNodeId = 7, fromPortName = nameof(IntLiteral.Out), toNodeId = 3, toPortName = nameof(SetIntVariable.NewValue) });
+            asset.connections.Add(new Edge { fromNodeId = 6, fromPortName = nameof(IntLiteral.Out), toNodeId = 2, toPortName = nameof(SetVariable<int>.NewValue) });
+            asset.connections.Add(new Edge { fromNodeId = 7, fromPortName = nameof(IntLiteral.Out), toNodeId = 3, toPortName = nameof(SetVariable<int>.NewValue) });
 
             // Observe → recorder: FlowOut + NewValue.
-            asset.flowEdges.Add(new Edge   { fromNodeId = 4, fromPortName = nameof(ObserveIntVariable.FlowOut),  toNodeId = 5, toPortName = nameof(IntRecorder.In)    });
-            asset.connections.Add(new Edge { fromNodeId = 4, fromPortName = nameof(ObserveIntVariable.NewValue), toNodeId = 5, toPortName = nameof(IntRecorder.Value) });
+            asset.flowEdges.Add(new Edge   { fromNodeId = 4, fromPortName = nameof(ObserveVariable<int>.FlowOut),  toNodeId = 5, toPortName = nameof(IntRecorder.In)    });
+            asset.connections.Add(new Edge { fromNodeId = 4, fromPortName = nameof(ObserveVariable<int>.NewValue), toNodeId = 5, toPortName = nameof(IntRecorder.Value) });
 
             var runner = new ScopedBuilder(globalBag).Build(asset);
 
@@ -149,7 +149,7 @@ namespace Scaffold.GraphFlow.Tests
             asset.nodes.Add(start);
             asset.nodes.Add(doubler);
             asset.nodes.Add(rec);
-            asset.variables.Add(VariableTestHelpers.Var("speed", new IntDefault { value = 21 }));
+            asset.variables.Add(VariableTestHelpers.Var("speed", new BlackboardInt { value = 21 }));
             asset.variableEdges.Add(new VariableEdge { variableId = "speed", toNodeId = 2, toPortName = nameof(Doubler.In) });
             asset.connections.Add(new Edge          { fromNodeId = 2, fromPortName = nameof(Doubler.Out),  toNodeId = 3, toPortName = nameof(IntRecorder.Value) });
             asset.flowEdges.Add(new Edge            { fromNodeId = 1, fromPortName = nameof(Start.FlowOut), toNodeId = 3, toPortName = nameof(IntRecorder.In)    });

@@ -36,7 +36,7 @@ namespace Scaffold.GraphFlow.Tests
             }
         }
 
-        static ParentedAsset Asset(params (string id, VariableDefault def)[] vars)
+        static ParentedAsset Asset(params (string id, BlackboardVariable def)[] vars)
         {
             var asset = ScriptableObject.CreateInstance<ParentedAsset>();
             asset.nodes.Add(new CapturingEntry { nodeId = 1, editorGuid = "a" });
@@ -48,7 +48,7 @@ namespace Scaffold.GraphFlow.Tests
         [Test]
         public void RunnerVariablesSeededFromAsset()
         {
-            var asset  = Asset(("hp", new IntDefault { value = 9 }));
+            var asset  = Asset(("hp", new BlackboardInt { value = 9 }));
             var runner = new ParentedBuilder(parent: null).Build(asset);
 
             Assert.IsNotNull(runner.Variables);
@@ -62,9 +62,9 @@ namespace Scaffold.GraphFlow.Tests
         {
             var global = new InMemoryVariableBag(new[]
             {
-                VariableTestHelpers.Var("score", new IntDefault { value = 100 }),
+                VariableTestHelpers.Var("score", new BlackboardInt { value = 100 }),
             });
-            var asset  = Asset(("hp", new IntDefault { value = 5 }));
+            var asset  = Asset(("hp", new BlackboardInt { value = 5 }));
             var runner = new ParentedBuilder(global).Build(asset);
 
             Assert.AreSame(global, runner.Variables.Parent);
@@ -75,7 +75,7 @@ namespace Scaffold.GraphFlow.Tests
         [Test]
         public async Task FlowVariablesParentChainsToRunner()
         {
-            var asset  = Asset(("hp", new IntDefault { value = 1 }));
+            var asset  = Asset(("hp", new BlackboardInt { value = 1 }));
             var runner = new ParentedBuilder(parent: null).Build(asset);
 
             var flow = await runner.Run(new EmptyEntry());
@@ -89,7 +89,7 @@ namespace Scaffold.GraphFlow.Tests
         [Test]
         public async Task SetThroughFlowHitsRunnerOwnedCell()
         {
-            var asset  = Asset(("hp", new IntDefault { value = 1 }));
+            var asset  = Asset(("hp", new BlackboardInt { value = 1 }));
             var runner = new ParentedBuilder(parent: null).Build(asset);
             var flow   = await runner.Run(new EmptyEntry());
 

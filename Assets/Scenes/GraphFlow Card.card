@@ -1,0 +1,66 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &1
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 790b4d75d92f4b0984310a268dbd952f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.GraphToolkit.Editor::Unity.GraphToolkit.Editor.Implementation.GraphObjectImp
+  m_GraphModel:
+    rid: 2853327436305137777
+  references:
+    version: 2
+    RefIds:
+    - rid: -2
+      type: {class: , ns: , asm: }
+    - rid: 2853327436305137777
+      type: {class: GraphModelImp, ns: Unity.GraphToolkit.Editor.Implementation, asm: Unity.GraphToolkit.Editor}
+      data:
+        m_Guid:
+          m_Value0: 12963945192710429512
+          m_Value1: 10249914885131124690
+        m_HashGuid:
+          serializedVersion: 2
+          Hash: 485b2383772fe9b3d2bf3a1a48033f8e
+        m_Name: 
+        m_GraphNodeModels: []
+        m_GraphWireModels: []
+        m_GraphStickyNoteModels: []
+        m_GraphPlacematModels: []
+        m_GraphVariableModels: []
+        m_GraphPortalModels: []
+        m_SectionModels:
+        - rid: 2853327436305137778
+        m_LocalSubgraphs: []
+        m_LastKnownBounds:
+          serializedVersion: 2
+          x: 0
+          y: 0
+          width: 0
+          height: 0
+        m_GraphElementMetaData: []
+        m_EntryPoint:
+          rid: -2
+        m_Graph:
+          rid: 2853327436305137779
+    - rid: 2853327436305137778
+      type: {class: SectionModel, ns: Unity.GraphToolkit.Editor, asm: Unity.GraphToolkit.Internal.Editor}
+      data:
+        m_Guid:
+          m_Value0: 13193170252908966258
+          m_Value1: 13805581044431116427
+        m_HashGuid:
+          serializedVersion: 2
+          Hash: 72b1e3d1718e17b78bd82e97d04697bf
+        m_Version: 2
+        m_Items: []
+        m_Title: 
+    - rid: 2853327436305137779
+      type: {class: CardEffectGraph, ns: Scaffold.GraphFlow.CardSandbox.Editor.GToolkit, asm: Scaffold.GraphFlow.CardSandbox.Editor}
+      data: 

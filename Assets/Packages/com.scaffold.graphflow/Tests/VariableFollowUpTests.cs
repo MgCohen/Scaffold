@@ -61,7 +61,7 @@ namespace Scaffold.GraphFlow.Tests
         [Test]
         public void CyclicParentChainDoesNotHang()
         {
-            var seedA = new[] { VariableTestHelpers.Var("x", new IntDefault { value = 1 }) };
+            var seedA = new[] { VariableTestHelpers.Var("x", new BlackboardInt { value = 1 }) };
             var seedB = Array.Empty<RuntimeVariable>();
 
             var a = new InMemoryVariableBag(seedA);
@@ -124,7 +124,7 @@ namespace Scaffold.GraphFlow.Tests
         {
             var asset = ScriptableObject.CreateInstance<ParentedAsset>();
             asset.nodes.Add(new Entry { nodeId = 1, editorGuid = "a" });
-            asset.variables.Add(VariableTestHelpers.Var("hp", new IntDefault { value = 10 }));
+            asset.variables.Add(VariableTestHelpers.Var("hp", new BlackboardInt { value = 10 }));
 
             var builder = new ParentedBuilder(parent: null);
             var runner1 = builder.Build(asset);

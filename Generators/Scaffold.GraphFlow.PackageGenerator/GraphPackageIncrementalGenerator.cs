@@ -16,7 +16,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             var attrProvider = context.CompilationProvider.Select(static (c, _) => c.GetTypeByMetadataName(graphPackageMetadataName));
             var combined = attrProvider.Combine(context.CompilationProvider);
             var payload = combined.Select(static (t, ct) => (Packages: GraphPackageAssemblyParser.ParsePackages(t.Right, t.Left, ct), Compilation: t.Right));
-            context.RegisterSourceOutput(payload, static (spc, x) => GraphPackageTrioEmitter.Emit(spc, x.Compilation, x.Packages, spc.CancellationToken));
+            context.RegisterSourceOutput(payload, static (spc, x) => GraphPackageEmitter.Emit(spc, x.Compilation, x.Packages, spc.CancellationToken));
         }
     }
 }

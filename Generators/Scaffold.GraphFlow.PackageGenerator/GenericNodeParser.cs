@@ -16,6 +16,12 @@ namespace Scaffold.GraphFlow.PackageGenerator
 
         internal static ImmutableArray<GenericNodeModel> Parse(Compilation compilation, IAssemblySymbol assembly, CancellationToken ct)
         {
+            var allTypes = GraphPayloadTypeWalker.AllNamedTypesInAssembly(assembly, ct);
+            return Parse(compilation, allTypes, ct);
+        }
+
+        internal static ImmutableArray<GenericNodeModel> Parse(Compilation compilation, ImmutableArray<INamedTypeSymbol> types, CancellationToken ct)
+        {
             var graphNodeAttr = compilation.GetTypeByMetadataName(GraphNodeAttrFqn);
             if (graphNodeAttr == null)
             {
@@ -23,7 +29,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             }
 
             var builder = ImmutableArray.CreateBuilder<GenericNodeModel>();
-            foreach (var type in GraphPayloadTypeWalker.AllNamedTypesInAssembly(assembly, ct))
+            foreach (var type in types)
             {
                 ct.ThrowIfCancellationRequested();
                 if (!HasGraphNodeAttribute(type, graphNodeAttr, out var category))
@@ -73,7 +79,8 @@ namespace Scaffold.GraphFlow.PackageGenerator
             return builder.ToImmutable();
         }
 
-        static bool HasGraphNodeAttribute(INamedTypeSymbol type, INamedTypeSymbol graphNodeAttr, out string? category)
+        static bool HasGraphNodeAttribute(INamedTypeSymbol type, INamedTypeSymbol graphNodeAttr,
+            out string? category)
         {
             category = null;
             foreach (var a in type.GetAttributes())
