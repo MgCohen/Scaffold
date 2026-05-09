@@ -76,6 +76,36 @@ namespace HarnessFixture.Generated
             defaultLiteral: "0f"
         );
 
+        public static readonly CatalogEntry VarBool = new(
+            kinds: CatalogKind.Variable,
+            type:  typeof(bool),
+            ports: System.Array.Empty<PortMeta>()
+        );
+
+        public static readonly CatalogEntry VarFloat = new(
+            kinds: CatalogKind.Variable,
+            type:  typeof(float),
+            ports: System.Array.Empty<PortMeta>()
+        );
+
+        public static readonly CatalogEntry VarInt = new(
+            kinds: CatalogKind.Variable,
+            type:  typeof(int),
+            ports: System.Array.Empty<PortMeta>()
+        );
+
+        public static readonly CatalogEntry VarObject = new(
+            kinds: CatalogKind.Variable,
+            type:  typeof(global::UnityEngine.Object),
+            ports: System.Array.Empty<PortMeta>()
+        );
+
+        public static readonly CatalogEntry VarString = new(
+            kinds: CatalogKind.Variable,
+            type:  typeof(string),
+            ports: System.Array.Empty<PortMeta>()
+        );
+
         // ============ Index ============
 
         static readonly CatalogEntry[] s_All =
@@ -87,6 +117,11 @@ namespace HarnessFixture.Generated
             Bool,
             String,
             Float,
+            VarBool,
+            VarFloat,
+            VarInt,
+            VarObject,
+            VarString,
         };
 
         public static IReadOnlyList<CatalogEntry> All => s_All;
@@ -94,7 +129,8 @@ namespace HarnessFixture.Generated
         public static IEnumerable<CatalogEntry> OfKind(CatalogKind k) =>
             s_All.Where(e => (e.Kinds & k) != 0);
 
-        static readonly Dictionary<System.Type, CatalogEntry> s_ByType = s_All.ToDictionary(e => e.Type);
+        static readonly Dictionary<System.Type, CatalogEntry> s_ByType =
+            s_All.GroupBy(e => e.Type).ToDictionary(g => g.Key, g => g.First());
 
         public static CatalogEntry? Get(System.Type t) =>
             s_ByType.TryGetValue(t, out var v) ? v : null;
@@ -142,6 +178,16 @@ namespace HarnessFixture.Generated
             OnEntry = 1,
         }
 
+        public enum VariableType
+        {
+            None = 0,
+            Bool = 1,
+            Float = 2,
+            Int = 3,
+            Object = 4,
+            String = 5,
+        }
+
         // ============ Resolve ============
 
         public static CatalogEntry? Resolve(EventType c) => c switch
@@ -168,6 +214,16 @@ namespace HarnessFixture.Generated
         public static CatalogEntry? Resolve(EntryType c) => c switch
         {
             EntryType.OnEntry => OnEntry,
+            _ => null,
+        };
+
+        public static CatalogEntry? Resolve(VariableType c) => c switch
+        {
+            VariableType.Bool => VarBool,
+            VariableType.Float => VarFloat,
+            VariableType.Int => VarInt,
+            VariableType.Object => VarObject,
+            VariableType.String => VarString,
             _ => null,
         };
 

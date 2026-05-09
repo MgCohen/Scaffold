@@ -7,9 +7,8 @@ using UnityEngine;
 namespace Scaffold.GraphFlow.Editor
 {
     /// <summary>
-    /// ScriptedImporter pipeline for package graphs. Subclasses close type parameters, apply
-    /// <c>[ScriptedImporter(version, extension)]</c>, and supply <see cref="Registry"/>.
-    /// The bake itself is generic — driven entirely by the registry.
+    /// ScriptedImporter pipeline for package graphs. Subclasses close type parameters and apply
+    /// <c>[ScriptedImporter(version, extension)]</c> — the registry is read from the graph itself.
     ///
     /// Follows the same pattern as Unity's official GT sample importers
     /// (VisualNovelDirectorImporter, TextureMakerImporter): when the graph can't be loaded
@@ -21,8 +20,6 @@ namespace Scaffold.GraphFlow.Editor
         where TRunner : GraphRunner
         where TAsset : GraphAsset<TRunner>
     {
-        protected abstract GraphPackageRegistry<TRunner> Registry { get; }
-
         public sealed override void OnImportAsset(AssetImportContext ctx)
         {
             var graph = GraphDatabase.LoadGraphForImporter<TGraph>(ctx.assetPath);
@@ -35,7 +32,7 @@ namespace Scaffold.GraphFlow.Editor
             GraphBakeResult<TAsset> bake;
             try
             {
-                bake = GraphBakerCore.Bake<TRunner, TAsset>(graph, null, Registry);
+                bake = GraphBakerCore.Bake<TRunner, TAsset>(graph, null, graph.Registry);
             }
             catch (InvalidOperationException ex)
             {

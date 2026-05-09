@@ -9,6 +9,5 @@ namespace Scaffold.GraphFlow.CardSandbox.Editor
     [ScriptedImporter(2, CardEffectGraph.AssetExtension)]
     public sealed class CardEffectGraphImporter : GraphAssetImporterBase<CardEffectGraph, CardEffectRunner, CardEffectGraphAsset>
     {
-        protected override GraphPackageRegistry<CardEffectRunner> Registry => CardEffectGraphRegistry.Instance;
     }
 }

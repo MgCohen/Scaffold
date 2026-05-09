@@ -635,6 +635,8 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine("using System;");
             sb.AppendLine($"using {pkgRoot};");
             AppendRunnerUsingIfNeeded(sb, p);
+            sb.AppendLine($"using {GraphRegistryEmitter.ResolveRegistryNamespace(p, compilation)};");
+            sb.AppendLine($"using {GraphRegistryEmitter.EditorRegistryNamespace};");
             sb.AppendLine("using Unity.GraphToolkit.Editor;");
             sb.AppendLine("using UnityEditor;");
             sb.AppendLine($"using {GraphRegistryEmitter.PackageEditorGToolkitNamespace};");
@@ -652,12 +654,13 @@ namespace Scaffold.GraphFlow.PackageGenerator
 
         static void AppendEditorGraphBody(StringBuilder sb, GraphPackageModel p)
         {
-            // partial sealed: validation rules land in <Stem>GraphValidation.g.cs (separate partial),
-            // and consumers can hand-write further partial extensions if they need to.
+            var registryType = GraphRegistryEmitter.RegistryTypeName(p);
             sb.AppendLine("    [Serializable]");
             sb.AppendLine("    [Graph(AssetExtension)]");
             sb.AppendLine($"    public sealed partial class {p.GraphStem}Graph : Graph<{p.RunnerTypeName}>");
             sb.AppendLine("    {");
+            sb.AppendLine($"        public override GraphPackageRegistry<{p.RunnerTypeName}> Registry => {registryType}.Instance;");
+            sb.AppendLine();
             AppendEditorGraphConstantsAndMenu(sb, p);
             sb.AppendLine("    }");
         }

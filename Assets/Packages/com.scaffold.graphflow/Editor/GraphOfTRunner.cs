@@ -23,5 +23,6 @@ namespace Scaffold.GraphFlow.Editor.GToolkit
     public abstract class Graph<TRunner> : GraphFlowGraph
         where TRunner : Scaffold.GraphFlow.GraphRunner
     {
+        public abstract GraphPackageRegistry<TRunner> Registry { get; }
     }
 }
