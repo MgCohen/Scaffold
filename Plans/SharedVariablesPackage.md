@@ -236,7 +236,7 @@ namespace Scaffold.Variables
 
     public interface IVariableHandle<T> : IReadOnlyVariableHandle<T>
     {
-        new T Value { get; set; }
+        void Set(T value);
     }
 
     public interface IVariableBag
@@ -339,15 +339,13 @@ public sealed class StoreBackedHandle<TState, T> : IVariableHandle<T>
     T    _last;
     bool _applyingFromSubscribe;
 
-    public T Value
+    public T Value => _project(_store.Get<TState>(_ref));
+
+    public void Set(T value)
     {
-        get => _project(_store.Get<TState>(_ref));
-        set
-        {
-            if (_applyingFromSubscribe) return;     // re-entry guard
-            if (EqualityComparer<T>.Default.Equals(_last, value)) return;
-            _store.Execute(_ref, _toPayload(value));
-        }
+        if (_applyingFromSubscribe) return;     // re-entry guard
+        if (EqualityComparer<T>.Default.Equals(_last, value)) return;
+        _store.Execute(_ref, _toPayload(value));
     }
 
     public void Subscribe(Action<T> handler)   => _subscribers += handler;
@@ -603,29 +601,107 @@ Spec needs a sketch before step 4 lands.
 
 Everything else is contract wording or known follow-up work.
 
+## Final code-audit verification
+
+Final pass against the actual codebase before any code lands.
+Verified each load-bearing claim in the design against real
+file:line citations. **No blockers found.** Five caveats absorbed
+into the migration plan; four claims confirmed.
+
+### Confirmed wins
+
+- **Seam change is mechanically clean.** `GraphRunner.SeedVariables`
+  is called once from `GraphBuilder.Build`; replacing the construction
+  with `CreateVariableBag(seed)` is a localized change.
+- **Store API matches the builder design exactly.**
+  `Store.Execute<TPayload>(Reference?, TPayload)` (`Store.cs:272`) and
+  `Store.Subscribe<TState>(Reference, Action<TState, StateChangeEvent>)`
+  (`Store.cs:96`) accept the parameters the builder passes verbatim.
+- **The bridge crossing already exists.**
+  `VariableValueFactory.From<T>(T value)` at
+  `VariableValueFactory.cs:30-41` wraps a typed `T` into the
+  appropriate `VariableValue` subclass via a switch-on-type. Builder's
+  `toPayload` factory uses it directly; no new wrapping code needed.
+- **`EntityBridgeContext.RegisterMutators` is idempotent**
+  (`EntityBridgeContext.cs:9-24`). Deduplicates at the
+  `MutatorRegistry.Register` layer. Per-`StoreBuilder`, not global —
+  if two stores want bridge mutations, both must register, but
+  re-registering against the same builder is safe.
+
+### Caveats absorbed into the plan
+
+1. **`InMemoryHandle<T>` exposed as concrete public type.**
+   GraphFlow's port-bind closures (`Port.cs`, `InputPort.cs`) cache
+   concrete cell references for hot-path zero-boxing. The shared
+   package exposes both the `IVariableHandle<T>` interface AND the
+   `InMemoryHandle<T>` concrete class; graphflow continues to capture
+   concrete refs. **Cost: 0.** Design clarification only.
+2. **`payloadTypeId` moves to `VariableEntry`.**
+   `VariableKeySoField.cs:193-209` (the editor field hub) reads
+   `payloadTypeId` from `Variable` today. Under shared `Variable`, the
+   tag moves to entity's `VariableEntry` (the serialized authoring
+   form). Editor field rewrites to read from the entry. **Phase B
+   cost: +1 day.**
+3. **`IVariableHandle<T>` uses `Set(T)` method, not property setter.**
+   Avoids any C# subtlety around `new` keyword interface property
+   shadowing. Read still uses `.Value` property; only writes go
+   through `.Set(x)`. GraphFlow's existing `cell.Value = x` migrates
+   to `handle.Set(x)`. **Phase A cost: +0.5 days** (call-site
+   updates).
+4. **`MutatorRegistry.IsRegistered(Type)` added to
+   `com.scaffold.states`.** Builder needs it for construction-time
+   payload validation (audit #6). Trivial public method addition.
+   **Phase A cost: +0.5 days.**
+5. **Asset migration for namespace change.** `Variable.cs:24-28`
+   serializes `key` + `payloadTypeId` as `[SerializeField]` strings.
+   When `Scaffold.Entities.Variable` becomes
+   `Scaffold.Variables.Variable`, Unity loses serialized references
+   in existing `.asset` files and MonoBehaviour fields unless an
+   `OnAfterDeserialize` migration is provided. Sample assets under
+   `Samples~/` would break without it. **Phase B cost: +2–3 days**
+   for migration + test coverage.
+
+### Updated total estimate
+
+**~20–22 person-days end-to-end.** Was ~17–18 before this audit.
+Phase A: ~6–8 days (was 5–7). Phase B: ~13–16 days (was 10–12).
+Phases C / D / E unchanged.
+
 ## Migration order (to keep green)
 
 1. **Phase A.1 — Land `com.scaffold.variables`** with `Variable`,
    `IVariableHandle<T>`, `IReadOnlyVariableHandle<T>`, `IVariableBag`,
-   `VariableDefault<T>`, `InMemoryHandle<T>`, `InMemoryVariableBag`.
-   Pure additive — no consumer changes yet.
+   `VariableDefault<T>`, `InMemoryHandle<T>` (concrete public class),
+   `InMemoryVariableBag`. Pure additive — no consumer changes yet.
+   Also adds `MutatorRegistry.IsRegistered(Type)` to
+   `com.scaffold.states` (small public method, used by Phase C
+   construction-time validation).
 2. **Phase A.2 — Migrate GraphFlow.** Per Invariant 1: delete
    GraphFlow's private `IVariableBag`, `VariableCell<T>`,
    `InMemoryVariableBag`, and `VariableDefault` hierarchy outright;
    imports update to `Scaffold.Variables`. Per Invariant 2: replace
    `CreateParentBag()` with `CreateVariableBag(seed)` and remove the
    internal `SeedVariables` plumbing. Default override preserves
-   current behavior (`new InMemoryVariableBag(seed)`). All existing
-   GraphFlow tests must stay green.
+   current behavior (`new InMemoryVariableBag(seed)`). Existing
+   `cell.Value = x` call sites migrate to `handle.Set(x)`. All
+   existing GraphFlow tests must stay green.
 3. **Phase B — Migrate entities.** `Variable` extracted to shared.
-   `IEntityVariableStorage : Scaffold.Variables.IVariableBag`. Add
-   `TryGet<T>` to `VariableBag`. `[Obsolete]` extension method routes
-   `TryGetBase` → `TryGet<T>` so existing internal callers keep
-   compiling during the cut.
+   `payloadTypeId` moves from `Variable` to `VariableEntry` (the
+   serialized authoring form). `VariableKeySoField` rewrites to
+   read the tag from the entry. `IEntityVariableStorage :
+   Scaffold.Variables.IVariableBag`. Add `TryGet<T>` to
+   `VariableBag`. `[Obsolete]` extension method routes `TryGetBase`
+   → `TryGet<T>`. **Includes asset-migration script
+   (`OnAfterDeserialize`)** to fix up old `.asset` files and
+   MonoBehaviour fields when `Scaffold.Entities.Variable` becomes
+   `Scaffold.Variables.Variable`.
 4. **Phase C — `StoreVariableBagBuilder` + state-backed bag in
    `com.scaffold.entities.states`.** Net-new code; no migration.
-   Includes the three-test deferral fixture (Q8) and
-   construction-time payload-registration validation (audit #6).
+   `StoreBackedHandle.Set` calls
+   `VariableValueFactory.From<T>(value)` to wrap into the
+   appropriate `VariableValue` subclass. Includes the three-test
+   deferral fixture (Q8) and construction-time payload-registration
+   validation via `MutatorRegistry.IsRegistered`.
 5. **Phase D — Erase the `[Obsolete]` extension methods.** All
    internal `TryGetBase` callers migrated to `TryGet<T>`. Per
    Invariant 1: codebase ends with exactly one `IVariableBag`
@@ -918,7 +994,7 @@ Order: A → B → C.
    per `Execute` / snapshot load, with the final post-merge value.
    **Test plan locked** — three-test fixture lands before bridge
    code:
-   1. Two `cell.Value = x` writes inside one `Store.ExecuteBatch` →
+   1. Two `handle.Set(x)` writes inside one `Store.ExecuteBatch` →
       Subscribe-callback fires once with the final value.
    2. `Store.LoadSnapshot` that doesn't change the projected value
       → callback does NOT fire (handle dedupes on `_last`).
