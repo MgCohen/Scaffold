@@ -10,8 +10,6 @@ namespace Scaffold.GraphFlow
     /// <c>partial void InitializePorts()</c> body when the class has any <c>OutputPort</c> fields, and
     /// populates the <c>Ports</c> dictionary on <c>RuntimeNode</c>. The generator also emits the editor
     /// mirror (<c>&lt;Name&gt;EditorNode</c>) and the per-package registry entry.
-    ///
-    /// See ExecPlan-v2.md "Generic-node emission" for the full surface + design-iteration log.
     /// </summary>
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
     public sealed class GraphNodeAttribute : Attribute

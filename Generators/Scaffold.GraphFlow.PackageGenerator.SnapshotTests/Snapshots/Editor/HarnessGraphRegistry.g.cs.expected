@@ -354,6 +354,114 @@ namespace HarnessFixture.Generated
                     "Seconds",
                 },
             });
+            r.Register(new GraphPackageRegistry<HarnessFixture.HarnessRunner>.NodeRegistration
+            {
+                EditorNodeType = typeof(HarnessFixture.Generated.GetVariable),
+                Factory = node =>
+                {
+                    var typed = (HarnessFixture.Generated.GetVariable)node;
+                    var opt = typed.GetNodeOptionByName("VariableType");
+                    if (opt == null || !opt.TryGetValue<HarnessFixture.Generated.HarnessCatalog.VariableType>(out var picked) || picked == HarnessFixture.Generated.HarnessCatalog.VariableType.None)
+                    {
+                        throw new System.InvalidOperationException("GetVariable node has no VariableType selected.");
+                    }
+                    switch (picked)
+                    {
+                        case HarnessFixture.Generated.HarnessCatalog.VariableType.Bool:
+                            return new Scaffold.GraphFlow.Nodes.GetVariable<bool>();
+                        case HarnessFixture.Generated.HarnessCatalog.VariableType.Float:
+                            return new Scaffold.GraphFlow.Nodes.GetVariable<float>();
+                        case HarnessFixture.Generated.HarnessCatalog.VariableType.Int:
+                            return new Scaffold.GraphFlow.Nodes.GetVariable<int>();
+                        case HarnessFixture.Generated.HarnessCatalog.VariableType.Object:
+                            return new Scaffold.GraphFlow.Nodes.GetVariable<global::UnityEngine.Object>();
+                        case HarnessFixture.Generated.HarnessCatalog.VariableType.String:
+                            return new Scaffold.GraphFlow.Nodes.GetVariable<string>();
+                        default:
+                            throw new System.InvalidOperationException($"GetVariable: unsupported VariableType '{picked}'.");
+                    }
+                },
+                DataOutputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal)
+                {
+                    "Value",
+                },
+            });
+            r.Register(new GraphPackageRegistry<HarnessFixture.HarnessRunner>.NodeRegistration
+            {
+                EditorNodeType = typeof(HarnessFixture.Generated.SetVariable),
+                Factory = node =>
+                {
+                    var typed = (HarnessFixture.Generated.SetVariable)node;
+                    var opt = typed.GetNodeOptionByName("VariableType");
+                    if (opt == null || !opt.TryGetValue<HarnessFixture.Generated.HarnessCatalog.VariableType>(out var picked) || picked == HarnessFixture.Generated.HarnessCatalog.VariableType.None)
+                    {
+                        throw new System.InvalidOperationException("SetVariable node has no VariableType selected.");
+                    }
+                    switch (picked)
+                    {
+                        case HarnessFixture.Generated.HarnessCatalog.VariableType.Bool:
+                            return new Scaffold.GraphFlow.Nodes.SetVariable<bool>();
+                        case HarnessFixture.Generated.HarnessCatalog.VariableType.Float:
+                            return new Scaffold.GraphFlow.Nodes.SetVariable<float>();
+                        case HarnessFixture.Generated.HarnessCatalog.VariableType.Int:
+                            return new Scaffold.GraphFlow.Nodes.SetVariable<int>();
+                        case HarnessFixture.Generated.HarnessCatalog.VariableType.Object:
+                            return new Scaffold.GraphFlow.Nodes.SetVariable<global::UnityEngine.Object>();
+                        case HarnessFixture.Generated.HarnessCatalog.VariableType.String:
+                            return new Scaffold.GraphFlow.Nodes.SetVariable<string>();
+                        default:
+                            throw new System.InvalidOperationException($"SetVariable: unsupported VariableType '{picked}'.");
+                    }
+                },
+                FlowInputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal)
+                {
+                    "In",
+                },
+                FlowOutputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal)
+                {
+                    "Done",
+                },
+                DataInputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal)
+                {
+                    "NewValue",
+                },
+            });
+            r.Register(new GraphPackageRegistry<HarnessFixture.HarnessRunner>.NodeRegistration
+            {
+                EditorNodeType = typeof(HarnessFixture.Generated.ObserveVariable),
+                Factory = node =>
+                {
+                    var typed = (HarnessFixture.Generated.ObserveVariable)node;
+                    var opt = typed.GetNodeOptionByName("VariableType");
+                    if (opt == null || !opt.TryGetValue<HarnessFixture.Generated.HarnessCatalog.VariableType>(out var picked) || picked == HarnessFixture.Generated.HarnessCatalog.VariableType.None)
+                    {
+                        throw new System.InvalidOperationException("ObserveVariable node has no VariableType selected.");
+                    }
+                    switch (picked)
+                    {
+                        case HarnessFixture.Generated.HarnessCatalog.VariableType.Bool:
+                            return new Scaffold.GraphFlow.Nodes.ObserveVariable<bool>();
+                        case HarnessFixture.Generated.HarnessCatalog.VariableType.Float:
+                            return new Scaffold.GraphFlow.Nodes.ObserveVariable<float>();
+                        case HarnessFixture.Generated.HarnessCatalog.VariableType.Int:
+                            return new Scaffold.GraphFlow.Nodes.ObserveVariable<int>();
+                        case HarnessFixture.Generated.HarnessCatalog.VariableType.Object:
+                            return new Scaffold.GraphFlow.Nodes.ObserveVariable<global::UnityEngine.Object>();
+                        case HarnessFixture.Generated.HarnessCatalog.VariableType.String:
+                            return new Scaffold.GraphFlow.Nodes.ObserveVariable<string>();
+                        default:
+                            throw new System.InvalidOperationException($"ObserveVariable: unsupported VariableType '{picked}'.");
+                    }
+                },
+                FlowOutputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal)
+                {
+                    "FlowOut",
+                },
+                DataOutputPortNames = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal)
+                {
+                    "NewValue",
+                },
+            });
         }
     }
 }

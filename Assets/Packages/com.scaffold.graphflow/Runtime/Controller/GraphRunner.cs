@@ -10,12 +10,21 @@ namespace Scaffold.GraphFlow
     {
         public IReadOnlyList<RuntimeNode> Nodes { get; }
         public IReadOnlyDictionary<Type, EntryRuntimeNodeBase> EntriesByPayload { get; }
+        public IVariableBag Variables { get; private set; } = null!;
 
         protected GraphRunner(BakedGraph baked)
         {
             Nodes = baked.Nodes;
             EntriesByPayload = baked.EntriesByPayload;
         }
+
+        /// <summary>Override to inject the outermost (parent / global) bag —
+        /// shared variables, save state, network store, entities VariableBag
+        /// adapter, ... GraphFlow runtime never references the consumer's types.</summary>
+        protected virtual IVariableBag? CreateParentBag() => null;
+
+        internal void SeedVariables(IReadOnlyList<RuntimeVariable> seed)
+            => Variables = new InMemoryVariableBag(seed, CreateParentBag());
 
         public virtual void Initialize() { }
 
@@ -38,6 +47,30 @@ namespace Scaffold.GraphFlow
             if (dest != null) await RunFromInPort(dest, flow);
             flow.InvalidateAll();
             return flow.ReadResult<TResult>();
+        }
+
+        // Used by ObserveVariableNode<T> on cell.Changed to drive a flow from the
+        // observer's FlowOut. Internal to avoid widening the public surface for
+        // arbitrary "drive a flow from X" needs — observers go through this seam.
+        //
+        // Observers are fire-and-forget at the call site (`_ = runner.RunObserver(...)`),
+        // so any unhandled exception in the spawned flow would otherwise be lost in
+        // the discarded Task and only resurface as UnobservedTaskException at GC
+        // time. Catch and log here so failures show up immediately with their
+        // original stack — without making the public surface awkward.
+        internal async Task RunObserver(FlowOutPort flowOut, object payload, CancellationToken ct = default)
+        {
+            try
+            {
+                var flow = NewFlow(payload, ct);
+                var dest = flowOut.Connection?.Destination;
+                if (dest != null) await RunFromInPort(dest, flow);
+                flow.InvalidateAll();
+            }
+            catch (Exception e)
+            {
+                UnityEngine.Debug.LogException(e);
+            }
         }
 
         Flow NewFlow(object payload, CancellationToken ct) => new Flow(payload, this, ct);

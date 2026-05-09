@@ -72,7 +72,7 @@ Touched-files matrix per decision:
 - `Assets/Packages/com.scaffold.graphflow/Runtime/EntryRuntimeNode.cs`
 - `Assets/Packages/com.scaffold.graphflow/Runtime/GraphController.cs`
 - `Generators/Scaffold.GraphFlow.PackageGenerator/GraphPayloadNodeEmitter.cs` (entry emit + new bridge emit)
-- `Generators/Scaffold.GraphFlow.PackageGenerator/GraphPackageTrioEmitter.cs` (registry includes bridges)
+- `Generators/Scaffold.GraphFlow.PackageGenerator/GraphPackageEmitter.cs` (registry includes bridges)
 - `Generators/Scaffold.GraphFlow.PackageGenerator/PayloadDiscovery.cs` (IGraphEntry walk)
 - `Assets/Packages/com.scaffold.graphflow/Samples/M0Sandbox/Runtime/Smoke/Payloads.cs`
 - `Assets/Packages/com.scaffold.graphflow/Samples/M0Sandbox/Tests/M0SmokeRuntimeTests.cs`

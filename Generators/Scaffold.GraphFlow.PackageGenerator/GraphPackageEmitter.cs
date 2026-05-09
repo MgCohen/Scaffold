@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Text;
 
 namespace Scaffold.GraphFlow.PackageGenerator
 {
-    internal static class GraphPackageTrioEmitter
+    internal static class GraphPackageEmitter
     {
         internal static void Emit(SourceProductionContext spc, Compilation compilation, ImmutableArray<GraphPackageModel> packages, CancellationToken cancellationToken)
         {
@@ -106,7 +106,11 @@ namespace Scaffold.GraphFlow.PackageGenerator
                 AddEditorSources(spc, compilation, p);
                 var registrations = new System.Collections.Generic.List<string>();
                 GraphPayloadNodeEmitter.Emit(spc, compilation, true, p, cancellationToken, registrations);
-                EmitGenericNodeArtifacts(spc, compilation, p, registrations, cancellationToken, editorAssembly: true);
+                var (_, variableTypes) = EmitGenericNodeArtifacts(spc, compilation, p, registrations, cancellationToken, editorAssembly: true);
+                if (variableTypes.Length > 0)
+                {
+                    VariableNodeEmitter.AppendRegistrations(registrations, compilation, p, variableTypes);
+                }
                 GraphRegistryEmitter.EmitRegistryFile(spc, compilation, p, registrations);
                 // Per-package field-level lint (EFG002/003/004/006). Editor pass only — payloads
                 // are reachable via the runner's containing asm and reporting once per pass keeps
@@ -116,8 +120,8 @@ namespace Scaffold.GraphFlow.PackageGenerator
             else
             {
                 GraphPayloadNodeEmitter.Emit(spc, compilation, false, p, cancellationToken);
-                EmitGenericNodeArtifacts(spc, compilation, p, registrations: null, cancellationToken, editorAssembly: false);
-                EmitCatalogIfRunnerAsm(spc, compilation, p, cancellationToken);
+                var (_, variableTypes) = EmitGenericNodeArtifacts(spc, compilation, p, registrations: null, cancellationToken, editorAssembly: false);
+                EmitCatalogIfRunnerAsm(spc, compilation, p, variableTypes, cancellationToken);
             }
         }
 
@@ -127,7 +131,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
         /// types only — so it lives next to the runtime nodes it describes. Editor mirrors and
         /// the registry read it via the asm reference.
         /// </summary>
-        static void EmitCatalogIfRunnerAsm(SourceProductionContext spc, Compilation compilation, GraphPackageModel p, CancellationToken ct)
+        static void EmitCatalogIfRunnerAsm(SourceProductionContext spc, Compilation compilation, GraphPackageModel p, ImmutableArray<VariableTypeInfo> variableTypes, CancellationToken ct)
         {
             var runner = GraphCompilationNames.TypeFromFullyQualified(compilation, p.RunnerFullyQualified);
             var payloadAsm = runner?.ContainingAssembly;
@@ -154,10 +158,14 @@ namespace Scaffold.GraphFlow.PackageGenerator
             var entries  = GraphCatalogDiscovery.DiscoverEntries(compilation, p, allTypes, iEntry, graphPortAttr, graphPortIgnoreAttr, ct);
             var returns  = GraphCatalogDiscovery.DiscoverReturns(compilation, p, allTypes, graphReturnTypeAttr, ct);
 
-            GraphCatalogEmitter.EmitRuntimeCatalog(spc, compilation, p, events, commands, entries, returns);
+            var variables = new System.Collections.Generic.List<GraphCatalogEmitter.VariableDescriptor>();
+            foreach (var v in variableTypes)
+                variables.Add(new GraphCatalogEmitter.VariableDescriptor(v.Label, v.ValueTypeFq));
+
+            GraphCatalogEmitter.EmitRuntimeCatalog(spc, compilation, p, events, commands, entries, returns, variables);
         }
 
-        static void EmitGenericNodeArtifacts(
+        static (ImmutableArray<GenericNodeModel> nodes, ImmutableArray<VariableTypeInfo> variableTypes) EmitGenericNodeArtifacts(
             SourceProductionContext spc,
             Compilation compilation,
             GraphPackageModel p,
@@ -175,7 +183,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             var runnerAsm = runner?.ContainingAssembly;
             if (runnerAsm == null)
             {
-                return;
+                return (ImmutableArray<GenericNodeModel>.Empty, ImmutableArray<VariableTypeInfo>.Empty);
             }
 
             const string GraphFlowRuntimeAsmName = "Scaffold.GraphFlow";
@@ -223,9 +231,15 @@ namespace Scaffold.GraphFlow.PackageGenerator
             var dedupe = new System.Collections.Generic.HashSet<string>();
             var allNodes = ImmutableArray.CreateBuilder<GenericNodeModel>();
             var inCurrentCompilation = new System.Collections.Generic.HashSet<string>();
+            var varDedup = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal);
+            var allVarTypes = ImmutableArray.CreateBuilder<VariableTypeInfo>();
             foreach (var asm in asms.OrderBy(a => a.Name, System.StringComparer.Ordinal))
             {
-                var parsed = GenericNodeParser.Parse(compilation, asm, ct);
+                // Walk the assembly's types once; feed both GenericNodeParser and VariableDiscovery.
+                var allTypes = GraphPayloadTypeWalker.AllNamedTypesInAssembly(asm, ct);
+                var parsed = GenericNodeParser.Parse(compilation, allTypes, ct);
+                var varInfos = VariableDiscovery.DiscoverFromTypes(compilation, allTypes, ct);
+
                 var isCurrent = SymbolEqualityComparer.Default.Equals(asm, compilation.Assembly);
                 foreach (var n in parsed)
                 {
@@ -236,9 +250,19 @@ namespace Scaffold.GraphFlow.PackageGenerator
                         if (isCurrent) inCurrentCompilation.Add(key);
                     }
                 }
+
+                foreach (var v in varInfos)
+                {
+                    if (varDedup.Add(v.Label))
+                        allVarTypes.Add(v);
+                }
             }
 
-            GraphGenericNodeEmitter.EmitForPackage(spc, compilation, p, allNodes.ToImmutable(), inCurrentCompilation, registrations, editorAssembly);
+            var built = allNodes.ToImmutable();
+            GraphGenericNodeEmitter.EmitForPackage(spc, compilation, p, built, inCurrentCompilation, registrations, editorAssembly);
+
+            allVarTypes.Sort((a, b) => string.CompareOrdinal(a.Label, b.Label));
+            return (built, allVarTypes.ToImmutable());
         }
 
         static void AddEditorSources(SourceProductionContext spc, Compilation compilation, GraphPackageModel p)
@@ -249,12 +273,10 @@ namespace Scaffold.GraphFlow.PackageGenerator
             var graphText = graphSb.ToString();
             var graphSource = SourceText.From(graphText, Encoding.UTF8);
             spc.AddSource(graphPath, graphSource);
-            var impSb = new StringBuilder();
-            AppendEditorImporterFile(impSb, compilation, p);
-            var impPath = $"{p.GraphStem}GraphImporter.g.cs";
-            var impText = impSb.ToString();
-            var impSource = SourceText.From(impText, Encoding.UTF8);
-            spc.AddSource(impPath, impSource);
+            // Importer is NOT source-generated — it must be a hand-written .cs file so
+            // Unity assigns a stable script GUID for the .meta ScriptedImporter reference.
+            // Source-generated scripts land in obj/Generated/ with no .cs.meta, which causes
+            // the .card meta file to get script:{instanceID:0} → broken Inspector display.
             var valSb = new StringBuilder();
             AppendEditorGraphValidationFile(valSb, compilation, p);
             var valPath = $"{p.GraphStem}GraphValidation.g.cs";
@@ -268,9 +290,20 @@ namespace Scaffold.GraphFlow.PackageGenerator
             AppendReturnEditorShimFile(retSb, compilation, p);
             spc.AddSource($"{p.GraphStem}_Return.g.cs", SourceText.From(retSb.ToString(), Encoding.UTF8));
 
-            var inspectorSb = new StringBuilder();
-            AppendConcreteAssetInspectorFile(inspectorSb, compilation, p);
-            spc.AddSource($"{p.GraphStem}GraphAssetInspector.g.cs", SourceText.From(inspectorSb.ToString(), Encoding.UTF8));
+            AppendVariableEditorShimFile(spc, compilation, p, "GetVariable",
+                "global::Scaffold.GraphFlow.Editor.Nodes.GetVariableEditorNode",
+                "GetValueType", "Type");
+            AppendVariableEditorShimFile(spc, compilation, p, "SetVariable",
+                "global::Scaffold.GraphFlow.Editor.Nodes.SetVariableEditorNode",
+                "GetValueType", "Type");
+            AppendVariableEditorShimFile(spc, compilation, p, "ObserveVariable",
+                "global::Scaffold.GraphFlow.Editor.Nodes.ObserveVariableEditorNode",
+                "GetValueType", "Type");
+
+            // Inspector is also hand-written — a [CustomEditor] for the asset type
+            // would override the ScriptedImporter inspector view (hiding import settings).
+            // Without it, Unity's default ScriptedImporter inspector shows both import
+            // settings and the imported object, matching official GT sample behavior.
         }
 
         /// <summary>
@@ -363,6 +396,44 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine($"            => {catalogTy}.Resolve(picked)?.Type;");
             sb.AppendLine("    }");
             sb.AppendLine("}");
+        }
+
+        static void AppendVariableEditorShimFile(
+            SourceProductionContext spc,
+            Compilation compilation,
+            GraphPackageModel p,
+            string editorName,
+            string editorBaseFq,
+            string abstractMethod,
+            string resolverProperty)
+        {
+            var registryNs = GraphRegistryEmitter.ResolveRegistryNamespace(p, compilation);
+            var catalogNs  = GraphCatalogEmitter.ResolveCatalogNamespace(p, compilation);
+            var catalogTy  = p.GraphStem + GraphCatalogEmitter.CatalogClassSuffix;
+            var enumRef    = catalogTy + ".VariableType";
+
+            var sb = new StringBuilder();
+            sb.AppendLine("// <auto-generated />");
+            sb.AppendLine("#nullable enable");
+            sb.AppendLine("using System;");
+            sb.AppendLine("using Scaffold.GraphFlow;");
+            sb.AppendLine("using Scaffold.GraphFlow.Editor.Nodes;");
+            sb.AppendLine($"using {EditorGraphToolkitNamespace(compilation)};");
+            sb.AppendLine($"using {catalogNs};");
+            sb.AppendLine("using Unity.GraphToolkit.Editor;");
+            sb.AppendLine();
+            sb.AppendLine($"namespace {registryNs}");
+            sb.AppendLine("{");
+            sb.AppendLine("    [Serializable]");
+            sb.AppendLine($"    [UseWithGraph(typeof({p.GraphStem}Graph))]");
+            sb.AppendLine($"    public sealed class {editorName} : {editorBaseFq}<{enumRef}>");
+            sb.AppendLine("    {");
+            sb.AppendLine($"        protected override Type? {abstractMethod}({enumRef} picked)");
+            sb.AppendLine($"            => {catalogTy}.Resolve(picked)?.{resolverProperty};");
+            sb.AppendLine("    }");
+            sb.AppendLine("}");
+
+            spc.AddSource($"{p.GraphStem}_{editorName}.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
         }
 
         static void AppendEditorGraphValidationFile(StringBuilder sb, Compilation compilation, GraphPackageModel p)
@@ -564,6 +635,8 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine("using System;");
             sb.AppendLine($"using {pkgRoot};");
             AppendRunnerUsingIfNeeded(sb, p);
+            sb.AppendLine($"using {GraphRegistryEmitter.ResolveRegistryNamespace(p, compilation)};");
+            sb.AppendLine($"using {GraphRegistryEmitter.EditorRegistryNamespace};");
             sb.AppendLine("using Unity.GraphToolkit.Editor;");
             sb.AppendLine("using UnityEditor;");
             sb.AppendLine($"using {GraphRegistryEmitter.PackageEditorGToolkitNamespace};");
@@ -581,12 +654,13 @@ namespace Scaffold.GraphFlow.PackageGenerator
 
         static void AppendEditorGraphBody(StringBuilder sb, GraphPackageModel p)
         {
-            // partial sealed: validation rules land in <Stem>GraphValidation.g.cs (separate partial),
-            // and consumers can hand-write further partial extensions if they need to.
+            var registryType = GraphRegistryEmitter.RegistryTypeName(p);
             sb.AppendLine("    [Serializable]");
             sb.AppendLine("    [Graph(AssetExtension)]");
             sb.AppendLine($"    public sealed partial class {p.GraphStem}Graph : Graph<{p.RunnerTypeName}>");
             sb.AppendLine("    {");
+            sb.AppendLine($"        public override GraphPackageRegistry<{p.RunnerTypeName}> Registry => {registryType}.Instance;");
+            sb.AppendLine();
             AppendEditorGraphConstantsAndMenu(sb, p);
             sb.AppendLine("    }");
         }

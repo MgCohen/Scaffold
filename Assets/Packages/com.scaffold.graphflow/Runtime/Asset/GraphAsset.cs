@@ -18,6 +18,8 @@ namespace Scaffold.GraphFlow
         [SerializeReference] public List<RuntimeNode> nodes = new();
         public List<Edge> connections = new();
         public List<Edge> flowEdges = new();
+        public List<RuntimeVariable> variables = new();
+        public List<VariableEdge> variableEdges = new();
         public int schemaVersion;
 
         // Strip null SerializeReference entries on load — class renames in baked assets
@@ -26,6 +28,7 @@ namespace Scaffold.GraphFlow
         void ISerializationCallbackReceiver.OnAfterDeserialize()
         {
             if (nodes != null) nodes.RemoveAll(n => n == null);
+            else nodes = new List<RuntimeNode>();
         }
     }
 

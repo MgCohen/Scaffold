@@ -1,0 +1,27 @@
+{
+    "name": "Scaffold.GraphFlow.EditorTests",
+    "rootNamespace": "Scaffold.GraphFlow.EditorTests",
+    "references": [
+        "GUID:bab7af28f08a411c9af5ef2f6d191216",
+        "GUID:78d83f106afb440f84be7f3da9e310e9",
+        "GUID:70ef9a24f4cfc4aec911c1414e3f90ad",
+        "GUID:b13665e99cedac1faa8a90387e6163c3",
+        "Unity.GraphToolkit.Common.Editor",
+        "GUID:6f5703b636aa4cd7a6cd0a162b4c582e",
+        "GUID:4b3a2c1d0e9f8a7b6c5d4e3f2a1b0c9d"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false,
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
+}

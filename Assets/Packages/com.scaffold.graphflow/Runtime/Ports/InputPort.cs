@@ -20,5 +20,13 @@ namespace Scaffold.GraphFlow
                     $"Bake: output port {output.GetType()} does not match input port InputPort<{typeof(T)}>.");
             _source = typed;
         }
+
+        internal override void ConnectFromVariable(VariableCell cell)
+        {
+            if (cell is not VariableCell<T> typed)
+                throw new InvalidOperationException(
+                    $"Bake: variable cell {cell.GetType()} does not match input port InputPort<{typeof(T)}>.");
+            _source = new OutputPort<T>(_ => typed.Value, cache: false);
+        }
     }
 }

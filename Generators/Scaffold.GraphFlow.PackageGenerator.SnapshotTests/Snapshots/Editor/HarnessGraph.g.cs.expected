@@ -3,6 +3,8 @@
 using System;
 using HarnessFixture;
 using HarnessFixture;
+using HarnessFixture.Generated;
+using Scaffold.GraphFlow.Editor;
 using Unity.GraphToolkit.Editor;
 using UnityEditor;
 using Scaffold.GraphFlow.Editor.GToolkit;
@@ -13,6 +15,8 @@ namespace HarnessFixture.Editor.GToolkit
     [Graph(AssetExtension)]
     public sealed partial class HarnessGraph : Graph<HarnessRunner>
     {
+        public override GraphPackageRegistry<HarnessRunner> Registry => HarnessGraphRegistry.Instance;
+
         internal const string AssetExtension = "harness";
         const string k_CreateMenuName = "GraphFlow Harness Smoke";
         [MenuItem("Assets/Create/GraphFlow/Harness Smoke")]

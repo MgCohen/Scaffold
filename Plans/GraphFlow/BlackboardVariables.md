@@ -1,9 +1,21 @@
 # Blackboard & Variables — Plan & Research
 
-Status: **Draft v1 — research consolidated, design shape locked, ready
-to iterate on details.** Companion follow-up to `ExecPlan-v2.md` §"v1
-ships **without** a designer-managed blackboard" — this doc resolves
-that v2 deferral.
+Status: **v1 implementation landed** — Phases 1–6 shipped behind PR #49
+on `claude/graph-flow-blackboard-vars-IsUNX`. This doc remains the
+design-of-record; deviations and deferrals are called out in the
+phasing table and open-questions sections.
+
+Companion follow-up to `ExecPlan-v2.md` §"v1 ships **without** a
+designer-managed blackboard" — this doc resolves that v2 deferral.
+
+v2 supersedes v1 on two points:
+
+- **Three runtime layers** (flow / graph / parent), not two. Lookup
+  cascades flow → graph → parent; Set finds the owning layer and
+  writes there.
+- **Typed cells** (`VariableCell<T>`) on the hot path, not `object?`.
+  No boxing for `int` / `float` / `bool`; no `Type.GetField` /
+  `Activator` / per-frame `is T` casts.
 
 This doc captures the design direction for runtime blackboard /
 variables in the GraphFlow package, the constraints that shape it, the
@@ -35,9 +47,8 @@ real, while keeping the package self-contained.
 
 ## Direction
 
-A four-layer split — designed top-down, but built bottom-up so the
-serialized contract is pinned before the bake/run code that depends
-on it:
+Designed top-down, built bottom-up so the serialized contract is
+pinned before the bake/run code that depends on it:
 
 1. **Edit time** — GT's `IVariable` is the only authoring surface;
    designers declare variables in the GT blackboard panel and drop
@@ -50,11 +61,21 @@ on it:
 3. **Bake** — translate GT variables into `RuntimeVariable[]`,
    translate `IVariableNode`-fed port edges into `VariableEdge[]`,
    stop short-circuiting to literals.
-4. **Run** — `GraphBuilder` constructs an `InMemoryVariableBag` of
-   mutable `VariableCell`s, seeded from `RuntimeVariable` defaults,
-   parented to a consumer-supplied bag chain. `Flow.Variables`
-   exposes it. Get/Set Variable nodes and `VariableEdge`-fed data
-   ports read/write through the bag.
+4. **Run — three-layer bag chain.** Lookup cascades closest → outermost,
+   first match wins; writes go to the *owning* layer (the one that
+   already declares the id), not the closest layer.
+
+   | Layer | Owner | Lifetime | Seeded from |
+   |---|---|---|---|
+   | **Flow / instance** | `Flow.Variables` | Per `Run()` call | empty (or per-flow-declared subset; see Q7) |
+   | **Graph** | `GraphRunner.Variables` | Per runner instance | `asset.variables` (RuntimeVariable[] defaults) |
+   | **Parent / global** | `runner.CreateParentBag()` | Consumer-defined | Consumer-defined |
+
+   `GraphBuilder.Build` constructs the graph-layer bag once at
+   runner construction; `Flow` builds (or lazily allocates) its
+   instance-layer bag at `Run()` time and chains it onto the
+   runner's bag. Get/Set/Observe Variable nodes and
+   `VariableEdge`-fed data ports read/write through `flow.Variables`.
 
 The runtime stays fully self-contained — no dependency on
 `com.scaffold.entities` or any other package. A consumer that wants
@@ -62,6 +83,11 @@ to bridge their own variable store (entities `VariableBag`, a save
 system, a network-replicated store) implements `IVariableBag` and
 returns it from `runner.CreateParentBag()`. That single seam is the
 entire integration surface.
+
+A second seam — exposing the same graph-layer fields to a plain C#
+class passed at `Initialize` (FlowCanvas-style two-way binding) — is
+**deferred**. It's a thin layer over the typed-cell `Changed` event
+once that lands; no design choices today block it.
 
 ---
 
@@ -101,7 +127,7 @@ differ on *encoding*.
 What GT actually exposes (verified against the on-disk samples in
 `Assets/Samples/Graph Toolkit/0.4.0-exp.2/` and Unity's API docs):
 
-- `IVariable` — `Name`, `DataType`, `Kind` (Local/Input/Output),
+- `IVariable` — `name`, `dataType`, `Kind` (Local/Input/Output),
   `TryGetDefaultValue<T>(out T)`. Read-only.
 - `IVariableNode.variable` — pointer to the `IVariable` for nodes
   dropped on canvas.
@@ -226,23 +252,36 @@ inspector, fragile across class renames, third-party dependency.
 │  • List<Edge> connections        (data port → port)                    │
 │  • List<Edge> flowEdges          (exec port → port)                    │
 │  ── new fields ──                                                      │
-│  • List<RuntimeVariable> variables                                     │
-│      └─ id (GUID) + name + typeName +                                  │
-│         [SerializeReference] VariableDefault default                   │
+│  • [SerializeReference] List<RuntimeVariable> variables                │
+│      └─ id (GUID) + name + typeName + default value (typed subclass)   │
 │  • List<VariableEdge> variableEdges                                    │
 │      └─ variableId + toNodeId + toPortName                             │
 └──────────────────┬─────────────────────────────────────────────────────┘
-                   │ GraphBuilder.Build
+                   │ GraphBuilder.Build  (graph layer)
+                   │ Run()               (flow layer)
                    ▼
 ┌────────────────────────────────────────────────────────────────────────┐
-│  RUN TIME                                                              │
+│  RUN TIME — three-layer chain                                          │
+│                                                                        │
+│   flow.Variables  ──parent──►  runner.Variables  ──parent──►  parent   │
+│   (per Run call)               (per runner inst)              (consumer)│
+│                                                                        │
+│  • IVariableBag                                                        │
+│      Parent { get; }                                                   │
+│      TryGetCell<T>(id, out VariableCell<T>)   ← typed, no boxing       │
+│      Walk: local → parent → ... ; first match wins on Get;             │
+│            owning layer wins on Set.                                   │
+│  • VariableCell  (abstract base, key in dict)                          │
+│  • VariableCell<T> { Id, T Value, event Action<T> Changed }            │
+│      Storage is `T _value`, not `object`.                              │
 │  • InMemoryVariableBag : IVariableBag                                  │
 │      Dictionary<string /*id*/, VariableCell>                           │
-│      Parent → runner.CreateParentBag() (consumer hook)                 │
-│  • VariableCell { Id, Type, Value, event Changed }                     │
-│  • Flow.Variables = bag                                                │
-│  • VariableEdges  → DataBinding closures reading flow.Variables        │
-│  • Get/Set/Observe Variable nodes drive flow.Variables directly        │
+│  • Flow.Variables   — instance-layer bag, parent = runner bag          │
+│  • Runner.Variables — graph-layer bag, parent = CreateParentBag()      │
+│  • VariableEdges  → DataBinding closures resolving cell at bake,       │
+│                     OutputPort<T> closure reads cell.Value (no cast)   │
+│  • Get/Set/Observe Variable nodes resolve cell once in Initialize,     │
+│                     hot path is a typed field read/write              │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -260,29 +299,37 @@ to `Edge` on `GraphAsset`.
 
 ### 1. `VariableDefault` hierarchy (asset-side defaults)
 
+The default-value record carries enough type information to build a
+`VariableCell<T>` directly — no `Type.GetType` lookup at runtime, no
+boxing.
+
 ```csharp
 namespace Scaffold.GraphFlow
 {
     [Serializable]
     public abstract class VariableDefault
     {
-        public abstract object? GetBoxedValue();
         public abstract Type ValueType { get; }
+        // Builds the typed cell for this default. Implementations are
+        // one-liners — `new VariableCell<T>(id, value)` — so no
+        // reflection, no boxing.
+        public abstract VariableCell CreateCell(string id);
     }
 
     [Serializable]
-    public sealed class IntDefault : VariableDefault {
-        public int value;
-        public override object? GetBoxedValue() => value;
-        public override Type ValueType => typeof(int);
+    public abstract class VariableDefault<T> : VariableDefault
+    {
+        public T value = default!;
+        public sealed override Type ValueType => typeof(T);
+        public sealed override VariableCell CreateCell(string id)
+            => new VariableCell<T>(id, value);
     }
-    [Serializable] public sealed class FloatDefault   : VariableDefault { /* float */ }
-    [Serializable] public sealed class BoolDefault    : VariableDefault { /* bool */ }
-    [Serializable] public sealed class StringDefault  : VariableDefault { /* string */ }
-    [Serializable] public sealed class ObjectDefault  : VariableDefault {
-        public UnityEngine.Object? value;
-        // SerializeReference handles UnityEngine.Object refs natively.
-    }
+
+    [Serializable] public sealed class IntDefault    : VariableDefault<int>    { }
+    [Serializable] public sealed class FloatDefault  : VariableDefault<float>  { }
+    [Serializable] public sealed class BoolDefault   : VariableDefault<bool>   { }
+    [Serializable] public sealed class StringDefault : VariableDefault<string> { }
+    [Serializable] public sealed class ObjectDefault : VariableDefault<UnityEngine.Object?> { }
     // Extension point: consumers add subclasses; Unity SerializeReference
     // discovers them automatically as long as they're [Serializable] and
     // visible to the editor at authoring time.
@@ -328,41 +375,69 @@ default), so this is non-breaking.
 
 ### 3. Runtime bag interface + cell
 
+Typed cells avoid boxing on the hot path. The non-generic `VariableCell`
+base exists only as a dictionary value type and an upcast bridge — every
+read/write goes through `VariableCell<T>` directly.
+
 ```csharp
 namespace Scaffold.GraphFlow
 {
     public interface IVariableBag
     {
         IVariableBag? Parent { get; }
-        bool TryGet<T>(string id, out T value);
-        void Set<T>(string id, T value);
 
-        // Optional change-observation surface. Implementations that
-        // don't support observers return false from TryGetCell.
+        // Returns the typed cell for `id` from this bag or any parent.
+        // Callers (Get/Set nodes, port-bind closures) cache the cell at
+        // Initialize / bake time; hot path becomes a direct field read.
+        bool TryGetCell<T>(string id, out VariableCell<T> cell);
+
+        // Used by the bag chain itself (and by introspection / save).
+        // Most call sites should use TryGetCell<T>.
         bool TryGetCell(string id, out VariableCell cell);
     }
 
-    public sealed class VariableCell
+    public abstract class VariableCell
     {
         public string Id   { get; }
         public Type   Type { get; }
+        protected VariableCell(string id, Type type) { Id = id; Type = type; }
+    }
 
-        object? _value;
-        public object? Value
+    public sealed class VariableCell<T> : VariableCell
+    {
+        T _value;
+        public T Value
         {
             get => _value;
-            set { if (!Equals(_value, value)) { _value = value; Changed?.Invoke(value); } }
+            set
+            {
+                if (EqualityComparer<T>.Default.Equals(_value, value)) return;
+                _value = value;
+                Changed?.Invoke(value);
+            }
         }
 
-        public event Action<object?>? Changed;
+        public event Action<T>? Changed;
 
-        public VariableCell(string id, Type type, object? initial = null)
-        {
-            Id = id; Type = type; _value = initial;
-        }
+        public VariableCell(string id, T initial)
+            : base(id, typeof(T)) { _value = initial; }
     }
 }
 ```
+
+Notes:
+
+- `EqualityComparer<T>.Default.Equals` does no boxing for value types
+  and resolves to the `IEquatable<T>` implementation when available.
+- The non-generic `TryGetCell` exists for introspection (inspector,
+  save/load); it's not used on the hot path. `TryGetCell<T>` itself
+  does one `raw is VariableCell<T>` pattern match per call to bridge
+  the dictionary's non-generic value type to the typed cell — no
+  boxing, no reflection. Hot-path callers (Get/Set/Observe nodes,
+  variable-bound port closures) call `TryGetCell<T>` exactly once at
+  Initialize / bake time and cache the resulting `VariableCell<T>`
+  reference, so steady-state reads/writes skip even that pattern
+  match.
 
 ### 4. In-memory bag (default implementation)
 
@@ -378,91 +453,115 @@ public sealed class InMemoryVariableBag : IVariableBag
         Parent = parent;
         foreach (var v in seed)
         {
-            var type = Type.GetType(v.typeName) ?? typeof(object);
-            var init = v.defaultValue?.GetBoxedValue();
-            _cells[v.id] = new VariableCell(v.id, type, init);
+            // Each RuntimeVariable's defaultValue is a typed subclass
+            // (IntDefault : VariableDefault<int>, ...). It builds its own
+            // VariableCell<T> — no boxing, no Type.GetType lookup at runtime.
+            _cells[v.id] = v.defaultValue!.CreateCell(v.id);
         }
     }
 
-    public bool TryGet<T>(string id, out T value)
+    public bool TryGetCell<T>(string id, out VariableCell<T> cell)
     {
-        if (_cells.TryGetValue(id, out var cell) && cell.Value is T t)
-        { value = t; return true; }
-        if (Parent != null) return Parent.TryGet(id, out value);
-        value = default!; return false;
-    }
-
-    public void Set<T>(string id, T value)
-    {
-        if (_cells.TryGetValue(id, out var cell)) { cell.Value = value; return; }
-        Parent?.Set(id, value);   // bubbles writes to whoever owns it
+        if (_cells.TryGetValue(id, out var raw))
+        {
+            if (raw is VariableCell<T> typed) { cell = typed; return true; }
+            cell = null!;                       // declared at wrong type
+            return false;
+        }
+        if (Parent != null) return Parent.TryGetCell<T>(id, out cell);
+        cell = null!;
+        return false;
     }
 
     public bool TryGetCell(string id, out VariableCell cell)
     {
         if (_cells.TryGetValue(id, out cell!)) return true;
         if (Parent != null) return Parent.TryGetCell(id, out cell);
-        cell = null!; return false;
+        cell = null!;
+        return false;
     }
 }
 ```
 
-Lookup cascade: local → parent → ... → null. Writes target the
-*owning* bag (the one that contains the id), so a Set on a global var
-inside a graph still hits the global bag.
+Lookup cascade: local → parent → ... → null. **Writes target the
+*owning* bag** — i.e. the bag whose `_cells` already contains the id.
+Because callers cache the resolved `VariableCell<T>` reference, the
+bag identity is implicit: `cell.Value = x` writes wherever the cell
+lives, so bubble-up is automatic and free.
 
-### 5. Flow integration
+The flow-layer bag is a thin `InMemoryVariableBag` with no seeds —
+its only job is to optionally hold per-flow declarations (Q7) and to
+chain to the runner bag.
 
-```csharp
-public sealed class Flow
-{
-    // ... existing fields ...
-    public IVariableBag Variables { get; internal set; } = null!;
-}
-```
+### 5. Runner + Flow integration (three-layer chain)
 
-`GraphBuilder.Build` (or wherever flow construction lives) calls
-`runner.CreateParentBag()` and assigns:
-
-```csharp
-flow.Variables = new InMemoryVariableBag(asset.variables, runner.CreateParentBag());
-```
-
-### 6. Consumer hook on `GraphRunner`
+The graph-layer bag lives on `GraphRunner` (one per runner instance,
+seeded from `asset.variables` once). The flow-layer bag lives on
+`Flow` (one per `Run()` call, parent = runner's bag).
 
 ```csharp
 public abstract class GraphRunner
 {
     // ... existing members ...
 
-    /// <summary>Override to inject a parent bag (shared variables,
-    /// save state, network store, entities VariableBag adapter, ...).</summary>
+    public IVariableBag Variables { get; private set; } = null!;
+
+    /// <summary>Override to inject the outermost (parent / global) bag —
+    /// shared variables, save state, network store, entities VariableBag
+    /// adapter, ... GraphFlow runtime never references the consumer's types.</summary>
     protected internal virtual IVariableBag? CreateParentBag() => null;
+
+    internal void SeedVariables(IReadOnlyList<RuntimeVariable> seed)
+    {
+        // Called once from GraphBuilder.Build, before user Initialize().
+        Variables = new InMemoryVariableBag(seed, CreateParentBag());
+    }
+}
+
+public sealed class Flow
+{
+    // ... existing fields ...
+    public IVariableBag Variables { get; }
+
+    internal Flow(object payload, GraphRunner runner, CancellationToken token)
+    {
+        // ... existing wiring ...
+        Variables = new InMemoryVariableBag(Array.Empty<RuntimeVariable>(),
+                                            parent: runner.Variables);
+    }
 }
 ```
 
-A consumer that wants to bridge `com.scaffold.entities`'s
-`VariableBag` writes a tiny adapter (≈30 lines) in their own
-assembly; GraphFlow runtime never references entities.
+Lookup walked from `flow.Variables`: flow → runner → parent. Sets land
+on whichever layer owns the cell (since callers cache the
+`VariableCell<T>` ref, "owns" is implicit). Flow-layer declarations
+(per-execution scratch vars) are out of v1 scope — see Q7.
 
-### 7. Connection refactor for variable-bound ports
+The `SeedVariables` plumbing is internal; consumers only see
+`runner.Variables` (read) and `CreateParentBag()` (override).
 
-`Connection<T>` (the typed binding cast at the runtime port boundary)
-already wraps a `Func<Flow, T>` accessor. Adding a variable-bound
-form is a new factory:
+### 7. Variable-bound input ports
+
+When the source of an input port is an `IVariableNode`, the bake
+records a `VariableEdge`. At graph build time we resolve the
+`VariableCell<T>` once and produce an `OutputPort<T>` whose closure
+reads the cached cell — zero dictionary lookup, zero cast on the
+hot path:
 
 ```csharp
-public static Connection<T> FromVariable(string variableId, T fallback = default!)
-    => new(flow =>
-    {
-        return flow.Variables.TryGet<T>(variableId, out var v) ? v : fallback;
-    });
+// Built once per VariableEdge in GraphTopology.Bake (or sibling).
+if (!runner.Variables.TryGetCell<T>(edge.variableId, out var cell))
+    throw new InvalidOperationException(
+        $"Variable {edge.variableId} not declared / type mismatch.");
+
+var output = new OutputPort<T>(_ => cell.Value, cache: false);
+input.Connect(output);
 ```
 
-The bake step picks `FromVariable` instead of the literal/port
-factory when the source of an input port is an `IVariableNode`. The
-node body (`Speed.Read(flow)`) is untouched — same call site, same
-performance characteristics, single dictionary lookup.
+Caveat: caching the cell at graph-build time means a parent-bag swap
+mid-run is invisible to already-bound ports. That's acceptable for
+v1 (consumers swap parents at runner construction, not mid-flow); see
+Q3 if per-flow parents become a real need.
 
 ### 8. Bake — what changes in the editor
 
@@ -487,47 +586,57 @@ performance characteristics, single dictionary lookup.
 
 ### 9. Get / Set / Observe Variable runtime nodes
 
-These are normal runtime nodes; they are *not* port-bind sugar:
+These are normal runtime nodes; they cache the typed cell once in
+`Initialize` and then read/write it directly:
 
 ```csharp
-[GraphNode("Variables/Get")]
-public sealed class GetVariableNode<T> : RuntimeNode
+[GraphNode(Category = "Variables")]
+public sealed partial class GetVariableNode<T> : RuntimeNode
 {
-    [SerializeField] string variableId;
-    public OutputPort<T> Value;
+    [SerializeField] string variableId = string.Empty;
+    public OutputPort<T> Value = null!;
 
-    protected override void OnBuild()
-    {
-        Value = new OutputPort<T>(flow =>
-            flow.Variables.TryGet<T>(variableId, out var v) ? v : default!,
-            cache: false);
-    }
+    VariableCell<T>? _cell;
+
+    public override void Initialize(GraphRunner runner)
+        => runner.Variables.TryGetCell<T>(variableId, out _cell!);
+
+    partial void InitializePorts() =>
+        Value = new OutputPort<T>(_ => _cell != null ? _cell.Value : default!,
+                                  cache: false);
 }
 
-[GraphNode("Variables/Set")]
-public sealed class SetVariableNode<T> : RuntimeNode<TRunner>
+[GraphNode(Category = "Variables")]
+public sealed partial class SetVariableNode<T> : RuntimeNode
 {
-    [SerializeField] string variableId;
-    public InputPort<T> NewValue;
-    public FlowInPort  In;
-    public FlowOutPort Done;
+    [SerializeField] string variableId = string.Empty;
+    public InputPort<T>  NewValue = null!;
+    public FlowInPort    In       = null!;
+    public FlowOutPort   Done     = null!;
 
-    protected override void OnBuild()
-    {
+    VariableCell<T>? _cell;
+
+    public override void Initialize(GraphRunner runner)
+        => runner.Variables.TryGetCell<T>(variableId, out _cell!);
+
+    partial void InitializePorts() =>
         In = FlowInPort.Sync(this, nameof(In), flow =>
         {
-            flow.Variables.Set(variableId, NewValue.Read(flow));
+            if (_cell != null) _cell.Value = NewValue.Read(flow);
             return Done;
         });
-    }
 }
 ```
 
-`Observe` (event-on-change) uses `IVariableBag.TryGetCell` and hooks
-the `Changed` event in `OnFlowStart`, unhooks in `OnFlowEnd`.
+Hot path is `_cell.Value = x` / `_ => _cell.Value`. No dictionary
+lookup per Run, no boxing, no cast.
 
-The source generator (`GraphPackageTrioEmitter`) emits one Get/Set
-pair per registered `VariableDefault` subclass — same
+`Observe` (event-on-change) caches the same `VariableCell<T>`,
+subscribes to `cell.Changed` in `OnFlowStart`, unsubscribes in
+`OnFlowEnd`. The handler is `Action<T>`, again no boxing.
+
+The source generator (`GraphPackageEmitter`) emits one Get/Set/
+Observe trio per registered `VariableDefault<T>` subclass — same
 per-type-emission machinery already used for typed ports.
 
 ---
@@ -537,18 +646,134 @@ per-type-emission machinery already used for typed ports.
 Build green at every commit, mirror the M3 / Runner-Redesign
 discipline. Suggested ordering:
 
-| Phase | Lands | Touches |
-|---|---|---|
-| 1 | `VariableDefault` hierarchy + initial 5 subclasses, `RuntimeVariable`, `VariableEdge`, schema bump on `GraphAsset` (empty lists, non-breaking) | Runtime |
-| 2 | `IVariableBag`, `VariableCell`, `InMemoryVariableBag`, `Flow.Variables`, `runner.CreateParentBag()` hook | Runtime |
-| 3 | Bake-time emission of `RuntimeVariable[]`; stop skipping `IVariableNode`; emit `VariableEdge[]`; `Connection.FromVariable` plumbed | Editor + Runtime |
-| 4 | `GetVariableNode<T>` / `SetVariableNode<T>` + source-generator emission for the registered defaults | Generator + Runtime |
-| 5 | `ObserveVariableNode<T>` + `TryGetCell` + cell-change events | Runtime |
-| 6 | Sample (CardSandbox or fresh) graph using the variable system end-to-end | Sample |
+| Phase | Lands | Touches | Status |
+|---|---|---|---|
+| 1 | `VariableCell` / `VariableCell<T>`, `IVariableBag`, `InMemoryVariableBag`, `VariableDefault`/`VariableDefault<T>` + initial 5 subclasses, `RuntimeVariable`, `VariableEdge`. Schema bump on `GraphAsset` (empty lists, non-breaking). | Runtime | shipped |
+| 2 | Three-layer chain wired: `GraphRunner.Variables` seeded by `GraphBuilder` from `asset.variables` with `CreateParentBag()` parent; `Flow.Variables` chained on top per `Run()`. | Runtime | shipped |
+| 3 | Bake-time emission of `RuntimeVariable[]`; stop skipping `IVariableNode`; emit `VariableEdge[]`; cell-cached `OutputPort<T>` for variable-bound input ports. | Editor + Runtime | shipped |
+| 4 | `GetVariableNode<T>` / `SetVariableNode<T>` for int / float / bool / string / Object. Hand-authored typed concretes — generator-driven trio emission deferred until a real consumer asks. | Runtime | shipped |
+| 5 | `ObserveVariableNode<T>` + cell `Changed` events. New `internal RunObserver` seam on `GraphRunner`. Lifecycle (subscription teardown) deferred. | Runtime | shipped |
+| 6 | End-to-end test (`VariableEndToEndTests`) exercising graph-level + global vars, variable-bound ports, Get/Set/Observe in one graph. Real GT-authored sample asset still pending Unity. | Tests | shipped (test-only) |
+| later | External-class two-way binding (FlowCanvas-style passed-in object exposing the same fields, kept in sync via cell `Changed`). | Runtime | deferred |
+| later | Per-flow declarations + subgraph parameters (Q7). | Bake + Runtime | deferred |
+| later | Source-generator emission of Get/Set/Observe trios per registered `VariableDefault<T>` — replaces the hand-authored concretes once a consumer needs additional types. | Generator | deferred |
+| later | Editor variable-picker drawer for the `variableId` `[SerializeField] string` on Get/Set/Observe nodes. | Editor | deferred |
+| later | Subscription teardown for Observe nodes that target parent-bag cells. | Runtime | deferred |
 
 Each phase ends with the snapshot harness green and Unity batchmode
 compile zero `error CS` lines. Phases 1+2 are trivially independent
 of GT; phase 3 is the only one touching GT internals.
+
+---
+
+## Post-v1 follow-up backlog
+
+Captured after the implementation landed. Organized by priority — the
+"likely-to-bite" items are real bugs or hardening gaps that a real
+consumer is most likely to hit; the rest is deferred-but-known scope.
+
+### Likely to bite (fix soon)
+
+1. **Multi-runner footgun.** `GraphBuilder` caches `BakedGraph` per
+   asset and `WireVariableEdges` mutates the cached `RuntimeNode`
+   ports in place. Two runners off the same builder over the same
+   asset → second `Build` rewires the first runner's ports. Same
+   constraint already applies to Get/Set/Observe `Initialize` cell
+   caching. Fix: per-`Build` cloning of node port state, or stop
+   caching `BakedGraph`. Documented at `GraphBuilder.cs:26-31`.
+2. **No bake-time type validation on `VariableEdge`.** Designer wires
+   a `string` `IVariableNode` to an `int` `InputPort` → bake accepts,
+   runtime silently fails (`TryGetCell<int>` returns false on the
+   wrong type, port reads `default(T)`). The information is in GT
+   (`port.dataType` + `variable.dataType`); add an early `LogError`
+   in `BakeVariables`.
+3. **Better DX for unsupported `VariableDefault` types.** Today
+   `EditorVariableDefaults.CreateFor` only knows about
+   int/float/bool/string/Object; anything else surfaces a generic
+   "unsupported dataType" bake error. Consumers can author a
+   `VariableDefault<Vector3>` runtime-side, but the *editor* mapping
+   doesn't auto-pick it up — there's no registry. Either add a
+   reflection-driven discovery pass (find all `VariableDefault<T>`
+   subclasses and map by `T`) or make consumers register.
+4. **`RuntimeVariable.typeName` is descriptive-only and can drift.**
+   Runtime uses `defaultValue.ValueType` to seed the cell; `typeName`
+   isn't load-bearing. Drop it, or assert at bake that
+   `typeName == defaultValue.ValueType.AssemblyQualifiedName`.
+5. **No introspection API on `IVariableBag`.** Inspector views,
+   save/load, debug tooling all need an `Enumerate()` / `Cells`
+   surface. `TryGetCell` is keyed lookup only. Add when one of those
+   features actually lands.
+6. **Identity-drift posture mismatch.** The merged-in
+   `EditorNodeIdentity` hard-fails on reflection drift (returns
+   null, baker errors). `EditorVariableIdentity` falls back to
+   `"name:" + variable.name`. Pick one — either both hard-fail or
+   both fall back. Hard-fail is safer (rename-fragile fallback can
+   silently break baked assets).
+
+### Test-coverage gaps
+
+7. **Zero coverage on the editor bake path.** `EditorVariableIdentity`,
+   `EditorVariableDefaults`, `BakeVariables` are entirely untested —
+   they need a real GT graph. The casing bug (`Name` → `name`) that
+   landed only post-Unity is exactly the class of issue editor tests
+   would catch. At minimum: one round-trip test that authors a graph
+   in code (using GT's editor API), bakes it, and asserts the
+   resulting `RuntimeVariable[]`.
+8. **No cycle-detection test on the parent bag chain.** Q9 — trivial
+   to add a visited set if a real consumer ever wires a cyclic
+   parent.
+9. **No test for unconnected variable-bound port.** When `variableId`
+   doesn't resolve, the builder logs a warning and leaves the port
+   reading `default(T)`. Behavior is intentional but untested.
+10. **No re-bake regression test.** Author → bake → rename a
+    variable in the GT blackboard → re-bake. Should preserve baked
+    edges (GUID-based identity) or surface a clean error. Untested.
+11. **No multi-`Build` test.** Calling `Build` on the same asset
+    twice with the same builder — does anything corrupt? See item
+    #1.
+
+### Deferred (already-known scope)
+
+12. **External-class two-way binding.** FlowCanvas-style
+    consumer-supplied object exposing the same fields, kept in sync
+    via `cell.Changed`. The lesser-priority item from the original
+    ask. Slottable cleanly when wanted.
+13. **Generator-driven Get/Set/Observe trio emission per
+    `VariableDefault<T>`.** v1 ships hand-authored 15 typed
+    concretes. Adding a new `T` is one subclass + one trio + meta
+    file × 3. Generator emission would replace the hand-authored
+    set, no runtime change.
+14. **Editor variable-id picker drawer.** `variableId` is a plain
+    `[SerializeField] string` — designers paste GUIDs.
+15. **Observe subscription teardown.** Subscriptions to parent-bag
+    cells outlive the runner, leaking a runner-keepalive. Add an
+    explicit teardown / `IDisposable` on `GraphRunner` when it
+    matters.
+16. **Per-flow variable declarations (Q7).** Flow-layer bag is
+    structurally present but always empty. When a real designer
+    feature asks for "scratch state per Run," tag variables with a
+    scope enum at bake and route flow-scoped ones into
+    `flow.Variables`.
+17. **Subgraph parameters (Q7).** GT's `IVariable.Kind`
+    (Local/Input/Output) is currently ignored. When subgraphs land,
+    Input/Output become subgraph parameters and naturally live on
+    the per-call flow bag.
+18. **Real GT-authored sample asset.** Phase 6's "sample" is the
+    `VariableEndToEndTests` integration test — same code paths,
+    no `.asset` on disk. Needs Unity to author.
+
+### Behavioral quirks worth knowing (not bugs)
+
+- **Type-mismatch shadows the parent.** Child bag declaring `hp` at
+  the wrong type fully shadows the parent's `hp`, by design. Comment
+  in `InMemoryVariableBag.TryGetCell<T>` documents.
+- **`Object` cells can hold null.** `VariableCell<UnityEngine.Object>`
+  null values are valid; `GetObjectVariable` returns `null!`
+  (forgiving) in that case.
+- **`Flow.Variables` allocates per `Run()` if touched.** Lazy — only
+  pays when accessed. High-frequency runners that touch variables
+  every frame eat one allocation each run. Acceptable for v1; pool
+  or skip flow layer if it ever shows up in profiles.
 
 ---
 
@@ -566,7 +791,7 @@ real use case.
 
 ### 2. Variable identity — GUID source
 
-GT's `IVariable` exposes `Name` and `DataType` publicly but not a
+GT's `IVariable` exposes `name` and `dataType` publicly but not a
 GUID. We have two options:
 
 - **Reflection on the GT model implementation field** — same trick
@@ -580,19 +805,15 @@ field is reachable in 0.4-exp before phase 3.
 
 ### 3. `CreateParentBag()` lifetime
 
-Currently proposed as `protected internal virtual` on `GraphRunner`,
-called once at `GraphBuilder.Build` time. Two flavors to decide
-between:
+`protected internal virtual` on `GraphRunner`, called once at
+`SeedVariables` time (graph-layer construction). Per-runner only.
 
-- **Per-runner** — `IVariableBag? CreateParentBag()`, called once.
-  Simpler. Fine for "the runner's owner has one parent bag for the
-  agent."
-- **Per-flow** — `IVariableBag? CreateParentBag(Flow flow)`, called
-  per `Run`. More flexible (different flows get different parents
-  based on payload). Costs nothing if unused.
-
-Per-flow is strictly more general; recommend that unless there's a
-reason to forbid mid-flow parent swaps.
+Per-flow parent injection was considered and **rejected for v1**:
+caching `VariableCell<T>` references at graph build time means a
+mid-run parent swap is invisible to already-bound ports anyway. If a
+real use case demands per-flow parents, the typed-cell cache becomes
+the wrong abstraction and we'd need to rethink the bind step. Don't
+pay for that flexibility until something asks for it.
 
 ### 4. Custom user types — escape hatch policy
 
@@ -610,49 +831,57 @@ not worth the JSON path's downsides.
 
 ### 5. Write semantics across the parent chain
 
-When a Set targets a variable owned by a parent bag:
+Resolved: bubble-up, free of charge. Because Get/Set/port-bind callers
+cache the resolved `VariableCell<T>` reference at Initialize / bake
+time, "write to the owning layer" is implicit — `cell.Value = x`
+hits whichever bag's dict the cell lives in. There's no need for a
+per-Set lookup or an explicit owner check.
 
-- **Bubble up** (current sketch) — write goes to the bag that owns
-  the id. Mirrors closure semantics in normal programming languages.
-- **Shadow locally** — write creates/updates a local cell, leaving
-  the parent untouched. Matches some scripting languages
-  (Python `nonlocal`).
-
-Bubble-up is the FlowCanvas behavior and the less surprising default.
-Shadowing is potentially useful for "scratch override of a global
-within this graph's run" — could be a per-Set-node toggle. Default
-to bubble-up; defer the toggle.
+A "shadow locally" mode (Python `nonlocal`-style scratch override on
+the closer layer) is **deferred**. It's a real feature only once
+flow-layer declarations exist (Q7); until then the flow bag is empty
+and shadowing has nothing to shadow into.
 
 ### 6. Read fallback when type mismatches
 
-`InMemoryVariableBag.TryGet<T>` checks `cell.Value is T`. If a
-designer accidentally binds an `int` port to a `float` variable,
-the bake should reject it. But what about polymorphism (a
-`GameObject` variable read as a `Component`)? Either:
+Typed cells turn this into a bake-time question, not a runtime one:
 
-- **Strict equality** — `cell.Type == typeof(T)`. Safest, blocks
-  some valid uses.
-- **Assignability** — `typeof(T).IsAssignableFrom(cell.Type)`. More
-  permissive, matches what users expect from C#.
+- `TryGetCell<T>` returns false if the cell exists at the wrong
+  type (`raw is VariableCell<T>` fails). The Get node returns
+  `default(T)`; the variable-bound port-bind throws at build time.
+- Polymorphism (a `GameObject` variable read as a `Component`) does
+  **not** work transparently — `VariableCell<GameObject>` is not a
+  `VariableCell<Component>`. If a real use case appears, add an
+  upcasting wrapper cell (cheap, opt-in) rather than re-boxing every
+  read.
+- Designer mistakes (binding an `int` port to a `float` variable)
+  should be caught at bake — both sides have GT-side type info. Add
+  validation in the bake step; runtime stays strict.
 
-Behavior Graph's docs explicitly call out implicit casting between
-BBVs and node fields. Assignability + boxing is the better default;
-strict-equality only at *bake-time validation*.
+### 7. Per-flow declarations and subgraphs
 
-### 7. Subgraphs / variable scoping
+The flow-layer bag exists structurally (chain head) but is empty in
+v1. Two follow-on features will populate it:
 
-`ExecPlan-v2.md` lists subgraphs as a v2 feature; this plan inherits
-that. When subgraphs land, GT's `IVariable.Kind` (Local/Input/Output)
-becomes meaningful — Input/Output are subgraph parameters. The
-plumbing is straightforward (a sub-bag layered over the host bag),
-but the design intersects with however subgraphs end up being
-modeled. Out of scope here; flag for the subgraph plan.
+- **Per-flow scratch variables.** A designer-authored "flow var"
+  scope, declared on the graph but seeded fresh per `Run()`. Useful
+  for accumulator state inside a single execution. Trivial: tag
+  variables with a scope enum at bake, route flow-scoped ones into
+  `flow.Variables` instead of `runner.Variables`.
+- **Subgraphs.** GT's `IVariable.Kind` (Local/Input/Output) becomes
+  meaningful — Input/Output are subgraph parameters and naturally
+  live on the per-call flow bag. Out of scope here; flag for the
+  subgraph plan.
+
+Both fit cleanly because the bag chain already exists; adding them
+does not change the v1 wire format.
 
 ### 8. Save / load
 
 FlowCanvas's `BlackboardSource` is JSON-serializable for save games.
-Our `InMemoryVariableBag` isn't — `VariableCell.Value` is `object?`.
-Two paths when this comes up:
+Our `InMemoryVariableBag` isn't directly persistence-ready — values
+live in typed `VariableCell<T>` instances keyed by `string` id, which
+needs a small per-type (de)serializer. Two paths when this comes up:
 
 - **Snapshot via `RuntimeVariable[]` round-trip** — cheap if all
   cells map to known `VariableDefault` subclasses; lossy for unknown
@@ -667,8 +896,8 @@ anyway.
 
 If a consumer's parent bag itself has a parent, the chain walks
 correctly. But there's no cycle detection. Trivial to add (visited
-set in `TryGet`); cheap to skip in the v1 sketch. Add when adding
-sample tests.
+set in `TryGetCell<T>` / `TryGetCell`); cheap to skip in the v1
+sketch. Add when adding sample tests.
 
 ### 10. `IVariableNode` editor preview
 

@@ -28,7 +28,7 @@ namespace Scaffold.GraphFlow.Editor
     /// </summary>
     public static class GraphBakerCore
     {
-        public const int SchemaVersion = 3;
+        public const int SchemaVersion = 4;
 
         public static GraphBakeResult<TAsset> Bake<TRunner, TAsset>(
             Graph<TRunner> editorGraph,
@@ -47,11 +47,7 @@ namespace Scaffold.GraphFlow.Editor
 
             var editorNodes = editorGraph.GetNodes().ToList();
             if (editorNodes.Count == 0)
-            {
-                // Newly-created graph: emit an empty asset so the importer succeeds and the user can author.
-                result.Asset = ScriptableObject.CreateInstance<TAsset>();
                 return result;
-            }
 
             var guidToNodeId = RecoverGuidMap<TRunner, TAsset>(previousRuntime);
             var nextId = NextFreeNodeId(guidToNodeId);
@@ -118,10 +114,15 @@ namespace Scaffold.GraphFlow.Editor
                 }
             }
 
+            var (variables, variableEdges) = BakeVariables(editorGraph, editorNodes, editorToRuntime, editorToRegistration, result);
+            if (result.HasErrors) return result;
+
             var asset = ScriptableObject.CreateInstance<TAsset>();
             asset.nodes = editorToRuntime.Values.OrderBy(n => n.nodeId).ToList();
             asset.connections = SortEdges(dataConnections);
             asset.flowEdges = SortEdges(flowEdges);
+            asset.variables = variables;
+            asset.variableEdges = variableEdges;
             asset.schemaVersion = SchemaVersion;
 
             result.Asset = asset;
@@ -152,6 +153,107 @@ namespace Scaffold.GraphFlow.Editor
                 return false;
             into.Add(new Edge { fromNodeId = fromNodeId, fromPortName = fromPortName, toNodeId = toNodeId, toPortName = toPortName });
             return true;
+        }
+
+        static (List<RuntimeVariable> variables, List<VariableEdge> variableEdges)
+            BakeVariables<TRunner, TAsset>(
+                Graph<TRunner> editorGraph,
+                List<INode> editorNodes,
+                Dictionary<INode, RuntimeNode> editorToRuntime,
+                Dictionary<INode, GraphPackageRegistry<TRunner>.NodeRegistration> editorToRegistration,
+                GraphBakeResult<TAsset> result)
+            where TRunner : GraphRunner
+            where TAsset : GraphAsset<TRunner>
+        {
+            var variables = new List<RuntimeVariable>();
+            var variableEdges = new List<VariableEdge>();
+
+            // 1. Declared variables from the GT blackboard panel.
+            var idByVariable = new Dictionary<IVariable, string>();
+            foreach (var v in editorGraph.GetVariables())
+            {
+                if (v == null) continue;
+                var id = EditorVariableIdentity.GetStableGuid(v);
+                if (string.IsNullOrEmpty(id))
+                {
+                    result.LogError($"Variable {v.name ?? "<unnamed>"} has no stable identity — cannot bake.");
+                    return (variables, variableEdges);
+                }
+                var def = EditorBlackboardVariables.CreateFor(v);
+                if (def == null)
+                {
+                    result.LogError($"Variable {v.name} has unsupported DataType {v.dataType?.FullName ?? "<null>"}.");
+                    return (variables, variableEdges);
+                }
+                var varType = v.dataType!;
+                if (varType.AssemblyQualifiedName != def.ValueType.AssemblyQualifiedName)
+                {
+                    result.LogError($"Variable '{v.name}': dataType ({varType.FullName}) does not match default value type ({def.ValueType.FullName}).");
+                    return (variables, variableEdges);
+                }
+                variables.Add(new RuntimeVariable
+                {
+                    id = id!,
+                    name = v.name ?? string.Empty,
+                    typeName = varType.AssemblyQualifiedName,
+                    defaultValue = def,
+                });
+                idByVariable[v] = id!;
+            }
+
+            // 2. Edges sourced from IVariableNode → runtime data input ports.
+            //    Variable nodes are not registered runtime nodes (they were skipped
+            //    in the main loop). They're sources only; the destination must be a
+            //    declared data input on a runtime node.
+            foreach (var n in editorNodes)
+            {
+                if (n is not IVariableNode vn) continue;
+                if (vn.variable == null) continue;
+                if (!idByVariable.TryGetValue(vn.variable, out var variableId))
+                {
+                    // Orphaned variable node — references a blackboard variable that was
+                    // deleted or otherwise didn't make it into editorGraph.GetVariables().
+                    // Surface as a warning so the designer notices, then skip.
+                    UnityEngine.Debug.LogWarning(
+                        $"GraphFlow bake: variable node {n.GetType().Name} references unknown variable '{vn.variable.name}'; edge skipped.");
+                    continue;
+                }
+
+                var varType = vn.variable.dataType;
+                foreach (var port in n.GetOutputPorts())
+                {
+                    var connected = new List<IPort>();
+                    port.GetConnectedPorts(connected);
+                    foreach (var other in connected)
+                    {
+                        var toEditor = other.GetNode();
+                        if (toEditor == null || !editorToRuntime.TryGetValue(toEditor, out var toRuntime)) continue;
+                        var toReg = editorToRegistration[toEditor];
+                        if (!toReg.DataInputPortNames.Contains(other.name))
+                        {
+                            result.LogError($"Variable edge from {n.GetType().Name} to {toEditor.GetType().Name}.{other.name}: destination is not a declared data input.");
+                            return (variables, variableEdges);
+                        }
+
+                        var portType = other.dataType;
+                        if (varType != null && portType != null && !portType.IsAssignableFrom(varType))
+                        {
+                            result.LogError(
+                                $"Variable '{vn.variable.name}' ({varType.Name}) is incompatible with port {toEditor.GetType().Name}.{other.name} ({portType.Name}).");
+                            return (variables, variableEdges);
+                        }
+
+                        variableEdges.Add(new VariableEdge
+                        {
+                            variableId = variableId,
+                            toNodeId = toRuntime.nodeId,
+                            toPortName = other.name,
+                        });
+                    }
+                }
+            }
+
+            return (variables, variableEdges);
         }
 
         static Dictionary<string, int> RecoverGuidMap<TRunner, TAsset>(TAsset? previous)
