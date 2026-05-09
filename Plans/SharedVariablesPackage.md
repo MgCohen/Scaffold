@@ -392,6 +392,104 @@ the proposal were implemented as drafted.
   registry ownership, structural-change events, and drawer
   revalidation all add weight to step 3.
 
+## Risk triage and additional gaps
+
+Not every audit finding above carries the same weight. Triaging by
+"does this change the design or just the spec":
+
+### Tier 1 — Real risks. Change the design or add code.
+
+- **Audit #5 — `Changed` merge semantics.** Behaviorally consistent
+  with graphflow's existing cell (same-value dedupe), so no
+  surprise — but the contract has to be written and tested before
+  any consumer builds on it. **Action:** document "at most one event
+  per slice per `Execute` / snapshot load, with the final post-merge
+  value." Add a test that asserts merged delivery during a batch
+  execute.
+- **Audit #6 — dispatcher silent-drop.** `Store.Execute` returning
+  cleanly when nothing happened is a real footgun. **Action:**
+  `StoreBackedVariableBag` validates at construction that every
+  registered handle's payload type resolves to a real mutator;
+  throws clearly if not. ~10 lines, prevents a class of
+  impossible-to-debug failures.
+
+### Tier 2 — Contract clarifications. No design change.
+
+Audit #1 (registry crossing the bridge), #7 (aggregates v1 limit),
+#8 (bag parent from constructor not storage), #9 (handle never
+touches modifiers), #10 (handle never caches slice instances). All
+need explicit wording in the spec; none change the interface or the
+implementation sketch.
+
+### Tier 3 — Documentation hygiene only.
+
+Audit #2 (serialization stays in entity), #3 (structural events stay
+entity-specific), #4 (`ModifierSource.Tag` carriage). Mention once,
+move on.
+
+### Risks not surfaced by the file-level audit
+
+1. **Reentrancy across the bag chain.** The `_applyingFromSubscribe`
+   guard in `StoreBackedHandle` is per-handle. Cycle:
+   handle A's `Changed` → graph reacts → writes handle B → fires B's
+   Subscribe → graph reacts → writes A → loop. Per-handle guards
+   don't catch cross-handle cycles. Same risk already exists for
+   graphflow's in-memory cells; **accept as consumer responsibility**.
+   Don't add bag-level cycle detection unless a real consumer hits
+   it.
+2. **Subscription teardown.** Graphflow already has Observe-node
+   teardown as backlog #15 (`BlackboardVariables.md:750-752`).
+   `StoreBackedVariableBag` inherits the same problem worse:
+   `store.Subscribe<TState>` has no "unsubscribe by owner" API; the
+   bag must track every delegate and unsubscribe in `Dispose`. **v1
+   ships `StoreBackedVariableBag : IDisposable`** — non-negotiable.
+3. **`IEntityVariableStorage : IVariableBag` migration mechanics.**
+   Plan says "existing `TryGetBase` callers keep working." Three
+   options: (a) duplicate the method on both interfaces; (b) C# 8
+   default interface methods (Unity 2020.2+ supports at runtime but
+   tooling support is uneven); (c) extension methods that route to
+   the new `TryGet<T>`. **Pick before step 3 starts**, not during.
+4. **Allocation cost.** A `StoreBackedVariableBag` binding M
+   variables registers M `Subscribe` callbacks + M ledger entries
+   per runner instance. For 50 variables × N runners this adds up.
+   Probably fine, **measure before declaring v1 done.** Pool the
+   delegates if it shows.
+5. **Handle binding API surface — undesigned.** Where does the
+   consumer say "this `Variable` projects from `EntityState` at
+   `entityRef`, with this projector and this payload factory"? The
+   original sketch hand-waved this. Realistically:
+
+   ```csharp
+   var bag = new StoreBackedVariableBagBuilder(store)
+       .Bind<EntityState, float>(
+           varId: hpVarGuid,
+           sliceRef: entityRef,
+           project: s => s.GetBase<float>(hpVar),
+           toPayload: v => new SetBaseValuePayload(entityRef, hpVar, VariableValue.Of(v)))
+       .Build();
+   ```
+
+   This is real API surface to design. Has to be type-safe enough
+   that "wrong projector for this slice type" is a compile error,
+   not a runtime one. **Open question:** does the bag-builder also
+   accept a `Variable` (carrying typeName) and infer the
+   payload factory via the registry, or does the consumer always
+   supply both?
+
+### Implication for v1 design
+
+Two concrete code changes versus the original sketch:
+
+1. **`StoreBackedVariableBag : IDisposable`** with explicit
+   subscription tracking and teardown.
+2. **Construction-time payload validation** that fails fast on
+   missing dispatcher registration.
+
+Plus one undesigned piece of API surface: **the binding builder**.
+Spec needs a sketch before step 4 lands.
+
+Everything else is contract wording or known follow-up work.
+
 ## Migration order (to keep green)
 
 1. **Land `com.scaffold.variables`** with `Variable`,
@@ -461,6 +559,14 @@ own step lands.
     registered with the dispatcher** (audit #6). Add to
     `EntityBridgeContext` bootstrap with a clear exception on
     missing registration.
+11. **Binding builder API shape** — does the builder accept a
+    `Variable` and infer payload factories via the entity registry,
+    or always require explicit projector + factory? Decide before
+    step 4 (Risk Triage gap #5).
+12. **Migration mechanics for `IEntityVariableStorage : IVariableBag`**
+    — duplicate `TryGetBase`, C# 8 default methods, or extension
+    methods routing to `TryGet<T>`? Decide before step 3 (Risk
+    Triage gap #3).
 
 ## Decision points before code lands
 
