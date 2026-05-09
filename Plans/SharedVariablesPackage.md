@@ -133,10 +133,16 @@ namespace Scaffold.Variables
         Type   Type { get; }
     }
 
-    public interface IVariableHandle<T> : IVariableHandle
+    public interface IReadOnlyVariableHandle<T> : IVariableHandle
     {
-        T Value { get; set; }
-        event Action<T> Changed;
+        T Value { get; }
+        void Subscribe(Action<T> handler);
+        void Unsubscribe(Action<T> handler);
+    }
+
+    public interface IVariableHandle<T> : IReadOnlyVariableHandle<T>
+    {
+        new T Value { get; set; }
     }
 
     public interface IVariableBag
@@ -714,39 +720,37 @@ var bag = new StoreVariableBagBuilder(store)
 | Set re-entry from inside Subscribe callback | **Runtime** (suppressed) | Per-handle `_applyingFromSubscribe` guard, audit #5 |
 | Cross-handle reentrancy cycle | **Runtime** (not caught) | Consumer responsibility; same as graphflow cells |
 
-### Open questions on the builder
+### Resolved questions on the builder
 
-1. **Where does `StoreVariableBagBuilder` live?** Three options:
-   (a) `com.scaffold.states` — depends on `Store`, makes sense; but
-   couples states to the variables abstraction. (b)
-   `com.scaffold.variables.states` — new sub-package. (c)
-   `com.scaffold.entities.states` — already depends on both. **Lean
-   (b)**: keeps states clean, lets entity-states extend it cleanly.
-2. **Read-only return type.** Need a separate
-   `IReadOnlyVariableHandle<T>` interface so `BindReadOnly` is
-   compile-checked. Costs one more interface in shared package;
-   probably worth it.
-3. **Snapshot / save fidelity.** When `Store.LoadSnapshot()` re-fires
-   slice events, do bound handles re-fire `Changed` even if the
-   *projected* value didn't change? Sketched implementation says no
-   — `_last`-based dedupe means projection-equal commits skip
-   `Changed`. This is correct but worth a test.
-4. **Disposable scope per `ForSlice`.** If a consumer `BindXxx` then
-   wants to unbind one variable without rebuilding the whole bag —
-   not a v1 feature, but call out so the API doesn't paint a corner
-   later.
+1. **Where does `StoreVariableBagBuilder` live?** **DECIDED:
+   `com.scaffold.entities.states`.** Rationale: the bridge package
+   becomes the canonical state-backed variable storage. Avoids
+   creating a fourth sub-package. Tradeoff: consumers who want raw
+   state-slice projection without entities still pull in the bridge
+   — accepted, since entity-state-backed is the default path for
+   variable storage going forward.
+2. **Read-only return type.** **DECIDED: separate
+   `IReadOnlyVariableHandle<T>` interface.** Compile-checked; costs
+   one more interface in shared package. `IVariableHandle<T> :
+   IReadOnlyVariableHandle<T>` so writable handles fit anywhere
+   read-only is expected.
+3. **Snapshot / save fidelity.** Bound handles dedupe on `_last`,
+   so projection-equal commits skip `Subscribe` callbacks.
+   **DECIDED test plan** (Q8 below): three-test fixture written
+   before bridge code lands. (See Open questions Q8.)
+4. **Disposable scope per `ForSlice`.** Per-variable unbinding
+   without rebuilding the whole bag — **deferred**. Document the
+   limitation; don't paint into a corner.
 
 ### Implication for the migration plan
 
-Phase C splits into two:
+Phase C is **single-phase** — `StoreVariableBagBuilder`,
+`IReadOnlyVariableHandle<T>` consumer (the read-only handle
+interface itself lives in shared `com.scaffold.variables`), and the
+`ForEntity` / `ForSlice` builder API all land together in
+`com.scaffold.entities.states`.
 
-- **Phase C.1** — land `StoreVariableBagBuilder` (generic) +
-  read-only handle interface in `com.scaffold.variables.states`.
-- **Phase C.2** — land `ForEntity` shorthand in
-  `com.scaffold.entities.states`. Tiny package addition; depends on
-  C.1.
-
-Order remains A → B → C.1 → C.2.
+Order: A → B → C.
 
 ## Open questions
 
@@ -766,13 +770,13 @@ Order remains A → B → C.1 → C.2.
    entities has its own (`VariableEntry`); states bridge has none. A
    shared serialization helper is tempting but locks the wire format.
    Probably defer.
-4. **Should `IVariableHandle<T>` expose `Subscribe(Action<T>)` /
-   `Unsubscribe` instead of `event Action<T> Changed`?** Method-style
-   gives the implementation control over subscription bookkeeping
-   (important for `StoreBackedHandle`, which holds a single store-side
-   subscription that fans out). Event-style matches GraphFlow's
-   existing `VariableCell<T>`. Likely method-style; one-line wrapper
-   around an internal event for in-memory handles.
+4. ~~**Should `IVariableHandle<T>` expose `Subscribe(Action<T>)` /
+   `Unsubscribe` instead of `event Action<T> Changed`?**~~ **DECIDED:
+   method-style.** Lets `StoreBackedHandle` manage subscription
+   bookkeeping (one store-side `Subscribe` fans out to many handle
+   subscribers); makes teardown explicit, which the `IDisposable`
+   bag needs anyway. In-memory handles wrap an internal event in a
+   one-line `Subscribe` / `Unsubscribe` pair — no real cost.
 5. **Naming.** `com.scaffold.variables` is boring and accurate.
    Resist "blackboard" — that's a *use* of the abstraction, not the
    abstraction itself.
@@ -786,10 +790,18 @@ Order remains A → B → C.1 → C.2.
    `IVariableBag`?** Argued no above (audit #3) — keep them
    entity-specific. Revisit if graphflow ever wants to react to
    bag-level adds/removes.
-8. **`StoreBackedHandle.Changed` semantics under deferral.** Document
-   "at most one event per slice per `Execute` / snapshot load, with
-   the final post-merge value" (audit #5). Add a test that asserts
-   merged delivery during batch execute.
+8. ~~**`StoreBackedHandle.Changed` semantics under deferral.**~~
+   **DECIDED.** Contract: at most one Subscribe-callback per slice
+   per `Execute` / snapshot load, with the final post-merge value.
+   **Test plan locked** — three-test fixture lands before bridge
+   code:
+   1. Two `cell.Value = x` writes inside one `Store.ExecuteBatch` →
+      Subscribe-callback fires once with the final value.
+   2. `Store.LoadSnapshot` that doesn't change the projected value
+      → callback does NOT fire (handle dedupes on `_last`).
+   3. `Store.LoadSnapshot` that changes the projected value →
+      callback fires once with the new value, regardless of how
+      many intermediate slice mutations the snapshot represents.
 9. **Aggregate-backed handles — defer.** v1 documents canonical
    slices only (audit #7).
 10. **Validation that all `StoreBackedHandle` payload types are
@@ -816,13 +828,16 @@ Order remains A → B → C.1 → C.2.
   plan).
 - ~~Estimate entities migration blast radius~~ — **Done.** See
   "Step 3 blast radius — sized" section.
-- Decide Q4 — event vs. method-style subscription.
+- ~~Decide Q4 — event vs. method-style subscription.~~ **DECIDED:
+  method-style.**
 - Decide Q6 — `IPayloadTypeRegistry` shared abstraction now, or
   defer. **Recommended: defer.**
-- Confirm `StoreBackedHandle.Changed` deferral semantics with a
-  written test plan (Q8) before bridge-side code lands.
-- Pin builder open questions (Q11–Q12) before Phase C.1 starts —
-  builder home package + read-only handle interface.
+- ~~Confirm `StoreBackedHandle.Changed` deferral semantics test
+  plan (Q8)~~ **DECIDED: three-test fixture above.**
+- ~~Pin builder open questions~~ **DECIDED:** builder lives in
+  `com.scaffold.entities.states`; separate
+  `IReadOnlyVariableHandle<T>` in shared package; per-variable
+  unbinding deferred.
 
 ## Next steps
 
