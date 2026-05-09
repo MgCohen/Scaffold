@@ -511,6 +511,102 @@ Everything else is contract wording or known follow-up work.
 Each step ends green; no consumer must adopt the new shape until its
 own step lands.
 
+## Step 3 blast radius — sized
+
+Done after a full call-site / drawer / registry / test scan of
+`com.scaffold.entities`. Headline: **migration is fully self-contained
+— zero consumers outside entities + bridge.** GraphFlow has its own
+parallel `IVariableBag`; no other package imports
+`Scaffold.Entities.IVariableBag` or variable types.
+
+### Call-site counts
+
+| API | Count | Distribution | Notes |
+|---|---:|---|---|
+| `IVariableBag.TryGetBase` | **21** | 12 tests + 9 runtime | Dominant rewrite target; survives as deprecated wrapper |
+| `IVariableBag.LocalKeys` | 2 | EntityDefinition + LocalVariableStorage | Light |
+| `IEntityVariableStorage.AddVariable` | 11 | EntityInstance, EntityComponentT, tests | Stays on entity surface |
+| `IEntityVariableStorage.SetBaseValue` | 10 | same | Stays on entity surface |
+| `IEntityVariableStorage.AddModifier` etc. | ~40 | EntityInstance, EntityComponentT, tests | **No migration** — modifier surface unchanged |
+| `Variable` constructor | 12 (8 files) | Mostly tests + authoring (VariableSO, EntityModifierEntry) | Extraction-dependent |
+| `VariableValue` references | 129 | Registry, drawers, polymorphic dispatch | Internal — proposal doesn't touch storage |
+| `VariableValueRegistry` consumers | 7 files | Editor / authoring only | Stays private to entities |
+
+### Drawer hub: `VariableKeySoField`
+
+One file is the registry coupling point:
+`Editor/VariableKeySoField.cs:83` calls
+`VariableValueRegistry.TryResolve(payloadTypeId)`. **Every other
+drawer reaches the registry through this file.** If `payloadTypeId`
+ever renames or moves, this is the only place that breaks. Drawer
+revalidation budget rides on this one file plus integration testing
+of the four drawers that delegate through it
+(`VariablePropertyDrawer`, `VariableBagPropertyDrawer`,
+`EntityModifierEntryDrawer`, `VariableSOEditor`).
+
+### Sized estimate
+
+**Optimistic — `TryGetBase` survives as extension-method wrapper, no
+test rewrites:**
+
+- Shared package creation: 2d
+- GraphFlow migration (Phase A): 1–2d
+- Entities migration (Phase B): 2d (new `TryGet<T>` surface + light
+  drawer revalidation + zero test rewrites)
+- States bridge `StoreBackedVariableBag` + builder (Phase C): 3–4d
+
+**Phase B alone: ~2 person-days. Total: ~7 person-days.**
+
+**Pessimistic — full refactor, drop `TryGetBase`, rewrite all 21
+call sites + 18 test sites:**
+
+- Shared package creation: 2–3d
+- GraphFlow migration: 2–3d
+- Entities migration: 10–12d (3d call-site rewrites, 2d test
+  rewrites, 1d `VariableKeySoField` registry rework, 2d drawer
+  revalidation, 2d `Variable` extraction fallout)
+- States bridge: 3–4d
+
+**Phase B alone: ~10–12 person-days. Total: ~16 person-days.**
+
+The swing factor between optimistic and pessimistic is **almost
+entirely whether `TryGetBase` is kept as a deprecated wrapper.**
+That's a single architectural decision; pick optimistic and the
+migration is one developer-week.
+
+### Phasing — A / B / C run independently
+
+**Phase A** — `com.scaffold.variables` package + GraphFlow migration.
+Self-contained; lands and ships independent of entities.
+
+**Phase B** — Entities migration. Blocks on A landing. Internal to
+entities + bridge. Drawer integration testing required.
+
+**Phase C** — `StoreBackedVariableBag` + builder API in the bridge.
+Net-new, additive. Blocks on B (needs the shared interfaces wired
+through `IEntityVariableStorage`).
+
+**A and B can run in parallel** if developer capacity allows — they
+touch disjoint files. C must wait for B.
+
+### Decisions still open before Phase B starts
+
+1. **`Variable` ownership** — shared owns the data type, or entity
+   keeps it and shared keys by `string id`? Audit recommends shared
+   for cleanliness, but **smaller-blast-radius option is entity keeps
+   `Variable`**, shared package keys by string. v1 should pick the
+   smaller option; promote later if a third consumer needs the type.
+2. **Bridge strategy for `IEntityVariableStorage : IVariableBag`** —
+   (a) duplicate `TryGetBase`, (b) C# 8 default interface methods,
+   (c) extension methods routing deprecated `TryGetBase` →
+   `TryGet<T>`. Audit confirms **no existing default-interface-method
+   usage in codebase** and IL2CPP support uneven. **Recommend (c)
+   extension-method wrapper** — it's the bridge between optimistic
+   and pessimistic estimates, and the only path that delivers the
+   2-person-day Phase B.
+3. **`VariableValueRegistry` shared interface** — defer per audit
+   #1. Stays private to entities for v1.
+
 ## Open questions
 
 1. **Where does the `payloadTypeId` ↔ `System.Type` registry live?**
@@ -571,14 +667,19 @@ own step lands.
 ## Decision points before code lands
 
 - Confirm extraction (vs. status quo with three parallel systems).
-- Decide Q2 above — does shared own `Variable`, or only the bag/handle
-  interfaces?
+- Decide Q2 / Phase-B gate #1 — does shared own `Variable`, or only
+  the bag/handle interfaces? **Recommended: shared owns interfaces
+  only; entity keeps `Variable`** (smaller blast radius, ~2-day
+  Phase B vs. 10-day).
 - Decide Q4 above — event vs. method-style subscription.
 - Decide Q6 — `IPayloadTypeRegistry` shared abstraction now, or
-  defer until a second consumer needs it.
-- Estimate the entities migration's blast radius **including registry
-  ownership and structural-change events** (drawers + tests + the
-  `VariableValueRegistry` reflection scan) before committing —
-  larger than first estimated per the audit.
+  defer until a second consumer needs it. **Recommended: defer.**
+- Decide Phase-B gate #2 — duplicate, default methods, or extension
+  methods for `IEntityVariableStorage : IVariableBag`? **Recommended:
+  extension-method wrapper** (option c) — only path that delivers
+  the optimistic estimate without IL2CPP risk.
+- ~~Estimate the entities migration's blast radius~~ **Done.** See
+  "Step 3 blast radius — sized" section above. ~7 person-days
+  total for the optimistic path; entities-only Phase B is ~2 days.
 - Confirm `StoreBackedHandle.Changed` deferral semantics with a
   written test plan (Q8) before bridge-side code lands.
