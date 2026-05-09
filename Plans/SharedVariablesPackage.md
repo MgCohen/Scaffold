@@ -230,6 +230,7 @@ public sealed class StoreBackedHandle<TState, T> : IVariableHandle<T>
     readonly Reference          _ref;
     readonly Func<TState, T>    _project;
     readonly Func<T, object>    _toPayload;
+    Action<T>?                  _subscribers;
     T    _last;
     bool _applyingFromSubscribe;
 
@@ -244,7 +245,8 @@ public sealed class StoreBackedHandle<TState, T> : IVariableHandle<T>
         }
     }
 
-    public event Action<T>? Changed;
+    public void Subscribe(Action<T> handler)   => _subscribers += handler;
+    public void Unsubscribe(Action<T> handler) => _subscribers -= handler;
 
     void OnSliceChanged(TState s, StateChangeEvent _)
     {
@@ -252,7 +254,7 @@ public sealed class StoreBackedHandle<TState, T> : IVariableHandle<T>
         if (EqualityComparer<T>.Default.Equals(_last, next)) return;
         _last = next;
         _applyingFromSubscribe = true;
-        try { Changed?.Invoke(next); }
+        try { _subscribers?.Invoke(next); }
         finally { _applyingFromSubscribe = false; }
     }
 }
