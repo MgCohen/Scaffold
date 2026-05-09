@@ -20,8 +20,9 @@ semantics:
 1. **GraphFlow blackboard** (`com.scaffold.graphflow`,
    `Runtime/Variables/`) — typed mutable cells with synchronous
    setters and `Changed` events. Zero-boxing on hot paths is a stated
-   constraint. Single integration seam: `runner.CreateParentBag()`
-   returns an `IVariableBag?`.
+   constraint. Current integration seam: `runner.CreateParentBag()`
+   returns an `IVariableBag?` — **insufficient for state-backed
+   binding under snapshots** (see Invariant 2).
 2. **Entities** (`com.scaffold.entities`,
    `Runtime/Core/Variables/`, `Runtime/Core/VariableBags/`) —
    serialized `Variable` keys + polymorphic `VariableValue` storage,
@@ -112,6 +113,99 @@ shared abstraction at the boundary.
   `Store.Execute` is sync), but the underlying mechanism stays
   per-package.
 
+## Design invariants — non-negotiable
+
+Two constraints the proposal must satisfy. Both are non-negotiable;
+any phase that compromises them stalls.
+
+### Invariant 1 — Single canonical variable system per package
+
+After migration, no package may have two parallel variable systems.
+The shared `Scaffold.Variables` types are *the* variable abstraction;
+existing per-package types are **deleted, not deprecated-and-kept**.
+A package may ship its own `IVariableBag` *implementation*
+(state-backed, modifier-aware, save-system-backed) but never its own
+*interface*.
+
+Concretely:
+
+- GraphFlow's existing `Scaffold.GraphFlow.IVariableBag`,
+  `VariableCell<T>`, `InMemoryVariableBag`, and `VariableDefault`
+  hierarchy are **deleted in Phase A**, not aliased. Imports update
+  to the shared namespace. No re-export shims.
+- Entity's `Scaffold.Entities.IVariableBag` and `Variable` (the key
+  class) are **deleted in Phase B / D**, not aliased. The
+  `[Obsolete]` extension method for `TryGetBase` is genuinely
+  transitional — Phase D removes it. After Phase D the codebase has
+  exactly one `IVariableBag` interface.
+- Per-package custom bag *implementations* are encouraged
+  (`InMemoryVariableBag`, `EntityBag`, `StoreBackedVariableBag`).
+  What's prohibited is duplicate *interface* surface.
+
+Implication: the migration plan has no "soft-launch" exit. Every
+step that adds a shared type commits to deleting the legacy
+counterpart in a later step.
+
+### Invariant 2 — Storage replacement, not parent chaining
+
+For state ↔ graphflow binding to be coherent under the snapshot
+system, graphflow's graph-layer bag must be **fully replaceable** by
+the consumer — not merely chained to as a parent.
+
+Today's plan exposes `runner.CreateParentBag()` as the integration
+seam. That isn't enough: variables declared on the graph asset
+(seeded into `runner.Variables` via the default `InMemoryVariableBag`)
+bypass any state-backed parent bag entirely. They live in-memory,
+don't participate in `Store.SaveSnapshot()`, and are silently
+ephemeral. A consumer that "saves a variable to the blackboard"
+breaks save/load with no diagnostic.
+
+**Resolution.** Replace `CreateParentBag()` with
+`CreateVariableBag(IEnumerable<RuntimeVariable> seed)`. Consumer
+gets full control over how every graph-layer variable is
+materialized:
+
+```csharp
+// Default: in-memory bag seeded with authored defaults.
+protected internal virtual IVariableBag CreateVariableBag(
+    IEnumerable<RuntimeVariable> seed)
+    => new InMemoryVariableBag(seed);
+
+// Consumer override: state-backed bag with explicit bindings.
+protected override IVariableBag CreateVariableBag(
+    IEnumerable<RuntimeVariable> seed)
+{
+    return new StoreVariableBagBuilder(_store)
+        .ForEntity(_heroRef)
+            .BindBase<float>(hpVarId, hpVar)
+        .ForSlice<TurnState>(_gameRef)
+            .Bind<int>(turnVarId, s => s.Turn, v => new SetTurnPayload(v))
+        .WithFallback(seed, FallbackMode.InMemoryDefault)
+        .Build();
+}
+```
+
+The fallback mechanism handles graph-declared variables the consumer
+didn't explicitly bind:
+
+- `FallbackMode.InMemoryDefault` — unbound variables get an
+  `InMemoryHandle<T>` seeded with their authored default (hybrid
+  storage; transient/scratch variables stay in-memory).
+- `FallbackMode.Throw` — unbound variables are a build error
+  (strict; everything must be state-backed).
+
+The flow-layer bag stays as-is — per-Run scratch is intentionally
+ephemeral and not snapshot-relevant. If per-flow declarations land
+later (per `BlackboardVariables.md` Q7), a sibling
+`CreateFlowVariableBag(seed)` seam follows the same pattern.
+
+**Implication.** Phase A is no longer a pure namespace swap. The
+graphflow runner gets a real architectural change: `SeedVariables`
+goes away, `CreateVariableBag(seed)` replaces `CreateParentBag()`,
+and the seam is repositioned. ~1–2 extra days; **Phase A estimate
+revised to ~5–7 person-days.** Total end-to-end estimate ticks up
+to ~17–18 person-days.
+
 ## Sketch — proposed interfaces
 
 ```csharp
@@ -186,19 +280,30 @@ architecture.
 
 ## How each package adopts the shape
 
-### 1. GraphFlow blackboard — low cost
+### 1. GraphFlow blackboard — low to medium cost
 
-Mostly renames. The existing design *already* matches the proposed
-shape — `VariableCell<T>` *is* `InMemoryHandle<T>`; the existing
-`IVariableBag` *is* the proposed one minus the namespace.
+The shapes match the proposed sketch — `VariableCell<T>` *is*
+`InMemoryHandle<T>`; the existing `IVariableBag` *is* the proposed
+one minus the namespace. So most of Phase A is straight namespace
+migration. The non-trivial part is the seam change required by
+Invariant 2.
 
-- `runner.CreateParentBag()` returns `Scaffold.Variables.IVariableBag?`.
+- `InMemoryVariableBag`, `VariableCell<T>`, `IVariableBag`,
+  `VariableDefault<T>` are **deleted** from
+  `Scaffold.GraphFlow` and replaced with imports of the shared
+  package types. No re-exports or type-aliases (Invariant 1).
 - `RuntimeVariable.defaultValue` references shared `VariableDefault`.
-- `InMemoryVariableBag`, `VariableCell<T>`, `VariableDefault<T>` move
-  (or re-export) to the shared package.
-- Zero-boxing preserved — graph-layer bag stays `InMemoryVariableBag`
-  with field-typed storage. Only consumer-supplied parent bags are
-  allowed to box.
+- `GraphRunner.CreateParentBag()` is **replaced** by
+  `CreateVariableBag(IEnumerable<RuntimeVariable> seed)` per
+  Invariant 2. Default override returns `new InMemoryVariableBag(seed)`
+  so existing consumers keep working.
+- Internal `SeedVariables` plumbing on `GraphRunner` collapses —
+  the runner asks the consumer to construct the bag rather than
+  constructing one with consumer-supplied parent.
+- Zero-boxing preserved for the in-memory case — `InMemoryVariableBag`
+  with field-typed storage is the default. State-backed bags
+  legitimately box on `Get` (audit-confirmed cost; only paid when
+  the consumer opts into state-backing).
 
 ### 2. Entities — medium cost (real refactor)
 
@@ -500,24 +605,40 @@ Everything else is contract wording or known follow-up work.
 
 ## Migration order (to keep green)
 
-1. **Land `com.scaffold.variables`** with `Variable`,
-   `IVariableHandle<T>`, `IVariableBag`, `VariableDefault<T>`,
-   `InMemoryHandle<T>`, `InMemoryVariableBag`. Pure additive — no
-   consumer changes yet.
-2. **Migrate GraphFlow.** Replace its private types with re-exports /
-   type-aliases to the shared ones. Tests stay green because the
-   shapes are identical.
-3. **Migrate entities.** `IEntityVariableStorage : IVariableBag`
-   (shared). Add `TryGet<T>` to `VariableBag`. Existing `TryGetBase`
-   callers keep working during the transition (deprecation, not
-   removal).
-4. **Add `StoreBackedVariableBag` to the states bridge.** Net-new
-   code, no migration.
-5. **Wire blackboard ↔ entity / state** via `runner.CreateParentBag()`
-   returning a chained or composite shared `IVariableBag`.
+1. **Phase A.1 — Land `com.scaffold.variables`** with `Variable`,
+   `IVariableHandle<T>`, `IReadOnlyVariableHandle<T>`, `IVariableBag`,
+   `VariableDefault<T>`, `InMemoryHandle<T>`, `InMemoryVariableBag`.
+   Pure additive — no consumer changes yet.
+2. **Phase A.2 — Migrate GraphFlow.** Per Invariant 1: delete
+   GraphFlow's private `IVariableBag`, `VariableCell<T>`,
+   `InMemoryVariableBag`, and `VariableDefault` hierarchy outright;
+   imports update to `Scaffold.Variables`. Per Invariant 2: replace
+   `CreateParentBag()` with `CreateVariableBag(seed)` and remove the
+   internal `SeedVariables` plumbing. Default override preserves
+   current behavior (`new InMemoryVariableBag(seed)`). All existing
+   GraphFlow tests must stay green.
+3. **Phase B — Migrate entities.** `Variable` extracted to shared.
+   `IEntityVariableStorage : Scaffold.Variables.IVariableBag`. Add
+   `TryGet<T>` to `VariableBag`. `[Obsolete]` extension method routes
+   `TryGetBase` → `TryGet<T>` so existing internal callers keep
+   compiling during the cut.
+4. **Phase C — `StoreVariableBagBuilder` + state-backed bag in
+   `com.scaffold.entities.states`.** Net-new code; no migration.
+   Includes the three-test deferral fixture (Q8) and
+   construction-time payload-registration validation (audit #6).
+5. **Phase D — Erase the `[Obsolete]` extension methods.** All
+   internal `TryGetBase` callers migrated to `TryGet<T>`. Per
+   Invariant 1: codebase ends with exactly one `IVariableBag`
+   interface.
+6. **Phase E — Wire consumer-side blackboard ↔ entity/state.**
+   First real consumer overrides `GraphRunner.CreateVariableBag`
+   to return a `StoreVariableBagBuilder`-built bag. Validates the
+   end-to-end story.
 
-Each step ends green; no consumer must adopt the new shape until its
-own step lands.
+Each phase ends green; no consumer must adopt the new shape until
+its own phase lands. Phases A → B can run in parallel if developer
+capacity allows; C blocks on B; D blocks on B + all consumers
+migrating; E blocks on C.
 
 ## Step 3 blast radius — sized
 
