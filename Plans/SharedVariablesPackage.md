@@ -284,6 +284,114 @@ re-projects.
    typed surface; entity's handle internally boxes/unboxes,
    GraphFlow's stores `T` directly. Each package pays its own cost.
 
+## Deeper audit — concepts the original sketch silently put at risk
+
+Done after a full read of `com.scaffold.entities`,
+`com.scaffold.states`, and `com.scaffold.entities.states`. The
+interface shape above still fits all three packages, but several
+load-bearing internals would be silently killed or mis-documented if
+the proposal were implemented as drafted.
+
+### Entities
+
+1. **`VariableValueRegistry` is a real, load-bearing API** — not just
+   a conceptual concern. It maps `Variable.PayloadTypeId` ("int" /
+   "float" / ...) → concrete `VariableValue` subclass via a
+   reflection + `[VariableValueIdAttribute]` scan
+   (`VariableValueRegistry.cs`, `VariablePayloadTypeHelpers.cs`).
+   Drawers and edit-time type validation depend on it. Shared
+   `Variable.TypeName` does **not** replace it — entities still needs
+   the registry for authoring. **Decision:** registry stays in
+   entities; if other packages need string→Type resolution, expose a
+   small `IPayloadTypeRegistry` interface in the shared package that
+   entities implements.
+2. **`VariableBag` serialization round-trip is real and external.**
+   `[SerializeField] List<VariableEntry> entries` + `[NonSerialized]
+   Dictionary` cache, rebuilt in `RebuildCache()`
+   (`VariableBag.cs:45-52`). Drawers author into `entries`; runtime
+   reads the cache. The shared `IVariableBag` is silent on
+   serialization, which is fine — entity keeps its own serialized
+   form *and* exposes the new typed-handle surface on top of it.
+3. **`OnVariableStructuralChange` is the only existing notification
+   surface in entities** (`VariableBag.cs:20`). Fires on
+   `Add` / `Remove`, **not** on value writes. External tools (drawers,
+   undo, inspectors) subscribe. The proposal's shared `IVariableBag`
+   has no structural-change surface. **Decision:** keep these events
+   on entity-specific `IEntityVariableStorage` / `VariableBag` rather
+   than promoting to shared — they're entity-flavored and adding
+   modifier-add/remove notifications later wants the same shape.
+4. **`ModifierSource` carries `(Reference, int Tag)`** — both fields
+   matter. `Reference` ties cleanup to a state slice; `Tag` lets a
+   single source distinguish multiple applications (one buff stack
+   vs. another from the same source). Trivially preserved in
+   payloads; worth naming so a future refactor doesn't drop the
+   `Tag`.
+
+### States
+
+5. **`DeferredStateEventHandler` has merge semantics.** Two modes:
+   `PreserveAll` (replay every event) and `LatestPerKey` (one event
+   per `(Reference, StateType)` with the final value). Mutator
+   runners and snapshot loads run inside `BeginDeferScope()`. A
+   `StoreBackedHandle.Changed` subscriber will see **at most one
+   merged event per slice per Execute / snapshot load**, not one per
+   write inside that batch. This is the right semantics for
+   blackboard binding (cells only care about the latest value), but
+   the contract has to be explicit so consumers don't expect
+   intermediate observation.
+6. **`IMutatorDispatcher` can silently drop unregistered payloads.**
+   `Store.Execute(payload)` checks `mutatorDispatcher.TryDispatch`
+   first (`Store.cs:280-283`); if a buggy / no-op dispatcher claims
+   the payload type, the write disappears with no exception.
+   **Decision:** `StoreBackedVariableBag` registers writer payloads
+   at bag-construction time and validates during
+   `EntityBridgeContext.RegisterMutators` that every payload type is
+   bound. Add an integration test that a misconfigured handle throws
+   on first `Set` rather than silently dropping.
+7. **Aggregates are a parallel slice family** (`Store.cs:24`,
+   `RegisterAggregate` at `Store.cs:429-446`) with their own lifecycle
+   (`OnAttachedToStore`) and a separate `aggregates` map. The
+   original proposal silently assumed every state-backed handle
+   targets a canonical slice. **Decision:** v1 of
+   `StoreBackedVariableBag` supports canonical slices only; document
+   the limitation. Aggregate binding becomes a follow-up.
+
+### Bridge
+
+8. **`StoreVariableStorage.Parent` is hardcoded `null`**
+   (`StoreVariableStorage.cs:21`). Shared `IVariableBag.Parent` would
+   lie if a store-backed bag claimed a parent inherited from
+   storage. **Decision:** `StoreBackedVariableBag` returns its parent
+   from the constructor parameter (consumer-supplied, like
+   graphflow's `InMemoryVariableBag`), not from the underlying
+   `IEntityVariableStorage`.
+9. **`EntityState.WithModifier` inserts by `Modifier.Order`**
+   (`EntityState.cs:65-78`). The `IVariableHandle<T>.Set` interface
+   only writes a base value; modifier add/remove stays on
+   `IEntityVariableStorage`. Document explicitly: **the typed handle
+   never touches modifiers**. Modifier-as-variable is not a
+   supported pattern; reach for the entity-specific surface.
+10. **Handles must never cache slice instances.** `WithBaseValue` /
+    `WithModifier` return fresh records every commit. A handle that
+    cached a slice reference would see stale data after a competing
+    mutation. The sketched `StoreBackedHandle` pulls fresh on every
+    `Get` (`_store.Get<TState>(_ref)`), which is correct — call this
+    out as part of the contract: **handles read through the store on
+    every `Get`; they cache projected `_last` for dedupe but never
+    the slice itself.**
+
+### What the audit confirms about the original sketch
+
+- The interface shape (`Variable`, `IVariableHandle<T>`,
+  `IVariableBag`) still fits all three packages.
+- The `Set` contract ("returns when the value is observable on the
+  next `Get`") survives once we add the per-Execute merge
+  clarification (#5).
+- The migration order is unchanged.
+- The **entities migration is larger** than first estimated —
+  registry ownership, structural-change events, and drawer
+  revalidation all add weight to step 3.
+
 ## Migration order (to keep green)
 
 1. **Land `com.scaffold.variables`** with `Variable`,
@@ -333,6 +441,26 @@ own step lands.
 5. **Naming.** `com.scaffold.variables` is boring and accurate.
    Resist "blackboard" — that's a *use* of the abstraction, not the
    abstraction itself.
+6. **Where does `VariableValueRegistry` live, and does the shared
+   package need an `IPayloadTypeRegistry` abstraction?** Entities
+   owns the registry today (audit #1). Cross-package consumers can
+   resolve through the existing entities surface; a shared interface
+   is only worth adding if a third package actually needs the
+   resolution. Likely defer.
+7. **Should structural-change events be promoted to shared
+   `IVariableBag`?** Argued no above (audit #3) — keep them
+   entity-specific. Revisit if graphflow ever wants to react to
+   bag-level adds/removes.
+8. **`StoreBackedHandle.Changed` semantics under deferral.** Document
+   "at most one event per slice per `Execute` / snapshot load, with
+   the final post-merge value" (audit #5). Add a test that asserts
+   merged delivery during batch execute.
+9. **Aggregate-backed handles — defer.** v1 documents canonical
+   slices only (audit #7).
+10. **Validation that all `StoreBackedHandle` payload types are
+    registered with the dispatcher** (audit #6). Add to
+    `EntityBridgeContext` bootstrap with a clear exception on
+    missing registration.
 
 ## Decision points before code lands
 
@@ -340,5 +468,11 @@ own step lands.
 - Decide Q2 above — does shared own `Variable`, or only the bag/handle
   interfaces?
 - Decide Q4 above — event vs. method-style subscription.
-- Estimate the entities migration's blast radius (drawers + tests +
-  `EntityState` embedding) before committing.
+- Decide Q6 — `IPayloadTypeRegistry` shared abstraction now, or
+  defer until a second consumer needs it.
+- Estimate the entities migration's blast radius **including registry
+  ownership and structural-change events** (drawers + tests + the
+  `VariableValueRegistry` reflection scan) before committing —
+  larger than first estimated per the audit.
+- Confirm `StoreBackedHandle.Changed` deferral semantics with a
+  written test plan (Q8) before bridge-side code lands.
