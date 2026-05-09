@@ -415,10 +415,10 @@ Not every audit finding above carries the same weight. Triaging by
 
 ### Tier 2 — Contract clarifications. No design change.
 
-Audit #1 (registry crossing the bridge), #7 (aggregates v1 limit),
-#8 (bag parent from constructor not storage), #9 (handle never
-touches modifiers), #10 (handle never caches slice instances). All
-need explicit wording in the spec; none change the interface or the
+Audit #1 (registry crossing the bridge), #7 (aggregates v1 limit), #8
+(bag parent from constructor not storage), #9 (handle never touches
+modifiers), #10 (handle never caches slice instances). All need
+explicit wording in the spec; none change the interface or the
 implementation sketch.
 
 ### Tier 3 — Documentation hygiene only.
