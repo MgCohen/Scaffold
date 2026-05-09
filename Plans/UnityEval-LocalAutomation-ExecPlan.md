@@ -66,7 +66,7 @@ Assets/Editor/UnityEval/
   UnityEvalBridge.asmdef   # Editor-only, no runtime refs
 ```
 
-Runtime artifacts live under `<project>/Temp/UnityEval/` (Unity already gitignores `Temp/`).
+Runtime artifacts live under `<project>/Temp/UnityEval/`. This directory is **session-scoped**: Unity gitignores `Temp/` and may wipe it on Editor restart, so artifacts here are for the current session only and must not be relied on for durable storage. Anything that needs to persist (e.g., a saved scene the bridge produced) goes under `Assets/` via the normal `AssetDatabase` save path.
 
 ```
 Temp/UnityEval/
@@ -204,6 +204,7 @@ This means even if you have 4 Unity instances open across 4 different projects, 
 - **Bridge requires the in-Editor companion to be loaded.** First-time setup needs Unity to recompile so `UnityEvalBridge` gets registered. Documented in README.
 - **Editor stays open.** Bridge never calls `EditorApplication.Exit`. No `shutdown` verb in the CLI.
 - **No multi-project parallelism on the same project folder.** Unity's lock prevents this; we don't try to work around it.
+- **Timeouts must clean up.** When `--timeout` fires (exit 5), the CLI must terminate the spawned Unity process tree (batch mode) or cancel the in-flight bridge command (bridge mode), flush whatever logs were produced into the run dir, and write `summary.json` with `status: "timed_out"`. Bridge mode never kills the Editor process — only the pending command. This guarantee is what prevents a timeout from leaving the project lock held and bricking subsequent runs.
 
 ## Build Order
 
@@ -308,10 +309,14 @@ Run *before* anything else. These don't need Claude — they're for the user to 
 13. **Concurrent invocations are serialized:** kick off two `unity-eval eval` calls in parallel.
     - Expect: the second one waits (or exits with a clear "another unity-eval run is in progress against this project" message), never collides on `runs/<id>/`. Run IDs are unique.
 
+13b. **Timeout cleanup:** run an `exec` whose target sleeps longer than `--timeout`.
+    - `unity-eval exec MyTools.Setup.SleepForever --timeout 5`
+    - Expect: exit 5; in batch mode the spawned Unity process is gone (verify via Task Manager / `Get-Process Unity`); `summary.json` has `status: "timed_out"`; immediately re-running `unity-eval eval` succeeds (proves no orphaned lock). In bridge mode the Editor is still alive and responsive.
+
 ### Output-shape sanity
 
 14. `summary.json` for every run is valid JSON, parseable by `python -c "import json,sys; json.load(open(sys.argv[1]))" Temp/UnityEval/runs/<id>/summary.json`.
-15. `runs/` directory survives across sessions (Unity wipes `Temp/` only on its own restart, which is fine — runs older than the current session are not needed for replay).
+15. `runs/` is session-scoped: within one Unity session, run IDs are unique and earlier runs remain readable until Unity wipes `Temp/`. We do not require persistence across Editor restarts; if a previous run's artifacts are needed long-term, copy them out before restarting Unity.
 
 ### Acceptance checklist
 
@@ -320,7 +325,7 @@ The tool is "done" when, on a Windows machine with Scaffold and Unity 6000.3.11f
 - [ ] Tests 1–4 pass (project/instance targeting verified).
 - [ ] Tests 5–8 pass (eval works in both modes, errors are surfaced).
 - [ ] Tests 9–11 pass (exec works, throws are surfaced).
-- [ ] Tests 12–13 pass (lock conflicts handled gracefully).
+- [ ] Tests 12–13b pass (lock conflicts handled gracefully; timeouts clean up).
 - [ ] Tests 14–15 pass (output shape is consistent).
 - [ ] Running `unity-eval eval` while Unity is open *does not* close or modify the user's session.
 - [ ] Running `unity-eval eval` while Unity is closed leaves Unity closed afterward.
