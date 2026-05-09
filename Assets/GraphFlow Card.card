@@ -13,77 +13,77 @@ MonoBehaviour:
   m_Name: GraphFlow Card
   m_EditorClassIdentifier: Unity.GraphToolkit.Editor::Unity.GraphToolkit.Editor.Implementation.GraphObjectImp
   m_GraphModel:
-    rid: 2853327436305137771
+    rid: 2853327452880240827
   references:
     version: 2
     RefIds:
     - rid: -2
       type: {class: , ns: , asm: }
-    - rid: 2853327436305137771
+    - rid: 2853327452880240827
       type: {class: GraphModelImp, ns: Unity.GraphToolkit.Editor.Implementation, asm: Unity.GraphToolkit.Editor}
       data:
         m_Guid:
-          m_Value0: 17410376203881074839
-          m_Value1: 4884676694690237291
+          m_Value0: 12416654269582515165
+          m_Value1: 10575691926938868222
         m_HashGuid:
           serializedVersion: 2
-          Hash: 97d03ecee9149ef16b0ba4dd92dbc943
+          Hash: dd9b4d9d45d150acfe59286fc667c492
         m_Name: 
         m_GraphNodeModels:
-        - rid: 2853327436305137774
+        - rid: 2853327452880240830
         m_GraphWireModels: []
         m_GraphStickyNoteModels: []
         m_GraphPlacematModels: []
         m_GraphVariableModels: []
         m_GraphPortalModels: []
         m_SectionModels:
-        - rid: 2853327436305137772
+        - rid: 2853327452880240828
         m_LocalSubgraphs: []
         m_LastKnownBounds:
           serializedVersion: 2
-          x: 339
-          y: 475
-          width: 217
+          x: 438
+          y: 665
+          width: 228
           height: 111
         m_GraphElementMetaData:
         - m_Guid:
-            m_Value0: 6073853387646981333
-            m_Value1: 13272541091345374581
+            m_Value0: 701341008269051063
+            m_Value1: 341730244556173096
           m_HashGuid:
             serializedVersion: 2
-            Hash: d55480b479a94a54759d6a38cd8931b8
+            Hash: b7844a60eea9bb09282fc7cbd811be04
           m_Category: 0
           m_Index: 0
         m_EntryPoint:
-          rid: 2853327436305137774
+          rid: 2853327452880240830
         m_Graph:
-          rid: 2853327436305137773
-    - rid: 2853327436305137772
+          rid: 2853327452880240829
+    - rid: 2853327452880240828
       type: {class: SectionModel, ns: Unity.GraphToolkit.Editor, asm: Unity.GraphToolkit.Internal.Editor}
       data:
         m_Guid:
-          m_Value0: 8433841645069207824
-          m_Value1: 15891907464749178148
+          m_Value0: 3974052692307522915
+          m_Value1: 17220404422086146393
         m_HashGuid:
           serializedVersion: 2
-          Hash: 10093fb24a060b7524ddc0e7a3658bdc
+          Hash: 63b5ac43deab263759b90293952afbee
         m_Version: 2
         m_Items: []
         m_Title: 
-    - rid: 2853327436305137773
+    - rid: 2853327452880240829
       type: {class: CardEffectGraph, ns: Scaffold.GraphFlow.CardSandbox.Editor.GToolkit, asm: Scaffold.GraphFlow.CardSandbox.Editor}
       data: 
-    - rid: 2853327436305137774
+    - rid: 2853327452880240830
       type: {class: UserNodeModelImp, ns: Unity.GraphToolkit.Editor.Implementation, asm: Unity.GraphToolkit.Editor}
       data:
         m_Guid:
-          m_Value0: 6073853387646981333
-          m_Value1: 13272541091345374581
+          m_Value0: 701341008269051063
+          m_Value1: 341730244556173096
         m_HashGuid:
           serializedVersion: 2
-          Hash: d55480b479a94a54759d6a38cd8931b8
+          Hash: b7844a60eea9bb09282fc7cbd811be04
         m_Version: 2
-        m_Position: {x: 338.5251, y: 474.8263}
+        m_Position: {x: 438, y: 665}
         m_Title: 
         m_Tooltip: 
         m_NodePreviewModel:
@@ -91,9 +91,11 @@ MonoBehaviour:
         m_State: 0
         m_InputConstantsById:
           m_KeyList:
-          - Amount
+          - A
+          - B
           m_ValueList:
-          - rid: 2853327436305137775
+          - rid: 2853327452880240831
+          - rid: 2853327452880240832
         m_InputPortInfos:
           expandedPortsById:
             m_KeyList: []
@@ -108,11 +110,15 @@ MonoBehaviour:
           m_Color: {r: 0, g: 0, b: 0, a: 0}
           m_HasUserColor: 0
         m_Node:
-          rid: 2853327436305137776
-    - rid: 2853327436305137775
+          rid: 2853327452880240833
+    - rid: 2853327452880240831
       type: {class: 'Constant`1[[System.Int32, mscorlib]]', ns: Unity.GraphToolkit.Editor, asm: Unity.GraphToolkit.Internal.Editor}
       data:
         m_Value: 0
-    - rid: 2853327436305137776
-      type: {class: DealDamage, ns: Scaffold.GraphFlow.CardSandbox.Editor.GToolkit, asm: Scaffold.GraphFlow.CardSandbox.Editor}
+    - rid: 2853327452880240832
+      type: {class: 'Constant`1[[System.Int32, mscorlib]]', ns: Unity.GraphToolkit.Editor, asm: Unity.GraphToolkit.Internal.Editor}
+      data:
+        m_Value: 0
+    - rid: 2853327452880240833
+      type: {class: Add, ns: Scaffold.GraphFlow.CardSandbox.Editor.GToolkit, asm: Scaffold.GraphFlow.CardSandbox.Editor}
       data: 

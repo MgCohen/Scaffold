@@ -273,12 +273,10 @@ namespace Scaffold.GraphFlow.PackageGenerator
             var graphText = graphSb.ToString();
             var graphSource = SourceText.From(graphText, Encoding.UTF8);
             spc.AddSource(graphPath, graphSource);
-            var impSb = new StringBuilder();
-            AppendEditorImporterFile(impSb, compilation, p);
-            var impPath = $"{p.GraphStem}GraphImporter.g.cs";
-            var impText = impSb.ToString();
-            var impSource = SourceText.From(impText, Encoding.UTF8);
-            spc.AddSource(impPath, impSource);
+            // Importer is NOT source-generated — it must be a hand-written .cs file so
+            // Unity assigns a stable script GUID for the .meta ScriptedImporter reference.
+            // Source-generated scripts land in obj/Generated/ with no .cs.meta, which causes
+            // the .card meta file to get script:{instanceID:0} → broken Inspector display.
             var valSb = new StringBuilder();
             AppendEditorGraphValidationFile(valSb, compilation, p);
             var valPath = $"{p.GraphStem}GraphValidation.g.cs";
@@ -302,9 +300,10 @@ namespace Scaffold.GraphFlow.PackageGenerator
                 "global::Scaffold.GraphFlow.Editor.Nodes.ObserveVariableEditorNode",
                 "GetValueType", "Type");
 
-            var inspectorSb = new StringBuilder();
-            AppendConcreteAssetInspectorFile(inspectorSb, compilation, p);
-            spc.AddSource($"{p.GraphStem}GraphAssetInspector.g.cs", SourceText.From(inspectorSb.ToString(), Encoding.UTF8));
+            // Inspector is also hand-written — a [CustomEditor] for the asset type
+            // would override the ScriptedImporter inspector view (hiding import settings).
+            // Without it, Unity's default ScriptedImporter inspector shows both import
+            // settings and the imported object, matching official GT sample behavior.
         }
 
         /// <summary>

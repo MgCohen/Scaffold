@@ -28,6 +28,7 @@ namespace Scaffold.GraphFlow
         void ISerializationCallbackReceiver.OnAfterDeserialize()
         {
             if (nodes != null) nodes.RemoveAll(n => n == null);
+            else nodes = new List<RuntimeNode>();
         }
     }
 

@@ -6,6 +6,8 @@ namespace Scaffold.GraphFlow.CardSandbox.Showcase
 {
     public sealed class VariableShowcase : MonoBehaviour
     {
+        [SerializeField] CardEffectGraphAsset? graphAsset;
+
         CardEffectRunner _runner = null!;
         EventBus _bus = null!;
         DamageSink _damage = null!;
@@ -24,7 +26,7 @@ namespace Scaffold.GraphFlow.CardSandbox.Showcase
             _damage = new DamageSink();
 
             var builder = new CardEffectBuilder(_bus, _damage);
-            var asset = StrikeWithVariables.BuildAsset();
+            var asset = graphAsset != null ? graphAsset : StrikeWithVariables.BuildAsset();
             _runner = builder.Build(asset);
 
             _runner.Variables.TryGetCell<int>("hp", out _hp);

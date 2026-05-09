@@ -47,11 +47,7 @@ namespace Scaffold.GraphFlow.Editor
 
             var editorNodes = editorGraph.GetNodes().ToList();
             if (editorNodes.Count == 0)
-            {
-                // Newly-created graph: emit an empty asset so the importer succeeds and the user can author.
-                result.Asset = ScriptableObject.CreateInstance<TAsset>();
                 return result;
-            }
 
             var guidToNodeId = RecoverGuidMap<TRunner, TAsset>(previousRuntime);
             var nextId = NextFreeNodeId(guidToNodeId);
