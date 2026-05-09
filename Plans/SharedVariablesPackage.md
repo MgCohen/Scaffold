@@ -591,21 +591,162 @@ touch disjoint files. C must wait for B.
 
 ### Decisions still open before Phase B starts
 
-1. **`Variable` ownership** — shared owns the data type, or entity
-   keeps it and shared keys by `string id`? Audit recommends shared
-   for cleanliness, but **smaller-blast-radius option is entity keeps
-   `Variable`**, shared package keys by string. v1 should pick the
-   smaller option; promote later if a third consumer needs the type.
-2. **Bridge strategy for `IEntityVariableStorage : IVariableBag`** —
-   (a) duplicate `TryGetBase`, (b) C# 8 default interface methods,
-   (c) extension methods routing deprecated `TryGetBase` →
-   `TryGet<T>`. Audit confirms **no existing default-interface-method
-   usage in codebase** and IL2CPP support uneven. **Recommend (c)
-   extension-method wrapper** — it's the bridge between optimistic
-   and pessimistic estimates, and the only path that delivers the
-   2-person-day Phase B.
+1. **`Variable` ownership** — **DECIDED: shared package owns
+   `Variable`.** Entity drops its own `Variable` class; the
+   `payloadTypeId` field (entity's tag for the polymorphic
+   `VariableValue` subclass — "int" / "float") moves to a separate
+   concern (`VariableEntry` or registry-side), not onto shared
+   `Variable`. Shared `Variable` carries `id` + `typeName` (the
+   runtime `T`'s type identity, e.g. `System.Int32`). Cost: this is
+   the more invasive Phase B path (~10–12d), but produces a clean
+   abstraction with no cross-package smell.
+2. **Bridge strategy** — **DECIDED: extension method, then erase.**
+   Phase B adds `TryGet<T>` as the new surface and `[Obsolete]`
+   extension methods routing `TryGetBase` → `TryGet<T>` so existing
+   callers keep compiling. **Phase D (new):** after every internal
+   caller migrates to `TryGet<T>`, the extension methods are
+   deleted. Not a permanent compatibility shim — a transition.
 3. **`VariableValueRegistry` shared interface** — defer per audit
    #1. Stays private to entities for v1.
+
+### Phase B revised cost under decision #1
+
+The "shared owns `Variable`" choice changes the audit numbers. The
+~30 sites in entities that read `Variable.PayloadTypeId` ("int",
+"float") need to either (a) keep that string somewhere else
+(`VariableEntry.payloadTypeId`?) or (b) be rewritten to derive the
+tag from the runtime `Type` via the registry. Drawer code in
+`VariableKeySoField.cs:83` is the hub here.
+
+Updated Phase B estimate: **~10–12 person-days** (was 2d optimistic).
+Total end-to-end: **~16 person-days**. The extension-method-then-erase
+strategy still helps — call sites can migrate gradually rather than
+in one cut — but the `Variable` extraction itself is the load-bearing
+cost.
+
+## Binding builder — API design pressure-test
+
+The original sketch hand-waved **how a consumer registers a
+state-backed handle**. This is the user-facing API, so it has to be
+worked out before Phase C lands. Pressure-testing three shapes
+against realistic call sites.
+
+### Shape 1 — fully generic
+
+```csharp
+var bag = new StoreVariableBagBuilder(store)
+    .Bind<EntityState, float, SetBaseValuePayload>(
+        variableId: hpGraphVarId,
+        sliceRef:   heroRef,
+        project:    s => s.GetBase<float>(hpVar),
+        toPayload:  v => new SetBaseValuePayload(heroRef, hpVar, VariableValue.Of(v)))
+    .Build();
+```
+
+**Pros:** one method covers every binding case; type-safe via
+generics.
+
+**Cons:** every entity-base binding repeats the same projector +
+payload boilerplate. Three type parameters to write (or annotate
+lambdas to enable inference). Awkward for the common case.
+
+### Shape 2 — convenience overloads only
+
+```csharp
+.BindEntityBase<float>(hpGraphVarId, heroRef, hpVar)
+.BindEntityComputed<float>(maxHpGraphVarId, heroRef, hpVar)
+.BindEntityModifierStack(stacksGraphVarId, heroRef, hpVar)
+```
+
+**Pros:** dead simple for the entity case.
+
+**Cons:** every new state shape needs a new `BindXxx` overload; the
+generic case (raw state slices that aren't entities) has nowhere to
+go.
+
+### Shape 3 — chained `ForSlice<TState>` + typed `Bind` (recommended)
+
+```csharp
+var bag = new StoreVariableBagBuilder(store)
+    // Entity bindings — shorthand from com.scaffold.entities.states
+    .ForEntity(heroRef)
+        .BindBase<float>(hpGraphVarId,    hpVar)
+        .BindComputed<float>(maxHpGraphVarId, hpVar)
+    // Generic slice projection — for non-entity state
+    .ForSlice<TurnState>(gameRef)
+        .Bind<int>(
+            turnGraphVarId,
+            project:   s => s.CurrentTurn,
+            toPayload: v => new SetTurnPayload(v))
+        .BindReadOnly<bool>(
+            isPlayerTurnGraphVarId,
+            project: s => s.ActorTag == "player")
+    .Build();
+```
+
+**Pros:**
+- Generic case (`Bind<T>` after `ForSlice<TState>`) is type-safe —
+  `TState` fixed once, `T` inferred from `project`'s return,
+  `TPayload` inferred from `toPayload`'s return. No ceremony.
+- Entity case is one-liner via `ForEntity` shorthand from the bridge
+  package — but reduces to the generic case underneath, no hidden
+  paths.
+- `BindReadOnly` covers aggregates and computed projections without
+  needing a writable payload.
+- Subscription dedup is automatic — multiple `Bind` calls under the
+  same `ForSlice` share one `store.Subscribe<TState>(sliceRef)`.
+
+**Cons:**
+- Two layers of fluent builder (the outer + the per-slice scope).
+- `ForEntity` lives in `com.scaffold.entities.states` (extends the
+  shared builder); requires the bridge to be loaded for entity
+  shorthand. Fine — entity bindings already need the bridge.
+
+### Pressure-test: failure modes
+
+| Failure | Caught at | Notes |
+|---|---|---|
+| Wrong projector for slice type (`s.NonExistentField`) | **Compile** | Lambda type-checked against `TState` |
+| Wrong `T` for `BindEntityBase` (asks `<int>` for a float variable) | **Build()** | Entity registry knows `hpVar`'s `T`; validate during `Build()` and throw |
+| Missing payload mutator registration (audit #6) | **Build()** | Builder records every `TPayload` used; checks each against `MutatorRegistry` at `Build()` |
+| Slice doesn't exist at runtime (consumer forgot `RegisterSlice`) | **First Get** | Handle returns `default(T)` and warns; doesn't throw — consistent with graphflow's missing-cell behavior |
+| `Set` on a `BindReadOnly` handle | **Compile** | Read-only handles return `IReadOnlyVariableHandle<T>`, not `IVariableHandle<T>` — no `Value` setter |
+| Set re-entry from inside Subscribe callback | **Runtime** (suppressed) | Per-handle `_applyingFromSubscribe` guard, audit #5 |
+| Cross-handle reentrancy cycle | **Runtime** (not caught) | Consumer responsibility; same as graphflow cells |
+
+### Open questions on the builder
+
+1. **Where does `StoreVariableBagBuilder` live?** Three options:
+   (a) `com.scaffold.states` — depends on `Store`, makes sense; but
+   couples states to the variables abstraction. (b)
+   `com.scaffold.variables.states` — new sub-package. (c)
+   `com.scaffold.entities.states` — already depends on both. **Lean
+   (b)**: keeps states clean, lets entity-states extend it cleanly.
+2. **Read-only return type.** Need a separate
+   `IReadOnlyVariableHandle<T>` interface so `BindReadOnly` is
+   compile-checked. Costs one more interface in shared package;
+   probably worth it.
+3. **Snapshot / save fidelity.** When `Store.LoadSnapshot()` re-fires
+   slice events, do bound handles re-fire `Changed` even if the
+   *projected* value didn't change? Sketched implementation says no
+   — `_last`-based dedupe means projection-equal commits skip
+   `Changed`. This is correct but worth a test.
+4. **Disposable scope per `ForSlice`.** If a consumer `BindXxx` then
+   wants to unbind one variable without rebuilding the whole bag —
+   not a v1 feature, but call out so the API doesn't paint a corner
+   later.
+
+### Implication for the migration plan
+
+Phase C splits into two:
+
+- **Phase C.1** — land `StoreVariableBagBuilder` (generic) +
+  read-only handle interface in `com.scaffold.variables.states`.
+- **Phase C.2** — land `ForEntity` shorthand in
+  `com.scaffold.entities.states`. Tiny package addition; depends on
+  C.1.
+
+Order remains A → B → C.1 → C.2.
 
 ## Open questions
 
