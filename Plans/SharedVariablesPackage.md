@@ -807,20 +807,49 @@ Order remains A → B → C.1 → C.2.
 
 ## Decision points before code lands
 
-- Confirm extraction (vs. status quo with three parallel systems).
-- Decide Q2 / Phase-B gate #1 — does shared own `Variable`, or only
-  the bag/handle interfaces? **Recommended: shared owns interfaces
-  only; entity keeps `Variable`** (smaller blast radius, ~2-day
-  Phase B vs. 10-day).
-- Decide Q4 above — event vs. method-style subscription.
+- ~~Confirm extraction~~ — **proceeding.**
+- ~~Phase-B gate #1: `Variable` ownership~~ — **DECIDED: shared
+  owns `Variable`.** Phase B revised to ~10–12d.
+- ~~Phase-B gate #2: bridge strategy for
+  `IEntityVariableStorage : IVariableBag`~~ — **DECIDED:
+  extension-method wrapper, then erase** (Phase D added to migration
+  plan).
+- ~~Estimate entities migration blast radius~~ — **Done.** See
+  "Step 3 blast radius — sized" section.
+- Decide Q4 — event vs. method-style subscription.
 - Decide Q6 — `IPayloadTypeRegistry` shared abstraction now, or
-  defer until a second consumer needs it. **Recommended: defer.**
-- Decide Phase-B gate #2 — duplicate, default methods, or extension
-  methods for `IEntityVariableStorage : IVariableBag`? **Recommended:
-  extension-method wrapper** (option c) — only path that delivers
-  the optimistic estimate without IL2CPP risk.
-- ~~Estimate the entities migration's blast radius~~ **Done.** See
-  "Step 3 blast radius — sized" section above. ~7 person-days
-  total for the optimistic path; entities-only Phase B is ~2 days.
+  defer. **Recommended: defer.**
 - Confirm `StoreBackedHandle.Changed` deferral semantics with a
   written test plan (Q8) before bridge-side code lands.
+- Pin builder open questions (Q11–Q12) before Phase C.1 starts —
+  builder home package + read-only handle interface.
+
+## Next steps
+
+Three live paths forward:
+
+- **(a) Start Phase A.** Create `com.scaffold.variables` (shared
+  package) and migrate GraphFlow to it. Self-contained, lands
+  independent of entities. ~3–5 person-days. Safest starting point —
+  validates the abstraction shape against real consumer code before
+  the bigger Phase B begins.
+
+- **(b) Pin remaining open questions before any code.** Resolve
+  Q4 (event vs. method-style subscription), Q11 (builder home
+  package), Q12 (read-only handle interface), and the `Changed`
+  deferral test plan (Q8). Cheap on the surface but has compounding
+  effects — locking these now means Phase A code doesn't get
+  rewritten when the answers come in. ~0.5 person-days of design
+  work.
+
+- **(c) Convert this design doc to a proper ExecPlan.** Phase
+  breakdowns with definition-of-done per phase, snapshot harness
+  expectations, test coverage targets, rollback plan if Phase B
+  proves more invasive than estimated. The other plans under
+  `Plans/GraphFlow/ExecPlan*.md` are the template. ~1 person-day.
+  Recommended if multiple people will touch this; optional if
+  one developer carries it through.
+
+**Recommended path:** (b) → (a) → ExecPlan during Phase A → Phase B.
+Pin the cheap-to-decide questions first, start the lowest-risk code
+work, formalize the plan once Phase A reveals any surprises.
