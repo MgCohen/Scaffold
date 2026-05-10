@@ -83,7 +83,7 @@ Distilled across Spec Kit, Kiro, Anthropic Skills, Squarespace RFC, ML Design Do
 9. **Measurable success criteria** (`SC-001`, `SC-002` …) — technology-agnostic and measurable.
 10. **Definition of Done / Verification** — checklist that doubles as the test plan.
 11. **Risks / Alternatives / Complexity tracking** — Squarespace RFC has explicit "Risks" + "Alternatives Considered"; Spec Kit's plan template has a "Complexity Tracking" table forcing justification when violating the constitution.
-12. **Cross-references** — plain markdown links + `dependencies:` arrays in front-matter. **No production AI workflow uses Obsidian-style `[[wiki-links]]`** — they don't survive renames and agents don't follow them automatically.
+12. **Cross-references** — plain Markdown links + `dependencies:` arrays in front-matter. **No production AI workflow uses Obsidian-style `[[wiki-links]]`** — they don't survive renames and agents don't follow them automatically.
 13. **Trigger context for the AI** — short, "pushy" `description` field telling the agent *when* to consult this doc (Anthropic Skills convention).
 
 ## 4. Cross-slice dependency management
