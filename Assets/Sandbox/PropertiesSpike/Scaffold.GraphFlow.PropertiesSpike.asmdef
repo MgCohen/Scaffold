@@ -1,0 +1,16 @@
+{
+    "name": "Scaffold.GraphFlow.PropertiesSpike",
+    "rootNamespace": "Scaffold.GraphFlow.PropertiesSpike",
+    "references": [
+        "Unity.Properties"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
