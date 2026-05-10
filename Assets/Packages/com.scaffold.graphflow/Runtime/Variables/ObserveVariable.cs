@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using Scaffold.Variables;
 using UnityEngine;
 
 namespace Scaffold.GraphFlow.Nodes
@@ -10,7 +11,7 @@ namespace Scaffold.GraphFlow.Nodes
         [SerializeField] string variableId = string.Empty;
         public FlowOutPort FlowOut = null!;
         public OutputPort<T> NewValue = null!;
-        VariableCell<T>? _cell;
+        IVariableHandle<T>? _handle;
 
         public ObserveVariable()
         {
@@ -22,8 +23,8 @@ namespace Scaffold.GraphFlow.Nodes
 
         public override void Initialize(GraphRunner runner)
         {
-            if (!runner.Variables.TryGetCell<T>(variableId, out _cell)) return;
-            _cell.Changed += v => _ = runner.RunObserver(FlowOut, new VariableChangePayload<T>(v));
+            if (!runner.Variables.TryGet<T>(variableId, out _handle)) return;
+            _handle.Subscribe(v => _ = runner.RunObserver(FlowOut, new VariableChangePayload<T>(v)));
         }
     }
 }

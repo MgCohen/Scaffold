@@ -1,5 +1,6 @@
 #nullable enable
 using System.Collections.Generic;
+using Scaffold.Variables;
 using UnityEngine;
 
 namespace Scaffold.GraphFlow.CardSandbox.Showcase
@@ -12,9 +13,9 @@ namespace Scaffold.GraphFlow.CardSandbox.Showcase
         EventBus _bus = null!;
         DamageSink _damage = null!;
 
-        VariableCell<int>? _hp;
-        VariableCell<int>? _attack;
-        VariableCell<string>? _name;
+        IVariableHandle<int>? _hp;
+        IVariableHandle<int>? _attack;
+        IVariableHandle<string>? _name;
 
         readonly List<string> _log = new();
         Vector2 _logScroll;
@@ -29,16 +30,13 @@ namespace Scaffold.GraphFlow.CardSandbox.Showcase
             var asset = graphAsset != null ? graphAsset : StrikeWithVariables.BuildAsset();
             _runner = builder.Build(asset);
 
-            _runner.Variables.TryGetCell<int>("hp", out _hp);
-            _runner.Variables.TryGetCell<int>("attack", out _attack);
-            _runner.Variables.TryGetCell<string>("name", out _name);
+            _runner.Variables.TryGet<int>("hp", out _hp);
+            _runner.Variables.TryGet<int>("attack", out _attack);
+            _runner.Variables.TryGet<string>("name", out _name);
 
-            if (_hp != null)
-                _hp.Changed += v => AddLog($"HP changed → {v}");
-            if (_attack != null)
-                _attack.Changed += v => AddLog($"Attack changed → {v}");
-            if (_name != null)
-                _name.Changed += v => AddLog($"Name changed → \"{v}\"");
+            _hp?.Subscribe(v => AddLog($"HP changed → {v}"));
+            _attack?.Subscribe(v => AddLog($"Attack changed → {v}"));
+            _name?.Subscribe(v => AddLog($"Name changed → \"{v}\""));
 
             AddLog("Runner built. Variables seeded from defaults.");
         }
@@ -90,8 +88,8 @@ namespace Scaffold.GraphFlow.CardSandbox.Showcase
             {
                 var hpStr = GUILayout.TextField(_hp.Value.ToString(), GUILayout.Width(80));
                 if (int.TryParse(hpStr, out var hpVal) && hpVal != _hp.Value)
-                    _hp.Value = hpVal;
-                _hp.Value = (int)GUILayout.HorizontalSlider(_hp.Value, 0, 200, GUILayout.Width(150));
+                    _hp.Set(hpVal);
+                _hp.Set((int)GUILayout.HorizontalSlider(_hp.Value, 0, 200, GUILayout.Width(150)));
             }
             GUILayout.EndHorizontal();
 
@@ -101,8 +99,8 @@ namespace Scaffold.GraphFlow.CardSandbox.Showcase
             {
                 var atkStr = GUILayout.TextField(_attack.Value.ToString(), GUILayout.Width(80));
                 if (int.TryParse(atkStr, out var atkVal) && atkVal != _attack.Value)
-                    _attack.Value = atkVal;
-                _attack.Value = (int)GUILayout.HorizontalSlider(_attack.Value, 0, 50, GUILayout.Width(150));
+                    _attack.Set(atkVal);
+                _attack.Set((int)GUILayout.HorizontalSlider(_attack.Value, 0, 50, GUILayout.Width(150)));
             }
             GUILayout.EndHorizontal();
 
@@ -111,7 +109,7 @@ namespace Scaffold.GraphFlow.CardSandbox.Showcase
             if (_name != null)
             {
                 var newName = GUILayout.TextField(_name.Value, GUILayout.Width(150));
-                if (newName != _name.Value) _name.Value = newName;
+                if (newName != _name.Value) _name.Set(newName);
             }
             GUILayout.EndHorizontal();
 
@@ -128,17 +126,17 @@ namespace Scaffold.GraphFlow.CardSandbox.Showcase
 
             if (GUILayout.Button("Take 20 Damage", GUILayout.Height(30)))
             {
-                if (_hp != null) _hp.Value -= 20;
+                if (_hp != null) _hp.Set(_hp.Value - 20);
             }
 
             if (GUILayout.Button("Heal +30", GUILayout.Height(30)))
             {
-                if (_hp != null) _hp.Value += 30;
+                if (_hp != null) _hp.Set(_hp.Value + 30);
             }
 
             if (GUILayout.Button("Buff Attack +5", GUILayout.Height(30)))
             {
-                if (_attack != null) _attack.Value += 5;
+                if (_attack != null) _attack.Set(_attack.Value + 5);
             }
 
             GUILayout.EndHorizontal();

@@ -1,22 +1,10 @@
 using System;
+using Scaffold.Variables;
 
 namespace Scaffold.GraphFlow
 {
     [Serializable]
-    public abstract class BlackboardVariable
-    {
-        public abstract Type ValueType { get; }
-        public abstract VariableCell CreateCell(string id);
-    }
-
-    [Serializable]
-    public abstract class BlackboardVariable<T> : BlackboardVariable
-    {
-        public T value;
-
-        public sealed override Type ValueType => typeof(T);
-        public sealed override VariableCell CreateCell(string id) => new VariableCell<T>(id, value);
-    }
+    public abstract class BlackboardVariable<T> : VariableDefault<T> { }
 
     [Serializable] public sealed class BlackboardInt    : BlackboardVariable<int> { }
     [Serializable] public sealed class BlackboardFloat  : BlackboardVariable<float> { }

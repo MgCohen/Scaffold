@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using Scaffold.Variables;
 
 namespace Scaffold.GraphFlow
 {
@@ -9,7 +10,7 @@ namespace Scaffold.GraphFlow
             throw new InvalidOperationException(
                 $"ConnectFrom is only valid on InputPort<T>; got {GetType()}.");
 
-        internal virtual void ConnectFromVariable(VariableCell cell) =>
+        internal virtual void ConnectFromVariable(IVariableHandle handle) =>
             throw new InvalidOperationException(
                 $"ConnectFromVariable is only valid on InputPort<T>; got {GetType()}.");
     }

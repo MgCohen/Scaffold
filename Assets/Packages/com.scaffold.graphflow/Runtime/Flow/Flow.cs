@@ -1,7 +1,7 @@
 #nullable enable
-using System;
 using System.Collections.Generic;
 using System.Threading;
+using Scaffold.Variables;
 
 namespace Scaffold.GraphFlow
 {
@@ -19,7 +19,7 @@ namespace Scaffold.GraphFlow
         public CancellationToken Token { get; }
 
         public IVariableBag Variables =>
-            _variables ??= new InMemoryVariableBag(Array.Empty<RuntimeVariable>(), Runner.Variables);
+            _variables ??= new InMemoryVariableBag(Runner.Variables);
 
         public Outcome Outcome { get; private set; } = Outcome.Running;
         public bool IsCancelled => Outcome == Outcome.Cancelled;

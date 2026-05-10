@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using Scaffold.Variables;
 using UnityEngine;
 
 namespace Scaffold.GraphFlow.Nodes
@@ -11,7 +12,7 @@ namespace Scaffold.GraphFlow.Nodes
         public InputPort<T> NewValue = null!;
         public FlowInPort In = null!;
         public FlowOutPort Done = null!;
-        VariableCell<T>? _cell;
+        IVariableHandle<T>? _handle;
 
         public SetVariable()
         {
@@ -19,7 +20,7 @@ namespace Scaffold.GraphFlow.Nodes
             Done = new FlowOutPort(this, "Done");
             In = FlowInPort.Sync(this, nameof(In), flow =>
             {
-                if (_cell != null) _cell.Value = NewValue.Read(flow);
+                _handle?.Set(NewValue.Read(flow));
                 return Done;
             });
             Ports.Add("NewValue", NewValue);
@@ -28,6 +29,6 @@ namespace Scaffold.GraphFlow.Nodes
         }
 
         public override void Initialize(GraphRunner runner) =>
-            runner.Variables.TryGetCell<T>(variableId, out _cell);
+            runner.Variables.TryGet<T>(variableId, out _handle);
     }
 }

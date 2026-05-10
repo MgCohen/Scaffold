@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
+using Scaffold.Variables;
 
 namespace Scaffold.GraphFlow.Tests
 {
@@ -24,7 +25,7 @@ namespace Scaffold.GraphFlow.Tests
         // Constructs a RuntimeVariable from a typed default with the AssemblyQualifiedName
         // null-forgiving call colocated here (Type.AssemblyQualifiedName is `string?`
         // under nullable annotations; provably non-null for compile-time typeof()).
-        public static RuntimeVariable Var(string id, BlackboardVariable def) => new()
+        public static RuntimeVariable Var(string id, VariableDefault def) => new()
         {
             id = id,
             name = id,

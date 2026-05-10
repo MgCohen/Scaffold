@@ -1,6 +1,8 @@
 #nullable enable
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Scaffold.Variables;
 using UnityEngine;
 
 namespace Scaffold.GraphFlow.Tests
@@ -11,7 +13,8 @@ namespace Scaffold.GraphFlow.Tests
         {
             readonly IVariableBag? _parent;
             public ParentedRunner(BakedGraph baked, IVariableBag? parent) : base(baked) { _parent = parent; }
-            protected override IVariableBag? CreateParentBag() => _parent;
+            protected internal override IVariableBag CreateVariableBag(IEnumerable<RuntimeVariable> seed)
+                => CreateInMemoryBag(seed, parent: _parent);
         }
 
         sealed class ParentedBuilder : GraphBuilder<ParentedRunner>
@@ -36,7 +39,7 @@ namespace Scaffold.GraphFlow.Tests
             }
         }
 
-        static ParentedAsset Asset(params (string id, BlackboardVariable def)[] vars)
+        static ParentedAsset Asset(params (string id, VariableDefault def)[] vars)
         {
             var asset = ScriptableObject.CreateInstance<ParentedAsset>();
             asset.nodes.Add(new CapturingEntry { nodeId = 1, editorGuid = "a" });
@@ -53,22 +56,20 @@ namespace Scaffold.GraphFlow.Tests
 
             Assert.IsNotNull(runner.Variables);
             Assert.IsNull(runner.Variables.Parent);
-            Assert.IsTrue(runner.Variables.TryGetCell<int>("hp", out var hp));
+            Assert.IsTrue(runner.Variables.TryGet<int>("hp", out var hp));
             Assert.AreEqual(9, hp.Value);
         }
 
         [Test]
-        public void RunnerParentBagComesFromCreateParentBag()
+        public void RunnerParentBagComesFromCreateVariableBagOverride()
         {
-            var global = new InMemoryVariableBag(new[]
-            {
-                VariableTestHelpers.Var("score", new BlackboardInt { value = 100 }),
-            });
+            var global = new InMemoryVariableBag();
+            global.Add(new InMemoryHandle<int>("score", 100));
             var asset  = Asset(("hp", new BlackboardInt { value = 5 }));
             var runner = new ParentedBuilder(global).Build(asset);
 
             Assert.AreSame(global, runner.Variables.Parent);
-            Assert.IsTrue(runner.Variables.TryGetCell<int>("score", out var score));
+            Assert.IsTrue(runner.Variables.TryGet<int>("score", out var score));
             Assert.AreEqual(100, score.Value);
         }
 
@@ -82,21 +83,21 @@ namespace Scaffold.GraphFlow.Tests
 
             Assert.IsNotNull(flow.Variables);
             Assert.AreSame(runner.Variables, flow.Variables.Parent);
-            Assert.IsTrue(flow.Variables.TryGetCell<int>("hp", out var hp));
+            Assert.IsTrue(flow.Variables.TryGet<int>("hp", out var hp));
             Assert.AreEqual(1, hp.Value);
         }
 
         [Test]
-        public async Task SetThroughFlowHitsRunnerOwnedCell()
+        public async Task SetThroughFlowHitsRunnerOwnedHandle()
         {
             var asset  = Asset(("hp", new BlackboardInt { value = 1 }));
             var runner = new ParentedBuilder(parent: null).Build(asset);
             var flow   = await runner.Run(new EmptyEntry());
 
-            Assert.IsTrue(flow.Variables.TryGetCell<int>("hp", out var fromFlow));
-            fromFlow.Value = 99;
+            Assert.IsTrue(flow.Variables.TryGet<int>("hp", out var fromFlow));
+            fromFlow.Set(99);
 
-            Assert.IsTrue(runner.Variables.TryGetCell<int>("hp", out var fromRunner));
+            Assert.IsTrue(runner.Variables.TryGet<int>("hp", out var fromRunner));
             Assert.AreSame(fromFlow, fromRunner);
             Assert.AreEqual(99, fromRunner.Value);
         }

@@ -38,7 +38,7 @@ namespace Scaffold.GraphFlow.Tests
         }
 
         [Test]
-        public async Task GetVariableReadsCellValue()
+        public async Task GetVariableReadsHandleValue()
         {
             var asset = ScriptableObject.CreateInstance<BareAsset>();
             var entry = new Entry { nodeId = 1, editorGuid = "a" };
@@ -53,15 +53,15 @@ namespace Scaffold.GraphFlow.Tests
 
             Assert.AreEqual(7, get.Value.Read(flow));
 
-            // Mutating the cell flows through (cache: false on the Get port).
-            Assert.IsTrue(runner.Variables.TryGetCell<int>("hp", out var cell));
-            cell.Value = 13;
+            // Mutating the handle flows through (cache: false on the Get port).
+            Assert.IsTrue(runner.Variables.TryGet<int>("hp", out var handle));
+            handle.Set(13);
             flow.InvalidateAll();
             Assert.AreEqual(13, get.Value.Read(flow));
         }
 
         [Test]
-        public async Task SetVariableWritesCellThroughFlowExecution()
+        public async Task SetVariableWritesHandleThroughFlowExecution()
         {
             var asset = ScriptableObject.CreateInstance<BareAsset>();
             var entry  = new Entry          { nodeId = 1, editorGuid = "a" };
@@ -79,8 +79,8 @@ namespace Scaffold.GraphFlow.Tests
             var runner = new BareBuilder().Build(asset);
             await runner.Run(new EmptyEntry());
 
-            Assert.IsTrue(runner.Variables.TryGetCell<int>("hp", out var cell));
-            Assert.AreEqual(99, cell.Value);
+            Assert.IsTrue(runner.Variables.TryGet<int>("hp", out var handle));
+            Assert.AreEqual(99, handle.Value);
         }
 
         [Test]
@@ -95,7 +95,7 @@ namespace Scaffold.GraphFlow.Tests
             var runner = new BareBuilder().Build(asset);
             var flow = await runner.Run(new EmptyEntry());
 
-            // No declaration for "missing" → cell resolves to null → port returns default(int).
+            // No declaration for "missing" → handle resolves to null → port returns default(int).
             Assert.AreEqual(0, get.Value.Read(flow));
         }
     }

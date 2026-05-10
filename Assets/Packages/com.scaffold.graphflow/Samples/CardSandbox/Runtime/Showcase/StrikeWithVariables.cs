@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Reflection;
 using Scaffold.GraphFlow.Nodes;
+using Scaffold.Variables;
 using UnityEngine;
 
 namespace Scaffold.GraphFlow.CardSandbox.Showcase
@@ -57,7 +58,7 @@ namespace Scaffold.GraphFlow.CardSandbox.Showcase
             return asset;
         }
 
-        static RuntimeVariable Var(string id, BlackboardVariable def) => new()
+        static RuntimeVariable Var(string id, VariableDefault def) => new()
         {
             id = id,
             name = id,

@@ -1,11 +1,11 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using Scaffold.Variables;
 using Unity.GraphToolkit.Editor;
 
 namespace Scaffold.GraphFlow.Editor
 {
-    /// <summary>Builds a typed <see cref="BlackboardVariable"/> from a GT <see cref="IVariable"/>.
+    /// <summary>Builds a typed <see cref="VariableDefault"/> from a GT <see cref="IVariable"/>.
     /// Known types (int, float, bool, string, Object) are dispatched directly. Unknown types
     /// are resolved via reflection — any <see cref="BlackboardVariable{T}"/> subclass visible to
     /// the runtime assembly is discovered automatically.</summary>
@@ -13,7 +13,7 @@ namespace Scaffold.GraphFlow.Editor
     {
         static Dictionary<Type, Type>? s_defaultByValueType;
 
-        public static BlackboardVariable? CreateFor(IVariable variable)
+        public static VariableDefault? CreateFor(IVariable variable)
         {
             if (variable == null) return null;
             var t = variable.dataType;
@@ -32,7 +32,7 @@ namespace Scaffold.GraphFlow.Editor
             return TryCreateViaReflection(t);
         }
 
-        static BlackboardVariable? TryCreateViaReflection(Type valueType)
+        static VariableDefault? TryCreateViaReflection(Type valueType)
         {
             if (s_defaultByValueType == null)
             {
@@ -58,7 +58,7 @@ namespace Scaffold.GraphFlow.Editor
             if (!s_defaultByValueType.TryGetValue(valueType, out var defaultType))
                 return null;
 
-            return Activator.CreateInstance(defaultType) as BlackboardVariable;
+            return Activator.CreateInstance(defaultType) as VariableDefault;
         }
     }
 }

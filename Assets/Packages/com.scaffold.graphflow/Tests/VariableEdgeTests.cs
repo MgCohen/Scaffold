@@ -84,8 +84,8 @@ namespace Scaffold.GraphFlow.Tests
             });
 
             var runner = new BareBuilder().Build(asset);
-            Assert.IsTrue(runner.Variables.TryGetCell<int>("speed", out var cell));
-            cell.Value = 50;
+            Assert.IsTrue(runner.Variables.TryGet<int>("speed", out var handle));
+            handle.Set(50);
 
             var flow = await runner.Run(new EmptyEntry());
             Assert.AreEqual(100, doubler.Out.Read(flow));

@@ -1,7 +1,9 @@
 #nullable enable
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Scaffold.GraphFlow.Nodes;
+using Scaffold.Variables;
 using UnityEngine;
 
 namespace Scaffold.GraphFlow.Tests
@@ -16,7 +18,8 @@ namespace Scaffold.GraphFlow.Tests
         {
             readonly IVariableBag? _parent;
             public ScopedRunner(BakedGraph baked, IVariableBag? parent) : base(baked) { _parent = parent; }
-            protected override IVariableBag? CreateParentBag() => _parent;
+            protected internal override IVariableBag CreateVariableBag(IEnumerable<RuntimeVariable> seed)
+                => CreateInMemoryBag(seed, parent: _parent);
         }
 
         sealed class ScopedBuilder : GraphBuilder<ScopedRunner>
@@ -57,18 +60,16 @@ namespace Scaffold.GraphFlow.Tests
         //   - Two graph variables: hp (int, default 100), name (string, default "hero").
         //   - One global variable in the parent bag: score (int, default 0).
         //   - Variable-bound input port: a Doubler reads `hp` directly, no Get node.
-        //   - Set node writes a literal into the graph-level `hp` cell.
-        //   - Set node writes into the parent-bag `score` cell — verifies bubble-up.
+        //   - Set node writes a literal into the graph-level `hp` handle.
+        //   - Set node writes into the parent-bag `score` handle — verifies bubble-up.
         //   - Observe node fires when `hp` changes; downstream recorder logs the
         //     new value.
         [Test]
         public async Task FullChain_GraphAndGlobalVariables_VariableEdges_GetSetObserve()
         {
             // Parent bag (consumer-supplied global state).
-            var globalBag = new InMemoryVariableBag(new[]
-            {
-                VariableTestHelpers.Var("score", new BlackboardInt { value = 0 }),
-            });
+            var globalBag = new InMemoryVariableBag();
+            globalBag.Add(new InMemoryHandle<int>("score", 0));
 
             var asset = ScriptableObject.CreateInstance<ScopedAsset>();
 
@@ -110,37 +111,37 @@ namespace Scaffold.GraphFlow.Tests
             var runner = new ScopedBuilder(globalBag).Build(asset);
 
             // Pre-conditions: graph defaults seeded, parent bag visible from runner.
-            Assert.IsTrue(runner.Variables.TryGetCell<int>("hp", out var hpCell));
-            Assert.AreEqual(100, hpCell.Value);
-            Assert.IsTrue(runner.Variables.TryGetCell<int>("score", out var scoreCellViaRunner));
-            Assert.AreEqual(0, scoreCellViaRunner.Value);
+            Assert.IsTrue(runner.Variables.TryGet<int>("hp", out var hpHandle));
+            Assert.AreEqual(100, hpHandle.Value);
+            Assert.IsTrue(runner.Variables.TryGet<int>("score", out var scoreViaRunner));
+            Assert.AreEqual(0, scoreViaRunner.Value);
             Assert.AreSame(globalBag, runner.Variables.Parent);
 
             // Run the graph: SetHp (75) → SetScore (250).
             await runner.Run(new StartPayload());
 
             // Graph-layer write landed locally.
-            Assert.AreEqual(75, hpCell.Value);
+            Assert.AreEqual(75, hpHandle.Value);
 
-            // Global write bubbled up to the parent bag (cached cell ref → owning layer).
-            Assert.IsTrue(globalBag.TryGetCell<int>("score", out var scoreInGlobal));
+            // Global write bubbled up to the parent bag (cached handle ref → owning layer).
+            Assert.IsTrue(globalBag.TryGet<int>("score", out var scoreInGlobal));
             Assert.AreEqual(250, scoreInGlobal.Value);
 
             // Observe drove a flow when hp changed: 100 → 75 once.
             Assert.AreEqual(new[] { 75 }, observeRec.Recorded);
 
-            // Subsequent direct cell writes also fan out through Observe.
-            hpCell.Value = 60;
-            hpCell.Value = 60;   // no-op
-            hpCell.Value = 30;
+            // Subsequent direct handle writes also fan out through Observe.
+            hpHandle.Set(60);
+            hpHandle.Set(60);   // no-op
+            hpHandle.Set(30);
             await Task.Yield();
             Assert.AreEqual(new[] { 75, 60, 30 }, observeRec.Recorded);
         }
 
         // Variable-bound input port: a Doubler reads `hp` straight from the bag,
-        // no intermediate Get node. Verifies Phase 3 wiring + later cell mutation.
+        // no intermediate Get node. Verifies Phase 3 wiring + later handle mutation.
         [Test]
-        public async Task VariableBoundPort_FollowsCellMutations()
+        public async Task VariableBoundPort_FollowsHandleMutations()
         {
             var asset = ScriptableObject.CreateInstance<ScopedAsset>();
             var start   = new Start       { nodeId = 1, editorGuid = "start" };
@@ -159,9 +160,9 @@ namespace Scaffold.GraphFlow.Tests
 
             Assert.AreEqual(new[] { 42 }, rec.Recorded);
 
-            // Mutate the cell, run again — bound port reflects the new value.
-            Assert.IsTrue(runner.Variables.TryGetCell<int>("speed", out var cell));
-            cell.Value = 50;
+            // Mutate the handle, run again — bound port reflects the new value.
+            Assert.IsTrue(runner.Variables.TryGet<int>("speed", out var handle));
+            handle.Set(50);
             await runner.Run(new StartPayload());
             Assert.AreEqual(new[] { 42, 100 }, rec.Recorded);
         }

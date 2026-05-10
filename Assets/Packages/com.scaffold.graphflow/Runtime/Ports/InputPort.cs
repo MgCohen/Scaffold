@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using Scaffold.Variables;
 
 namespace Scaffold.GraphFlow
 {
@@ -21,11 +22,11 @@ namespace Scaffold.GraphFlow
             _source = typed;
         }
 
-        internal override void ConnectFromVariable(VariableCell cell)
+        internal override void ConnectFromVariable(IVariableHandle handle)
         {
-            if (cell is not VariableCell<T> typed)
+            if (handle is not IReadOnlyVariableHandle<T> typed)
                 throw new InvalidOperationException(
-                    $"Bake: variable cell {cell.GetType()} does not match input port InputPort<{typeof(T)}>.");
+                    $"Bake: variable handle {handle.GetType()} does not match input port InputPort<{typeof(T)}>.");
             _source = new OutputPort<T>(_ => typed.Value, cache: false);
         }
     }

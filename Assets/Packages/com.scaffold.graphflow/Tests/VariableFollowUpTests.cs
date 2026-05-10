@@ -1,7 +1,9 @@
 #nullable enable
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Scaffold.Variables;
 using UnityEngine;
 
 namespace Scaffold.GraphFlow.Tests
@@ -16,7 +18,8 @@ namespace Scaffold.GraphFlow.Tests
         {
             readonly IVariableBag? _parent;
             public ParentedRunner(BakedGraph baked, IVariableBag? parent) : base(baked) { _parent = parent; }
-            protected override IVariableBag? CreateParentBag() => _parent;
+            protected internal override IVariableBag CreateVariableBag(IEnumerable<RuntimeVariable> seed)
+                => CreateInMemoryBag(seed, parent: _parent);
         }
 
         sealed class ParentedBuilder : GraphBuilder<ParentedRunner>
@@ -61,11 +64,9 @@ namespace Scaffold.GraphFlow.Tests
         [Test]
         public void CyclicParentChainDoesNotHang()
         {
-            var seedA = new[] { VariableTestHelpers.Var("x", new BlackboardInt { value = 1 }) };
-            var seedB = Array.Empty<RuntimeVariable>();
-
-            var a = new InMemoryVariableBag(seedA);
-            var b = new InMemoryVariableBag(seedB, parent: a);
+            var a = new InMemoryVariableBag();
+            a.Add(new InMemoryHandle<int>("x", 1));
+            var b = new InMemoryVariableBag(parent: a);
 
             // Forcibly create a cycle: a.Parent → b → a → b → ...
             var parentField = typeof(InMemoryVariableBag).GetField("<Parent>k__BackingField",
@@ -74,14 +75,14 @@ namespace Scaffold.GraphFlow.Tests
             parentField!.SetValue(a, b);
 
             // "x" lives in bag `a`; looking up from `b` walks b → a and finds it.
-            Assert.IsTrue(b.TryGetCell<int>("x", out var cell));
-            Assert.AreEqual(1, cell.Value);
+            Assert.IsTrue(b.TryGet<int>("x", out var handle));
+            Assert.AreEqual(1, handle.Value);
 
             // A key that exists nowhere must return false, not stack-overflow.
-            Assert.IsFalse(b.TryGetCell<int>("missing", out _));
+            Assert.IsFalse(b.TryGet<int>("missing", out _));
 
             // Non-generic overload also terminates on cycles.
-            Assert.IsFalse(b.TryGetCell("missing", out _));
+            Assert.IsFalse(b.TryGet("missing", out _));
         }
 
         // Item 9: When a VariableEdge references a variableId that doesn't exist in
@@ -131,19 +132,19 @@ namespace Scaffold.GraphFlow.Tests
             var runner2 = builder.Build(asset);
 
             // Both runners start with the same default.
-            Assert.IsTrue(runner1.Variables.TryGetCell<int>("hp", out var cell1));
-            Assert.IsTrue(runner2.Variables.TryGetCell<int>("hp", out var cell2));
-            Assert.AreEqual(10, cell1.Value);
-            Assert.AreEqual(10, cell2.Value);
+            Assert.IsTrue(runner1.Variables.TryGet<int>("hp", out var handle1));
+            Assert.IsTrue(runner2.Variables.TryGet<int>("hp", out var handle2));
+            Assert.AreEqual(10, handle1.Value);
+            Assert.AreEqual(10, handle2.Value);
 
-            // Mutating one runner's cell must not affect the other.
-            cell1.Value = 99;
-            Assert.AreEqual(99, cell1.Value);
-            Assert.AreEqual(10, cell2.Value);
+            // Mutating one runner's handle must not affect the other.
+            handle1.Set(99);
+            Assert.AreEqual(99, handle1.Value);
+            Assert.AreEqual(10, handle2.Value);
 
-            cell2.Value = 42;
-            Assert.AreEqual(99, cell1.Value);
-            Assert.AreEqual(42, cell2.Value);
+            handle2.Set(42);
+            Assert.AreEqual(99, handle1.Value);
+            Assert.AreEqual(42, handle2.Value);
         }
     }
 }

@@ -8,7 +8,8 @@
         "GUID:b13665e99cedac1faa8a90387e6163c3",
         "Unity.GraphToolkit.Common.Editor",
         "GUID:6f5703b636aa4cd7a6cd0a162b4c582e",
-        "GUID:4b3a2c1d0e9f8a7b6c5d4e3f2a1b0c9d"
+        "GUID:4b3a2c1d0e9f8a7b6c5d4e3f2a1b0c9d",
+        "GUID:aeaa2ad3d0d1b9aec5a07ab29b764460"
     ],
     "includePlatforms": [
         "Editor"

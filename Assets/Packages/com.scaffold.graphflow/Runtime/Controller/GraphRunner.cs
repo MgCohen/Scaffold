@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Scaffold.Variables;
 
 namespace Scaffold.GraphFlow
 {
@@ -10,7 +11,7 @@ namespace Scaffold.GraphFlow
     {
         public IReadOnlyList<RuntimeNode> Nodes { get; }
         public IReadOnlyDictionary<Type, EntryRuntimeNodeBase> EntriesByPayload { get; }
-        public IVariableBag Variables { get; private set; } = null!;
+        public IVariableBag Variables { get; internal set; } = null!;
 
         protected GraphRunner(BakedGraph baked)
         {
@@ -18,13 +19,31 @@ namespace Scaffold.GraphFlow
             EntriesByPayload = baked.EntriesByPayload;
         }
 
-        /// <summary>Override to inject the outermost (parent / global) bag —
-        /// shared variables, save state, network store, entities VariableBag
-        /// adapter, ... GraphFlow runtime never references the consumer's types.</summary>
-        protected virtual IVariableBag? CreateParentBag() => null;
+        /// <summary>Override to fully construct the runner's variable bag —
+        /// seed the graph-declared variables and chain to whatever consumer
+        /// storage you want (shared variables, save state, network store,
+        /// state-backed bag, ...). Per Invariant 2, the consumer owns bag
+        /// construction so graph-declared variables can flow through any
+        /// custom storage instead of always landing in an in-memory bag.
+        /// Default materializes everything in-memory with no parent.</summary>
+        protected internal virtual IVariableBag CreateVariableBag(IEnumerable<RuntimeVariable> seed)
+            => CreateInMemoryBag(seed);
 
-        internal void SeedVariables(IReadOnlyList<RuntimeVariable> seed)
-            => Variables = new InMemoryVariableBag(seed, CreateParentBag());
+        /// <summary>Convenience for overrides that still want the standard
+        /// in-memory materialization but need a different parent (e.g. a
+        /// consumer-supplied global bag).</summary>
+        protected static InMemoryVariableBag CreateInMemoryBag(
+            IEnumerable<RuntimeVariable> seed, IVariableBag? parent = null)
+        {
+            var bag = new InMemoryVariableBag(parent);
+            if (seed == null) return bag;
+            foreach (var v in seed)
+            {
+                if (v == null || string.IsNullOrEmpty(v.id) || v.defaultValue == null) continue;
+                bag.Add(v.defaultValue.CreateHandle(v.id));
+            }
+            return bag;
+        }
 
         public virtual void Initialize() { }
 
@@ -49,7 +68,7 @@ namespace Scaffold.GraphFlow
             return flow.ReadResult<TResult>();
         }
 
-        // Used by ObserveVariableNode<T> on cell.Changed to drive a flow from the
+        // Used by ObserveVariable<T> on handle.Subscribe to drive a flow from the
         // observer's FlowOut. Internal to avoid widening the public surface for
         // arbitrary "drive a flow from X" needs — observers go through this seam.
         //

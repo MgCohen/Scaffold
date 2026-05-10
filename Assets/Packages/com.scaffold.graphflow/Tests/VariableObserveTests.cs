@@ -15,7 +15,7 @@ namespace Scaffold.GraphFlow.Tests
         public sealed class EmptyEntry : IGraphEntry { }
 
         [Test]
-        public async Task CellChangeFiresObserverFlowWithNewValue()
+        public async Task HandleChangeFiresObserverFlowWithNewValue()
         {
             var asset = ScriptableObject.CreateInstance<BareAsset>();
             var observe  = new ObserveVariable<int> { nodeId = 1, editorGuid = "a" };
@@ -29,13 +29,13 @@ namespace Scaffold.GraphFlow.Tests
             asset.connections.Add(new Edge { fromNodeId = 1, fromPortName = nameof(ObserveVariable<int>.NewValue), toNodeId = 2, toPortName = nameof(IntRecorder.Value) });
 
             var runner = new BareBuilder().Build(asset);
-            Assert.IsTrue(runner.Variables.TryGetCell<int>("hp", out var cell));
+            Assert.IsTrue(runner.Variables.TryGet<int>("hp", out var handle));
 
-            cell.Value = 7;
+            handle.Set(7);
             await Task.Yield();   // let any continuations land
 
-            cell.Value = 7;       // same — Changed not raised, no record
-            cell.Value = 11;
+            handle.Set(7);        // same — Subscribe callback not raised, no record
+            handle.Set(11);
             await Task.Yield();
 
             Assert.AreEqual(new[] { 7, 11 }, recorder.Recorded);

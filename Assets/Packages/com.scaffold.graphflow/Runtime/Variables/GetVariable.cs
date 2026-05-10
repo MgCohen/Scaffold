@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using Scaffold.Variables;
 using UnityEngine;
 
 namespace Scaffold.GraphFlow.Nodes
@@ -9,15 +10,15 @@ namespace Scaffold.GraphFlow.Nodes
     {
         [SerializeField] string variableId = string.Empty;
         public OutputPort<T> Value = null!;
-        VariableCell<T>? _cell;
+        IVariableHandle<T>? _handle;
 
         public GetVariable()
         {
-            Value = new OutputPort<T>(_ => _cell != null ? _cell.Value : default!, cache: false);
+            Value = new OutputPort<T>(_ => _handle != null ? _handle.Value : default!, cache: false);
             Ports.Add("Value", Value);
         }
 
         public override void Initialize(GraphRunner runner) =>
-            runner.Variables.TryGetCell<T>(variableId, out _cell);
+            runner.Variables.TryGet<T>(variableId, out _handle);
     }
 }
