@@ -45,24 +45,34 @@ namespace Scaffold.Variables
                 handle = null;
                 return false;
             }
-            if (Parent is InMemoryVariableBag p) return p.TryGetGuarded<T>(id, this, out handle);
-            if (Parent != null) return Parent.TryGet<T>(id, out handle);
-            handle = null;
-            return false;
+            return WalkParent(Parent, id, out handle, visited: null);
         }
 
-        bool TryGetGuarded<T>(string id, InMemoryVariableBag origin,
-                              [MaybeNullWhen(false)] out IVariableHandle<T> handle)
+        static bool WalkParent<T>(IVariableBag? parent, string id,
+                                  [MaybeNullWhen(false)] out IVariableHandle<T> handle,
+                                  HashSet<IVariableBag>? visited)
         {
-            if (ReferenceEquals(this, origin)) { handle = null; return false; }
-            if (_handles.TryGetValue(id, out var raw))
+            while (parent != null)
             {
-                if (raw is IVariableHandle<T> typed) { handle = typed; return true; }
-                handle = null;
-                return false;
+                if (parent is InMemoryVariableBag p)
+                {
+                    visited ??= new HashSet<IVariableBag>(ReferenceEqualityComparer.Instance);
+                    if (!visited.Add(p)) { handle = null; return false; }
+                    if (p._handles.TryGetValue(id, out var raw))
+                    {
+                        if (raw is IVariableHandle<T> typed) { handle = typed; return true; }
+                        handle = null;
+                        return false;
+                    }
+                    parent = p.Parent;
+                    continue;
+                }
+                // External IVariableBag implementation: defer to it. We can no
+                // longer track visits across an opaque boundary, so cycles
+                // entirely outside InMemoryVariableBag's chain are the
+                // implementor's responsibility.
+                return parent.TryGet<T>(id, out handle);
             }
-            if (Parent is InMemoryVariableBag p) return p.TryGetGuarded<T>(id, origin, out handle);
-            if (Parent != null) return Parent.TryGet<T>(id, out handle);
             handle = null;
             return false;
         }
@@ -70,23 +80,39 @@ namespace Scaffold.Variables
         public bool TryGet(string id, [MaybeNullWhen(false)] out IVariableHandle handle)
         {
             if (_handles.TryGetValue(id, out handle!)) return true;
-            if (Parent is InMemoryVariableBag p) return p.TryGetGuarded(id, this, out handle);
-            if (Parent != null) return Parent.TryGet(id, out handle);
-            handle = null;
-            return false;
+            return WalkParent(Parent, id, out handle, visited: null);
         }
 
-        bool TryGetGuarded(string id, InMemoryVariableBag origin,
-                           [MaybeNullWhen(false)] out IVariableHandle handle)
+        static bool WalkParent(IVariableBag? parent, string id,
+                               [MaybeNullWhen(false)] out IVariableHandle handle,
+                               HashSet<IVariableBag>? visited)
         {
-            if (ReferenceEquals(this, origin)) { handle = null; return false; }
-            if (_handles.TryGetValue(id, out handle!)) return true;
-            if (Parent is InMemoryVariableBag p) return p.TryGetGuarded(id, origin, out handle);
-            if (Parent != null) return Parent.TryGet(id, out handle);
+            while (parent != null)
+            {
+                if (parent is InMemoryVariableBag p)
+                {
+                    visited ??= new HashSet<IVariableBag>(ReferenceEqualityComparer.Instance);
+                    if (!visited.Add(p)) { handle = null; return false; }
+                    if (p._handles.TryGetValue(id, out handle!)) return true;
+                    parent = p.Parent;
+                    continue;
+                }
+                return parent.TryGet(id, out handle);
+            }
             handle = null;
             return false;
         }
 
         public IEnumerable<IVariableHandle> LocalHandles => _handles.Values;
+    }
+
+    // Reference-equality comparer for HashSet<IVariableBag> visited tracking.
+    // Avoids accidentally treating two distinct bags as equal because someone
+    // override Equals on a custom IVariableBag implementation.
+    sealed class ReferenceEqualityComparer : IEqualityComparer<IVariableBag>
+    {
+        public static readonly ReferenceEqualityComparer Instance = new();
+        public bool Equals(IVariableBag? x, IVariableBag? y) => ReferenceEquals(x, y);
+        public int GetHashCode(IVariableBag obj) => System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(obj);
     }
 }

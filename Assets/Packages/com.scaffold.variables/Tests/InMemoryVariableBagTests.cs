@@ -180,24 +180,45 @@ namespace Scaffold.Variables.Tests
             Assert.AreEqual(2, count);
         }
 
-        [Test]
-        public void CyclicParentChainDoesNotHang()
+        // The shared InMemoryVariableBag's Parent is constructor-only, so a
+        // cycle isn't reachable via the public API. Force one via reflection on
+        // the auto-property's backing field.
+        static void SetParent(InMemoryVariableBag bag, IVariableBag? parent)
         {
-            // The shared InMemoryVariableBag's Parent is constructor-only, so
-            // a cycle isn't reachable via the public API. Force one via
-            // reflection on the auto-property's backing field to exercise the
-            // TryGetGuarded recursion termination.
-            var a = new InMemoryVariableBag();
-            var b = new InMemoryVariableBag(parent: a);
             var backingField = typeof(InMemoryVariableBag).GetField(
                 "<Parent>k__BackingField",
                 System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
-            backingField.SetValue(a, b);
+            backingField.SetValue(bag, parent);
+        }
+
+        [Test]
+        public void CyclicParentChainDoesNotHang_LoopBackToOrigin()
+        {
+            // Simple two-bag cycle: a.Parent = b, b.Parent = a.
+            var a = new InMemoryVariableBag();
+            var b = new InMemoryVariableBag(parent: a);
+            SetParent(a, b);
 
             Assert.IsFalse(a.TryGet<int>("anything", out _));
             Assert.IsFalse(b.TryGet<int>("anything", out _));
             Assert.IsFalse(a.TryGet("anything", out _));
             Assert.IsFalse(b.TryGet("anything", out _));
+        }
+
+        [Test]
+        public void CyclicParentChainDoesNotHang_CycleWithinAncestors()
+        {
+            // Ancestor-only cycle: d -> a -> b -> a -> b -> ...
+            // Lookup starts at d (which is never revisited), so the older
+            // origin-only guard would have spun forever; the visited-set guard
+            // catches it on the second visit to a.
+            var a = new InMemoryVariableBag();
+            var b = new InMemoryVariableBag(parent: a);
+            SetParent(a, b);
+            var d = new InMemoryVariableBag(parent: a);
+
+            Assert.IsFalse(d.TryGet<int>("anything", out _));
+            Assert.IsFalse(d.TryGet("anything", out _));
         }
     }
 }

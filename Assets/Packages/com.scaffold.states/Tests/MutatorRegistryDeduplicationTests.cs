@@ -46,7 +46,7 @@ namespace Scaffold.States.Tests
         public void IsRegistered_ReturnsFalseForNullType()
         {
             var registry = new MutatorRegistry();
-            Assert.IsFalse(registry.IsRegistered(null!));
+            Assert.IsFalse(registry.IsRegistered(null));
         }
     }
 }

@@ -16,7 +16,9 @@ namespace Scaffold.Variables
 
         public InMemoryHandle(string id, T initial)
         {
-            Id = id ?? "";
+            if (string.IsNullOrEmpty(id))
+                throw new ArgumentException("Handle id must be non-empty.", nameof(id));
+            Id = id;
             _value = initial;
         }
 
