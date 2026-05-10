@@ -224,6 +224,14 @@ namespace Scaffold.States
 
         #endregion
 
+        #region Scope
+        public MutationScope BeginScope()
+        {
+            MutatorRunner runner = mutatorRunnerPool.Take();
+            return new MutationScope(runner, mutatorRegistry, r => mutatorRunnerPool.Return(r));
+        }
+        #endregion
+
         #region Mutators
         public void ExecuteMutator<TState>(Mutator<TState> mutator) where TState : State
         {
