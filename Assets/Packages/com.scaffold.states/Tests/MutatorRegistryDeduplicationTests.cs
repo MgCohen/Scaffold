@@ -24,5 +24,29 @@ namespace Scaffold.States.Tests
             registry.Register(new TestMutator());
             Assert.Throws<DuplicateMutatorRegistrationException>(() => registry.Register(new TestMutator()));
         }
+
+        [Test]
+        public void IsRegistered_ReturnsTrueAfterRegistration()
+        {
+            var registry = new MutatorRegistry();
+            Assert.IsFalse(registry.IsRegistered(typeof(TestPayload)));
+            registry.Register(new TestMutator());
+            Assert.IsTrue(registry.IsRegistered(typeof(TestPayload)));
+        }
+
+        [Test]
+        public void IsRegistered_ReturnsFalseForUnknownPayload()
+        {
+            var registry = new MutatorRegistry();
+            Assert.IsFalse(registry.IsRegistered(typeof(TestPayload)));
+            Assert.IsFalse(registry.IsRegistered(typeof(string)));
+        }
+
+        [Test]
+        public void IsRegistered_ReturnsFalseForNullType()
+        {
+            var registry = new MutatorRegistry();
+            Assert.IsFalse(registry.IsRegistered(null!));
+        }
     }
 }

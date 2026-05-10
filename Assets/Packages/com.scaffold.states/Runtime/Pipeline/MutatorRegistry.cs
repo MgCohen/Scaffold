@@ -34,6 +34,15 @@ namespace Scaffold.States
             return false;
         }
 
+        // Returns true when at least one mutator is registered for the given
+        // payload type. Used by builders that need to fail fast on missing
+        // registration before runtime execute attempts the dispatch.
+        public bool IsRegistered(Type payloadType)
+        {
+            if (payloadType == null) return false;
+            return registrations.TryGetValue(payloadType, out var list) && list.Count > 0;
+        }
+
         private void ThrowIfDuplicateConcreteMutatorRegistered<TState, TPayload>(List<IPayloadMutatorBinding> list, Mutator<TState, TPayload> mutator) where TState : State
         {
             Type mutatorType = mutator.GetType();
