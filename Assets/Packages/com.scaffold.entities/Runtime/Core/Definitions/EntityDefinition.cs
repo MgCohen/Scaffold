@@ -20,7 +20,7 @@ namespace Scaffold.Entities
 
         public bool TryGetDefaultValue(Variable key, out VariableValue value)
         {
-            return bag.TryGetBase(key, out value);
+            return bag.TryGetLocalBase(key, out value);
         }
 
         public void AddVariable(Variable key, VariableValue defaultValue)

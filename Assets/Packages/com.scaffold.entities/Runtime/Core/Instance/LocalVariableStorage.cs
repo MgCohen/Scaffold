@@ -74,10 +74,9 @@ namespace Scaffold.Entities
 
         public IEnumerable<IVariableHandle> LocalHandles => instanceBaseBag.LocalHandles;
 
-#pragma warning disable CS0612, CS0618
         public bool TryGetBase(Variable key, out VariableValue value)
         {
-            if (instanceBaseBag.TryGetBase(key, out value))
+            if (instanceBaseBag.TryGetLocalBase(key, out value))
             {
                 return true;
             }
@@ -90,7 +89,6 @@ namespace Scaffold.Entities
             value = default!;
             return false;
         }
-#pragma warning restore CS0612, CS0618
 
         public IEnumerable<ActiveModifier> GetModifiers(Variable key)
         {

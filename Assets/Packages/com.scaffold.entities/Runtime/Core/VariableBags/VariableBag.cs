@@ -72,20 +72,17 @@ namespace Scaffold.Entities
             }
         }
 
-        [Obsolete("Use TryGet<T> instead. Will be removed in a future release.")]
-        public bool TryGetBase(Variable key, out VariableValue value)
-        {
-            return TryGetBaseCore(key, out value);
-        }
-
-        private bool TryGetBaseCore(Variable key, out VariableValue value)
+        // Polymorphic local-base accessor for entity-internal use. EntityDefinition
+        // routes TryGetDefaultValue through this. External consumers should use
+        // the typed IVariableBag.TryGet<T> API instead.
+        internal bool TryGetLocalBase(Variable key, out VariableValue value)
         {
             if (localCache.TryGetValue(key, out value))
             {
                 return true;
             }
 
-            return parent != null && parent.TryGetBaseCore(key, out value);
+            return parent != null && parent.TryGetLocalBase(key, out value);
         }
 
         internal void AddSerializedEntry(VariableEntry entry)
