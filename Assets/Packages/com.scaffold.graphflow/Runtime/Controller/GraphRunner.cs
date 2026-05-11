@@ -13,10 +13,41 @@ namespace Scaffold.GraphFlow
         public IReadOnlyDictionary<Type, EntryRuntimeNodeBase> EntriesByPayload { get; }
         public IVariableBag Variables { get; internal set; } = null!;
 
-        protected GraphRunner(BakedGraph baked)
+        // Cap on concurrent flows running against this runner. Each Flow takes
+        // one slot index from this pool for its lifetime; Complete() returns it.
+        // Step 2/3 sizes each OutputPort<T>'s typed cache to this count, so
+        // raising it costs memory linearly across cached ports.
+        public int MaxConcurrentFlows { get; }
+        readonly Stack<int> _freeFlowIndices;
+
+        protected GraphRunner(BakedGraph baked, int maxConcurrentFlows = 8)
         {
+            if (maxConcurrentFlows < 1)
+                throw new ArgumentOutOfRangeException(
+                    nameof(maxConcurrentFlows),
+                    maxConcurrentFlows,
+                    "MaxConcurrentFlows must be at least 1.");
             Nodes = baked.Nodes;
             EntriesByPayload = baked.EntriesByPayload;
+            MaxConcurrentFlows = maxConcurrentFlows;
+            _freeFlowIndices = new Stack<int>(maxConcurrentFlows);
+            // Push in reverse so first Acquire returns 0; deterministic for tests.
+            for (int i = maxConcurrentFlows - 1; i >= 0; i--)
+                _freeFlowIndices.Push(i);
+        }
+
+        internal int AcquireFlowIndex()
+        {
+            if (_freeFlowIndices.Count == 0)
+                throw new InvalidOperationException(
+                    $"GraphRunner: MaxConcurrentFlows={MaxConcurrentFlows} exhausted. "
+                    + "Raise the cap by passing maxConcurrentFlows to base(...).");
+            return _freeFlowIndices.Pop();
+        }
+
+        internal void ReleaseFlowIndex(int index)
+        {
+            _freeFlowIndices.Push(index);
         }
 
         /// <summary>Override to fully construct the runner's variable bag —
@@ -62,10 +93,14 @@ namespace Scaffold.GraphFlow
             object payload, FlowOutPort flowOut, CancellationToken ct = default)
         {
             var flow = NewFlow(payload, ct);
-            var dest = flowOut.Connection?.Destination;
-            if (dest != null) await RunFromInPort(dest, flow);
-            flow.InvalidateAll();
-            return flow.ReadResult<TResult>();
+            try
+            {
+                var dest = flowOut.Connection?.Destination;
+                if (dest != null) await RunFromInPort(dest, flow);
+                flow.InvalidateAll();
+                return flow.ReadResult<TResult>();
+            }
+            finally { flow.Complete(); }
         }
 
         // Used by ObserveVariable<T> on handle.Subscribe to drive a flow from the
@@ -79,9 +114,10 @@ namespace Scaffold.GraphFlow
         // original stack — without making the public surface awkward.
         internal async Task RunObserver(FlowOutPort flowOut, object payload, CancellationToken ct = default)
         {
+            Flow? flow = null;
             try
             {
-                var flow = NewFlow(payload, ct);
+                flow = NewFlow(payload, ct);
                 var dest = flowOut.Connection?.Destination;
                 if (dest != null) await RunFromInPort(dest, flow);
                 flow.InvalidateAll();
@@ -90,17 +126,25 @@ namespace Scaffold.GraphFlow
             {
                 UnityEngine.Debug.LogException(e);
             }
+            finally
+            {
+                flow?.Complete();
+            }
         }
 
         Flow NewFlow(object payload, CancellationToken ct) => new Flow(payload, this, ct);
 
         async Task<Flow> RunFromEntry(EntryRuntimeNodeBase entry, Flow flow)
         {
-            var defaultOut = entry.GetDefaultOut();
-            var dest = defaultOut.Connection?.Destination;
-            if (dest != null) await RunFromInPort(dest, flow);
-            flow.InvalidateAll();
-            return flow;
+            try
+            {
+                var defaultOut = entry.GetDefaultOut();
+                var dest = defaultOut.Connection?.Destination;
+                if (dest != null) await RunFromInPort(dest, flow);
+                flow.InvalidateAll();
+                return flow;
+            }
+            finally { flow.Complete(); }
         }
 
         async Task RunFromInPort(FlowInPort start, Flow flow)
@@ -108,7 +152,13 @@ namespace Scaffold.GraphFlow
             FlowInPort? current = start;
             while (current != null)
             {
-                var next = await current.Invoke(flow).ConfigureAwait(false);
+                // Honor flow.Cancel() / flow.Return() even if the calling node
+                // forgot to return null from its FlowIn handler. Returns null
+                // are still the primary termination signal — this is the
+                // belt-and-braces check so the runtime contract matches the
+                // intuitive "Cancel stops execution" semantics.
+                if (flow.IsTerminating) break;
+                var next = await current.Invoke(flow);
                 if (next == null) break;
                 current = next.Connection?.Destination;
             }

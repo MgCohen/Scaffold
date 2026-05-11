@@ -34,7 +34,7 @@ namespace Scaffold.GraphFlow.CardSandbox.Cards
             FlowIn = FlowInPort.Async(this, nameof(FlowIn), async flow =>
             {
                 var cmd = new DealDamageCommand { Amount = Strike500.BaseDamage };
-                await cmd.Execute(Runner(flow), flow).ConfigureAwait(false);
+                await cmd.Execute(Runner(flow), flow);
                 return null;
             });
             Ports.Add(FlowIn.Name, FlowIn);

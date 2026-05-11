@@ -29,7 +29,7 @@ namespace Scaffold.GraphFlow.CardSandbox
             foreach (var (h, filter) in list)
             {
                 if (filter == null || filter == timing)
-                    await h(evt).ConfigureAwait(false);
+                    await h(evt);
             }
         }
     }
