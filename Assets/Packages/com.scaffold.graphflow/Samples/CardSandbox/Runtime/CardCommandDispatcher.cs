@@ -15,7 +15,7 @@ namespace Scaffold.GraphFlow.CardSandbox
             FlowIn = FlowInPort.Async(this, nameof(FlowIn), async flow =>
             {
                 var cmd = BuildPayload(flow);
-                var result = await cmd.Execute(Runner(flow), flow).ConfigureAwait(false);
+                var result = await cmd.Execute(Runner(flow), flow);
                 WriteOutputs(flow, result);
                 return FlowOut;
             });

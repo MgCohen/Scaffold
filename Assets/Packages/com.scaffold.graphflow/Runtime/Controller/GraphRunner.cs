@@ -158,7 +158,7 @@ namespace Scaffold.GraphFlow
                 // belt-and-braces check so the runtime contract matches the
                 // intuitive "Cancel stops execution" semantics.
                 if (flow.IsTerminating) break;
-                var next = await current.Invoke(flow).ConfigureAwait(false);
+                var next = await current.Invoke(flow);
                 if (next == null) break;
                 current = next.Connection?.Destination;
             }

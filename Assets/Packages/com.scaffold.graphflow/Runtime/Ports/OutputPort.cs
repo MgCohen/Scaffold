@@ -6,9 +6,9 @@ namespace Scaffold.GraphFlow
     public sealed class OutputPort<T> : Port
     {
         // Paired version-stamp + value per flow index. Sized to the runner's
-        // MaxConcurrentFlows at Bake time. Step 2 allocates this; Step 3 will
-        // switch Read() to consult it. Until then, the dict-based Flow._cache
-        // remains the live cache (covered by ReadCached below).
+        // MaxConcurrentFlows at Bake time; Read consults it on the hot path.
+        // An entry's Version matches flow.CacheVersion only when the cached
+        // value is fresh for this run; anything else is treated as a miss.
         internal struct Entry
         {
             public int Version;
@@ -37,12 +37,12 @@ namespace Scaffold.GraphFlow
             if (!_shouldCache) return _compute(flow);
 
             // Defensive grow for ports created post-Build with cache: true that
-            // weren't Baked. Steady state never hits this branch.
+            // weren't Baked. Steady state never hits this branch — GraphBuilder
+            // sizes _cache to MaxConcurrentFlows and AcquireFlowIndex never
+            // returns an index outside that range.
             if (_cache.Length <= flow.Index)
             {
-                int target = flow.Runner.MaxConcurrentFlows;
-                if (target <= flow.Index) target = flow.Index + 1;
-                var grown = new Entry[target];
+                var grown = new Entry[flow.Runner.MaxConcurrentFlows];
                 Array.Copy(_cache, grown, _cache.Length);
                 _cache = grown;
             }

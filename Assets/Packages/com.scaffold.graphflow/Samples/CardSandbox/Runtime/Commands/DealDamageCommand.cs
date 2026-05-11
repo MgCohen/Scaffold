@@ -18,9 +18,9 @@ namespace Scaffold.GraphFlow.CardSandbox
         public override async Task<Unit> Execute(ICardEffectScope scope, Flow flow)
         {
             var evt = new DamageDealt { Amount = Amount, Target = Target };
-            await scope.Bus.Publish(evt, Timing.Before).ConfigureAwait(false);
+            await scope.Bus.Publish(evt, Timing.Before);
             scope.Damage.Apply(evt.Target, evt.Amount);
-            await scope.Bus.Publish(evt, Timing.After).ConfigureAwait(false);
+            await scope.Bus.Publish(evt, Timing.After);
             return Unit.Default;
         }
     }
