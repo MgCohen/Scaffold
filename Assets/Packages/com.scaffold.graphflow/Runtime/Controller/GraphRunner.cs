@@ -152,6 +152,12 @@ namespace Scaffold.GraphFlow
             FlowInPort? current = start;
             while (current != null)
             {
+                // Honor flow.Cancel() / flow.Return() even if the calling node
+                // forgot to return null from its FlowIn handler. Returns null
+                // are still the primary termination signal — this is the
+                // belt-and-braces check so the runtime contract matches the
+                // intuitive "Cancel stops execution" semantics.
+                if (flow.IsTerminating) break;
                 var next = await current.Invoke(flow).ConfigureAwait(false);
                 if (next == null) break;
                 current = next.Connection?.Destination;
