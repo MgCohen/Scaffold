@@ -134,6 +134,35 @@ namespace Scaffold.Entities.Tests
             Assert.That(bag.HasLocalKey(key), Is.False);
         }
 
+        [Test]
+        public void VariableEntry_OnAfterDeserialize_SyncsPayloadTypeIdFromKeyTypeName()
+        {
+            var key = new Variable("hp", "float");
+            var entry = VariableEntry.Create(key, new FloatVariableValue(10f));
+
+            var payloadField = typeof(VariableEntry).GetField("payloadTypeId",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            payloadField!.SetValue(entry, "string");
+
+            ((ISerializationCallbackReceiver)entry).OnAfterDeserialize();
+
+            Assert.That(entry.PayloadTypeId, Is.EqualTo("float"));
+        }
+
+        [Test]
+        public void VariableEntry_OnAfterDeserialize_NoOpWhenKeyIsEmpty()
+        {
+            var entry = VariableEntry.Create(new Variable("", ""), new FloatVariableValue(0f));
+
+            var payloadField = typeof(VariableEntry).GetField("payloadTypeId",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            payloadField!.SetValue(entry, "custom");
+
+            ((ISerializationCallbackReceiver)entry).OnAfterDeserialize();
+
+            Assert.That(entry.PayloadTypeId, Is.EqualTo("custom"));
+        }
+
         private static VariableSO CreateVariableSo(string assetName, Type payloadType)
         {
             var so = ScriptableObject.CreateInstance<VariableSO>();

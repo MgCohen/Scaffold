@@ -8,7 +8,7 @@ using Variable = Scaffold.Variables.Variable;
 namespace Scaffold.Entities
 {
     [Serializable]
-    public sealed partial class EntityModifierEntry
+    public sealed partial class EntityModifierEntry : ISerializationCallbackReceiver
     {
         public EntityModifierEntry(Variable key, VariableModifier modifier, string? payloadTypeId = null)
         {
@@ -114,6 +114,16 @@ namespace Scaffold.Entities
             }
 
             modifier = (VariableModifier)Activator.CreateInstance(candidates[0])!;
+        }
+
+        void ISerializationCallbackReceiver.OnBeforeSerialize() { }
+
+        void ISerializationCallbackReceiver.OnAfterDeserialize()
+        {
+            if (key != null && !string.IsNullOrEmpty(key.Id) && !string.IsNullOrEmpty(key.TypeName))
+            {
+                payloadTypeId = key.TypeName;
+            }
         }
     }
 }

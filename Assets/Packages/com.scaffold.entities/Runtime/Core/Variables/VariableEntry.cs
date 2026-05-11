@@ -7,7 +7,7 @@ using Variable = Scaffold.Variables.Variable;
 namespace Scaffold.Entities
 {
     [Serializable]
-    public sealed partial class VariableEntry
+    public sealed partial class VariableEntry : ISerializationCallbackReceiver
     {
         public VariableEntry()
         {
@@ -77,6 +77,16 @@ namespace Scaffold.Entities
         internal static VariableEntry Create(Variable key, VariableValue baseVal)
         {
             return new VariableEntry(key, baseVal);
+        }
+
+        void ISerializationCallbackReceiver.OnBeforeSerialize() { }
+
+        void ISerializationCallbackReceiver.OnAfterDeserialize()
+        {
+            if (key != null && !string.IsNullOrEmpty(key.Id) && !string.IsNullOrEmpty(key.TypeName))
+            {
+                payloadTypeId = key.TypeName;
+            }
         }
     }
 }

@@ -1,14 +1,15 @@
 #nullable enable
 using System;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Scaffold.Variables
 {
     [Serializable]
     public sealed class Variable : IEquatable<Variable>
     {
-        [SerializeField] private string id = "";
-        [SerializeField] private string typeName = "";
+        [SerializeField, FormerlySerializedAs("key")] private string id = "";
+        [SerializeField, FormerlySerializedAs("payloadTypeId")] private string typeName = "";
 
         public string Id => id ?? "";
         public string TypeName => typeName ?? "";
