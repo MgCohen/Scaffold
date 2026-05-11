@@ -1,9 +1,10 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using Scaffold.Variables;
 using UnityEngine;
-using Variable = Scaffold.Variables.Variable;
 
 namespace Scaffold.Entities
 {
@@ -11,6 +12,7 @@ namespace Scaffold.Entities
     public sealed partial class LocalVariableStorage : IEntityVariableStorage
     {
         public IEntityVariableStorage? Parent { get; }
+        IVariableBag? IVariableBag.Parent => Parent;
 
         [SerializeField] private VariableBag instanceBaseBag = new VariableBag();
 
@@ -25,6 +27,54 @@ namespace Scaffold.Entities
 
         internal VariableBag InstanceBaseBag => instanceBaseBag;
 
+        public bool TryGet<T>(string id, [MaybeNullWhen(false)] out IVariableHandle<T> handle)
+        {
+            var lookupKey = new Variable(id, "");
+            if (TryGetBase(lookupKey, out var baseVal) && baseVal is IVariableValue<T>)
+            {
+                handle = new EntityVariableHandle<T>(id,
+                    () =>
+                    {
+                        if (!TryGetBase(lookupKey, out var anchor) || !(anchor is IVariableValue<T> typedAnchor))
+                            return default!;
+                        T result = typedAnchor.Get();
+                        foreach (var mod in GetModifiers(lookupKey))
+                        {
+                            if (mod.Modifier is VariableModifier<T> typedMod)
+                                result = typedMod.Apply(result);
+                        }
+                        return result;
+                    },
+                    newVal =>
+                    {
+                        if (TryGetBase(lookupKey, out var existing) && existing is VariableValue<T> ex)
+                            SetBaseValue(lookupKey, ex.CreateWithValue(newVal));
+                    });
+                return true;
+            }
+            if (Parent != null)
+                return ((IVariableBag)Parent).TryGet(id, out handle);
+            handle = null;
+            return false;
+        }
+
+        public bool TryGet(string id, [MaybeNullWhen(false)] out IVariableHandle handle)
+        {
+            var lookupKey = new Variable(id, "");
+            if (TryGetBase(lookupKey, out var val) && val != null)
+            {
+                handle = new EntityVariableHandle(id, EntityVariableHandle.ResolvePayloadType(val));
+                return true;
+            }
+            if (Parent != null)
+                return ((IVariableBag)Parent).TryGet(id, out handle);
+            handle = null;
+            return false;
+        }
+
+        public IEnumerable<IVariableHandle> LocalHandles => instanceBaseBag.LocalHandles;
+
+#pragma warning disable CS0612, CS0618
         public bool TryGetBase(Variable key, out VariableValue value)
         {
             if (instanceBaseBag.TryGetBase(key, out value))
@@ -40,6 +90,7 @@ namespace Scaffold.Entities
             value = default!;
             return false;
         }
+#pragma warning restore CS0612, CS0618
 
         public IEnumerable<ActiveModifier> GetModifiers(Variable key)
         {
