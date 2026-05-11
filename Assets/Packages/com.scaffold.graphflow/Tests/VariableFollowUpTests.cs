@@ -18,7 +18,7 @@ namespace Scaffold.GraphFlow.Tests
         {
             readonly IVariableBag? _parent;
             public ParentedRunner(BakedGraph baked, IVariableBag? parent) : base(baked) { _parent = parent; }
-            protected internal override IVariableBag CreateVariableBag(IEnumerable<RuntimeVariable> seed)
+            protected override IVariableBag CreateVariableBag(IEnumerable<RuntimeVariable> seed)
                 => CreateInMemoryBag(seed, parent: _parent);
         }
 

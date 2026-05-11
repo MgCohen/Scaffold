@@ -4,7 +4,8 @@
     "references": [
         "GUID:b967d18ed9aae19488f12b55c25800dd",
         "Scaffold.Entities",
-        "Scaffold.States"
+        "Scaffold.States",
+        "Scaffold.Variables"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

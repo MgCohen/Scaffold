@@ -33,7 +33,7 @@ namespace Scaffold.GraphFlow.Tests
             readonly CapturingBag _bag;
             public CustomBagRunner(BakedGraph baked, CapturingBag bag) : base(baked) { _bag = bag; }
 
-            protected internal override IVariableBag CreateVariableBag(IEnumerable<RuntimeVariable> seed)
+            protected override IVariableBag CreateVariableBag(IEnumerable<RuntimeVariable> seed)
             {
                 foreach (var v in seed)
                     if (v != null && !string.IsNullOrEmpty(v.id))

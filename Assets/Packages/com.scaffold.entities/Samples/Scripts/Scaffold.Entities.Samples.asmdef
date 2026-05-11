@@ -2,7 +2,8 @@
     "name": "Scaffold.Entities.Samples",
     "rootNamespace": "Scaffold.Entities.Samples",
     "references": [
-        "Scaffold.Entities"
+        "Scaffold.Entities",
+        "Scaffold.Variables"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
