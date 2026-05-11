@@ -4,6 +4,7 @@
     "references": [
         "Scaffold.Entities.States",
         "Scaffold.Entities",
+        "Scaffold.GraphFlow",
         "Scaffold.Maps",
         "Scaffold.States",
         "Scaffold.Variables"
