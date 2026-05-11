@@ -11,9 +11,22 @@ namespace Scaffold.GraphFlow
             var runner = CreateRunner(baked);
             runner.Variables = runner.CreateVariableBag(baked.Variables);
             WireVariableEdges(baked, runner);
+            BakePortCaches(baked, runner.MaxConcurrentFlows);
             foreach (var n in baked.Nodes) n.Initialize(runner);
             runner.Initialize();
             return runner;
+        }
+
+        // Sizes per-port caches to the runner's flow-index budget. Cheap walk;
+        // matters because Step 3 of the port-cache migration reads the array
+        // directly without bounds-extending it on the hot path.
+        static void BakePortCaches(BakedGraph baked, int maxFlows)
+        {
+            foreach (var node in baked.Nodes)
+            {
+                foreach (var kvp in node.Ports)
+                    kvp.Value.Bake(maxFlows);
+            }
         }
 
         protected abstract TRunner CreateRunner(BakedGraph baked);

@@ -1,5 +1,4 @@
 #nullable enable
-using System;
 using System.Collections.Generic;
 using System.Threading;
 using Scaffold.Variables;
@@ -10,14 +9,29 @@ namespace Scaffold.GraphFlow
 
     public sealed class Flow
     {
+        // Monotonic, process-wide. Bumped on every Flow construction and every
+        // InvalidateAll so cached entries from any prior version are detectable
+        // by a simple int compare. OutputPort<T>'s per-flow cache uses this as
+        // its freshness key: an entry with Version != flow.CacheVersion is stale.
+        static int s_globalVersion;
+
         readonly object _payload;
         Dictionary<object, object>? _slots;
-        Dictionary<Port, object?>? _cache;
         object? _result;
         IVariableBag? _variables;
+        bool _indexReleased;
 
         public GraphRunner Runner { get; }
         public CancellationToken Token { get; }
+
+        // Pool-assigned slot index into per-port caches. Owned for the flow's
+        // active lifetime; Complete() returns it to the runner pool.
+        public int Index { get; }
+
+        // Freshness key paired with each cache Entry. InvalidateAll bumps it
+        // via Interlocked.Increment on s_globalVersion so post-invalidate
+        // reads always see a fresh number that no earlier write could match.
+        public int CacheVersion { get; private set; }
 
         public IVariableBag Variables =>
             _variables ??= new InMemoryVariableBag(Runner.Variables);
@@ -31,6 +45,8 @@ namespace Scaffold.GraphFlow
             _payload = payload;
             Runner = runner;
             Token = token;
+            Index = runner.AcquireFlowIndex();
+            CacheVersion = Interlocked.Increment(ref s_globalVersion);
         }
 
         public T? GetPayload<T>() where T : class => _payload as T;
@@ -57,16 +73,20 @@ namespace Scaffold.GraphFlow
 
         public T? ReadResult<T>() => _result is T t ? t : default;
 
-        internal T ReadCached<T>(Port port, Func<Flow, T> compute)
+        public void InvalidateAll()
         {
-            _cache ??= new();
-            if (_cache.TryGetValue(port, out var v)) return (T)v!;
-            var fresh = compute(this);
-            _cache[port] = fresh;
-            return fresh;
+            CacheVersion = Interlocked.Increment(ref s_globalVersion);
         }
 
-        public void InvalidateAll() => _cache?.Clear();
+        // Returns the flow's slot index to the runner's pool. Called by the
+        // runner at the end of every run path. Idempotent — late calls after
+        // a manual Complete() are no-ops.
+        internal void Complete()
+        {
+            if (_indexReleased) return;
+            _indexReleased = true;
+            Runner.ReleaseFlowIndex(Index);
+        }
 
         public T GetSlot<T>(object owner) =>
             _slots != null && _slots.TryGetValue(owner, out var v) ? (T)v : default!;

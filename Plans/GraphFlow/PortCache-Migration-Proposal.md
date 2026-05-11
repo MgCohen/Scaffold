@@ -1,10 +1,15 @@
 # Port Cache Migration — Proposal
 
-Status: **proposal, not yet a decision.** Backed by a sandbox spike at
-`Assets/Sandbox/PortCacheSpike/` (10 tests, including correctness for
-flow-index reuse + bench data). Replaces the dictionary-based per-flow
-cache in `Flow` with per-port typed `Entry[]` indexed by `flow.Index`,
-invalidated by a global monotonic version counter.
+Status: **Steps 1–3 landed** on `claude/port-cache-migration-step-1-3`.
+The dictionary-based per-flow cache in `Flow` is gone; reads now go
+through per-port typed `Entry[]` indexed by `flow.Index`, invalidated
+by a global monotonic version counter. 125 / 125 graphflow tests green
+post-migration. Steps 4 (investigate `_slots`) and 5 (promote spike
+benchmarks to a regression suite) remain — both independent and
+deferred until a real perf concern surfaces.
+
+Original spike at `Assets/Sandbox/PortCacheSpike/` (now removed) — see
+`Properties-Spike-Findings.md` for the adjacent-finding origin.
 
 ## Context
 
