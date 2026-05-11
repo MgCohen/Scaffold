@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Variable = Scaffold.Variables.Variable;
 
 namespace Scaffold.Entities
 {
@@ -44,7 +45,7 @@ namespace Scaffold.Entities
         {
             if (!TryGetVariable<T>(key, out var v))
             {
-                throw new KeyNotFoundException(key?.Key ?? "?");
+                throw new KeyNotFoundException(key?.Id ?? "?");
             }
             return v;
         }

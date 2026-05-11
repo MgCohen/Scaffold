@@ -1,11 +1,12 @@
 #nullable enable
 using System.Collections.Generic;
+using Scaffold.Variables;
 
 namespace Scaffold.Entities
 {
-    public interface IEntityVariableStorage
+    public interface IEntityVariableStorage : IVariableBag
     {
-        IEntityVariableStorage? Parent { get; }
+        new IEntityVariableStorage? Parent { get; }
 
         bool TryGetBase(Variable key, out VariableValue value);
         IEnumerable<ActiveModifier> GetModifiers(Variable key);

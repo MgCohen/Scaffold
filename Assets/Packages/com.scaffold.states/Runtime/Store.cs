@@ -371,6 +371,14 @@ namespace Scaffold.States
 
             mutatorRegistry.Register(mutator);
         }
+
+        // Lets builders that compose Store-backed surfaces (e.g. StoreVariableBagBuilder
+        // in the bridge package) fail fast at construction time when a writable binding
+        // references a payload that no registered mutator handles.
+        public bool IsPayloadRegistered(Type payloadType)
+        {
+            return mutatorRegistry.IsRegistered(payloadType);
+        }
         #endregion
 
         #region Slice registration

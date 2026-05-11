@@ -4,8 +4,10 @@
     "references": [
         "Scaffold.Entities.States",
         "Scaffold.Entities",
+        "Scaffold.GraphFlow",
         "Scaffold.Maps",
-        "Scaffold.States"
+        "Scaffold.States",
+        "Scaffold.Variables"
     ],
     "optionalUnityReferences": [
         "TestAssemblies"

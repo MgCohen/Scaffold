@@ -2,6 +2,7 @@ using NUnit.Framework;
 using Scaffold.Entities;
 using UnityEditor;
 using UnityEngine;
+using Variable = Scaffold.Variables.Variable;
 
 namespace Scaffold.Entities.Editor.Tests
 {

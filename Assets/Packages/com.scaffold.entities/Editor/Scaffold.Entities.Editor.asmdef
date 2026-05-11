@@ -2,7 +2,8 @@
     "name": "Scaffold.Entities.Editor",
     "rootNamespace": "Scaffold.Entities.Editor",
     "references": [
-        "Scaffold.Entities"
+        "Scaffold.Entities",
+        "Scaffold.Variables"
     ],
     "includePlatforms": [
         "Editor"

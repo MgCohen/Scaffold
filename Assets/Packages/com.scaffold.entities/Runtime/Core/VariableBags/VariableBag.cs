@@ -1,6 +1,8 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using Scaffold.Variables;
 using UnityEngine;
 
 namespace Scaffold.Entities
@@ -8,8 +10,8 @@ namespace Scaffold.Entities
     [Serializable]
     public sealed partial class VariableBag : IVariableBag
     {
-        public IVariableBag? Parent => parent;
-        [NonSerialized] private IVariableBag? parent;
+        IVariableBag? IVariableBag.Parent => parent;
+        [NonSerialized] private VariableBag? parent;
 
         internal IReadOnlyList<VariableEntry> Entries => entries;
         [SerializeField] private List<VariableEntry> entries = new List<VariableEntry>();
@@ -19,19 +21,68 @@ namespace Scaffold.Entities
 
         public event Action<VariableStructuralChange, Variable, VariableValue?>? OnVariableStructuralChange;
 
-        public void SetParent(IVariableBag? newParent)
+        public void SetParent(VariableBag? newParent)
         {
             parent = newParent;
         }
 
-        public bool TryGetBase(Variable key, out VariableValue value)
+        public bool TryGet<T>(string id, [MaybeNullWhen(false)] out IVariableHandle<T> handle)
+        {
+            var lookupKey = new Variable(id, "");
+            if (localCache.TryGetValue(lookupKey, out var val) && val is VariableValue<T>)
+            {
+                handle = new EntityVariableHandle<T>(id,
+                    () => localCache.TryGetValue(lookupKey, out var v) && v is IVariableValue<T> t ? t.Get() : default!,
+                    newVal =>
+                    {
+                        if (localCache.TryGetValue(lookupKey, out var ex) && ex is VariableValue<T> typed)
+                            localCache[lookupKey] = typed.CreateWithValue(newVal);
+                    });
+                return true;
+            }
+            if (parent != null)
+                return ((IVariableBag)parent).TryGet(id, out handle);
+            handle = null;
+            return false;
+        }
+
+        public bool TryGet(string id, [MaybeNullWhen(false)] out IVariableHandle handle)
+        {
+            var lookupKey = new Variable(id, "");
+            if (localCache.TryGetValue(lookupKey, out var val) && val != null)
+            {
+                handle = new EntityVariableHandle(id, EntityVariableHandle.ResolvePayloadType(val));
+                return true;
+            }
+            if (parent != null)
+                return ((IVariableBag)parent).TryGet(id, out handle);
+            handle = null;
+            return false;
+        }
+
+        public IEnumerable<IVariableHandle> LocalHandles
+        {
+            get
+            {
+                foreach (var kvp in localCache)
+                {
+                    if (kvp.Value != null)
+                        yield return new EntityVariableHandle(kvp.Key.Id, EntityVariableHandle.ResolvePayloadType(kvp.Value));
+                }
+            }
+        }
+
+        // Polymorphic local-base accessor for entity-internal use. EntityDefinition
+        // routes TryGetDefaultValue through this. External consumers should use
+        // the typed IVariableBag.TryGet<T> API instead.
+        internal bool TryGetLocalBase(Variable key, out VariableValue value)
         {
             if (localCache.TryGetValue(key, out value))
             {
                 return true;
             }
 
-            return parent != null && parent.TryGetBase(key, out value);
+            return parent != null && parent.TryGetLocalBase(key, out value);
         }
 
         internal void AddSerializedEntry(VariableEntry entry)
@@ -59,7 +110,7 @@ namespace Scaffold.Entities
             }
 
             Variable entryKey = entry.Key;
-            if (string.IsNullOrEmpty(entryKey.Key) || entry.BaseValue == null)
+            if (string.IsNullOrEmpty(entryKey.Id) || entry.BaseValue == null)
             {
                 return;
             }

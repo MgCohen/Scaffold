@@ -1,4 +1,5 @@
 using System;
+using Variable = Scaffold.Variables.Variable;
 
 namespace Scaffold.Entities
 {

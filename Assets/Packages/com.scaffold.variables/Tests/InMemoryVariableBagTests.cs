@@ -220,5 +220,27 @@ namespace Scaffold.Variables.Tests
             Assert.IsFalse(d.TryGet<int>("anything", out _));
             Assert.IsFalse(d.TryGet("anything", out _));
         }
+
+        [Test]
+        public void Variable_Id_HasFormerlySerializedAs_Key()
+        {
+            var field = typeof(Variable).GetField("id",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            Assert.That(field, Is.Not.Null);
+            var attrs = field!.GetCustomAttributes(typeof(UnityEngine.Serialization.FormerlySerializedAsAttribute), false);
+            Assert.That(attrs.Length, Is.EqualTo(1));
+            Assert.That(((UnityEngine.Serialization.FormerlySerializedAsAttribute)attrs[0]).oldName, Is.EqualTo("key"));
+        }
+
+        [Test]
+        public void Variable_TypeName_HasFormerlySerializedAs_PayloadTypeId()
+        {
+            var field = typeof(Variable).GetField("typeName",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            Assert.That(field, Is.Not.Null);
+            var attrs = field!.GetCustomAttributes(typeof(UnityEngine.Serialization.FormerlySerializedAsAttribute), false);
+            Assert.That(attrs.Length, Is.EqualTo(1));
+            Assert.That(((UnityEngine.Serialization.FormerlySerializedAsAttribute)attrs[0]).oldName, Is.EqualTo("payloadTypeId"));
+        }
     }
 }

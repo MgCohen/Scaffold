@@ -6,6 +6,7 @@ using NUnit.Framework;
 using Scaffold.Entities;
 using Scaffold.Entities.States;
 using Scaffold.States;
+using Variable = Scaffold.Variables.Variable;
 
 namespace Scaffold.Entities.States.Tests
 {

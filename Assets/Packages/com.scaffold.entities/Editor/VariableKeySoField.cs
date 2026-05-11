@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 using Scaffold.Entities;
+using Variable = Scaffold.Variables.Variable;
 using VariableSO = Scaffold.Entities.VariableSO;
-using VRec = Scaffold.Entities.Variable;
 
 namespace Scaffold.Entities.Editor
 {
@@ -43,7 +43,7 @@ namespace Scaffold.Entities.Editor
             }
 
             WriteAuthoringSerializedIfPresent(variableAuthoringProp, n);
-            AssignVariableSerializedFromSo(keyProp, legacyProp, n);
+            AssignVariableSerializedFromSo(entryProperty, keyProp, legacyProp, n);
             RebaseManagedReferencePayloadForVariableSo(entryProperty, serializedValueRelativePath, n);
             entryProperty.serializedObject.ApplyModifiedProperties();
             return true;
@@ -158,14 +158,14 @@ namespace Scaffold.Entities.Editor
             }
         }
 
-        internal static void AssignVariableSerializedFromSo(SerializedProperty? keyProp, SerializedProperty? legacyProp, VariableSO? so)
+        internal static void AssignVariableSerializedFromSo(SerializedProperty entryProperty, SerializedProperty? keyProp, SerializedProperty? legacyProp, VariableSO? so)
         {
             if (keyProp == null)
             {
                 return;
             }
 
-            if (!AssignInlineVariableSerializable(keyProp, so))
+            if (!AssignInlineVariableSerializable(entryProperty, keyProp, so))
             {
                 WriteLegacyReference(legacyProp, so);
                 return;
@@ -190,37 +190,49 @@ namespace Scaffold.Entities.Editor
             }
         }
 
-        internal static bool AssignInlineVariableSerializable(SerializedProperty keyRoot, VariableSO? so)
+        internal static bool AssignInlineVariableSerializable(SerializedProperty entryProperty, SerializedProperty keyRoot, VariableSO? so)
         {
-            SerializedProperty? keyMember = keyRoot.FindPropertyRelative("key");
-            if (keyMember == null || keyMember.propertyType != SerializedPropertyType.String)
+            SerializedProperty? idMember = keyRoot.FindPropertyRelative("id");
+            if (idMember == null || idMember.propertyType != SerializedPropertyType.String)
             {
                 return false;
             }
 
-            SerializedProperty? payloadMember = keyRoot.FindPropertyRelative("payloadTypeId");
-            if (payloadMember == null || payloadMember.propertyType != SerializedPropertyType.String)
+            SerializedProperty? typeNameMember = keyRoot.FindPropertyRelative("typeName");
+            if (typeNameMember == null || typeNameMember.propertyType != SerializedPropertyType.String)
             {
                 return false;
             }
+
+            SerializedProperty? payloadMember = entryProperty.FindPropertyRelative("payloadTypeId");
 
             return so == null
-                ? ClearVariableMembers(keyMember, payloadMember)
-                : FillVariableMembers(keyMember, payloadMember, so);
+                ? ClearVariableMembers(idMember, typeNameMember, payloadMember)
+                : FillVariableMembers(idMember, typeNameMember, payloadMember, so);
         }
 
-        internal static bool ClearVariableMembers(SerializedProperty keyMember, SerializedProperty payloadMember)
+        internal static bool ClearVariableMembers(SerializedProperty idMember, SerializedProperty typeNameMember, SerializedProperty? payloadMember)
         {
-            keyMember.stringValue = "";
-            payloadMember.stringValue = "string";
+            idMember.stringValue = "";
+            typeNameMember.stringValue = "";
+            if (payloadMember != null)
+            {
+                payloadMember.stringValue = "string";
+            }
+
             return true;
         }
 
-        internal static bool FillVariableMembers(SerializedProperty keyMember, SerializedProperty payloadMember, VariableSO so)
+        internal static bool FillVariableMembers(SerializedProperty idMember, SerializedProperty typeNameMember, SerializedProperty? payloadMember, VariableSO so)
         {
-            VRec v = so;
-            keyMember.stringValue = v.Key;
-            payloadMember.stringValue = v.PayloadTypeId;
+            Variable v = so;
+            idMember.stringValue = v.Id;
+            typeNameMember.stringValue = v.TypeName;
+            if (payloadMember != null)
+            {
+                payloadMember.stringValue = so.PayloadTypeId;
+            }
+
             return true;
         }
     }

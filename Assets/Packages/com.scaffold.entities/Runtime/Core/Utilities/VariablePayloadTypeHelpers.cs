@@ -9,11 +9,11 @@ namespace Scaffold.Entities
     {
         private static readonly Dictionary<Type, Type?> cacheByWrapperType = new();
 
-        internal static bool TryResolvePayload(Variable k, string context, out Type expected)
+        internal static bool TryResolvePayload(string payloadTypeId, string keyId, string context, out Type expected)
         {
-            if (!VariableValueRegistry.TryResolve(k.PayloadTypeId, out expected))
+            if (!VariableValueRegistry.TryResolve(payloadTypeId, out expected))
             {
-                Debug.LogError($"{context}: unknown payload type id '{k.PayloadTypeId}' for key '{k.Key}'. Skipping rebase.");
+                Debug.LogError($"{context}: unknown payload type id '{payloadTypeId}' for key '{keyId}'. Skipping rebase.");
                 expected = default!;
                 return false;
             }

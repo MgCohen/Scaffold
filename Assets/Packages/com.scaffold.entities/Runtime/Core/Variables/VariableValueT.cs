@@ -19,6 +19,8 @@ namespace Scaffold.Entities
 
         public abstract T Get();
 
+        internal VariableValue<T> CreateWithValue(T next) => WithValue(next);
+
         protected abstract VariableValue<T> WithValue(T value);
     }
 }

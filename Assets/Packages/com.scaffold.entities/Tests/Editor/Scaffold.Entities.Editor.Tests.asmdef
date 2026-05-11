@@ -3,7 +3,8 @@
     "rootNamespace": "Scaffold.Entities.Editor.Tests",
     "references": [
         "Scaffold.Entities",
-        "Scaffold.Entities.Editor"
+        "Scaffold.Entities.Editor",
+        "Scaffold.Variables"
     ],
     "includePlatforms": [
         "Editor"

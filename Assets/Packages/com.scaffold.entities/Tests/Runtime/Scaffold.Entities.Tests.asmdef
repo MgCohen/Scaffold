@@ -2,7 +2,8 @@
     "name": "Scaffold.Entities.Tests",
     "rootNamespace": "Scaffold.Entities.Tests",
     "references": [
-        "Scaffold.Entities"
+        "Scaffold.Entities",
+        "Scaffold.Variables"
     ],
     "includePlatforms": [
         "Editor"

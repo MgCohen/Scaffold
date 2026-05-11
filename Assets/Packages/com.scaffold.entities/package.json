@@ -10,7 +10,8 @@
                    "url":  "https://github.com/MgCohen/Scaffold"
                },
     "dependencies": {
-        "com.scaffold.records": "0.1.0"
+        "com.scaffold.records": "0.1.0",
+        "com.scaffold.variables": "0.1.0"
     },
     "samples":  [
                     {

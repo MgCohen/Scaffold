@@ -3,25 +3,26 @@ using System.Collections.Generic;
 using NUnit.Framework;
 using Scaffold.Entities;
 using UnityEngine;
+using Variable = Scaffold.Variables.Variable;
 
 namespace Scaffold.Entities.Tests
 {
     public sealed class VariableBagTests
     {
         [Test]
-        public void TryGetBase_SingleBag_ReturnsSerializedEntry()
+        public void TryGet_SingleBag_ReturnsSerializedEntry()
         {
             VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
             var bag = new VariableBag();
             bag.AddSerializedEntry(VariableEntry.Create((Variable)hp, new FloatVariableValue { Value = 7f }));
             bag.RebuildCache();
 
-            Assert.That(bag.TryGetBase((Variable)hp, out VariableValue v), Is.True);
-            Assert.That(((FloatVariableValue)v).Value, Is.EqualTo(7f));
+            Assert.That(((Scaffold.Variables.IVariableBag)bag).TryGet<float>(((Variable)hp).Id, out var handle), Is.True);
+            Assert.That(handle.Value, Is.EqualTo(7f));
         }
 
         [Test]
-        public void TryGetBase_ChildFallsBackToParent()
+        public void TryGet_ChildFallsBackToParent()
         {
             VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
             var parent = new VariableBag();
@@ -32,12 +33,12 @@ namespace Scaffold.Entities.Tests
             child.SetParent(parent);
             child.RebuildCache();
 
-            Assert.That(child.TryGetBase((Variable)hp, out VariableValue v), Is.True);
-            Assert.That(((FloatVariableValue)v).Value, Is.EqualTo(10f));
+            Assert.That(((Scaffold.Variables.IVariableBag)child).TryGet<float>(((Variable)hp).Id, out var handle), Is.True);
+            Assert.That(handle.Value, Is.EqualTo(10f));
         }
 
         [Test]
-        public void TryGetBase_ChildWinsOverParent()
+        public void TryGet_ChildWinsOverParent()
         {
             VariableSO hp = CreateVariableSo("HP", typeof(FloatVariableValue));
             var parent = new VariableBag();
@@ -49,8 +50,8 @@ namespace Scaffold.Entities.Tests
             child.RebuildCache();
             Assert.That(child.Add((Variable)hp, new FloatVariableValue { Value = 3f }), Is.True);
 
-            Assert.That(child.TryGetBase((Variable)hp, out VariableValue v), Is.True);
-            Assert.That(((FloatVariableValue)v).Value, Is.EqualTo(3f));
+            Assert.That(((Scaffold.Variables.IVariableBag)child).TryGet<float>(((Variable)hp).Id, out var handle), Is.True);
+            Assert.That(handle.Value, Is.EqualTo(3f));
         }
 
         [Test]
@@ -114,8 +115,8 @@ namespace Scaffold.Entities.Tests
             };
 
             bag.SetLocalSilent(key, new FloatVariableValue { Value = 9f });
-            Assert.That(bag.TryGetBase(key, out VariableValue v), Is.True);
-            Assert.That(((FloatVariableValue)v).Value, Is.EqualTo(9f));
+            Assert.That(((Scaffold.Variables.IVariableBag)bag).TryGet<float>(key.Id, out var handle), Is.True);
+            Assert.That(handle.Value, Is.EqualTo(9f));
             Assert.That(addedEvents, Is.EqualTo(0));
 
             Assert.That(bag.RemoveLocalSilent(key), Is.True);
@@ -131,6 +132,35 @@ namespace Scaffold.Entities.Tests
             var key = new Variable("N", "float");
             bag.SetLocalSilent(key, null!);
             Assert.That(bag.HasLocalKey(key), Is.False);
+        }
+
+        [Test]
+        public void VariableEntry_OnAfterDeserialize_SyncsPayloadTypeIdFromKeyTypeName()
+        {
+            var key = new Variable("hp", "float");
+            var entry = VariableEntry.Create(key, new FloatVariableValue(10f));
+
+            var payloadField = typeof(VariableEntry).GetField("payloadTypeId",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            payloadField!.SetValue(entry, "string");
+
+            ((ISerializationCallbackReceiver)entry).OnAfterDeserialize();
+
+            Assert.That(entry.PayloadTypeId, Is.EqualTo("float"));
+        }
+
+        [Test]
+        public void VariableEntry_OnAfterDeserialize_NoOpWhenKeyIsEmpty()
+        {
+            var entry = VariableEntry.Create(new Variable("", ""), new FloatVariableValue(0f));
+
+            var payloadField = typeof(VariableEntry).GetField("payloadTypeId",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            payloadField!.SetValue(entry, "custom");
+
+            ((ISerializationCallbackReceiver)entry).OnAfterDeserialize();
+
+            Assert.That(entry.PayloadTypeId, Is.EqualTo("custom"));
         }
 
         private static VariableSO CreateVariableSo(string assetName, Type payloadType)
