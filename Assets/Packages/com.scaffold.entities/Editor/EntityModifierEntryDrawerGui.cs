@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Scaffold.Entities;
 using UnityEditor;
 using UnityEngine;
+using Variable = Scaffold.Variables.Variable;
 
 namespace Scaffold.Entities.Editor
 {
@@ -39,16 +40,23 @@ namespace Scaffold.Entities.Editor
             typeOrderRect = new Rect(x + soW + 4f, rowY, typeAndOrderW, h);
         }
 
-        internal static IReadOnlyList<Type> BuildCompatibleModifierTypes(SerializedProperty keyRoot)
+        internal static IReadOnlyList<Type> BuildCompatibleModifierTypes(SerializedProperty entryProperty)
         {
-            SerializedProperty? keyMember = keyRoot.FindPropertyRelative("key");
-            SerializedProperty? payloadMember = keyRoot.FindPropertyRelative("payloadTypeId");
-            if (!TryReadVariableKey(keyMember, payloadMember, out Variable v))
+            SerializedProperty? keyRoot = entryProperty.FindPropertyRelative("key");
+            SerializedProperty? payloadMember = entryProperty.FindPropertyRelative("payloadTypeId");
+            if (keyRoot == null || payloadMember == null)
             {
                 return Array.Empty<Type>();
             }
 
-            if (!VariablePayloadTypeHelpers.TryResolvePayload(v, nameof(EntityModifierEntryDrawer), out Type wrapperType))
+            SerializedProperty? idMember = keyRoot.FindPropertyRelative("id");
+            if (idMember == null || string.IsNullOrEmpty(idMember.stringValue))
+            {
+                return Array.Empty<Type>();
+            }
+
+            string payloadTypeId = payloadMember.stringValue;
+            if (!VariablePayloadTypeHelpers.TryResolvePayload(payloadTypeId, idMember.stringValue, nameof(EntityModifierEntryDrawer), out Type wrapperType))
             {
                 return Array.Empty<Type>();
             }
@@ -63,28 +71,6 @@ namespace Scaffold.Entities.Editor
             int selectedIndex = ComputeSelectedIndex(types, currentType);
             int newIndex = EditorGUI.Popup(rect, selectedIndex, labels);
             ApplyPopupSelection(modifierProp, types, selectedIndex, newIndex);
-        }
-
-        private static bool TryReadVariableKey(SerializedProperty? keyMember, SerializedProperty? payloadMember, out Variable v)
-        {
-            v = default;
-            if (keyMember == null || payloadMember == null)
-            {
-                return false;
-            }
-
-            if (keyMember.propertyType != SerializedPropertyType.String || payloadMember.propertyType != SerializedPropertyType.String)
-            {
-                return false;
-            }
-
-            if (string.IsNullOrEmpty(keyMember.stringValue))
-            {
-                return false;
-            }
-
-            v = new Variable(keyMember.stringValue, payloadMember.stringValue);
-            return true;
         }
 
         private static string[] BuildPopupLabels(IReadOnlyList<Type> types)

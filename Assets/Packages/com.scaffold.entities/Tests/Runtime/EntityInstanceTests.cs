@@ -1,5 +1,6 @@
 using NUnit.Framework;
 using Scaffold.Entities;
+using Variable = Scaffold.Variables.Variable;
 
 namespace Scaffold.Entities.Tests
 {

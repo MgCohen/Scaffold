@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using Variable = Scaffold.Variables.Variable;
 
 namespace Scaffold.Entities
 {
@@ -59,7 +60,7 @@ namespace Scaffold.Entities
             }
 
             Variable entryKey = entry.Key;
-            if (string.IsNullOrEmpty(entryKey.Key) || entry.BaseValue == null)
+            if (string.IsNullOrEmpty(entryKey.Id) || entry.BaseValue == null)
             {
                 return;
             }

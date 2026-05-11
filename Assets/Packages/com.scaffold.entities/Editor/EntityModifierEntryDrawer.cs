@@ -67,7 +67,7 @@ namespace Scaffold.Entities.Editor
 
         private void DrawModifierTypePicker(Rect typeRect, SerializedProperty entryProperty, ref SerializedProperty? modifierProp, SerializedProperty keyProp)
         {
-            IReadOnlyList<System.Type> types = EntityModifierEntryDrawerGui.BuildCompatibleModifierTypes(keyProp);
+            IReadOnlyList<System.Type> types = EntityModifierEntryDrawerGui.BuildCompatibleModifierTypes(entryProperty);
             VariableModifier? current = modifierProp!.managedReferenceValue as VariableModifier;
             System.Type? currentType = current?.GetType();
             EditorGUI.BeginChangeCheck();

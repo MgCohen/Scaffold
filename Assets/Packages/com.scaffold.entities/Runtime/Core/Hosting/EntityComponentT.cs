@@ -1,5 +1,6 @@
 #nullable enable
 using UnityEngine;
+using Variable = Scaffold.Variables.Variable;
 
 namespace Scaffold.Entities
 {

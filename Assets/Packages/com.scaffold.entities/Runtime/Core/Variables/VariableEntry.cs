@@ -2,6 +2,7 @@
 using System;
 using UnityEngine;
 using UnityEngine.Serialization;
+using Variable = Scaffold.Variables.Variable;
 
 namespace Scaffold.Entities
 {
@@ -12,9 +13,11 @@ namespace Scaffold.Entities
         {
         }
 
-        internal VariableEntry(Variable key, VariableValue baseVal)
+        internal VariableEntry(Variable key, VariableValue baseVal, string? payloadTypeId = null)
         {
             this.key = key;
+            this.payloadTypeId = payloadTypeId
+                ?? (baseVal != null && VariableValueRegistry.TryGetId(baseVal.GetType(), out string id) ? id : "string");
             baseValue = baseVal;
         }
 
@@ -22,7 +25,7 @@ namespace Scaffold.Entities
         {
             get
             {
-                if (key != null && !string.IsNullOrEmpty(key.Key))
+                if (key != null && !string.IsNullOrEmpty(key.Id))
                 {
                     return key;
                 }
@@ -32,13 +35,17 @@ namespace Scaffold.Entities
                     return (Variable)variableLegacy;
                 }
 
-                return key ?? new Variable(string.Empty);
+                return key ?? new Variable(string.Empty, string.Empty);
             }
         }
+
+        public string PayloadTypeId => payloadTypeId ?? "string";
 
         internal VariableValue? BaseValue => baseValue;
 
         [SerializeField] private Variable? key;
+
+        [SerializeField] private string payloadTypeId = "string";
 
         [SerializeField]
         [FormerlySerializedAs("variable")]
@@ -49,12 +56,12 @@ namespace Scaffold.Entities
         internal void RebaseSerializedPayloadIfMismatch()
         {
             Variable k = Key;
-            if (string.IsNullOrEmpty(k.Key))
+            if (string.IsNullOrEmpty(k.Id))
             {
                 return;
             }
 
-            if (!VariablePayloadTypeHelpers.TryResolvePayload(k, nameof(VariableEntry), out Type expected))
+            if (!VariablePayloadTypeHelpers.TryResolvePayload(PayloadTypeId, k.Id, nameof(VariableEntry), out Type expected))
             {
                 return;
             }

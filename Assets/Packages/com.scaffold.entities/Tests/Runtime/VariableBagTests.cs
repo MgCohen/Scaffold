@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using NUnit.Framework;
 using Scaffold.Entities;
 using UnityEngine;
+using Variable = Scaffold.Variables.Variable;
 
 namespace Scaffold.Entities.Tests
 {

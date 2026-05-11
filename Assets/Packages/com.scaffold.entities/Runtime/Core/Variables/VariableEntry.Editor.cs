@@ -1,5 +1,6 @@
 #if UNITY_EDITOR
 using UnityEngine;
+using Variable = Scaffold.Variables.Variable;
 
 namespace Scaffold.Entities
 {
@@ -16,6 +17,7 @@ namespace Scaffold.Entities
             }
 
             key = (Variable)variableAuthoring;
+            payloadTypeId = variableAuthoring.PayloadTypeId;
             variableLegacy = null;
         }
     }

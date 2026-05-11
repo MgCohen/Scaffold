@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using Variable = Scaffold.Variables.Variable;
 
 namespace Scaffold.Entities
 {

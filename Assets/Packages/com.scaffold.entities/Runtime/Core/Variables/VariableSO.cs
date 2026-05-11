@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using Variable = Scaffold.Variables.Variable;
 
 namespace Scaffold.Entities
 {
@@ -46,7 +47,7 @@ namespace Scaffold.Entities
         {
             if (so == null)
             {
-                return new Variable(string.Empty);
+                return new Variable(string.Empty, string.Empty);
             }
 
             return new Variable(so.name, so.PayloadTypeId);

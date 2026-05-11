@@ -3,15 +3,17 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Serialization;
+using Variable = Scaffold.Variables.Variable;
 
 namespace Scaffold.Entities
 {
     [Serializable]
     public sealed partial class EntityModifierEntry
     {
-        public EntityModifierEntry(Variable key, VariableModifier modifier)
+        public EntityModifierEntry(Variable key, VariableModifier modifier, string? payloadTypeId = null)
         {
             this.key = key;
+            this.payloadTypeId = payloadTypeId ?? "string";
             this.modifier = modifier;
         }
 
@@ -23,7 +25,7 @@ namespace Scaffold.Entities
         {
             get
             {
-                if (key != null && !string.IsNullOrEmpty(key.Key))
+                if (key != null && !string.IsNullOrEmpty(key.Id))
                 {
                     return key;
                 }
@@ -33,13 +35,17 @@ namespace Scaffold.Entities
                     return (Variable)variableLegacy;
                 }
 
-                return key ?? new Variable(string.Empty);
+                return key ?? new Variable(string.Empty, string.Empty);
             }
         }
+
+        public string PayloadTypeId => payloadTypeId ?? "string";
 
         public VariableModifier? Modifier => modifier;
 
         [SerializeField] private Variable? key;
+
+        [SerializeField] private string payloadTypeId = "string";
 
         [SerializeField]
         [FormerlySerializedAs("variable")]
@@ -51,7 +57,7 @@ namespace Scaffold.Entities
         internal void RebaseSerializedModifierPayloadIfMismatch()
         {
             Variable k = Key;
-            if (string.IsNullOrEmpty(k.Key))
+            if (string.IsNullOrEmpty(k.Id))
             {
                 return;
             }
@@ -73,7 +79,7 @@ namespace Scaffold.Entities
         {
             expectedValueType = null;
             wrapperType = null!;
-            if (!VariablePayloadTypeHelpers.TryResolvePayload(k, nameof(EntityModifierEntry), out Type wt))
+            if (!VariablePayloadTypeHelpers.TryResolvePayload(PayloadTypeId, k.Id, nameof(EntityModifierEntry), out Type wt))
             {
                 return false;
             }
@@ -86,7 +92,7 @@ namespace Scaffold.Entities
             }
 
             Debug.LogError(
-                $"{nameof(EntityModifierEntry)}: wrapper type '{wrapperType.Name}' has no IVariableValue<T> for key '{k.Key}'. Skipping modifier rebase.");
+                $"{nameof(EntityModifierEntry)}: wrapper type '{wrapperType.Name}' has no IVariableValue<T> for key '{k.Id}'. Skipping modifier rebase.");
             return false;
         }
 
@@ -103,7 +109,7 @@ namespace Scaffold.Entities
             if (candidates.Count == 0)
             {
                 Debug.LogWarning(
-                    $"{nameof(EntityModifierEntry)}: no VariableModifier types for value type '{expectedValueType.Name}' (key '{k.Key}', wrapper '{wrapperType.Name}').");
+                    $"{nameof(EntityModifierEntry)}: no VariableModifier types for value type '{expectedValueType.Name}' (key '{k.Id}', wrapper '{wrapperType.Name}').");
                 return;
             }
 
