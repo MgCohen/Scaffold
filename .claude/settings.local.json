@@ -6,7 +6,8 @@
       "Bash(pwsh -NoProfile -File .agents/scripts/check-unity-compilation.ps1)",
       "Bash(xargs grep *)",
       "Bash(pwsh -NoProfile -File .agents/scripts/check-analyzers.ps1)",
-      "Bash(Select-Object -Last 12)"
+      "Bash(Select-Object -Last 12)",
+      "Bash(git checkout *)"
     ]
   }
 }
