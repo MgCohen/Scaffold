@@ -15,7 +15,7 @@ namespace Scaffold.GraphFlow
         public OnTrigger()
         {
             FlowOut = new FlowOutPort(this, nameof(FlowOut));
-            Event = new OutputPort<TEvent>(flow => flow.GetPayload<TEvent>()!);
+            Event = new OutputPort<TEvent>(flow => PayloadOf(flow));
             Ports.Add(FlowOut.Name, FlowOut);
             Ports.Add(nameof(Event), Event);
         }

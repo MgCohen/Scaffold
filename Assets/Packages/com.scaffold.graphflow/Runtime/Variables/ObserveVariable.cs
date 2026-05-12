@@ -16,7 +16,7 @@ namespace Scaffold.GraphFlow.Nodes
         public ObserveVariable()
         {
             FlowOut = new FlowOutPort(this, "FlowOut");
-            NewValue = new OutputPort<T>(flow => flow.GetPayload<VariableChangePayload<T>>()!.Value);
+            NewValue = new OutputPort<T>(flow => PayloadOf(flow).Value);
             Ports.Add(FlowOut.Name, FlowOut);
             Ports.Add("NewValue", NewValue);
         }
@@ -26,5 +26,10 @@ namespace Scaffold.GraphFlow.Nodes
             if (!runner.Variables.TryGet<T>(variableId, out _handle)) return;
             _handle.Subscribe(v => _ = runner.RunObserver(FlowOut, new VariableChangePayload<T>(v)));
         }
+
+        // Mirrors EntryRuntimeNode<TPayload>.PayloadOf — ObserveVariable is driven
+        // by RunObserver with a typed VariableChangePayload<T>, so the cast is safe.
+        static VariableChangePayload<T> PayloadOf(Flow flow) =>
+            ((Flow<VariableChangePayload<T>>)flow).Payload;
     }
 }

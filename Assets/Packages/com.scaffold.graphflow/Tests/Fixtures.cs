@@ -85,7 +85,7 @@ namespace Scaffold.GraphFlow.Tests
         public TestEntryRuntime()
         {
             FlowOut = new FlowOutPort(this, nameof(FlowOut));
-            Value = new OutputPort<int>(flow => flow.GetPayload<TestEntry>()!.Value);
+            Value = new OutputPort<int>(flow => PayloadOf(flow).Value);
             Ports.Add(FlowOut.Name, FlowOut);
             Ports.Add(nameof(Value), Value);
         }

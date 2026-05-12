@@ -13,7 +13,11 @@ namespace Scaffold.GraphFlow
 
         internal virtual void Build(in NodeBuildSlice slice)
         {
-            for (int i = 0; i < slice.Data.Count; i++) slice.Data[i]();
+            for (int i = 0; i < slice.Data.Count; i++)
+            {
+                var d = slice.Data[i];
+                d.Destination.ConnectFrom(d.Source);
+            }
             for (int i = 0; i < slice.Flow.Count; i++)
             {
                 var f = slice.Flow[i];

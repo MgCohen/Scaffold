@@ -14,10 +14,9 @@ namespace Scaffold.GraphFlow
             throw new InvalidOperationException(
                 $"ConnectFromVariable is only valid on InputPort<T>; got {GetType()}.");
 
-        // Called by GraphBuilder.Build after the runner is constructed and
-        // before nodes are Initialize()'d. OutputPort<T> uses this to size its
-        // per-flow Entry[] cache to the runner's MaxConcurrentFlows. Default
-        // no-op for input / flow ports.
+        // Called by GraphBuilder after the runner is constructed and before
+        // node Initialize() runs. Cached output ports use this to size their
+        // per-flow Entry[] to MaxConcurrentFlows. No-op for everything else.
         internal virtual void Bake(int maxFlows) { }
     }
 }

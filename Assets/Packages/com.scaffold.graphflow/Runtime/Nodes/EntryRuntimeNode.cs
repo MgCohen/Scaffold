@@ -44,8 +44,12 @@ namespace Scaffold.GraphFlow
 
         protected EntryRuntimeNode()
         {
-            Payload = new OutputPort<TPayload>(flow => flow.GetPayload<TPayload>()!);
+            Payload = new OutputPort<TPayload>(flow => PayloadOf(flow));
             Ports.Add(nameof(Payload), Payload);
         }
+
+        // Typed payload accessor for entry-side node code. Cast is safe because
+        // the runner always constructs Flow<TPayload> matching the entry's type.
+        protected static TPayload PayloadOf(Flow flow) => ((Flow<TPayload>)flow).Payload;
     }
 }

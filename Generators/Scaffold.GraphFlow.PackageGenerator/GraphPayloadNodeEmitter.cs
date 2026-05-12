@@ -103,6 +103,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
                             resultType,
                             closedDisp.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
                             package.RunnerTypeName,
+                            runner.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
                             graphPortAttr,
                             graphPortIgnoreAttr,
                             convention);
@@ -311,7 +312,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             sb.AppendLine($"            FlowOut = new FlowOutPort(this, nameof(FlowOut));");
             foreach (var f in fields)
             {
-                sb.AppendLine($"            {f.Name} = new OutputPort<{f.CSharpType}>(flow => flow.GetPayload<{leaf}>()!.{f.Name});");
+                sb.AppendLine($"            {f.Name} = new OutputPort<{f.CSharpType}>(flow => PayloadOf(flow).{f.Name});");
             }
 
             sb.AppendLine($"            Ports.Add(FlowOut.Name, FlowOut);");
@@ -508,6 +509,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
             INamedTypeSymbol result,
             string closedDispatcherFq,
             string runnerName,
+            string runnerFq,
             INamedTypeSymbol graphPortAttr,
             INamedTypeSymbol? graphPortIgnoreAttr,
             int convention)
@@ -539,6 +541,8 @@ namespace Scaffold.GraphFlow.PackageGenerator
             }
 
             sb.AppendLine();
+            sb.AppendLine($"        {result.Name}[] _results = Array.Empty<{result.Name}>();");
+            sb.AppendLine();
             sb.AppendLine($"        public {leaf}DispatcherRuntime()");
             sb.AppendLine("        {");
             foreach (var f in cmdFields)
@@ -548,7 +552,7 @@ namespace Scaffold.GraphFlow.PackageGenerator
 
             foreach (var f in resultFields)
             {
-                sb.AppendLine($"            {f.Name} = new OutputPort<{f.CSharpType}>(flow => flow.GetSlot<{result.Name}>(this).{f.Name});");
+                sb.AppendLine($"            {f.Name} = new OutputPort<{f.CSharpType}>(flow => _results[flow.Index].{f.Name});");
             }
 
             foreach (var f in cmdFields)
@@ -563,9 +567,15 @@ namespace Scaffold.GraphFlow.PackageGenerator
 
             sb.AppendLine("        }");
             sb.AppendLine();
+            sb.AppendLine($"        public override void Initialize({runnerFq} runner)");
+            sb.AppendLine("        {");
+            sb.AppendLine("            base.Initialize(runner);");
+            sb.AppendLine($"            _results = new {result.Name}[runner.MaxConcurrentFlows];");
+            sb.AppendLine("        }");
+            sb.AppendLine();
             sb.AppendLine($"        protected override {cmd.Name} BuildPayload(Flow flow) => new {cmd.Name} {{ {BuildPayloadInputs(cmdFields)} }};");
             sb.AppendLine();
-            sb.AppendLine($"        protected override void WriteOutputs(Flow flow, {result.Name} result) => flow.SetSlot(this, result);");
+            sb.AppendLine($"        protected override void WriteOutputs(Flow flow, {result.Name} result) => _results[flow.Index] = result;");
             sb.AppendLine("    }");
             sb.AppendLine("}");
             spc.AddSource($"{leaf}DispatcherRuntime.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));

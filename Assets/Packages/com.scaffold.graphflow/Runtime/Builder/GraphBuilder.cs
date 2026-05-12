@@ -17,9 +17,8 @@ namespace Scaffold.GraphFlow
             return runner;
         }
 
-        // Sizes per-port caches to the runner's flow-index budget. Cheap walk;
-        // matters because Step 3 of the port-cache migration reads the array
-        // directly without bounds-extending it on the hot path.
+        // Sizes per-port caches to the runner's flow-index budget so the
+        // read hot path can index without bounds checks of its own.
         static void BakePortCaches(BakedGraph baked, int maxFlows)
         {
             foreach (var node in baked.Nodes)

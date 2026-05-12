@@ -13,21 +13,25 @@ namespace Scaffold.GraphFlow.Nodes
         public FlowOutPort Done = null!;
         public OutputPort<int> Iteration = null!;
 
+        int[] _iterations = Array.Empty<int>();
+
+        public override void Initialize(GraphRunner runner) =>
+            _iterations = new int[runner.MaxConcurrentFlows];
+
         partial void InitializePorts()
         {
-            Iteration = new OutputPort<int>(flow => flow.GetSlot<int>(this), cache: false);
+            Iteration = new OutputPort<int>(flow => _iterations[flow.Index], cache: false);
 
             Begin = FlowInPort.Sync(this, nameof(Begin), flow =>
             {
-                flow.SetSlot(this, 0);
+                _iterations[flow.Index] = 0;
                 return Count.Read(flow) > 0 ? Body : Done;
             });
 
             Continue = FlowInPort.Sync(this, nameof(Continue), flow =>
             {
                 flow.InvalidateAll();
-                var i = flow.GetSlot<int>(this) + 1;
-                flow.SetSlot(this, i);
+                var i = ++_iterations[flow.Index];
                 return i < Count.Read(flow) ? Body : Done;
             });
         }

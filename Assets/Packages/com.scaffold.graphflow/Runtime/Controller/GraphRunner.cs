@@ -13,12 +13,13 @@ namespace Scaffold.GraphFlow
         public IReadOnlyDictionary<Type, EntryRuntimeNodeBase> EntriesByPayload { get; }
         public IVariableBag Variables { get; internal set; } = null!;
 
-        // Cap on concurrent flows running against this runner. Each Flow takes
-        // one slot index from this pool for its lifetime; Complete() returns it.
-        // Step 2/3 sizes each OutputPort<T>'s typed cache to this count, so
-        // raising it costs memory linearly across cached ports.
+        // Cap on concurrent flows running against this runner. Each Flow
+        // takes one index from this pool for its lifetime; Complete() returns
+        // it. Every cached output port allocates an Entry[MaxConcurrentFlows],
+        // so raising this costs memory linearly across cached ports.
         public int MaxConcurrentFlows { get; }
         readonly Stack<int> _freeFlowIndices;
+        int _versionCounter;
 
         protected GraphRunner(BakedGraph baked, int maxConcurrentFlows = 8)
         {
@@ -50,6 +51,9 @@ namespace Scaffold.GraphFlow
             _freeFlowIndices.Push(index);
         }
 
+        // Monotonic per-runner version source for OutputPort cache freshness.
+        internal int NextCacheVersion() => ++_versionCounter;
+
         /// <summary>Override to fully construct the runner's variable bag —
         /// seed the graph-declared variables and chain to whatever consumer
         /// storage you want (shared variables, save state, network store,
@@ -78,7 +82,7 @@ namespace Scaffold.GraphFlow
 
         public virtual void Initialize() { }
 
-        public Task<Flow> Run<TEntry>(TEntry payload, CancellationToken ct = default)
+        public Task<Flow<TEntry>> Run<TEntry>(TEntry payload, CancellationToken ct = default)
             where TEntry : class
         {
             if (!EntriesByPayload.TryGetValue(typeof(TEntry), out var entry))
@@ -89,8 +93,9 @@ namespace Scaffold.GraphFlow
             return RunFromEntry(entry, flow);
         }
 
-        protected async Task<TResult?> RunFromFlowOut<TResult>(
-            object payload, FlowOutPort flowOut, CancellationToken ct = default)
+        protected async Task<TResult?> RunFromFlowOut<TPayload, TResult>(
+            TPayload payload, FlowOutPort flowOut, CancellationToken ct = default)
+            where TPayload : class
         {
             var flow = NewFlow(payload, ct);
             try
@@ -112,9 +117,10 @@ namespace Scaffold.GraphFlow
         // the discarded Task and only resurface as UnobservedTaskException at GC
         // time. Catch and log here so failures show up immediately with their
         // original stack — without making the public surface awkward.
-        internal async Task RunObserver(FlowOutPort flowOut, object payload, CancellationToken ct = default)
+        internal async Task RunObserver<TPayload>(FlowOutPort flowOut, TPayload payload, CancellationToken ct = default)
+            where TPayload : class
         {
-            Flow? flow = null;
+            Flow<TPayload>? flow = null;
             try
             {
                 flow = NewFlow(payload, ct);
@@ -132,9 +138,11 @@ namespace Scaffold.GraphFlow
             }
         }
 
-        Flow NewFlow(object payload, CancellationToken ct) => new Flow(payload, this, ct);
+        Flow<TPayload> NewFlow<TPayload>(TPayload payload, CancellationToken ct) where TPayload : class =>
+            new Flow<TPayload>(payload, this, ct);
 
-        async Task<Flow> RunFromEntry(EntryRuntimeNodeBase entry, Flow flow)
+        async Task<Flow<TEntry>> RunFromEntry<TEntry>(EntryRuntimeNodeBase entry, Flow<TEntry> flow)
+            where TEntry : class
         {
             try
             {

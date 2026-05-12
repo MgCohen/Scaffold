@@ -1,19 +1,30 @@
 #nullable enable
-using System;
 using System.Collections.Generic;
 
 namespace Scaffold.GraphFlow
 {
     public readonly struct NodeBuildSlice
     {
-        public IReadOnlyList<Action> Data { get; }
+        public IReadOnlyList<DataBinding> Data { get; }
         public IReadOnlyList<FlowBinding> Flow { get; }
 
-        public NodeBuildSlice(IReadOnlyList<Action> data,
+        public NodeBuildSlice(IReadOnlyList<DataBinding> data,
                               IReadOnlyList<FlowBinding> flow)
         {
             Data = data;
             Flow = flow;
+        }
+    }
+
+    public readonly struct DataBinding
+    {
+        public Port Source { get; }
+        public Port Destination { get; }
+
+        public DataBinding(Port source, Port destination)
+        {
+            Source = source;
+            Destination = destination;
         }
     }
 
