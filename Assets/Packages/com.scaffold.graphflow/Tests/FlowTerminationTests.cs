@@ -48,7 +48,7 @@ namespace Scaffold.GraphFlow.Tests
                 Out = new FlowOutPort(this, nameof(Out));
                 In = FlowInPort.Sync(this, nameof(In), flow =>
                 {
-                    flow.Return(42);
+                    flow.Return();
                     return Out;  // intentionally non-null
                 });
                 Ports.Add(In.Name, In);
@@ -107,7 +107,6 @@ namespace Scaffold.GraphFlow.Tests
             var flow = await runner.Run(new TestEntry { Value = 0 });
 
             Assert.AreEqual(Outcome.Returned, flow.Outcome);
-            Assert.AreEqual(42, flow.ReadResult<int>());
             Assert.IsFalse(mark.Ran, "Downstream node ran despite Return; runtime did not honor IsTerminating.");
         }
     }

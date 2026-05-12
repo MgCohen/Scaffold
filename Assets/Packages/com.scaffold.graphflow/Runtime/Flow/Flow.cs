@@ -6,9 +6,16 @@ namespace Scaffold.GraphFlow
 {
     public enum Outcome { Running, Returned, Cancelled }
 
+    // Contravariant: a Flow<*, Spell> implements IFlowResult<FireSpell> too,
+    // so Return<FireSpell> writes through correctly when the caller asked for
+    // Spell. Unrelated types fail the cast and throw InvalidCastException.
+    internal interface IFlowResult<in TResult>
+    {
+        void SetResult(TResult value);
+    }
+
     public class Flow
     {
-        object? _result;
         IVariableBag? _variables;
 
         public GraphRunner Runner { get; }
@@ -33,14 +40,11 @@ namespace Scaffold.GraphFlow
             CacheVersion = runner.NextCacheVersion();
         }
 
-        public FlowOutPort? Return<T>(T value)
+        public FlowOutPort? Return()
         {
-            _result = value;
             Outcome = Outcome.Returned;
             return null;
         }
-
-        public FlowOutPort? Return() => Return<object?>(null);
 
         public FlowOutPort? Cancel()
         {
@@ -48,14 +52,12 @@ namespace Scaffold.GraphFlow
             return null;
         }
 
-        public T? ReadResult<T>() => _result is T t ? t : default;
-
         public void InvalidateAll() => CacheVersion = Runner.NextCacheVersion();
 
         internal void Complete() => Runner.ReleaseFlowIndex(Index);
     }
 
-    public sealed class Flow<TPayload> : Flow where TPayload : class
+    public class Flow<TPayload> : Flow where TPayload : class
     {
         public TPayload Payload { get; }
 
@@ -64,5 +66,18 @@ namespace Scaffold.GraphFlow
         {
             Payload = payload;
         }
+    }
+
+    public sealed class Flow<TPayload, TResult> : Flow<TPayload>, IFlowResult<TResult>
+        where TPayload : class
+    {
+        public TResult Result { get; private set; } = default!;
+
+        // Explicit implementation — Result is read-only from outside; only
+        // Return<TResult> (via the IFlowResult cast) can write.
+        void IFlowResult<TResult>.SetResult(TResult value) => Result = value;
+
+        internal Flow(TPayload payload, GraphRunner runner, CancellationToken token)
+            : base(payload, runner, token) { }
     }
 }

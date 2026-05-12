@@ -85,25 +85,38 @@ namespace Scaffold.GraphFlow
         public Task<Flow<TEntry>> Run<TEntry>(TEntry payload, CancellationToken ct = default)
             where TEntry : class
         {
-            if (!EntriesByPayload.TryGetValue(typeof(TEntry), out var entry))
-                throw new InvalidOperationException(
-                    $"No entry for {typeof(TEntry).FullName}.");
-
+            var entry = ResolveEntry<TEntry>();
             var flow = NewFlow(payload, ct);
             return RunFromEntry(entry, flow);
         }
 
-        protected async Task<TResult?> RunFromFlowOut<TPayload, TResult>(
+        public Task<Flow<TEntry, TResult>> Run<TEntry, TResult>(TEntry payload, CancellationToken ct = default)
+            where TEntry : class
+        {
+            var entry = ResolveEntry<TEntry>();
+            var flow = NewFlow<TEntry, TResult>(payload, ct);
+            return RunFromEntry(entry, flow);
+        }
+
+        EntryRuntimeNodeBase ResolveEntry<TEntry>()
+        {
+            if (!EntriesByPayload.TryGetValue(typeof(TEntry), out var entry))
+                throw new InvalidOperationException(
+                    $"No entry for {typeof(TEntry).FullName}.");
+            return entry;
+        }
+
+        protected async Task<TResult> RunFromFlowOut<TPayload, TResult>(
             TPayload payload, FlowOutPort flowOut, CancellationToken ct = default)
             where TPayload : class
         {
-            var flow = NewFlow(payload, ct);
+            var flow = NewFlow<TPayload, TResult>(payload, ct);
             try
             {
                 var dest = flowOut.Connection?.Destination;
                 if (dest != null) await RunFromInPort(dest, flow);
                 flow.InvalidateAll();
-                return flow.ReadResult<TResult>();
+                return flow.Result;
             }
             finally { flow.Complete(); }
         }
@@ -141,8 +154,11 @@ namespace Scaffold.GraphFlow
         Flow<TPayload> NewFlow<TPayload>(TPayload payload, CancellationToken ct) where TPayload : class =>
             new Flow<TPayload>(payload, this, ct);
 
-        async Task<Flow<TEntry>> RunFromEntry<TEntry>(EntryRuntimeNodeBase entry, Flow<TEntry> flow)
-            where TEntry : class
+        Flow<TPayload, TResult> NewFlow<TPayload, TResult>(TPayload payload, CancellationToken ct) where TPayload : class =>
+            new Flow<TPayload, TResult>(payload, this, ct);
+
+        async Task<TFlow> RunFromEntry<TFlow>(EntryRuntimeNodeBase entry, TFlow flow)
+            where TFlow : Flow
         {
             try
             {

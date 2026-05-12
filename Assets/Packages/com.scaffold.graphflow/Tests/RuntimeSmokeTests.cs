@@ -64,10 +64,10 @@ namespace Scaffold.GraphFlow.Tests
                 .Data(not,    "Result",  branch, "Condition");
 
             var runner = new TestBuilder(new CollectingLogSink()).Build(asset);
-            var flow = await runner.Run(new TestEntry { Value = 0 });
+            var flow = await runner.Run<TestEntry, bool>(new TestEntry { Value = 0 });
 
             Assert.AreEqual(Outcome.Returned, flow.Outcome, "Return path was taken; Outcome should be Returned.");
-            Assert.AreEqual(false, flow.ReadResult<bool>(), "Return.Value is unwired → reads default(bool)=false.");
+            Assert.AreEqual(false, flow.Result, "Return.Value is unwired → reads default(bool)=false.");
         }
 
         [Test]
@@ -105,10 +105,10 @@ namespace Scaffold.GraphFlow.Tests
                 .Data(not,   "Result",  ret, "Value");
 
             var runner = new TestBuilder(new CollectingLogSink()).Build(asset);
-            var flow = await runner.Run(new TestEntry { Value = 0 });
+            var flow = await runner.Run<TestEntry, bool>(new TestEntry { Value = 0 });
 
             Assert.AreEqual(Outcome.Returned, flow.Outcome);
-            Assert.AreEqual(true, flow.ReadResult<bool>());
+            Assert.AreEqual(true, flow.Result);
         }
     }
 }
