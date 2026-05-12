@@ -10,7 +10,6 @@ namespace Scaffold.GraphFlow
     {
         object? _result;
         IVariableBag? _variables;
-        bool _indexReleased;
 
         public GraphRunner Runner { get; }
         public CancellationToken Token { get; }
@@ -25,7 +24,6 @@ namespace Scaffold.GraphFlow
             _variables ??= new InMemoryVariableBag(Runner.Variables);
 
         public Outcome Outcome { get; private set; } = Outcome.Running;
-        public bool IsTerminating => Outcome != Outcome.Running;
 
         internal Flow(GraphRunner runner, CancellationToken token)
         {
@@ -54,13 +52,7 @@ namespace Scaffold.GraphFlow
 
         public void InvalidateAll() => CacheVersion = Runner.NextCacheVersion();
 
-        // Idempotent — runner calls in try/finally at every run-path end.
-        internal void Complete()
-        {
-            if (_indexReleased) return;
-            _indexReleased = true;
-            Runner.ReleaseFlowIndex(Index);
-        }
+        internal void Complete() => Runner.ReleaseFlowIndex(Index);
     }
 
     public sealed class Flow<TPayload> : Flow where TPayload : class

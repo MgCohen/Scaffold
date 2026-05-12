@@ -165,7 +165,7 @@ namespace Scaffold.GraphFlow
                 // are still the primary termination signal — this is the
                 // belt-and-braces check so the runtime contract matches the
                 // intuitive "Cancel stops execution" semantics.
-                if (flow.IsTerminating) break;
+                if (flow.Outcome != Outcome.Running) break;
                 var next = await current.Invoke(flow);
                 if (next == null) break;
                 current = next.Connection?.Destination;
