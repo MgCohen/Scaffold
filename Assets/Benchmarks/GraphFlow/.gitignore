@@ -1,0 +1,8 @@
+# Treat benchmark JSON output as regenerable artifacts by default — each run
+# emits ~2700 lines of raw samples. Only the three named baselines below
+# (pre-audit Mono, post-audit Mono, IL2CPP shipping) are tracked as canonical
+# anchors for regression checks.
+results-*.json
+!results-baseline.json
+!results-final.json
+!results-il2cpp.json
