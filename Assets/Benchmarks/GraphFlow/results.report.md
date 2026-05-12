@@ -81,20 +81,55 @@ in next time that file is touched.
 **B8 — Rename `FlowInPort.Sync` / `Async` → `FromSync` / `FromAsync`.**
 Cosmetic; not worth the churn across every node.
 
-## Remaining gap to hand-rolled
+## IL2CPP (shipping runtime) measurements
 
-Graph still runs 100–230× slower than hand-rolled in absolute terms. The
-remaining cost is dominated by:
+Captured 2026-05-12 via a StandaloneWindows64 test player built with the
+project's existing IL2CPP scripting backend. Same benchmark assembly, same
+scenarios. Build artifacts in `results-il2cpp.json`. To re-run:
 
-1. **Per-Run async machinery**: `Task<Flow<>>` + 1–2 async state-machine
-   boxes per call. ~3–4 allocs/op unchanged. Can't be removed without
-   either Flow pooling (deferred) or switching to a `ValueTask` runtime
-   that supports the sync-fast-path (IL2CPP / .NET 6+).
-2. **Per-step delegate dispatch**: `OutputPort._compute` and `FlowInPort._sync`
-   are `Func<>` instances. Each `Read` / `Invoke` is one delegate call. The
-   only path to remove this is source-gen — emit a non-virtual method on the
-   node class that reads ports inline.
+```pwsh
+pwsh .agents/scripts/run-unity-tests.ps1 -TestPlatform StandaloneWindows64 \
+  -PerformanceBenchmarksOnly -AssemblyNames Scaffold.Benchmarks.GraphFlow \
+  -PerformanceTestResultsPath Assets/Benchmarks/GraphFlow/results-il2cpp.json
+```
 
-Both are tractable, but each is a separate project. Current state: any
-sync graph scenario costs ~700 ns + ~1 µs per node fire. That's the floor
+| Scenario              | Mono ns | IL2CPP ns | Speedup | IL2CPP bytes/op | Allocs/op |
+| --------------------- | ------: | --------: | ------: | --------------: | --------: |
+| Empty                 |     714 |       366 |   1.95× |             237 |      3.00 |
+| SyncBranch_True       |    1603 |       564 |   2.84× |             339 |      4.00 |
+| SyncBranch_False      |    1420 |       553 |   2.57× |             344 |      4.00 |
+| DataPorts             |    1487 |       569 |   2.61× |             344 |      4.00 |
+| Loop1000              | 141 660 |    27 000 |   5.25× |              81 |      4.02 |
+| Variable              |    1689 |       598 |   2.82× |             344 |      4.00 |
+
+Three findings:
+
+1. **Bytes/op is now readable.** IL2CPP's allocation byte counter advances
+   under the harness (Mono EditMode's doesn't). For a typical sync-shaped
+   graph: ~340 bytes per Run. At 100 Runs/sec that's 34 KB/sec — well
+   within "GC pause every several seconds" territory, not "every frame."
+2. **Loop1000 wins 5.25×.** The per-step delegate dispatch we worried about
+   in Mono is largely flattened by IL2CPP's static codegen. Per-node async
+   overhead is still the dominant cost in long node chains, but each step
+   is ~5× cheaper than in EditMode.
+3. **The Mono "100–230× slower than hand-rolled" ratio was misleading.** In
+   IL2CPP the hand-rolled scenarios collapse to 1–2 ns because the compiler
+   elides empty loops and constant arithmetic. The honest absolute number
+   is **~570 ns per Run for a typical sync-shaped graph in shipping config**,
+   which is acceptable for any realistic effect/UI/AI graph use case.
+
+## Remaining work — re-evaluated
+
+The Mono numbers suggested a fundamental design problem; IL2CPP shows the
+design is fine. Re-prioritized:
+
+1. **Coroutine port** (replace `FlowInPort.Async` with IEnumerator factories,
+   custom MonoBehaviour driver) still wins ~N allocs per Run on N-node async
+   graphs. **Defer until profiling on real gameplay shows GC pressure.**
+2. **Flow pooling** with result-snapshot API. **Defer** for the same reason.
+3. **Source-gen "compiled topology"** rejected — it defeats the runtime-
+   authored visual-scripting premise.
+
+Current state is "ship-acceptable" on IL2CPP. Sync-shaped graph: ~570 ns +
+~340 bytes per Run; N-node graph: ~570 ns + N × per-node cost.
 without a deeper refactor.
