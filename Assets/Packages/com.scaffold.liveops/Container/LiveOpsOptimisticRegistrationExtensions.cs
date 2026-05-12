@@ -8,7 +8,7 @@ namespace Scaffold.LiveOps.Container
     {
         public static void RegisterOptimisticCloudCodeHandler<TImplementation>(this IContainerBuilder builder, Lifetime lifetime) where TImplementation : class, IOptimisticCloudCodeHandler
         {
-            builder.Register<TImplementation>(lifetime).As<IOptimisticCloudCodeHandler>().AsImplementedInterfaces();
+            builder.Register<TImplementation>(lifetime).AsImplementedInterfaces();
         }
     }
 }

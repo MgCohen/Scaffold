@@ -124,7 +124,7 @@ namespace Scaffold.CloudCode.Tests
 
             var builder = new ContainerBuilder();
             builder.Register<CloudCodeOptimisticHandlerRegistry>(Lifetime.Singleton);
-            builder.RegisterInstance(handler).As<IOptimisticCloudCodeHandler>().AsImplementedInterfaces();
+            builder.RegisterInstance(handler).AsImplementedInterfaces();
             IObjectResolver container = builder.Build();
             CloudCodeOptimisticHandlerRegistry registry = container.Resolve<CloudCodeOptimisticHandlerRegistry>();
 

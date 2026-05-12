@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using LiveOps.DTO.GameApi;
+using LiveOps.DTO.Keys;
 using LiveOps.DTO.ModuleRequest;
 using NUnit.Framework;
 using Scaffold.AppFlow;
@@ -15,6 +16,19 @@ namespace Scaffold.LiveOps.Tests
     public sealed class LiveOpsServiceOptimisticTests
     {
         private const string LiveOpsModule = "LiveOps";
+
+        // The Bootstrap source generator only runs against server-side DTO csproj builds.
+        // Unity test asmdefs compile without it, so contribute the wire-key map for test-only requests by hand.
+        [OneTimeSetUp]
+        public void RegisterTestKeys()
+        {
+            LiveOpsKeyResolver.Contribute(new[]
+            {
+                new KeyValuePair<RuntimeTypeHandle, LiveOpsKeyResolution>(
+                    typeof(OptimisticGameApiRequest).TypeHandle,
+                    new LiveOpsKeyResolution(LiveOpsModule, nameof(OptimisticGameApiRequest))),
+            });
+        }
 
         [Test]
         [Timeout(10000)]
@@ -186,7 +200,7 @@ namespace Scaffold.LiveOps.Tests
             builder.RegisterInstance(NoMatchResponseHandler.Instance).As<IResponseHandler>();
             if (optimisticHandler != null)
             {
-                builder.RegisterInstance(optimisticHandler).As<IOptimisticCloudCodeHandler>().AsImplementedInterfaces();
+                builder.RegisterInstance(optimisticHandler);
                 if (optimisticHandler is TestOptimisticHandler testOptimistic)
                 {
                     builder.RegisterBuildCallback(resolver =>
@@ -222,7 +236,7 @@ namespace Scaffold.LiveOps.Tests
             builder.Register<CloudCodeOptimisticHandlerRegistry>(Lifetime.Singleton);
             builder.RegisterInstance(errorHandler);
             builder.RegisterInstance(NoMatchResponseHandler.Instance).As<IResponseHandler>();
-            builder.RegisterInstance(containerHandler).As<IOptimisticCloudCodeHandler>().AsImplementedInterfaces();
+            builder.RegisterInstance(containerHandler);
             builder.RegisterBuildCallback(resolver =>
             {
                 CloudCodeOptimisticHandlerRegistry registry = resolver.Resolve<CloudCodeOptimisticHandlerRegistry>();
