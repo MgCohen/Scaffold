@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using System.Runtime.CompilerServices;
 using Scaffold.Variables;
 
 namespace Scaffold.GraphFlow
@@ -10,6 +11,7 @@ namespace Scaffold.GraphFlow
 
         public bool IsConnected => _source != null;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Read(Flow flow) => _source is null ? default! : _source.Read(flow);
 
         internal void Connect(OutputPort<T> source) => _source = source;

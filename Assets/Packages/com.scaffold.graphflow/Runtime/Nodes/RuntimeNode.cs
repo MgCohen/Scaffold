@@ -32,9 +32,22 @@ namespace Scaffold.GraphFlow
     [Serializable]
     public abstract class RuntimeNode<TRunner> : RuntimeNode where TRunner : GraphRunner
     {
-        protected static TRunner Runner(Flow flow) => (TRunner)flow.Runner;
+        // Cached at Initialize so node code can dispatch through Runner without
+        // re-casting flow.Runner on every FlowInPort fire. One runner per baked
+        // graph per builder lifetime, so this is safe to capture here.
+        [NonSerialized] TRunner _runner = null!;
 
-        public sealed override void Initialize(GraphRunner runner) => Initialize((TRunner)runner);
+        // Instance overload — preferred; ignores `flow` and returns the cached
+        // typed runner. Kept as `Runner(flow)` instead of a no-arg property to
+        // stay source-compatible with existing nodes (Strike500Dispatcher,
+        // TestLogDispatcherRuntime, etc.) that call `Runner(flow)`.
+        protected TRunner Runner(Flow flow) => _runner;
+
+        public sealed override void Initialize(GraphRunner runner)
+        {
+            _runner = (TRunner)runner;
+            Initialize(_runner);
+        }
         public virtual void Initialize(TRunner runner) { }
     }
 }

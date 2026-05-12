@@ -115,7 +115,6 @@ namespace Scaffold.GraphFlow
             {
                 var dest = flowOut.Connection?.Destination;
                 if (dest != null) await RunFromInPort(dest, flow);
-                flow.InvalidateAll();
                 return flow.Result;
             }
             finally { flow.Complete(); }
@@ -139,7 +138,6 @@ namespace Scaffold.GraphFlow
                 flow = NewFlow(payload, ct);
                 var dest = flowOut.Connection?.Destination;
                 if (dest != null) await RunFromInPort(dest, flow);
-                flow.InvalidateAll();
             }
             catch (Exception e)
             {
@@ -165,7 +163,6 @@ namespace Scaffold.GraphFlow
                 var defaultOut = entry.GetDefaultOut();
                 var dest = defaultOut.Connection?.Destination;
                 if (dest != null) await RunFromInPort(dest, flow);
-                flow.InvalidateAll();
                 return flow;
             }
             finally { flow.Complete(); }

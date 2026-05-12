@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using System.Runtime.CompilerServices;
 
 namespace Scaffold.GraphFlow
 {
@@ -27,10 +28,16 @@ namespace Scaffold.GraphFlow
         internal override void Bake(int maxFlows)
         {
             if (!_shouldCache) return;
-            if (_cache.Length < maxFlows)
-                _cache = new Entry[maxFlows];
+            // Bake runs exactly once per port lifetime (GraphBuilder iterates
+            // every port and dispatches once). A second call indicates the same
+            // baked graph was wired into two runners, which the rest of the
+            // builder pipeline already disallows.
+            System.Diagnostics.Debug.Assert(_cache.Length == 0,
+                "OutputPort.Bake called twice — same port shared across runners?");
+            _cache = new Entry[maxFlows];
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Read(Flow flow)
         {
             if (!_shouldCache) return _compute(flow);

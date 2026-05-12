@@ -1,0 +1,24 @@
+{
+    "name": "Scaffold.Benchmarks.GraphFlow",
+    "rootNamespace": "Scaffold.Benchmarks.GraphFlow",
+    "references": [
+        "Scaffold.Benchmarks",
+        "Scaffold.GraphFlow",
+        "Scaffold.Variables",
+        "Unity.PerformanceTesting"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false,
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
+}
