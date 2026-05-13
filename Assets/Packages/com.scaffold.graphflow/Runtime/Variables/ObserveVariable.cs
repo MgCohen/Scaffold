@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using Cysharp.Threading.Tasks;
 using Scaffold.Variables;
 using UnityEngine;
 
@@ -24,7 +25,7 @@ namespace Scaffold.GraphFlow.Nodes
         public override void Initialize(GraphRunner runner)
         {
             if (!runner.Variables.TryGet<T>(variableId, out _handle)) return;
-            _handle.Subscribe(v => _ = runner.RunObserver(FlowOut, new VariableChangePayload<T>(v)));
+            _handle.Subscribe(v => runner.RunObserver(FlowOut, new VariableChangePayload<T>(v)).Forget());
         }
 
         // Mirrors EntryRuntimeNode<TPayload>.PayloadOf — ObserveVariable is driven

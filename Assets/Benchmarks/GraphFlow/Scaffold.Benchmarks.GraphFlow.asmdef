@@ -5,7 +5,8 @@
         "Scaffold.Benchmarks",
         "Scaffold.GraphFlow",
         "Scaffold.Variables",
-        "Unity.PerformanceTesting"
+        "Unity.PerformanceTesting",
+        "UniTask"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

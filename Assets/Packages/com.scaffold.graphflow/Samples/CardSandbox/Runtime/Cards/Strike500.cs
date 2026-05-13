@@ -1,5 +1,6 @@
 #nullable enable
 using System.Collections.Generic;
+using Cysharp.Threading.Tasks;
 using Scaffold.GraphFlow;
 using UnityEngine;
 
@@ -31,11 +32,11 @@ namespace Scaffold.GraphFlow.CardSandbox.Cards
 
         public Strike500Dispatcher()
         {
-            FlowIn = FlowInPort.Async(this, nameof(FlowIn), async flow =>
+            FlowIn = FlowInPort.Async(this, nameof(FlowIn), async (Flow flow) =>
             {
                 var cmd = new DealDamageCommand { Amount = Strike500.BaseDamage };
                 await cmd.Execute(Runner(flow), flow);
-                return null;
+                return (FlowOutPort?)null;
             });
             Ports.Add(FlowIn.Name, FlowIn);
         }

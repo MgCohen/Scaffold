@@ -1,7 +1,7 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 using NUnit.Framework;
 using Scaffold.GraphFlow;
 using Unity.PerformanceTesting;
@@ -78,13 +78,13 @@ namespace Scaffold.Benchmarks.GraphFlow
         public AsyncPassNode()
         {
             Out = new FlowOutPort(this, nameof(Out));
-            In = FlowInPort.Async(this, nameof(In), async flow =>
+            In = FlowInPort.Async(this, nameof(In), async (Flow flow) =>
             {
                 // Sync-completing await — exercises the compiler-emitted state
-                // machine + Task<FlowOutPort?> allocation per fire without
+                // machine + UniTask<FlowOutPort?> allocation per fire without
                 // pulling in scheduling cost. Measures pure async overhead.
-                await Task.CompletedTask;
-                return Out;
+                await UniTask.CompletedTask;
+                return (FlowOutPort?)Out;
             });
             Ports.Add(In.Name, In);
             Ports.Add(Out.Name, Out);

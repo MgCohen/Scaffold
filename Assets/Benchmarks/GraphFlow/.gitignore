@@ -7,3 +7,4 @@ results-*.json
 !results-final.json
 !results-il2cpp.json
 !results-async-chain.json
+!results-il2cpp-unitask.json

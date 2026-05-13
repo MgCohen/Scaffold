@@ -1,4 +1,5 @@
 #nullable enable
+using Cysharp.Threading.Tasks;
 using Scaffold.GraphFlow;
 
 namespace Scaffold.GraphFlow.CardSandbox
@@ -12,12 +13,12 @@ namespace Scaffold.GraphFlow.CardSandbox
         protected CardCommandDispatcher()
         {
             FlowOut = new FlowOutPort(this, nameof(FlowOut));
-            FlowIn = FlowInPort.Async(this, nameof(FlowIn), async flow =>
+            FlowIn = FlowInPort.Async(this, nameof(FlowIn), async (Flow flow) =>
             {
                 var cmd = BuildPayload(flow);
                 var result = await cmd.Execute(Runner(flow), flow);
                 WriteOutputs(flow, result);
-                return FlowOut;
+                return (FlowOutPort?)FlowOut;
             });
             Ports.Add(FlowIn.Name, FlowIn);
             Ports.Add(FlowOut.Name, FlowOut);

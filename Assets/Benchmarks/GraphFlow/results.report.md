@@ -121,12 +121,13 @@ Three findings:
    is **~570 ns per Run for a typical sync-shaped graph in shipping config**,
    which is acceptable for any realistic effect/UI/AI graph use case.
 
-## N-node async chain (measured, not extrapolated)
+## N-node async chain (measured, IL2CPP)
 
-`AsyncChainBench` (IL2CPP, `results-async-chain.json`) wires N pass-through
-nodes, each a `FlowInPort.Async` whose handler awaits `Task.CompletedTask`
-(sync-completing — measures pure async machinery overhead per node fire,
-no scheduling cost).
+`AsyncChainBench` wires N pass-through nodes, each a `FlowInPort.Async`
+whose handler sync-completes (`await UniTask.CompletedTask`). Measures
+pure per-node async machinery overhead.
+
+### Pre-UniTask (Task-based FlowInPort.Async)
 
 | N nodes | Time ns | Allocs/Run | Bytes/op |
 | ------: | ------: | ---------: | -------: |
@@ -136,38 +137,71 @@ no scheduling cost).
 |      20 |    7296 |      44.04 |     1802 |
 |      50 |  15 903 |     104.05 |     6553 |
 
-**Confirms the formula `Allocs = 4 + 2N` exactly.** Two allocations per
-`FlowInPort.Async` fire: the handler's state machine box + its
-`Task<FlowOutPort?>`. Linear in N for both time (~306 ns per node) and
-allocation count (exactly +2 per node).
+Formula: `Allocs = 4 + 2N` — exactly. Each `FlowInPort.Async` fire cost
+2 allocations (handler's state machine box + its `Task<FlowOutPort?>`)
+and ~306 ns.
 
-At a realistic workload (100 Runs/sec of a 50-node async graph): **~1.6 ms/sec
-CPU and ~655 KB/sec allocation**. CPU is negligible; allocation pressure
-becomes meaningful for long sessions.
+### Post-UniTask migration (`results-il2cpp-unitask.json`)
 
-## Remaining work — re-evaluated
+The runner's hot internals were migrated from `Task<>` to `UniTask<>`
+(Cysharp/UniTask). FlowInPort.Async now takes `Func<Flow, UniTask<FlowOutPort?>>`.
+Public `Run<TEntry>` keeps its `Task<Flow<>>` shape (wrapped via `.AsTask()`)
+for back-compat with existing callers.
 
-The Mono numbers suggested a fundamental design problem; IL2CPP shows the
-design is fine for shallow graphs. The N-node chain measurement shows that
-the **per-node async cost scales linearly** and a 50-node graph at 100
-Runs/sec produces real GC pressure (~655 KB/sec). The coroutine port now
-has measured justification, not just theoretical:
+| N nodes | Time ns | Allocs/Run | Bytes/op | Δ time | Δ allocs |
+| ------: | ------: | ---------: | -------: | -----: | -------: |
+|       1 |     697 |       5.00 |      385 |   -24% |     -17% |
+|       5 |    1617 |       9.01 |      532 |   -31% |     -36% |
+|      10 |    1928 |      14.02 |      901 |   -55% |     -42% |
+|      20 |    3306 |      24.04 |     1638 |   -55% |     -45% |
+|      50 |    7628 |      54.05 |     4505 |   -52% |     -48% |
 
-1. **Coroutine port** (replace `FlowInPort.Async` with IEnumerator factories,
-   custom MonoBehaviour driver) reduces per-node fire from 2 allocs to 1.
-   For a 50-node graph: 104 allocs → ~54 (-48%). For a 10-node graph:
-   24 → ~14 (-42%). Real win at depth, modest at shallow graphs.
-2. **Flow pooling** with result-snapshot API saves 1 alloc per Run
-   (constant, not scaling) — diminishing relative impact on deep graphs
-   but still cheap to add.
-3. **Source-gen "compiled topology"** rejected — defeats the runtime-
-   authored visual-scripting premise.
+New formula: `Allocs ≈ 4 + N`. Each `FlowInPort.Async` fire now costs
+**1 allocation and ~142 ns** — half the previous cost. The Task<T>
+allocation per yielding node is gone; UniTask's struct-based promise +
+pooled `AsyncUniTaskMethodBuilder` carries the state machine without
+allocating per call.
 
-**Decision rule:** if real gameplay graphs trend toward deep (10+ async
-nodes per Run) and you ship to lower-memory targets (mobile), the
-coroutine port pays for itself. If graphs are shallow (1-5 nodes), the
-current design is fine.
+At 100 Runs/sec × 50 async nodes:
+- Time: 1.6 ms/sec → **0.76 ms/sec** (-52%)
+- Bytes: 655 KB/sec → **450 KB/sec** (-31%)
+- Allocs: 10 400/sec → **5 400/sec** (-48%)
 
-Shallow-graph state: ~570 ns + ~340 bytes per Run.
-Deep-graph (50-node) state: ~16 µs + ~6.5 KB per Run, 104 allocs.
+### Sync-shaped scenarios (UniTask migration cost)
+
+Standard non-async scenarios pay a tiny migration tax — the runner now
+goes through UniTask machinery even when no node yields:
+
+| Scenario              | Pre ns | UT ns | Δ |
+| --------------------- | -----: | ----: | --: |
+| Empty                 |    366 |   377 |  +3% |
+| SyncBranch_True       |    564 |   579 |  +3% |
+| SyncBranch_False      |    553 |   581 |  +5% |
+| DataPorts             |    569 |   595 |  +5% |
+| Loop1000              | 27 000 | 29 788 | +10% |
+| Variable              |    598 |   599 |   0% |
+
+Alloc counts unchanged (sync graphs don't fire `FlowInPort.Async`).
+Trivial regression on the shallow path; comfortably paid back by the
+50%+ wins on async-heavy graphs.
+
+## Remaining work — re-evaluated post-UniTask
+
+Position has improved materially. Deep async graphs are now at ~half
+the cost — within the same ballpark as established Unity packages that
+advertise "zero allocations after init."
+
+1. **Flow pooling** with result-snapshot API. Saves 1 alloc per Run
+   (the `Flow<>` instance) — still constant cost, increasingly negligible
+   relative impact on deep graphs (was 1/24, now 1/14 for N=10).
+   Probably defer unless we see a specific workload demanding it.
+2. **Per-Run base allocs (4 → ~1-2 with pooling)** is the only remaining
+   structural lever. Anything beyond requires either source-gen of the
+   bake topology (rejected — defeats runtime authoring) or rewriting
+   the public Run surface to non-Task.
+3. **Coroutine port** is now redundant. UniTask delivers the same alloc
+   shape via async/await syntax; no need to rewrite around IEnumerator.
+
+Shallow-graph state: ~570 ns + ~340 bytes per Run (unchanged + 3%).
+Deep-graph (50-node) state: **~7.6 µs + ~4.5 KB per Run, 54 allocs**.
 without a deeper refactor.

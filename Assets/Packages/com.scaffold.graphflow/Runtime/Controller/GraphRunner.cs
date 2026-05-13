@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 using Scaffold.Variables;
 
 namespace Scaffold.GraphFlow
@@ -82,12 +83,16 @@ namespace Scaffold.GraphFlow
 
         public virtual void Initialize() { }
 
+        // Public surface stays Task<Flow<>> for back-compat. Internals are
+        // UniTask-based so the per-Run state-machine + Task<> allocations are
+        // gone on the hot path; .AsTask() at the boundary materializes a single
+        // Task for the caller's await.
         public Task<Flow<TEntry>> Run<TEntry>(TEntry payload, CancellationToken ct = default)
             where TEntry : class
         {
             var entry = ResolveEntry<TEntry>();
             var flow = NewFlow(payload, ct);
-            return RunFromEntry(entry, flow);
+            return RunFromEntry(entry, flow).AsTask();
         }
 
         public Task<Flow<TEntry, TResult>> Run<TEntry, TResult>(TEntry payload, CancellationToken ct = default)
@@ -95,7 +100,7 @@ namespace Scaffold.GraphFlow
         {
             var entry = ResolveEntry<TEntry>();
             var flow = NewFlow<TEntry, TResult>(payload, ct);
-            return RunFromEntry(entry, flow);
+            return RunFromEntry(entry, flow).AsTask();
         }
 
         EntryRuntimeNodeBase ResolveEntry<TEntry>()
@@ -106,7 +111,7 @@ namespace Scaffold.GraphFlow
             return entry;
         }
 
-        protected async Task<TResult> RunFromFlowOut<TPayload, TResult>(
+        protected async UniTask<TResult> RunFromFlowOut<TPayload, TResult>(
             TPayload payload, FlowOutPort flowOut, CancellationToken ct = default)
             where TPayload : class
         {
@@ -124,12 +129,13 @@ namespace Scaffold.GraphFlow
         // observer's FlowOut. Internal to avoid widening the public surface for
         // arbitrary "drive a flow from X" needs — observers go through this seam.
         //
-        // Observers are fire-and-forget at the call site (`_ = runner.RunObserver(...)`),
-        // so any unhandled exception in the spawned flow would otherwise be lost in
-        // the discarded Task and only resurface as UnobservedTaskException at GC
-        // time. Catch and log here so failures show up immediately with their
-        // original stack — without making the public surface awkward.
-        internal async Task RunObserver<TPayload>(FlowOutPort flowOut, TPayload payload, CancellationToken ct = default)
+        // Observers are fire-and-forget at the call site (`runner.RunObserver(...).Forget()`),
+        // so any unhandled exception in the spawned flow would otherwise be lost.
+        // Catch and log here so failures show up immediately with their original
+        // stack — without making the public surface awkward. Return type is
+        // UniTaskVoid (instead of UniTask / Task) to mark this as fire-and-forget
+        // and avoid the per-call Task allocation.
+        internal async UniTaskVoid RunObserver<TPayload>(FlowOutPort flowOut, TPayload payload, CancellationToken ct = default)
             where TPayload : class
         {
             Flow<TPayload>? flow = null;
@@ -155,7 +161,7 @@ namespace Scaffold.GraphFlow
         Flow<TPayload, TResult> NewFlow<TPayload, TResult>(TPayload payload, CancellationToken ct) where TPayload : class =>
             new Flow<TPayload, TResult>(payload, this, ct);
 
-        async Task<TFlow> RunFromEntry<TFlow>(EntryRuntimeNodeBase entry, TFlow flow)
+        async UniTask<TFlow> RunFromEntry<TFlow>(EntryRuntimeNodeBase entry, TFlow flow)
             where TFlow : Flow
         {
             try
@@ -168,7 +174,7 @@ namespace Scaffold.GraphFlow
             finally { flow.Complete(); }
         }
 
-        async Task RunFromInPort(FlowInPort start, Flow flow)
+        async UniTask RunFromInPort(FlowInPort start, Flow flow)
         {
             FlowInPort? current = start;
             while (current != null)

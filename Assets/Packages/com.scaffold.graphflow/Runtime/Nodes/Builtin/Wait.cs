@@ -1,5 +1,5 @@
 using System;
-using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 
 namespace Scaffold.GraphFlow.Nodes
 {
@@ -14,7 +14,7 @@ namespace Scaffold.GraphFlow.Nodes
         partial void InitializePorts() =>
             In = FlowInPort.Async(this, nameof(In), async flow =>
             {
-                await Task.Delay(TimeSpan.FromSeconds(Seconds.Read(flow)), flow.Token);
+                await UniTask.Delay(TimeSpan.FromSeconds(Seconds.Read(flow)), cancellationToken: flow.Token);
                 return Out;
             });
     }

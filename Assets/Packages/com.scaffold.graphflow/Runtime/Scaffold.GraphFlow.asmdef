@@ -3,7 +3,8 @@
     "rootNamespace": "Scaffold.GraphFlow",
     "references": [
         "GUID:b13665e99cedac1faa8a90387e6163c3",
-        "GUID:aeaa2ad3d0d1b9aec5a07ab29b764460"
+        "GUID:aeaa2ad3d0d1b9aec5a07ab29b764460",
+        "UniTask"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "com.cysharp.unitask": "2.5.10",
     "com.dbrizov.naughtyattributes": "https://github.com/dbrizov/NaughtyAttributes.git#upm",
     "com.github-glitchenzo.nugetforunity": "https://github.com/GlitchEnzo/NuGetForUnity.git?path=/src/NuGetForUnity",
     "com.scaffold.schemas": "https://github.com/ScaffoldLibrary/Schemas.git",

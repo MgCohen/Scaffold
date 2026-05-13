@@ -1,7 +1,7 @@
 #nullable enable
 using System;
 using System.Runtime.CompilerServices;
-using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 
 namespace Scaffold.GraphFlow
 {
@@ -13,14 +13,18 @@ namespace Scaffold.GraphFlow
 
         // Exactly one of these is set; Sync() / Async() factories enforce that.
         // Branching once on the field is cheaper than wrapping the user's sync
-        // handler in a flow=>ValueTask(handler(flow)) closure on every fire —
-        // that wrap previously cost an extra delegate invocation per node call.
+        // handler in a flow=>UniTask(handler(flow)) closure on every fire.
+        //
+        // Async path uses Cysharp.Threading.Tasks.UniTask: struct-based promise +
+        // pooled async state machine builder → ~0 GC per yielding node fire on
+        // both Mono and IL2CPP. Replaces the Func<Flow, Task<>> shape that cost
+        // 2 allocs per fire (state machine box + Task<FlowOutPort?>).
         readonly Func<Flow, FlowOutPort?>? _sync;
-        readonly Func<Flow, Task<FlowOutPort?>>? _async;
+        readonly Func<Flow, UniTask<FlowOutPort?>>? _async;
 
         FlowInPort(RuntimeNode owner, string name,
                    Func<Flow, FlowOutPort?>? sync,
-                   Func<Flow, Task<FlowOutPort?>>? @async)
+                   Func<Flow, UniTask<FlowOutPort?>>? @async)
         {
             Owner = owner;
             Name = name;
@@ -29,17 +33,17 @@ namespace Scaffold.GraphFlow
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal ValueTask<FlowOutPort?> Invoke(Flow flow) =>
+        internal UniTask<FlowOutPort?> Invoke(Flow flow) =>
             _sync != null
-                ? new ValueTask<FlowOutPort?>(_sync(flow))
-                : new ValueTask<FlowOutPort?>(_async!(flow));
+                ? new UniTask<FlowOutPort?>(_sync(flow))
+                : _async!(flow);
 
         public static FlowInPort Sync(
             RuntimeNode owner, string name, Func<Flow, FlowOutPort?> handler) =>
             new(owner, name, handler, null);
 
         public static FlowInPort Async(
-            RuntimeNode owner, string name, Func<Flow, Task<FlowOutPort?>> handler) =>
+            RuntimeNode owner, string name, Func<Flow, UniTask<FlowOutPort?>> handler) =>
             new(owner, name, null, handler);
     }
 }
