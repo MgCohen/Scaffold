@@ -3,7 +3,8 @@
     "rootNamespace": "Scaffold.GraphFlow.CardSandbox.Tests",
     "references": [
         "Scaffold.GraphFlow.CardSandbox",
-        "Scaffold.GraphFlow"
+        "Scaffold.GraphFlow",
+        "UniTask"
     ],
     "includePlatforms": [
         "Editor"

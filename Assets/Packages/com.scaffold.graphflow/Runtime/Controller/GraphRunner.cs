@@ -22,6 +22,14 @@ namespace Scaffold.GraphFlow
         readonly Stack<int> _freeFlowIndices;
         int _versionCounter;
 
+        // Deferred release tracker: the most recently produced Flow (any
+        // type). The NEXT call to Run() releases this back to its typed pool
+        // before acquiring a fresh one. That gives callers the full window
+        // between `await runner.Run(...)` returning and their next Run() call
+        // to read flow.Outcome / flow.Result / flow.Variables, while still
+        // letting the pool reuse the instance.
+        Flow? _lastFlow;
+
         protected GraphRunner(BakedGraph baked, int maxConcurrentFlows = 8)
         {
             if (maxConcurrentFlows < 1)
@@ -83,24 +91,36 @@ namespace Scaffold.GraphFlow
 
         public virtual void Initialize() { }
 
-        // Public surface stays Task<Flow<>> for back-compat. Internals are
-        // UniTask-based so the per-Run state-machine + Task<> allocations are
-        // gone on the hot path; .AsTask() at the boundary materializes a single
-        // Task for the caller's await.
-        public Task<Flow<TEntry>> Run<TEntry>(TEntry payload, CancellationToken ct = default)
+        // Public surface returns UniTask<Flow<>> — zero allocation on the
+        // sync path (struct-based promise) with no .AsTask() Task wrapper.
+        // Callers `await runner.Run(...)` work identically; the only
+        // observable change is `Task<Flow<>> t = runner.Run(...)` no longer
+        // compiles — call `.AsTask()` explicitly if you need that.
+        public UniTask<Flow<TEntry>> Run<TEntry>(TEntry payload, CancellationToken ct = default)
             where TEntry : class
         {
             var entry = ResolveEntry<TEntry>();
-            var flow = NewFlow(payload, ct);
-            return RunFromEntry(entry, flow).AsTask();
+            ReleasePreviousFlow();
+            var flow = Flow<TEntry>.Acquire(payload, this, ct);
+            _lastFlow = flow;
+            return RunFromEntry(entry, flow);
         }
 
-        public Task<Flow<TEntry, TResult>> Run<TEntry, TResult>(TEntry payload, CancellationToken ct = default)
+        public UniTask<Flow<TEntry, TResult>> Run<TEntry, TResult>(TEntry payload, CancellationToken ct = default)
             where TEntry : class
         {
             var entry = ResolveEntry<TEntry>();
-            var flow = NewFlow<TEntry, TResult>(payload, ct);
-            return RunFromEntry(entry, flow).AsTask();
+            ReleasePreviousFlow();
+            var flow = Flow<TEntry, TResult>.Acquire(payload, this, ct);
+            _lastFlow = flow;
+            return RunFromEntry(entry, flow);
+        }
+
+        void ReleasePreviousFlow()
+        {
+            if (_lastFlow is null) return;
+            _lastFlow.Release();   // virtual; dispatches to typed pool
+            _lastFlow = null;
         }
 
         EntryRuntimeNodeBase ResolveEntry<TEntry>()
@@ -115,7 +135,9 @@ namespace Scaffold.GraphFlow
             TPayload payload, FlowOutPort flowOut, CancellationToken ct = default)
             where TPayload : class
         {
-            var flow = NewFlow<TPayload, TResult>(payload, ct);
+            ReleasePreviousFlow();
+            var flow = Flow<TPayload, TResult>.Acquire(payload, this, ct);
+            _lastFlow = flow;
             try
             {
                 var dest = flowOut.Connection?.Destination;
@@ -138,10 +160,12 @@ namespace Scaffold.GraphFlow
         internal async UniTaskVoid RunObserver<TPayload>(FlowOutPort flowOut, TPayload payload, CancellationToken ct = default)
             where TPayload : class
         {
-            Flow<TPayload>? flow = null;
+            // Observers are fire-and-forget — caller never sees the Flow, so
+            // we can return it to the pool immediately on completion (no
+            // deferred-release contract needed). Don't touch _lastFlow.
+            var flow = Flow<TPayload>.Acquire(payload, this, ct);
             try
             {
-                flow = NewFlow(payload, ct);
                 var dest = flowOut.Connection?.Destination;
                 if (dest != null) await RunFromInPort(dest, flow);
             }
@@ -151,15 +175,10 @@ namespace Scaffold.GraphFlow
             }
             finally
             {
-                flow?.Complete();
+                flow.Complete();
+                flow.Release();
             }
         }
-
-        Flow<TPayload> NewFlow<TPayload>(TPayload payload, CancellationToken ct) where TPayload : class =>
-            new Flow<TPayload>(payload, this, ct);
-
-        Flow<TPayload, TResult> NewFlow<TPayload, TResult>(TPayload payload, CancellationToken ct) where TPayload : class =>
-            new Flow<TPayload, TResult>(payload, this, ct);
 
         async UniTask<TFlow> RunFromEntry<TFlow>(EntryRuntimeNodeBase entry, TFlow flow)
             where TFlow : Flow
@@ -172,6 +191,10 @@ namespace Scaffold.GraphFlow
                 return flow;
             }
             finally { flow.Complete(); }
+            // Flow.Release() deferred — the caller still observes flow.Outcome
+            // / flow.Result after this method returns. The next Run() on this
+            // runner triggers ReleasePreviousFlow() which pushes this Flow
+            // back to its typed pool. See lifetime contract on Flow class doc.
         }
 
         async UniTask RunFromInPort(FlowInPort start, Flow flow)

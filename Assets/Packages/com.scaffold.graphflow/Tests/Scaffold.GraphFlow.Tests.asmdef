@@ -3,7 +3,8 @@
     "rootNamespace": "Scaffold.GraphFlow.Tests",
     "references": [
         "Scaffold.GraphFlow",
-        "Scaffold.Variables"
+        "Scaffold.Variables",
+        "UniTask"
     ],
     "includePlatforms": [
         "Editor"

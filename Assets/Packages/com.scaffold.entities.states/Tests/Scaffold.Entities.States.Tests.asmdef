@@ -7,7 +7,8 @@
         "Scaffold.GraphFlow",
         "Scaffold.Maps",
         "Scaffold.States",
-        "Scaffold.Variables"
+        "Scaffold.Variables",
+        "UniTask"
     ],
     "optionalUnityReferences": [
         "TestAssemblies"

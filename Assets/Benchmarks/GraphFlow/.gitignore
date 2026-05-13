@@ -9,3 +9,4 @@ results-*.json
 !results-async-chain.json
 !results-il2cpp-unitask.json
 !results-il2cpp-unitask-optimize.json
+!results-il2cpp-zero.json
