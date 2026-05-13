@@ -121,18 +121,53 @@ Three findings:
    is **~570 ns per Run for a typical sync-shaped graph in shipping config**,
    which is acceptable for any realistic effect/UI/AI graph use case.
 
+## N-node async chain (measured, not extrapolated)
+
+`AsyncChainBench` (IL2CPP, `results-async-chain.json`) wires N pass-through
+nodes, each a `FlowInPort.Async` whose handler awaits `Task.CompletedTask`
+(sync-completing — measures pure async machinery overhead per node fire,
+no scheduling cost).
+
+| N nodes | Time ns | Allocs/Run | Bytes/op |
+| ------: | ------: | ---------: | -------: |
+|       1 |     912 |       6.00 |      458 |
+|       5 |    2348 |      14.01 |      655 |
+|      10 |    4252 |      24.02 |      983 |
+|      20 |    7296 |      44.04 |     1802 |
+|      50 |  15 903 |     104.05 |     6553 |
+
+**Confirms the formula `Allocs = 4 + 2N` exactly.** Two allocations per
+`FlowInPort.Async` fire: the handler's state machine box + its
+`Task<FlowOutPort?>`. Linear in N for both time (~306 ns per node) and
+allocation count (exactly +2 per node).
+
+At a realistic workload (100 Runs/sec of a 50-node async graph): **~1.6 ms/sec
+CPU and ~655 KB/sec allocation**. CPU is negligible; allocation pressure
+becomes meaningful for long sessions.
+
 ## Remaining work — re-evaluated
 
 The Mono numbers suggested a fundamental design problem; IL2CPP shows the
-design is fine. Re-prioritized:
+design is fine for shallow graphs. The N-node chain measurement shows that
+the **per-node async cost scales linearly** and a 50-node graph at 100
+Runs/sec produces real GC pressure (~655 KB/sec). The coroutine port now
+has measured justification, not just theoretical:
 
 1. **Coroutine port** (replace `FlowInPort.Async` with IEnumerator factories,
-   custom MonoBehaviour driver) still wins ~N allocs per Run on N-node async
-   graphs. **Defer until profiling on real gameplay shows GC pressure.**
-2. **Flow pooling** with result-snapshot API. **Defer** for the same reason.
-3. **Source-gen "compiled topology"** rejected — it defeats the runtime-
+   custom MonoBehaviour driver) reduces per-node fire from 2 allocs to 1.
+   For a 50-node graph: 104 allocs → ~54 (-48%). For a 10-node graph:
+   24 → ~14 (-42%). Real win at depth, modest at shallow graphs.
+2. **Flow pooling** with result-snapshot API saves 1 alloc per Run
+   (constant, not scaling) — diminishing relative impact on deep graphs
+   but still cheap to add.
+3. **Source-gen "compiled topology"** rejected — defeats the runtime-
    authored visual-scripting premise.
 
-Current state is "ship-acceptable" on IL2CPP. Sync-shaped graph: ~570 ns +
-~340 bytes per Run; N-node graph: ~570 ns + N × per-node cost.
+**Decision rule:** if real gameplay graphs trend toward deep (10+ async
+nodes per Run) and you ship to lower-memory targets (mobile), the
+coroutine port pays for itself. If graphs are shallow (1-5 nodes), the
+current design is fine.
+
+Shallow-graph state: ~570 ns + ~340 bytes per Run.
+Deep-graph (50-node) state: ~16 µs + ~6.5 KB per Run, 104 allocs.
 without a deeper refactor.
