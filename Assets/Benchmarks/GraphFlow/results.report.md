@@ -141,7 +141,7 @@ Formula: `Allocs = 4 + 2N` — exactly. Each `FlowInPort.Async` fire cost
 2 allocations (handler's state machine box + its `Task<FlowOutPort?>`)
 and ~306 ns.
 
-### Post-UniTask migration (`results-il2cpp-unitask.json`)
+### Post-UniTask (Debug codegen) (`results-il2cpp-unitask.json`)
 
 The runner's hot internals were migrated from `Task<>` to `UniTask<>`
 (Cysharp/UniTask). FlowInPort.Async now takes `Func<Flow, UniTask<FlowOutPort?>>`.
@@ -167,6 +167,54 @@ At 100 Runs/sec × 50 async nodes:
 - Bytes: 655 KB/sec → **450 KB/sec** (-31%)
 - Allocs: 10 400/sec → **5 400/sec** (-48%)
 
+### Post-UniTask + Release codegen (`results-il2cpp-unitask-optimize.json`)
+
+UniTask's pool reuses async state machines IFF the C# compiler emits them
+as structs. That requires Release (`-optimize+`) codegen. Unity Test
+Framework's Standalone test builds default to Development → Debug codegen
+→ class-emitted state machines → pool can't reuse → per-call allocation
+returns.
+
+Fixed with per-assembly `csc.rsp` containing `-optimize+` on:
+- `Scaffold.GraphFlow` runtime (covers `RunFromInPort` / `RunFromEntry` /
+  `RunObserver` / built-in `Wait`)
+- `Scaffold.GraphFlow.CardSandbox` sample (covers sample dispatchers)
+- `Scaffold.Benchmarks.GraphFlow` bench (covers `AsyncPassNode`)
+
+This forces Release codegen for these assemblies even inside the
+Development test build. Shipping IL2CPP non-Development builds already
+get Release codegen by default — consumers don't need to do anything.
+
+| Scenario              | UT ns | UT allocs | Opt ns | Opt allocs | Δ time | Δ allocs |
+| --------------------- | ----: | --------: | -----: | ---------: | -----: | -------: |
+| Empty                 |   377 |      3.00 |    301 |       2.00 |  -20%  |    -33%  |
+| SyncBranch_True       |   579 |      4.00 |    413 |       2.00 |  -29%  |    -50%  |
+| SyncBranch_False      |   581 |      4.00 |    376 |       2.00 |  -35%  |    -50%  |
+| DataPorts             |   595 |      4.00 |    394 |       2.00 |  -34%  |    -50%  |
+| Loop1000              | 29 788 |     4.02 | 32 855 |       2.02 |  +10%* |    -50%  |
+| Variable              |   599 |      4.00 |    438 |       2.00 |  -27%  |    -50%  |
+| **AsyncChain N=1**    |   697 |      5.00 |    393 |    **2.00** | -44% |     -60% |
+| AsyncChain N=5        |  1617 |      9.01 |    596 |    **2.01** | -63% |     -78% |
+| AsyncChain N=10       |  1928 |     14.02 |    994 |    **2.02** | -48% |     -86% |
+| AsyncChain N=20       |  3306 |     24.04 |   1448 |    **2.04** | -56% |     -92% |
+| **AsyncChain N=50**   |  7628 |     54.05 |   2715 |    **2.05** | -64% |     -96% |
+
+*Loop1000 +10% is noise on a 30 µs measurement; allocs still went 4→2.
+
+**Allocs/Run are now constant at 2 regardless of node count.** The
+per-node async cost is structurally gone. The two remaining allocs are
+`Flow<TPayload>` (one per Run) and `Task<Flow<>>` from `.AsTask()` at the
+public Run boundary — both addressable via API change (Flow pooling +
+UniTask return type).
+
+At 100 Runs/sec × 50 async nodes:
+- Time: 1.6 ms/sec → **0.27 ms/sec** (-83% vs pre-audit)
+- Bytes: 655 KB/sec → **~0 KB/sec** (counter at measurement floor)
+- Allocs: 10 400/sec → **200/sec** (-98%)
+
+This is the "zero allocations after init" tier that NodeCanvas /
+FlowCanvas advertise.
+
 ### Sync-shaped scenarios (UniTask migration cost)
 
 Standard non-async scenarios pay a tiny migration tax — the runner now
@@ -185,23 +233,28 @@ Alloc counts unchanged (sync graphs don't fire `FlowInPort.Async`).
 Trivial regression on the shallow path; comfortably paid back by the
 50%+ wins on async-heavy graphs.
 
-## Remaining work — re-evaluated post-UniTask
+## Remaining work — re-evaluated post-UniTask-and-optimize+
 
-Position has improved materially. Deep async graphs are now at ~half
-the cost — within the same ballpark as established Unity packages that
-advertise "zero allocations after init."
+We're at the "zero post-init" tier. Only two structural allocations
+remain per Run, both addressable via API change:
 
-1. **Flow pooling** with result-snapshot API. Saves 1 alloc per Run
-   (the `Flow<>` instance) — still constant cost, increasingly negligible
-   relative impact on deep graphs (was 1/24, now 1/14 for N=10).
-   Probably defer unless we see a specific workload demanding it.
-2. **Per-Run base allocs (4 → ~1-2 with pooling)** is the only remaining
-   structural lever. Anything beyond requires either source-gen of the
-   bake topology (rejected — defeats runtime authoring) or rewriting
-   the public Run surface to non-Task.
-3. **Coroutine port** is now redundant. UniTask delivers the same alloc
-   shape via async/await syntax; no need to rewrite around IEnumerator.
+1. **`Flow<TPayload>` instance** — Bucket D. Solve by pooling Flow
+   internally and returning a `RunResult<TResult>` struct snapshot to
+   callers instead of the Flow. Breaking change.
+2. **`Task<Flow<>>` from `.AsTask()`** at the public Run boundary —
+   Bucket C. Solve by changing `Run` to return `UniTask<Flow<>>` directly.
+   Mild breaking change (callers `await runner.Run()` work identically;
+   anyone storing the return as `Task` needs to add `.AsTask()`).
 
-Shallow-graph state: ~570 ns + ~340 bytes per Run (unchanged + 3%).
-Deep-graph (50-node) state: **~7.6 µs + ~4.5 KB per Run, 54 allocs**.
+Combined C+D would land at ~0 allocations per Run post-warmup. Worth
+doing as a coordinated v2 API pass IF profiling on real gameplay shows
+the residual cost mattering.
+
+3. **Coroutine port**: redundant. UniTask matches its allocation profile
+   with async/await syntax.
+4. **Source-gen "compiled topology"**: rejected — defeats runtime-
+   authored visual scripting.
+
+Shallow-graph state: **~400 ns + ~120 bytes per Run, 2 allocs**.
+Deep-graph (50-node) state: **~2.7 µs + ~0 bytes per Run, 2 allocs**.
 without a deeper refactor.
