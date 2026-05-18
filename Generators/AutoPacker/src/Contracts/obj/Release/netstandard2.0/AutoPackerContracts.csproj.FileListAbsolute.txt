@@ -9,3 +9,14 @@ C:\Users\user\Documents\Unity\Scaffold\Generators\AutoPacker\src\Contracts\obj\R
 C:\Users\user\Documents\Unity\Scaffold\Generators\AutoPacker\src\Contracts\obj\Release\netstandard2.0\AutoPackerContracts.sourcelink.json
 C:\Users\user\Documents\Unity\Scaffold\Generators\AutoPacker\src\Contracts\obj\Release\netstandard2.0\AutoPackerContracts.dll
 C:\Users\user\Documents\Unity\Scaffold\Generators\AutoPacker\src\Contracts\obj\Release\netstandard2.0\AutoPackerContracts.pdb
+C:\Unity\Scaffold\Generators\AutoPacker\src\Contracts\bin\Release\netstandard2.0\AutoPackerContracts.deps.json
+C:\Unity\Scaffold\Generators\AutoPacker\src\Contracts\bin\Release\netstandard2.0\AutoPackerContracts.dll
+C:\Unity\Scaffold\Generators\AutoPacker\src\Contracts\bin\Release\netstandard2.0\AutoPackerContracts.pdb
+C:\Unity\Scaffold\Generators\AutoPacker\src\Contracts\obj\Release\netstandard2.0\AutoPackerContracts.csproj.AssemblyReference.cache
+C:\Unity\Scaffold\Generators\AutoPacker\src\Contracts\obj\Release\netstandard2.0\AutoPackerContracts.GeneratedMSBuildEditorConfig.editorconfig
+C:\Unity\Scaffold\Generators\AutoPacker\src\Contracts\obj\Release\netstandard2.0\AutoPackerContracts.AssemblyInfoInputs.cache
+C:\Unity\Scaffold\Generators\AutoPacker\src\Contracts\obj\Release\netstandard2.0\AutoPackerContracts.AssemblyInfo.cs
+C:\Unity\Scaffold\Generators\AutoPacker\src\Contracts\obj\Release\netstandard2.0\AutoPackerContracts.csproj.CoreCompileInputs.cache
+C:\Unity\Scaffold\Generators\AutoPacker\src\Contracts\obj\Release\netstandard2.0\AutoPackerContracts.sourcelink.json
+C:\Unity\Scaffold\Generators\AutoPacker\src\Contracts\obj\Release\netstandard2.0\AutoPackerContracts.dll
+C:\Unity\Scaffold\Generators\AutoPacker\src\Contracts\obj\Release\netstandard2.0\AutoPackerContracts.pdb

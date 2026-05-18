@@ -180,24 +180,19 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\user\\.nuget\\packages\\": {},
-    "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
+    "C:\\Users\\mtgco\\.nuget\\packages\\": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\user\\.codex\\worktrees\\7a04\\Scaffold\\Generators\\AutoPacker\\src\\Contracts\\AutoPackerContracts.csproj",
+      "projectUniqueName": "C:\\Unity\\Scaffold\\Generators\\AutoPacker\\src\\Contracts\\AutoPackerContracts.csproj",
       "projectName": "AutoPackerContracts",
-      "projectPath": "C:\\Users\\user\\.codex\\worktrees\\7a04\\Scaffold\\Generators\\AutoPacker\\src\\Contracts\\AutoPackerContracts.csproj",
-      "packagesPath": "C:\\Users\\user\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\user\\.codex\\worktrees\\7a04\\Scaffold\\Generators\\AutoPacker\\src\\Contracts\\obj\\",
+      "projectPath": "C:\\Unity\\Scaffold\\Generators\\AutoPacker\\src\\Contracts\\AutoPackerContracts.csproj",
+      "packagesPath": "C:\\Users\\mtgco\\.nuget\\packages\\",
+      "outputPath": "C:\\Unity\\Scaffold\\Generators\\AutoPacker\\src\\Contracts\\obj\\",
       "projectStyle": "PackageReference",
-      "fallbackFolders": [
-        "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
-      ],
       "configFilePaths": [
-        "C:\\Users\\user\\AppData\\Roaming\\NuGet\\NuGet.Config",
-        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+        "C:\\Users\\mtgco\\AppData\\Roaming\\NuGet\\NuGet.Config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],
       "originalTargetFrameworks": [
@@ -223,7 +218,7 @@
         "auditLevel": "low",
         "auditMode": "direct"
       },
-      "SdkAnalysisLevel": "9.0.300"
+      "SdkAnalysisLevel": "10.0.200"
     },
     "frameworks": {
       "netstandard2.0": {
@@ -247,7 +242,7 @@
         ],
         "assetTargetFallback": true,
         "warn": true,
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.305\\RuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.203\\RuntimeIdentifierGraph.json"
       }
     }
   }

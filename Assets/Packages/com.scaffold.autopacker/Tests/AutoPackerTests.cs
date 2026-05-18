@@ -112,6 +112,21 @@ namespace Scaffold.Autopacker.Tests
         }
 
         [Test]
+        public void AutoPacker_IUnpackable_RestoresObjectStateCorrectly()
+        {
+            var originalState = new PlayerState { Health = 77, Speed = 2.5f, SpawnPoint = new Vector3(4, 5, 6) };
+            IPackedStruct packedData = originalState.Pack();
+
+            IUnpackable restored = new PlayerState();
+            restored.Unpack(packedData);
+
+            var typed = (PlayerState)restored;
+            Assert.AreEqual(77, typed.Health);
+            Assert.AreEqual(2.5f, typed.Speed);
+            Assert.AreEqual(new Vector3(4, 5, 6), typed.SpawnPoint);
+        }
+
+        [Test]
         public void AutoPacker_Pack_WithCustomHandler_UsesHandlerLogic()
         {
             // Arrange

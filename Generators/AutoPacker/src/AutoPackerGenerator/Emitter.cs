@@ -68,7 +68,11 @@ namespace AutoPackerGenerator
             string indent = indented ? "    " : "";
             string keyword = GetTypeKeyword(type);
             string accessibility = GetAccessibilityKeyword(type.DeclaredAccessibility);
-            sb.AppendLine($"{indent}{accessibility} partial {keyword} {type.Name} : {nameof(IPackable)}");
+            // IUnpackable is class-only: structs box on interface dispatch and Unpack would mutate the box, not the original.
+            string interfaces = type.TypeKind == TypeKind.Struct
+                ? nameof(IPackable)
+                : $"{nameof(IPackable)}, {nameof(IUnpackable)}";
+            sb.AppendLine($"{indent}{accessibility} partial {keyword} {type.Name} : {interfaces}");
             sb.AppendLine($"{indent}{{");
         }
 
@@ -106,7 +110,31 @@ namespace AutoPackerGenerator
             string i1 = indented ? "        " : "    ";
             string i2 = indented ? "            " : "        ";
 
+            if (type.TypeKind == TypeKind.Struct)
+            {
+                // Struct path: keep the original inline ctor; no IUnpackable.
+                sb.AppendLine($"{i1}public {type.Name}({type.Name}.Packed packedData, {nameof(IPackingHandler)} handler = null)");
+                sb.AppendLine($"{i1}{{");
+                sb.AppendLine($"{i2}handler ??= new DefaultPackingHandler();");
+                foreach (var tuple in fields)
+                    AppendFieldAssignment(sb, tuple.Field, tuple.TargetType, "packedData", "handler", convertToPacked: false, i2, extensionMethods);
+                sb.AppendLine($"{i1}}}");
+                sb.AppendLine();
+                return;
+            }
+
+            // Class path: ctor and the IUnpackable.Unpack(IPackedStruct, ...) overload both forward
+            // to a single private typed Unpack so the field-assignment body has one source of truth
+            // and the ctor avoids boxing the packed struct through IPackedStruct.
             sb.AppendLine($"{i1}public {type.Name}({type.Name}.Packed packedData, {nameof(IPackingHandler)} handler = null)");
+            sb.AppendLine($"{i1}    => Unpack(packedData, handler);");
+            sb.AppendLine();
+
+            sb.AppendLine($"{i1}public void Unpack({nameof(IPackedStruct)} packed, {nameof(IPackingHandler)} handler = null)");
+            sb.AppendLine($"{i1}    => Unpack(({type.Name}.Packed)packed, handler);");
+            sb.AppendLine();
+
+            sb.AppendLine($"{i1}private void Unpack({type.Name}.Packed packedData, {nameof(IPackingHandler)} handler)");
             sb.AppendLine($"{i1}{{");
             sb.AppendLine($"{i2}handler ??= new DefaultPackingHandler();");
             foreach (var tuple in fields)
