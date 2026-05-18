@@ -99,6 +99,21 @@ namespace Scaffold.Autopacker.Tests
         [Packed] public int Sequence;
     }
 
+    // Proposal-C pattern: user declares the abstract base manually with interfaces + abstract Pack/Unpack.
+    // Generator should yield to the user and only emit `override` on the derived.
+    [AutoPack]
+    public abstract class WireCommand : IPackable, IUnpackable
+    {
+        public abstract IPackedStruct Pack(IPackingHandler handler = null);
+        public abstract void Unpack(IPackedStruct packed, IPackingHandler handler = null);
+    }
+
+    public partial class MoveCommand : WireCommand
+    {
+        [Packed] public int Dx;
+        [Packed] public int Dy;
+    }
+
     public class AutoPackerTests
     {
         [Test]
@@ -273,6 +288,23 @@ namespace Scaffold.Autopacker.Tests
 
             Assert.AreEqual(typeof(DerivedStamped), packed.PackedType,
                 "Virtual dispatch must select the derived Pack and produce DerivedStamped.Packed.");
+        }
+
+        [Test]
+        public void AutoPacker_UserDeclaredAbstractBase_DerivedOverridesAndRoundTrips()
+        {
+            // User wrote the abstract base manually (Plan-C pattern).
+            // Generator must NOT duplicate the abstract members on the base,
+            // and the derived's Pack/Unpack must be `override` to satisfy the abstract contract.
+            WireCommand cmd = new MoveCommand { Dx = 3, Dy = -4 };
+            IPackedStruct packed = cmd.Pack();
+
+            WireCommand restored = new MoveCommand();
+            restored.Unpack(packed);
+
+            var typed = (MoveCommand)restored;
+            Assert.AreEqual(3, typed.Dx);
+            Assert.AreEqual(-4, typed.Dy);
         }
 
         [Test]

@@ -130,13 +130,42 @@ namespace AutoPackerGenerator
                         continue;
                     if (!method.IsAbstract && !method.IsVirtual && !method.IsOverride)
                         continue;
-                    if (method.Name == "Pack" && method.Parameters.Length == 1)
-                        return true;
-                    if (method.Name == "Unpack" && method.Parameters.Length == 2)
+                    if (IsPackSignature(method) || IsUnpackSignature(method))
                         return true;
                 }
             }
             return false;
+        }
+
+        private static bool DeclaresOwnPackOrUnpack(INamedTypeSymbol type)
+        {
+            foreach (var member in type.GetMembers())
+            {
+                if (!(member is IMethodSymbol method))
+                    continue;
+                if (IsPackSignature(method) || IsUnpackSignature(method))
+                    return true;
+            }
+            return false;
+        }
+
+        private static bool IsPackSignature(IMethodSymbol method)
+        {
+            if (method.Name != "Pack" || method.Parameters.Length != 1)
+                return false;
+            if (method.ReturnType.Name != "IPackedStruct")
+                return false;
+            return method.Parameters[0].Type.Name == "IPackingHandler";
+        }
+
+        private static bool IsUnpackSignature(IMethodSymbol method)
+        {
+            if (method.Name != "Unpack" || method.Parameters.Length != 2)
+                return false;
+            if (!method.ReturnsVoid)
+                return false;
+            return method.Parameters[0].Type.Name == "IPackedStruct"
+                && method.Parameters[1].Type.Name == "IPackingHandler";
         }
 
         private static List<INamedTypeSymbol> CollectAndEmitPartials(
@@ -169,6 +198,13 @@ namespace AutoPackerGenerator
                 bool isAbstractMarker = typeSymbol.IsAbstract
                                         && ownFields.Count == 0
                                         && inheritedFields.Count == 0;
+                // If the user already declared Pack/Unpack on this type (Plan-C pattern: abstract
+                // base with explicit interfaces + abstract members), skip emission entirely so we
+                // don't duplicate their members. The user owns the contract; derived types still
+                // see the abstract Pack/Unpack via HasUserDeclaredVirtualOrAbstractPackOrUnpack
+                // and pick up the override modifier.
+                if (isAbstractMarker && DeclaresOwnPackOrUnpack(typeSymbol))
+                    continue;
 
                 EmitPartial(context, typeSymbol, ownFields, inheritedFields, receiver.ExtensionMethods, ancestorEmits, descendantEmits, isAbstractMarker);
                 if (!isAbstractMarker)
