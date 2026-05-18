@@ -9,7 +9,7 @@ namespace AutoPackerGenerator
     {
         public Dictionary<INamedTypeSymbol, List<(IFieldSymbol Field, ITypeSymbol TargetType)>> TypeFields { get; }
             = new Dictionary<INamedTypeSymbol, List<(IFieldSymbol Field, ITypeSymbol TargetType)>>(SymbolEqualityComparer.Default);
-            
+
         public List<IMethodSymbol> ExtensionMethods { get; } = new List<IMethodSymbol>();
 
         public void OnVisitSyntaxNode(GeneratorSyntaxContext context)
@@ -23,13 +23,11 @@ namespace AutoPackerGenerator
         {
             if (!(context.Node is TypeDeclarationSyntax typeDeclaration))
                 return;
-            if (typeDeclaration.AttributeLists.Count == 0)
-                return;
 
             var typeSymbol = context.SemanticModel.GetDeclaredSymbol(typeDeclaration) as INamedTypeSymbol;
             if (typeSymbol == null)
                 return;
-            if (!HasAttribute(typeSymbol, nameof(AutoPackAttribute)))
+            if (!HasAutoPackInHierarchy(typeSymbol))
                 return;
 
             if (!TypeFields.ContainsKey(typeSymbol))
@@ -54,7 +52,7 @@ namespace AutoPackerGenerator
                 var containingType = fieldSymbol.ContainingType;
                 if (containingType == null)
                     continue;
-                if (!HasAttribute(containingType, nameof(AutoPackAttribute)))
+                if (!HasAutoPackInHierarchy(containingType))
                     continue;
 
                 if (!TypeFields.ContainsKey(containingType))
@@ -75,6 +73,16 @@ namespace AutoPackerGenerator
 
                 TypeFields[containingType].Add((fieldSymbol, targetType));
             }
+        }
+
+        private static bool HasAutoPackInHierarchy(INamedTypeSymbol type)
+        {
+            for (var current = type; current != null; current = current.BaseType)
+            {
+                if (HasAttribute(current, nameof(AutoPackAttribute)))
+                    return true;
+            }
+            return false;
         }
 
         private static bool HasAttribute(ISymbol symbol, string fullAttributeName)

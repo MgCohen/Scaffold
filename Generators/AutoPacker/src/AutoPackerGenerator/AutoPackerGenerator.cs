@@ -26,39 +26,166 @@ namespace AutoPackerGenerator
             if (!(context.SyntaxContextReceiver is AutoPackSyntaxReceiver receiver))
                 return;
 
-            var validTypes = CollectAndEmitPartials(context, receiver);
+            var inheritedFieldsByType = ComputeInheritedFields(receiver.TypeFields);
+            var emittedTypes = ComputeEmittedTypes(receiver.TypeFields, inheritedFieldsByType);
+            var validTypes = CollectAndEmitPartials(context, receiver, inheritedFieldsByType, emittedTypes);
             EmitRegistryFile(context, validTypes);
         }
 
-        private static List<INamedTypeSymbol> CollectAndEmitPartials(GeneratorExecutionContext context, AutoPackSyntaxReceiver receiver)
+        private static Dictionary<INamedTypeSymbol, List<(IFieldSymbol Field, ITypeSymbol TargetType)>> ComputeInheritedFields(
+            Dictionary<INamedTypeSymbol, List<(IFieldSymbol Field, ITypeSymbol TargetType)>> typeFields)
+        {
+            var result = new Dictionary<INamedTypeSymbol, List<(IFieldSymbol Field, ITypeSymbol TargetType)>>(SymbolEqualityComparer.Default);
+            foreach (var pair in typeFields)
+            {
+                var list = new List<(IFieldSymbol, ITypeSymbol)>();
+                for (var b = pair.Key.BaseType; b != null; b = b.BaseType)
+                {
+                    foreach (var member in b.GetMembers())
+                    {
+                        if (!(member is IFieldSymbol field) || field.IsStatic)
+                            continue;
+                        if (!TryGetPackedAttribute(field, out var targetType))
+                            continue;
+                        list.Add((field, targetType));
+                    }
+                }
+                result[pair.Key] = list;
+            }
+            return result;
+        }
+
+        private static bool TryGetPackedAttribute(IFieldSymbol field, out ITypeSymbol targetType)
+        {
+            targetType = null;
+            foreach (var attr in field.GetAttributes())
+            {
+                var name = attr.AttributeClass?.Name;
+                if (name != "PackedAttribute" && name != "Packed")
+                    continue;
+                if (attr.ConstructorArguments.Length > 0 && attr.ConstructorArguments[0].Value is ITypeSymbol ts)
+                    targetType = ts;
+                return true;
+            }
+            return false;
+        }
+
+        private static HashSet<INamedTypeSymbol> ComputeEmittedTypes(
+            Dictionary<INamedTypeSymbol, List<(IFieldSymbol Field, ITypeSymbol TargetType)>> typeFields,
+            Dictionary<INamedTypeSymbol, List<(IFieldSymbol Field, ITypeSymbol TargetType)>> inheritedFieldsByType)
+        {
+            var emitted = new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
+            foreach (var pair in typeFields)
+            {
+                var totalCount = pair.Value.Count + inheritedFieldsByType[pair.Key].Count;
+                if (totalCount > 0)
+                    emitted.Add(pair.Key);
+            }
+            // Field-bearing types pull in their registered ancestors so the base can provide
+            // the IPackable/IUnpackable surface (abstract for abstract markers; virtual stub otherwise).
+            var withAncestors = new HashSet<INamedTypeSymbol>(emitted, SymbolEqualityComparer.Default);
+            foreach (var type in emitted)
+            {
+                for (var b = type.BaseType; b != null; b = b.BaseType)
+                {
+                    if (typeFields.ContainsKey(b))
+                        withAncestors.Add(b);
+                }
+            }
+            return withAncestors;
+        }
+
+        private static bool HasEmittedAncestor(INamedTypeSymbol type, HashSet<INamedTypeSymbol> emitted)
+        {
+            for (var b = type.BaseType; b != null; b = b.BaseType)
+            {
+                if (emitted.Contains(b))
+                    return true;
+            }
+            return false;
+        }
+
+        private static bool HasEmittedDescendant(INamedTypeSymbol type, HashSet<INamedTypeSymbol> emitted)
+        {
+            foreach (var candidate in emitted)
+            {
+                if (SymbolEqualityComparer.Default.Equals(candidate, type))
+                    continue;
+                for (var b = candidate.BaseType; b != null; b = b.BaseType)
+                {
+                    if (SymbolEqualityComparer.Default.Equals(b, type))
+                        return true;
+                }
+            }
+            return false;
+        }
+
+        private static bool HasUserDeclaredVirtualOrAbstractPackOrUnpack(INamedTypeSymbol type)
+        {
+            for (var b = type.BaseType; b != null; b = b.BaseType)
+            {
+                foreach (var member in b.GetMembers())
+                {
+                    if (!(member is IMethodSymbol method))
+                        continue;
+                    if (!method.IsAbstract && !method.IsVirtual && !method.IsOverride)
+                        continue;
+                    if (method.Name == "Pack" && method.Parameters.Length == 1)
+                        return true;
+                    if (method.Name == "Unpack" && method.Parameters.Length == 2)
+                        return true;
+                }
+            }
+            return false;
+        }
+
+        private static List<INamedTypeSymbol> CollectAndEmitPartials(
+            GeneratorExecutionContext context,
+            AutoPackSyntaxReceiver receiver,
+            Dictionary<INamedTypeSymbol, List<(IFieldSymbol Field, ITypeSymbol TargetType)>> inheritedFieldsByType,
+            HashSet<INamedTypeSymbol> emittedTypes)
         {
             var validTypes = new List<INamedTypeSymbol>();
             foreach (var pair in receiver.TypeFields)
             {
                 var typeSymbol = pair.Key;
-                var fields = pair.Value;
+                if (!emittedTypes.Contains(typeSymbol))
+                    continue;
+
+                var ownFields = pair.Value;
+                var inheritedFields = inheritedFieldsByType[typeSymbol];
 
                 bool hasErrors = false;
-                foreach (var tuple in fields)
+                foreach (var tuple in ownFields)
                 {
-                    var fieldSymbol = tuple.Field;
-                    var typeToCheck = tuple.TargetType ?? fieldSymbol.Type;
-                    
-                    if (!typeToCheck.IsUnmanagedType)
-                    {
-                        var location = fieldSymbol.Locations.Length > 0 ? fieldSymbol.Locations[0] : Location.None;
-                        var diagnostic = Diagnostic.Create(MustBeUnmanagedDiagnostic, location, fieldSymbol.Name, typeToCheck.ToDisplayString());
-                        context.ReportDiagnostic(diagnostic);
+                    if (!ValidateField(context, tuple))
                         hasErrors = true;
-                    }
                 }
-
                 if (hasErrors) continue;
 
-                EmitPartial(context, typeSymbol, fields, receiver.ExtensionMethods);
-                validTypes.Add(typeSymbol);
+                bool ancestorEmits = HasEmittedAncestor(typeSymbol, emittedTypes)
+                                     || HasUserDeclaredVirtualOrAbstractPackOrUnpack(typeSymbol);
+                bool descendantEmits = HasEmittedDescendant(typeSymbol, emittedTypes);
+                bool isAbstractMarker = typeSymbol.IsAbstract
+                                        && ownFields.Count == 0
+                                        && inheritedFields.Count == 0;
+
+                EmitPartial(context, typeSymbol, ownFields, inheritedFields, receiver.ExtensionMethods, ancestorEmits, descendantEmits, isAbstractMarker);
+                if (!isAbstractMarker)
+                    validTypes.Add(typeSymbol);
             }
             return validTypes;
+        }
+
+        private static bool ValidateField(GeneratorExecutionContext context, (IFieldSymbol Field, ITypeSymbol TargetType) tuple)
+        {
+            var typeToCheck = tuple.TargetType ?? tuple.Field.Type;
+            if (typeToCheck.IsUnmanagedType)
+                return true;
+            var location = tuple.Field.Locations.Length > 0 ? tuple.Field.Locations[0] : Location.None;
+            var diagnostic = Diagnostic.Create(MustBeUnmanagedDiagnostic, location, tuple.Field.Name, typeToCheck.ToDisplayString());
+            context.ReportDiagnostic(diagnostic);
+            return false;
         }
 
         private static void EmitRegistryFile(GeneratorExecutionContext context, List<INamedTypeSymbol> types)
@@ -67,9 +194,17 @@ namespace AutoPackerGenerator
             context.AddSource("AutoPackerRegistry.g.cs", SourceText.From(source, Encoding.UTF8));
         }
 
-        private static void EmitPartial(GeneratorExecutionContext context, INamedTypeSymbol typeSymbol, List<(IFieldSymbol Field, ITypeSymbol TargetType)> fields, List<IMethodSymbol> extensionMethods)
+        private static void EmitPartial(
+            GeneratorExecutionContext context,
+            INamedTypeSymbol typeSymbol,
+            List<(IFieldSymbol Field, ITypeSymbol TargetType)> ownFields,
+            List<(IFieldSymbol Field, ITypeSymbol TargetType)> inheritedFields,
+            List<IMethodSymbol> extensionMethods,
+            bool ancestorEmits,
+            bool descendantEmits,
+            bool isAbstractMarker)
         {
-            var source = Emitter.EmitSource(typeSymbol, fields, extensionMethods);
+            var source = Emitter.EmitSource(typeSymbol, ownFields, inheritedFields, extensionMethods, ancestorEmits, descendantEmits, isAbstractMarker);
             context.AddSource($"{typeSymbol.Name}.Packed.g.cs", SourceText.From(source, Encoding.UTF8));
         }
     }

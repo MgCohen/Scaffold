@@ -7,27 +7,70 @@ namespace AutoPackerGenerator
 {
     internal static class Emitter
     {
-        public static string EmitSource(INamedTypeSymbol type, IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> fields, IReadOnlyList<IMethodSymbol> extensionMethods)
+        public static string EmitSource(
+            INamedTypeSymbol type,
+            IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> ownFields,
+            IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> inheritedFields,
+            IReadOnlyList<IMethodSymbol> extensionMethods,
+            bool ancestorEmits,
+            bool descendantEmits,
+            bool isAbstractMarker)
         {
             bool hasNamespace = !type.ContainingNamespace.IsGlobalNamespace;
+            var allFields = Combine(inheritedFields, ownFields);
             var sb = new StringBuilder();
 
-            AppendUsings(sb, fields);
+            AppendUsings(sb, allFields);
 
             if (hasNamespace)
                 AppendNamespaceOpen(sb, type);
 
             AppendTypeOpen(sb, type, hasNamespace);
-            AppendDefaultConstructorIfMissing(sb, type, hasNamespace);
-            AppendConstructorFromPacked(sb, type, fields, hasNamespace, extensionMethods);
-            AppendPackMethod(sb, hasNamespace);
-            AppendPackedStruct(sb, type, fields, hasNamespace, extensionMethods);
+
+            if (isAbstractMarker)
+            {
+                AppendAbstractMarkerMembers(sb, hasNamespace);
+            }
+            else
+            {
+                AppendDefaultConstructorIfMissing(sb, type, hasNamespace);
+                AppendConstructorFromPacked(sb, type, allFields, hasNamespace, extensionMethods, ancestorEmits, descendantEmits);
+                AppendPackMethod(sb, hasNamespace, ancestorEmits, descendantEmits);
+                AppendPackedStruct(sb, type, allFields, hasNamespace, extensionMethods);
+            }
+
             AppendTypeClose(sb, hasNamespace);
 
             if (hasNamespace)
                 AppendNamespaceClose(sb);
 
             return sb.ToString();
+        }
+
+        private static void AppendAbstractMarkerMembers(StringBuilder sb, bool indented)
+        {
+            string i1 = indented ? "        " : "    ";
+            sb.AppendLine($"{i1}public abstract {nameof(IPackedStruct)} Pack({nameof(IPackingHandler)} handler = null);");
+            sb.AppendLine();
+            sb.AppendLine($"{i1}public abstract void Unpack({nameof(IPackedStruct)} packed, {nameof(IPackingHandler)} handler = null);");
+            sb.AppendLine();
+        }
+
+        private static IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> Combine(
+            IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> inherited,
+            IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> own)
+        {
+            var combined = new List<(IFieldSymbol, ITypeSymbol)>(inherited.Count + own.Count);
+            combined.AddRange(inherited);
+            combined.AddRange(own);
+            return combined;
+        }
+
+        private static string MethodModifier(bool ancestorEmits, bool descendantEmits)
+        {
+            if (ancestorEmits) return "override ";
+            if (descendantEmits) return "virtual ";
+            return string.Empty;
         }
 
         private static void AppendUsings(StringBuilder sb, IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> fields)
@@ -105,7 +148,14 @@ namespace AutoPackerGenerator
             }
         }
 
-        private static void AppendConstructorFromPacked(StringBuilder sb, INamedTypeSymbol type, IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> fields, bool indented, IReadOnlyList<IMethodSymbol> extensionMethods)
+        private static void AppendConstructorFromPacked(
+            StringBuilder sb,
+            INamedTypeSymbol type,
+            IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> fields,
+            bool indented,
+            IReadOnlyList<IMethodSymbol> extensionMethods,
+            bool ancestorEmits,
+            bool descendantEmits)
         {
             string i1 = indented ? "        " : "    ";
             string i2 = indented ? "            " : "        ";
@@ -130,7 +180,8 @@ namespace AutoPackerGenerator
             sb.AppendLine($"{i1}    => Unpack(packedData, handler);");
             sb.AppendLine();
 
-            sb.AppendLine($"{i1}public void Unpack({nameof(IPackedStruct)} packed, {nameof(IPackingHandler)} handler = null)");
+            string modifier = MethodModifier(ancestorEmits, descendantEmits);
+            sb.AppendLine($"{i1}public {modifier}void Unpack({nameof(IPackedStruct)} packed, {nameof(IPackingHandler)} handler = null)");
             sb.AppendLine($"{i1}    => Unpack(({type.Name}.Packed)packed, handler);");
             sb.AppendLine();
 
@@ -143,10 +194,11 @@ namespace AutoPackerGenerator
             sb.AppendLine();
         }
 
-        private static void AppendPackMethod(StringBuilder sb, bool indented)
+        private static void AppendPackMethod(StringBuilder sb, bool indented, bool ancestorEmits, bool descendantEmits)
         {
             string i1 = indented ? "        " : "    ";
-            sb.AppendLine($"{i1}public {nameof(IPackedStruct)} Pack({nameof(IPackingHandler)} handler = null)");
+            string modifier = MethodModifier(ancestorEmits, descendantEmits);
+            sb.AppendLine($"{i1}public {modifier}{nameof(IPackedStruct)} Pack({nameof(IPackingHandler)} handler = null)");
             sb.AppendLine($"{i1}{{");
             sb.AppendLine($"{i1}    return new Packed(this, handler);");
             sb.AppendLine($"{i1}}}");
@@ -176,7 +228,7 @@ namespace AutoPackerGenerator
             sb.AppendLine($"{i2}{{");
             sb.AppendLine($"{i3}handler ??= new DefaultPackingHandler();");
             foreach (var tuple in fields)
-                AppendFieldAssignment(sb, tuple.Field, tuple.TargetType, "source", "handler", convertToPacked: true, i3, extensionMethods);;
+                AppendFieldAssignment(sb, tuple.Field, tuple.TargetType, "source", "handler", convertToPacked: true, i3, extensionMethods);
             sb.AppendLine($"{i2}}}");
             sb.AppendLine();
         }
@@ -187,7 +239,7 @@ namespace AutoPackerGenerator
             {
                 var field = tuple.Field;
                 var targetType = tuple.TargetType;
-                
+
                 string typeName;
                 if (targetType != null)
                 {
@@ -201,7 +253,7 @@ namespace AutoPackerGenerator
                 {
                     typeName = field.Type.ToDisplayString();
                 }
-                
+
                 sb.AppendLine($"{i2}public {typeName} {field.Name};");
             }
         }

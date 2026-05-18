@@ -75,6 +75,30 @@ namespace Scaffold.Autopacker.Tests
         }
     }
 
+    // --- Inheritance test types ---
+
+    [AutoPack]
+    public abstract partial class WireEvent
+    {
+        public string Trace;
+    }
+
+    public partial class EntityCreatedEvent : WireEvent
+    {
+        [Packed] public long EntityId;
+    }
+
+    [AutoPack]
+    public partial class BaseStamped
+    {
+        [Packed] public long Timestamp;
+    }
+
+    public partial class DerivedStamped : BaseStamped
+    {
+        [Packed] public int Sequence;
+    }
+
     public class AutoPackerTests
     {
         [Test]
@@ -178,6 +202,79 @@ namespace Scaffold.Autopacker.Tests
             Assert.AreEqual(1009, concreteStruct.Coordinate, "Packer did not correctly invoke the implicitly bound extension method during Pack.");
         }
         
+        [Test]
+        public void AutoPacker_DerivedWithoutAttribute_GeneratesPackUnpack()
+        {
+            var original = new EntityCreatedEvent { EntityId = 1234 };
+            IPackedStruct packed = original.Pack();
+
+            IUnpackable restored = new EntityCreatedEvent();
+            restored.Unpack(packed);
+
+            Assert.AreEqual(1234, ((EntityCreatedEvent)restored).EntityId);
+        }
+
+        [Test]
+        public void AutoPacker_AbstractMarkerBase_NoPackedStructEmitted()
+        {
+            // Abstract base with no own/inherited [Packed] fields gets only the
+            // interface + abstract Pack/Unpack — no nested Packed struct.
+            var nested = typeof(WireEvent).GetNestedType("Packed");
+            Assert.IsNull(nested, "Abstract marker base should not get a generated Packed struct.");
+        }
+
+        [Test]
+        public void AutoPacker_AbstractMarkerBase_AddsPackableInterfaces()
+        {
+            // The generator emits `: IPackable, IUnpackable` onto the base partial so the
+            // user doesn't have to declare them by hand.
+            Assert.IsTrue(typeof(IPackable).IsAssignableFrom(typeof(WireEvent)));
+            Assert.IsTrue(typeof(IUnpackable).IsAssignableFrom(typeof(WireEvent)));
+        }
+
+        [Test]
+        public void AutoPacker_AbstractMarkerBase_PolymorphicPackUnpack()
+        {
+            WireEvent ev = new EntityCreatedEvent { EntityId = 555 };
+            IPackedStruct packed = ev.Pack();
+
+            Assert.AreEqual(typeof(EntityCreatedEvent), packed.PackedType);
+
+            WireEvent restored = new EntityCreatedEvent();
+            restored.Unpack(packed);
+            Assert.AreEqual(555, ((EntityCreatedEvent)restored).EntityId);
+        }
+
+        [Test]
+        public void AutoPacker_DerivedInheritsPackedFields_RoundTrips()
+        {
+            var original = new DerivedStamped { Timestamp = 9999, Sequence = 7 };
+            IPackedStruct packed = original.Pack();
+
+            var derivedPacked = (DerivedStamped.Packed)packed;
+            Assert.AreEqual(9999, derivedPacked.Timestamp, "Derived's Packed struct must include the inherited field.");
+            Assert.AreEqual(7, derivedPacked.Sequence);
+
+            IUnpackable restored = new DerivedStamped();
+            restored.Unpack(packed);
+
+            var typed = (DerivedStamped)restored;
+            Assert.AreEqual(9999, typed.Timestamp);
+            Assert.AreEqual(7, typed.Sequence);
+        }
+
+        [Test]
+        public void AutoPacker_BaseAndDerivedBothCodegen_VirtualDispatchPicksDerived()
+        {
+            // Pack() called through base reference should dispatch to derived's Pack
+            // (virtual on base, override on derived) and produce DerivedStamped.Packed.
+            BaseStamped polymorphic = new DerivedStamped { Timestamp = 1, Sequence = 42 };
+            IPackedStruct packed = polymorphic.Pack();
+
+            Assert.AreEqual(typeof(DerivedStamped), packed.PackedType,
+                "Virtual dispatch must select the derived Pack and produce DerivedStamped.Packed.");
+        }
+
         [Test]
         public void AutoPacker_Unpack_WithExtensionMethod_UsesExtensionLogic()
         {
