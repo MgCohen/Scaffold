@@ -114,6 +114,27 @@ namespace Scaffold.Autopacker.Tests
         [Packed] public int Dy;
     }
 
+    // Mirrors the consumer's "Config 1" — abstract base lists interfaces explicitly but
+    // no abstract methods; derived has [Packed] field with NO [AutoPack] on it.
+    [AutoPack]
+    public abstract partial class CfgOneBase : IPackable, IUnpackable { }
+
+    public partial class CfgOneDerived : CfgOneBase
+    {
+        [Packed] public long EntityId;
+    }
+
+    // Mirrors the consumer's "Config 2" — both base and derived carry [AutoPack];
+    // base has explicit interfaces, derived has [Packed] field.
+    [AutoPack]
+    public abstract partial class CfgTwoBase : IPackable, IUnpackable { }
+
+    [AutoPack]
+    public partial class CfgTwoDerived : CfgTwoBase
+    {
+        [Packed] public long EntityId;
+    }
+
     public class AutoPackerTests
     {
         [Test]
@@ -305,6 +326,34 @@ namespace Scaffold.Autopacker.Tests
             var typed = (MoveCommand)restored;
             Assert.AreEqual(3, typed.Dx);
             Assert.AreEqual(-4, typed.Dy);
+        }
+
+        [Test]
+        public void AutoPacker_ConsumerConfig1_BaseAttrOnly_RoundTrips()
+        {
+            // Proposal "Config 1" — [AutoPack] only on abstract base with explicit interfaces;
+            // derived has [Packed] field but no [AutoPack]. The consumer reported this returns 0.
+            var original = new CfgOneDerived { EntityId = 42 };
+            IPackedStruct packed = original.Pack();
+
+            var restored = new CfgOneDerived();
+            ((IUnpackable)restored).Unpack(packed);
+
+            Assert.AreEqual(42, restored.EntityId, "Config 1 round-trip must preserve EntityId.");
+        }
+
+        [Test]
+        public void AutoPacker_ConsumerConfig2_BothAttrs_RoundTrips()
+        {
+            // Proposal "Config 2" — [AutoPack] on both base and derived. Consumer reported
+            // override emission has a runtime bug; this confirms the body is correct.
+            var original = new CfgTwoDerived { EntityId = 42 };
+            IPackedStruct packed = original.Pack();
+
+            var restored = new CfgTwoDerived();
+            ((IUnpackable)restored).Unpack(packed);
+
+            Assert.AreEqual(42, restored.EntityId, "Config 2 round-trip must preserve EntityId.");
         }
 
         [Test]
