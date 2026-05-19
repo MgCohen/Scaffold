@@ -178,6 +178,46 @@ namespace AutoPackerGenerator
             return false;
         }
 
+        // PackTyped/UnpackTyped aren't virtual by default — only when a hand-written base
+        // (e.g. WireEvent<TPacked>) declares them abstract/virtual, the leaf gets `override`.
+        private static bool HasUserDeclaredVirtualOrAbstractTypedPackOrUnpack(INamedTypeSymbol type)
+        {
+            for (var b = type.BaseType; b != null; b = b.BaseType)
+            {
+                foreach (var member in b.GetMembers())
+                {
+                    if (!(member is IMethodSymbol method))
+                        continue;
+                    if (!method.IsAbstract && !method.IsVirtual && !method.IsOverride)
+                        continue;
+                    if (IsPackTypedSignature(method) || IsUnpackTypedSignature(method))
+                        return true;
+                }
+            }
+            return false;
+        }
+
+        // Did some [AutoPack] ancestor's generator-emitted partial also emit typed methods?
+        // That happens when the ancestor has its own [Packed] fields or inherited ones —
+        // i.e. it's NOT an abstract marker. If yes, derived must use `new` to suppress CS0108
+        // because base.PackTyped returns Base.Packed while derived.PackTyped returns Derived.Packed.
+        private static bool HasEmittedAncestorWithFields(
+            INamedTypeSymbol type,
+            HashSet<INamedTypeSymbol> emittedTypes,
+            Dictionary<INamedTypeSymbol, List<(IFieldSymbol Field, ITypeSymbol TargetType)>> typeFields,
+            Dictionary<INamedTypeSymbol, List<(IFieldSymbol Field, ITypeSymbol TargetType)>> inheritedFieldsByType)
+        {
+            for (var b = type.BaseType; b != null; b = b.BaseType)
+            {
+                var candidate = b.OriginalDefinition;
+                if (!emittedTypes.Contains(candidate)) continue;
+                bool hasOwn = typeFields.TryGetValue(candidate, out var own) && own.Count > 0;
+                bool hasInherited = inheritedFieldsByType.TryGetValue(candidate, out var inh) && inh.Count > 0;
+                if (hasOwn || hasInherited) return true;
+            }
+            return false;
+        }
+
         private static bool DeclaresOwnPackOrUnpack(INamedTypeSymbol type)
         {
             foreach (var member in type.GetMembers())
@@ -209,6 +249,22 @@ namespace AutoPackerGenerator
                 && method.Parameters[1].Type.Name == "IPackingHandler";
         }
 
+        private static bool IsPackTypedSignature(IMethodSymbol method)
+        {
+            if (method.Name != "PackTyped" || method.Parameters.Length != 1)
+                return false;
+            return method.Parameters[0].Type.Name == "IPackingHandler";
+        }
+
+        private static bool IsUnpackTypedSignature(IMethodSymbol method)
+        {
+            if (method.Name != "UnpackTyped" || method.Parameters.Length != 2)
+                return false;
+            if (!method.ReturnsVoid)
+                return false;
+            return method.Parameters[1].Type.Name == "IPackingHandler";
+        }
+
         private static List<INamedTypeSymbol> CollectAndEmitPartials(
             GeneratorExecutionContext context,
             AutoPackSyntaxReceiver receiver,
@@ -236,6 +292,9 @@ namespace AutoPackerGenerator
                 bool ancestorEmits = HasEmittedAncestor(typeSymbol, emittedTypes)
                                      || HasUserDeclaredVirtualOrAbstractPackOrUnpack(typeSymbol);
                 bool descendantEmits = HasEmittedDescendant(typeSymbol, emittedTypes);
+                bool typedAncestorOverride = HasUserDeclaredVirtualOrAbstractTypedPackOrUnpack(typeSymbol);
+                bool typedAncestorHides = !typedAncestorOverride
+                    && HasEmittedAncestorWithFields(typeSymbol, emittedTypes, receiver.TypeFields, inheritedFieldsByType);
                 bool isAbstractMarker = typeSymbol.IsAbstract
                                         && ownFields.Count == 0
                                         && inheritedFields.Count == 0;
@@ -247,7 +306,7 @@ namespace AutoPackerGenerator
                 if (isAbstractMarker && DeclaresOwnPackOrUnpack(typeSymbol))
                     continue;
 
-                EmitPartial(context, typeSymbol, ownFields, inheritedFields, receiver.ExtensionMethods, ancestorEmits, descendantEmits, isAbstractMarker);
+                EmitPartial(context, typeSymbol, ownFields, inheritedFields, receiver.ExtensionMethods, ancestorEmits, descendantEmits, typedAncestorOverride, typedAncestorHides, isAbstractMarker);
                 if (!isAbstractMarker)
                     validTypes.Add(typeSymbol);
             }
@@ -287,9 +346,11 @@ namespace AutoPackerGenerator
             List<IMethodSymbol> extensionMethods,
             bool ancestorEmits,
             bool descendantEmits,
+            bool typedAncestorOverride,
+            bool typedAncestorHides,
             bool isAbstractMarker)
         {
-            var source = Emitter.EmitSource(typeSymbol, ownFields, inheritedFields, extensionMethods, ancestorEmits, descendantEmits, isAbstractMarker);
+            var source = Emitter.EmitSource(typeSymbol, ownFields, inheritedFields, extensionMethods, ancestorEmits, descendantEmits, typedAncestorOverride, typedAncestorHides, isAbstractMarker);
             // Arity suffix keeps Foo<T> and Foo from colliding in the same compilation.
             string aritySuffix = typeSymbol.TypeParameters.Length > 0 ? $"_{typeSymbol.TypeParameters.Length}" : string.Empty;
             context.AddSource($"{typeSymbol.Name}{aritySuffix}.Packed.g.cs", SourceText.From(source, Encoding.UTF8));

@@ -151,6 +151,39 @@ namespace Scaffold.Autopacker.Tests
     // with that closed field type.
     public partial class HealthTagSetEvent : TagSetEvent<int> { }
 
+    // --- Typed-accessor hierarchy: hand-written generic intermediate ---
+    // Proposal's key case: [AutoPack] root → hand-written generic abstract intermediate
+    // declaring abstract PackTyped/UnpackTyped → leaf with [Packed] fields gets `override` on typed.
+    [AutoPack]
+    public abstract partial class WireEnvelope { }
+
+    public abstract class WireEnvelope<TPacked> : WireEnvelope, IPackable<TPacked>, IUnpackable<TPacked>
+        where TPacked : unmanaged
+    {
+        public abstract TPacked PackTyped(IPackingHandler handler = null);
+        public abstract void UnpackTyped(in TPacked packed, IPackingHandler handler = null);
+    }
+
+    public partial class WireEntityCreated : WireEnvelope<WireEntityCreated.Packed>
+    {
+        [Packed] public long EntityId;
+    }
+
+    // --- Walker smoke test: leaf reaches [AutoPack] root through a non-[AutoPack] generic intermediate ---
+    [AutoPack]
+    public abstract partial class WalkRoot { }
+
+    public abstract class WalkMiddle<T> : WalkRoot where T : unmanaged
+    {
+        public abstract T GetIt();
+    }
+
+    public partial class WalkLeaf : WalkMiddle<WalkLeaf.Packed>
+    {
+        [Packed] public int X;
+        public override WalkLeaf.Packed GetIt() => default;
+    }
+
     public class AutoPackerTests
     {
         [Test]
@@ -415,6 +448,127 @@ namespace Scaffold.Autopacker.Tests
             Assert.AreEqual(11, packed.EntityId);
             Assert.AreEqual(3, packed.Slot);
             Assert.AreEqual(42, packed.Value);
+        }
+
+        // --- Typed-accessor tests ---
+
+        [Test]
+        public void AutoPacker_PackTyped_ReturnsConcretePackedWithoutBoxing()
+        {
+            var src = new PlayerState { Health = 42, Speed = 10.5f, SpawnPoint = new Vector3(1, 2, 3) };
+            PlayerState.Packed packed = src.PackTyped();
+            Assert.AreEqual(42, packed.Health);
+            Assert.AreEqual(10.5f, packed.Speed);
+            Assert.AreEqual(new Vector3(1, 2, 3), packed.SpawnPoint);
+        }
+
+        [Test]
+        public void AutoPacker_UnpackTyped_RestoresStateWithoutBoxing()
+        {
+            var src = new PlayerState { Health = 77, Speed = 2.5f, SpawnPoint = new Vector3(4, 5, 6) };
+            PlayerState.Packed packed = src.PackTyped();
+
+            var dst = new PlayerState();
+            dst.UnpackTyped(packed);
+            Assert.AreEqual(77, dst.Health);
+            Assert.AreEqual(2.5f, dst.Speed);
+            Assert.AreEqual(new Vector3(4, 5, 6), dst.SpawnPoint);
+        }
+
+        [Test]
+        public void AutoPacker_TypedRoundTrip_WithCustomHandler_UsesHandlerLogic()
+        {
+            var handler = new MockEncryptionPacker();
+            var src = new SecurePayload { Value = "SecretMessage" };
+            SecurePayload.Packed packed = src.PackTyped(handler);
+            Assert.AreEqual("SecretMessage".GetHashCode() + MockEncryptionPacker.ENCRYPTED_OFFSET, packed.Value);
+
+            var dst = new SecurePayload();
+            dst.UnpackTyped(packed, handler);
+            Assert.AreEqual("SecretMessage", dst.Value);
+        }
+
+        [Test]
+        public void AutoPacker_TypedInterfaces_DeclaredOnGeneratedPartial()
+        {
+            Assert.IsTrue(typeof(IPackable<PlayerState.Packed>).IsAssignableFrom(typeof(PlayerState)));
+            Assert.IsTrue(typeof(IUnpackable<PlayerState.Packed>).IsAssignableFrom(typeof(PlayerState)));
+        }
+
+        [Test]
+        public void AutoPacker_TypedInterfaces_NotEmittedOnAbstractMarker()
+        {
+            // The abstract marker has no nested Packed, so it can't implement IPackable<T>/IUnpackable<T>.
+            foreach (var iface in typeof(WireEvent).GetInterfaces())
+            {
+                Assert.IsFalse(iface.IsGenericType && iface.GetGenericTypeDefinition() == typeof(IPackable<>),
+                    "Abstract marker base must not declare IPackable<T> — there is no Packed type for it.");
+                Assert.IsFalse(iface.IsGenericType && iface.GetGenericTypeDefinition() == typeof(IUnpackable<>),
+                    "Abstract marker base must not declare IUnpackable<T>.");
+            }
+        }
+
+        [Test]
+        public void AutoPacker_HandWrittenAbstractTypedBase_DerivedOverridesAndRoundTrips()
+        {
+            // Generator must emit `override` on the leaf's PackTyped/UnpackTyped because the
+            // hand-written WireEnvelope<TPacked> declares them abstract with TPacked closed at the leaf.
+            var src = new WireEntityCreated { EntityId = 12345 };
+            WireEntityCreated.Packed packed = src.PackTyped();
+            Assert.AreEqual(12345, packed.EntityId);
+
+            // Polymorphic call through the generic intermediate dispatches to the leaf's override.
+            WireEnvelope<WireEntityCreated.Packed> envelope = src;
+            WireEntityCreated.Packed viaBase = envelope.PackTyped();
+            Assert.AreEqual(12345, viaBase.EntityId);
+
+            var dst = new WireEntityCreated();
+            ((WireEnvelope<WireEntityCreated.Packed>)dst).UnpackTyped(packed);
+            Assert.AreEqual(12345, dst.EntityId);
+        }
+
+        [Test]
+        public void AutoPacker_NonAutoPackGenericIntermediate_LeafGetsCodegen()
+        {
+            // [AutoPack] root → WalkMiddle<T> (no attribute) → WalkLeaf (no attribute).
+            // The walker must traverse the non-[AutoPack] intermediate to reach the [AutoPack] root.
+            var src = new WalkLeaf { X = 7 };
+            WalkLeaf.Packed packed = src.PackTyped();
+            Assert.AreEqual(7, packed.X);
+
+            var dst = new WalkLeaf();
+            dst.UnpackTyped(packed);
+            Assert.AreEqual(7, dst.X);
+        }
+
+        [Test]
+        public void AutoPacker_BoxedPack_DelegatesToPackTyped()
+        {
+            // The boxed Pack() is now a thin wrapper over PackTyped — both return the same value
+            // (the wrapper boxes at the IPackedStruct return-type boundary).
+            var src = new PlayerState { Health = 1, Speed = 2f, SpawnPoint = Vector3.zero };
+            IPackedStruct boxed = src.Pack();
+            PlayerState.Packed typed = src.PackTyped();
+            Assert.AreEqual(typeof(PlayerState), boxed.PackedType);
+            Assert.AreEqual(typed.Health, ((PlayerState.Packed)boxed).Health);
+        }
+
+        [Test]
+        public void AutoPacker_DerivedTypedHidesBase_BothShapesAccessible()
+        {
+            // BaseStamped emits Packed{Timestamp}; DerivedStamped emits Packed{Timestamp, Sequence}.
+            // Different return types → derived's PackTyped uses `new` to suppress CS0108.
+            var d = new DerivedStamped { Timestamp = 100, Sequence = 9 };
+
+            DerivedStamped.Packed derivedPacked = d.PackTyped();
+            Assert.AreEqual(100, derivedPacked.Timestamp);
+            Assert.AreEqual(9, derivedPacked.Sequence);
+
+            // Through a BaseStamped reference, the inherited PackTyped returns BaseStamped.Packed
+            // (no virtual relationship — `new` hides, not overrides).
+            BaseStamped b = d;
+            BaseStamped.Packed basePacked = b.PackTyped();
+            Assert.AreEqual(100, basePacked.Timestamp);
         }
 
         [Test]

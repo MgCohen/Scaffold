@@ -14,6 +14,8 @@ namespace AutoPackerGenerator
             IReadOnlyList<IMethodSymbol> extensionMethods,
             bool ancestorEmits,
             bool descendantEmits,
+            bool typedAncestorOverride,
+            bool typedAncestorHides,
             bool isAbstractMarker)
         {
             bool hasNamespace = !type.ContainingNamespace.IsGlobalNamespace;
@@ -25,7 +27,7 @@ namespace AutoPackerGenerator
             if (hasNamespace)
                 AppendNamespaceOpen(sb, type);
 
-            AppendTypeOpen(sb, type, hasNamespace);
+            AppendTypeOpen(sb, type, hasNamespace, isAbstractMarker);
 
             if (isAbstractMarker)
             {
@@ -34,8 +36,8 @@ namespace AutoPackerGenerator
             else
             {
                 AppendDefaultConstructorIfMissing(sb, type, hasNamespace);
-                AppendConstructorFromPacked(sb, type, allFields, hasNamespace, extensionMethods, ancestorEmits, descendantEmits);
-                AppendPackMethod(sb, hasNamespace, ancestorEmits, descendantEmits);
+                AppendConstructorFromPacked(sb, type, allFields, hasNamespace, extensionMethods, ancestorEmits, descendantEmits, typedAncestorOverride, typedAncestorHides);
+                AppendPackMethod(sb, hasNamespace, ancestorEmits, descendantEmits, typedAncestorOverride, typedAncestorHides);
                 AppendPackedStruct(sb, type, allFields, hasNamespace, extensionMethods);
             }
 
@@ -73,6 +75,16 @@ namespace AutoPackerGenerator
             return string.Empty;
         }
 
+        // Typed methods aren't virtual by default. `override` only when a hand-written base
+        // declares abstract/virtual typed methods (e.g. WireEvent<TPacked>). `new` only when
+        // an emitted ancestor with fields would silently hide on inheritance and produce CS0108.
+        private static string TypedMethodModifier(bool typedAncestorOverride, bool typedAncestorHides)
+        {
+            if (typedAncestorOverride) return "override ";
+            if (typedAncestorHides) return "new ";
+            return string.Empty;
+        }
+
         private static void AppendUsings(StringBuilder sb, IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> fields)
         {
             sb.AppendLine("using System;");
@@ -106,15 +118,31 @@ namespace AutoPackerGenerator
             sb.AppendLine("}");
         }
 
-        private static void AppendTypeOpen(StringBuilder sb, INamedTypeSymbol type, bool indented)
+        private static void AppendTypeOpen(StringBuilder sb, INamedTypeSymbol type, bool indented, bool isAbstractMarker)
         {
             string indent = indented ? "    " : "";
             string keyword = GetTypeKeyword(type);
             string accessibility = GetAccessibilityKeyword(type.DeclaredAccessibility);
             // IUnpackable is class-only: structs box on interface dispatch and Unpack would mutate the box, not the original.
-            string interfaces = type.TypeKind == TypeKind.Struct
-                ? nameof(IPackable)
-                : $"{nameof(IPackable)}, {nameof(IUnpackable)}";
+            // Typed IPackable<Packed>/IUnpackable<Packed> are only emitted when there's a Packed struct to point at —
+            // abstract markers (no fields, no inherited fields) have none.
+            bool isStruct = type.TypeKind == TypeKind.Struct;
+            string interfaces;
+            if (isAbstractMarker)
+            {
+                interfaces = isStruct
+                    ? nameof(IPackable)
+                    : $"{nameof(IPackable)}, {nameof(IUnpackable)}";
+            }
+            else
+            {
+                // At type-declaration position, the nested `Packed` isn't in scope yet — qualify
+                // it via the containing self-reference (e.g. `Foo<T>.Packed`) so the binder resolves it.
+                string packedRef = $"{FormatSelfTypeReference(type)}.Packed";
+                interfaces = isStruct
+                    ? $"{nameof(IPackable)}, IPackable<{packedRef}>"
+                    : $"{nameof(IPackable)}, {nameof(IUnpackable)}, IPackable<{packedRef}>, IUnpackable<{packedRef}>";
+            }
             string typeParams = FormatTypeParameterList(type);
             sb.AppendLine($"{indent}{accessibility} partial {keyword} {type.Name}{typeParams} : {interfaces}");
             sb.AppendLine($"{indent}{{");
@@ -169,14 +197,19 @@ namespace AutoPackerGenerator
             bool indented,
             IReadOnlyList<IMethodSymbol> extensionMethods,
             bool ancestorEmits,
-            bool descendantEmits)
+            bool descendantEmits,
+            bool typedAncestorOverride,
+            bool typedAncestorHides)
         {
             string i1 = indented ? "        " : "    ";
             string i2 = indented ? "            " : "        ";
+            string typedModifier = TypedMethodModifier(typedAncestorOverride, typedAncestorHides);
 
             if (type.TypeKind == TypeKind.Struct)
             {
-                // Struct path: keep the original inline ctor; no IUnpackable.
+                // Struct path: ctor + typed UnpackTyped body, no IUnpackable.
+                // Convention: the typed surface owns the body; the ctor delegates so there's
+                // a single field-assignment site.
                 sb.AppendLine($"{i1}public {type.Name}(Packed packedData, {nameof(IPackingHandler)} handler = null)");
                 sb.AppendLine($"{i1}{{");
                 sb.AppendLine($"{i2}handler ??= new DefaultPackingHandler();");
@@ -187,19 +220,19 @@ namespace AutoPackerGenerator
                 return;
             }
 
-            // Class path: ctor and the IUnpackable.Unpack(IPackedStruct, ...) overload both forward
-            // to a single private typed Unpack so the field-assignment body has one source of truth
-            // and the ctor avoids boxing the packed struct through IPackedStruct.
+            // Class path: typed UnpackTyped(in Packed, …) owns the body. The ctor and the
+            // boxed Unpack(IPackedStruct, …) both delegate to it — one source of truth, and
+            // the boxed path is the only place where an unbox cast happens.
             sb.AppendLine($"{i1}public {type.Name}(Packed packedData, {nameof(IPackingHandler)} handler = null)");
-            sb.AppendLine($"{i1}    => Unpack(packedData, handler);");
+            sb.AppendLine($"{i1}    => UnpackTyped(packedData, handler);");
             sb.AppendLine();
 
-            string modifier = MethodModifier(ancestorEmits, descendantEmits);
-            sb.AppendLine($"{i1}public {modifier}void Unpack({nameof(IPackedStruct)} packed, {nameof(IPackingHandler)} handler = null)");
-            sb.AppendLine($"{i1}    => Unpack((Packed)packed, handler);");
+            string boxedModifier = MethodModifier(ancestorEmits, descendantEmits);
+            sb.AppendLine($"{i1}public {boxedModifier}void Unpack({nameof(IPackedStruct)} packed, {nameof(IPackingHandler)} handler = null)");
+            sb.AppendLine($"{i1}    => UnpackTyped((Packed)packed, handler);");
             sb.AppendLine();
 
-            sb.AppendLine($"{i1}private void Unpack(Packed packedData, {nameof(IPackingHandler)} handler)");
+            sb.AppendLine($"{i1}public {typedModifier}void UnpackTyped(in Packed packedData, {nameof(IPackingHandler)} handler = null)");
             sb.AppendLine($"{i1}{{");
             sb.AppendLine($"{i2}handler ??= new DefaultPackingHandler();");
             foreach (var tuple in fields)
@@ -208,14 +241,22 @@ namespace AutoPackerGenerator
             sb.AppendLine();
         }
 
-        private static void AppendPackMethod(StringBuilder sb, bool indented, bool ancestorEmits, bool descendantEmits)
+        private static void AppendPackMethod(StringBuilder sb, bool indented, bool ancestorEmits, bool descendantEmits, bool typedAncestorOverride, bool typedAncestorHides)
         {
             string i1 = indented ? "        " : "    ";
-            string modifier = MethodModifier(ancestorEmits, descendantEmits);
-            sb.AppendLine($"{i1}public {modifier}{nameof(IPackedStruct)} Pack({nameof(IPackingHandler)} handler = null)");
+            string boxedModifier = MethodModifier(ancestorEmits, descendantEmits);
+            string typedModifier = TypedMethodModifier(typedAncestorOverride, typedAncestorHides);
+
+            // Typed Pack owns the body. Boxed Pack returns the same value through IPackedStruct
+            // (the struct boxes at the return-type boundary — that's the only allocation on this path).
+            sb.AppendLine($"{i1}public {typedModifier}Packed PackTyped({nameof(IPackingHandler)} handler = null)");
             sb.AppendLine($"{i1}{{");
             sb.AppendLine($"{i1}    return new Packed(this, handler);");
             sb.AppendLine($"{i1}}}");
+            sb.AppendLine();
+
+            sb.AppendLine($"{i1}public {boxedModifier}{nameof(IPackedStruct)} Pack({nameof(IPackingHandler)} handler = null)");
+            sb.AppendLine($"{i1}    => PackTyped(handler);");
             sb.AppendLine();
         }
 
