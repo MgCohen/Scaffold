@@ -12,11 +12,18 @@ namespace AutoPackerGenerator
 
         public List<IMethodSymbol> ExtensionMethods { get; } = new List<IMethodSymbol>();
 
+        // Closed-generic references whose original definition carries [AutoPack].
+        // Sourced from any GenericNameSyntax in the compilation (new T<int>(), typeof(T<int>),
+        // Channel<T<int>>, : T<int>, Register<T<int>>(), …). Drives per-instantiation registry entries.
+        public HashSet<INamedTypeSymbol> ClosedInstantiations { get; }
+            = new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
+
         public void OnVisitSyntaxNode(GeneratorSyntaxContext context)
         {
             VisitTypeDeclaration(context);
             VisitFieldDeclaration(context);
             VisitMethodDeclaration(context);
+            VisitGenericName(context);
         }
 
         private void VisitTypeDeclaration(GeneratorSyntaxContext context)
@@ -96,6 +103,42 @@ namespace AutoPackerGenerator
                 var name = attr.AttributeClass?.Name;
                 if (name == fullAttributeName || name == shortName)
                     return true;
+            }
+            return false;
+        }
+
+        private void VisitGenericName(GeneratorSyntaxContext context)
+        {
+            if (!(context.Node is GenericNameSyntax genericName))
+                return;
+
+            var symbolInfo = context.SemanticModel.GetSymbolInfo(genericName);
+            var symbol = symbolInfo.Symbol;
+            if (symbol == null && symbolInfo.CandidateSymbols.Length > 0)
+                symbol = symbolInfo.CandidateSymbols[0];
+            if (!(symbol is INamedTypeSymbol named))
+                return;
+
+            // We only register concrete closed forms — open-or-partially-open references like
+            // TagSetEvent<U> inside `class Outer<U>` aren't usable as registry keys.
+            if (named.IsUnboundGenericType || ContainsOpenTypeParameter(named))
+                return;
+
+            var original = named.OriginalDefinition;
+            if (original.TypeParameters.Length == 0)
+                return;
+            if (!HasAttribute(original, nameof(AutoPackAttribute)))
+                return;
+
+            ClosedInstantiations.Add(named);
+        }
+
+        private static bool ContainsOpenTypeParameter(INamedTypeSymbol type)
+        {
+            foreach (var arg in type.TypeArguments)
+            {
+                if (arg is ITypeParameterSymbol) return true;
+                if (arg is INamedTypeSymbol inner && ContainsOpenTypeParameter(inner)) return true;
             }
             return false;
         }

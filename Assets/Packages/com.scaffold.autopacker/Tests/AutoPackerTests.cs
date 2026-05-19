@@ -135,6 +135,22 @@ namespace Scaffold.Autopacker.Tests
         [Packed] public long EntityId;
     }
 
+    // --- Open-generic [AutoPack] types ---
+    // Closed instantiations TagSetEvent<int> and TagSetEvent<float> are discovered
+    // by the generator's compilation scan (typeof references in tests below + this comment).
+    [AutoPack]
+    public partial class TagSetEvent<T> where T : unmanaged
+    {
+        [Packed] public int EntityId;
+        [Packed] public int Slot;
+        [Packed] public T   Value;
+    }
+
+    // Closed-by-inheritance — the generator's inherited-fields walker should pick up
+    // the substituted `int Value` from TagSetEvent<int> and emit HealthTagSetEvent.Packed
+    // with that closed field type.
+    public partial class HealthTagSetEvent : TagSetEvent<int> { }
+
     public class AutoPackerTests
     {
         [Test]
@@ -354,6 +370,51 @@ namespace Scaffold.Autopacker.Tests
             ((IUnpackable)restored).Unpack(packed);
 
             Assert.AreEqual(42, restored.EntityId, "Config 2 round-trip must preserve EntityId.");
+        }
+
+        [Test]
+        public void AutoPacker_OpenGeneric_RoundTripsPerClosedInstantiation()
+        {
+            var src = new TagSetEvent<int> { EntityId = 1, Slot = 7, Value = 30 };
+            var packed = (TagSetEvent<int>.Packed)src.Pack();
+            Assert.AreEqual(1, packed.EntityId);
+            Assert.AreEqual(7, packed.Slot);
+            Assert.AreEqual(30, packed.Value);
+
+            var dst = new TagSetEvent<int>();
+            ((IUnpackable)dst).Unpack(packed);
+            Assert.AreEqual(1, dst.EntityId);
+            Assert.AreEqual(7, dst.Slot);
+            Assert.AreEqual(30, dst.Value);
+        }
+
+        [Test]
+        public void AutoPacker_OpenGeneric_DistinctClosedTypesHaveDistinctPackedStructs()
+        {
+            Assert.AreNotEqual(typeof(TagSetEvent<int>.Packed), typeof(TagSetEvent<float>.Packed));
+            // Each closed Packed has the substituted Value field type.
+            var intValue = typeof(TagSetEvent<int>.Packed).GetField("Value");
+            var floatValue = typeof(TagSetEvent<float>.Packed).GetField("Value");
+            Assert.AreEqual(typeof(int), intValue.FieldType);
+            Assert.AreEqual(typeof(float), floatValue.FieldType);
+        }
+
+        [Test]
+        public void AutoPacker_OpenGeneric_PackedTypeIsClosedForm()
+        {
+            var src = new TagSetEvent<float> { EntityId = 9, Slot = 2, Value = 1.5f };
+            var packed = src.Pack();
+            Assert.AreEqual(typeof(TagSetEvent<float>), packed.PackedType);
+        }
+
+        [Test]
+        public void AutoPacker_OpenGeneric_ClosedByInheritance_RoundTrips()
+        {
+            var src = new HealthTagSetEvent { EntityId = 11, Slot = 3, Value = 42 };
+            var packed = (HealthTagSetEvent.Packed)src.Pack();
+            Assert.AreEqual(11, packed.EntityId);
+            Assert.AreEqual(3, packed.Slot);
+            Assert.AreEqual(42, packed.Value);
         }
 
         [Test]

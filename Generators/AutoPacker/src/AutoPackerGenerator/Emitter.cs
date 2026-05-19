@@ -115,9 +115,23 @@ namespace AutoPackerGenerator
             string interfaces = type.TypeKind == TypeKind.Struct
                 ? nameof(IPackable)
                 : $"{nameof(IPackable)}, {nameof(IUnpackable)}";
-            sb.AppendLine($"{indent}{accessibility} partial {keyword} {type.Name} : {interfaces}");
+            string typeParams = FormatTypeParameterList(type);
+            sb.AppendLine($"{indent}{accessibility} partial {keyword} {type.Name}{typeParams} : {interfaces}");
             sb.AppendLine($"{indent}{{");
         }
+
+        private static string FormatTypeParameterList(INamedTypeSymbol type)
+        {
+            if (type.TypeParameters.Length == 0) return string.Empty;
+            var names = new List<string>(type.TypeParameters.Length);
+            foreach (var tp in type.TypeParameters) names.Add(tp.Name);
+            return "<" + string.Join(", ", names) + ">";
+        }
+
+        // Self-references inside the body (typeof(...), `Packed(SourceType source)` ctor param).
+        // Constructors use the bare name; type-references must include type params.
+        private static string FormatSelfTypeReference(INamedTypeSymbol type) =>
+            type.Name + FormatTypeParameterList(type);
 
         private static void AppendTypeClose(StringBuilder sb, bool indented)
         {
@@ -163,7 +177,7 @@ namespace AutoPackerGenerator
             if (type.TypeKind == TypeKind.Struct)
             {
                 // Struct path: keep the original inline ctor; no IUnpackable.
-                sb.AppendLine($"{i1}public {type.Name}({type.Name}.Packed packedData, {nameof(IPackingHandler)} handler = null)");
+                sb.AppendLine($"{i1}public {type.Name}(Packed packedData, {nameof(IPackingHandler)} handler = null)");
                 sb.AppendLine($"{i1}{{");
                 sb.AppendLine($"{i2}handler ??= new DefaultPackingHandler();");
                 foreach (var tuple in fields)
@@ -176,16 +190,16 @@ namespace AutoPackerGenerator
             // Class path: ctor and the IUnpackable.Unpack(IPackedStruct, ...) overload both forward
             // to a single private typed Unpack so the field-assignment body has one source of truth
             // and the ctor avoids boxing the packed struct through IPackedStruct.
-            sb.AppendLine($"{i1}public {type.Name}({type.Name}.Packed packedData, {nameof(IPackingHandler)} handler = null)");
+            sb.AppendLine($"{i1}public {type.Name}(Packed packedData, {nameof(IPackingHandler)} handler = null)");
             sb.AppendLine($"{i1}    => Unpack(packedData, handler);");
             sb.AppendLine();
 
             string modifier = MethodModifier(ancestorEmits, descendantEmits);
             sb.AppendLine($"{i1}public {modifier}void Unpack({nameof(IPackedStruct)} packed, {nameof(IPackingHandler)} handler = null)");
-            sb.AppendLine($"{i1}    => Unpack(({type.Name}.Packed)packed, handler);");
+            sb.AppendLine($"{i1}    => Unpack((Packed)packed, handler);");
             sb.AppendLine();
 
-            sb.AppendLine($"{i1}private void Unpack({type.Name}.Packed packedData, {nameof(IPackingHandler)} handler)");
+            sb.AppendLine($"{i1}private void Unpack(Packed packedData, {nameof(IPackingHandler)} handler)");
             sb.AppendLine($"{i1}{{");
             sb.AppendLine($"{i2}handler ??= new DefaultPackingHandler();");
             foreach (var tuple in fields)
@@ -213,7 +227,7 @@ namespace AutoPackerGenerator
 
             sb.AppendLine($"{i1}public struct Packed : {nameof(IPackedStruct)}");
             sb.AppendLine($"{i1}{{");
-            sb.AppendLine($"{i2}public Type PackedType => typeof({type.Name});");
+            sb.AppendLine($"{i2}public Type PackedType => typeof({FormatSelfTypeReference(type)});");
             sb.AppendLine();
 
             AppendPackedConstructor(sb, type, fields, i2, i3, extensionMethods);
@@ -224,7 +238,7 @@ namespace AutoPackerGenerator
 
         private static void AppendPackedConstructor(StringBuilder sb, INamedTypeSymbol type, IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> fields, string i2, string i3, IReadOnlyList<IMethodSymbol> extensionMethods)
         {
-            sb.AppendLine($"{i2}public Packed({type.Name} source, {nameof(IPackingHandler)} handler = null)");
+            sb.AppendLine($"{i2}public Packed({FormatSelfTypeReference(type)} source, {nameof(IPackingHandler)} handler = null)");
             sb.AppendLine($"{i2}{{");
             sb.AppendLine($"{i3}handler ??= new DefaultPackingHandler();");
             foreach (var tuple in fields)

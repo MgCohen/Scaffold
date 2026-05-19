@@ -16,6 +16,14 @@ namespace AutoPackerGenerator
             defaultSeverity: DiagnosticSeverity.Error,
             isEnabledByDefault: true);
 
+        private static readonly DiagnosticDescriptor TypeParameterFieldNoTargetTypeDiagnostic = new DiagnosticDescriptor(
+            id: "CSG003",
+            title: "Type-parameter [Packed] fields cannot specify a TargetType",
+            messageFormat: "Field '{0}' has type parameter '{1}'; [Packed(typeof(...))] target-type overrides are not supported for type-parameter fields.",
+            category: "AutoPackerGenerator",
+            defaultSeverity: DiagnosticSeverity.Error,
+            isEnabledByDefault: true);
+
         public void Initialize(GeneratorInitializationContext context)
         {
             context.RegisterForSyntaxNotifications(() => new AutoPackSyntaxReceiver());
@@ -29,7 +37,40 @@ namespace AutoPackerGenerator
             var inheritedFieldsByType = ComputeInheritedFields(receiver.TypeFields);
             var emittedTypes = ComputeEmittedTypes(receiver.TypeFields, inheritedFieldsByType);
             var validTypes = CollectAndEmitPartials(context, receiver, inheritedFieldsByType, emittedTypes);
-            EmitRegistryFile(context, validTypes);
+            var registryEntries = BuildRegistryEntries(validTypes, receiver.ClosedInstantiations);
+            EmitRegistryFile(context, registryEntries);
+        }
+
+        private static List<INamedTypeSymbol> BuildRegistryEntries(
+            List<INamedTypeSymbol> validTypes,
+            HashSet<INamedTypeSymbol> discoveredClosedInstantiations)
+        {
+            var result = new List<INamedTypeSymbol>(validTypes.Count);
+            var seen = new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
+
+            // Non-generic types — keep as-is. Open generics are skipped here; their
+            // closed forms come in via the discovered set below.
+            foreach (var type in validTypes)
+            {
+                if (type.TypeParameters.Length > 0) continue;
+                if (seen.Add(type)) result.Add(type);
+            }
+
+            // Only register closed forms whose open definition actually emitted a partial —
+            // otherwise the registered type has no `.Packed`.
+            var emittedOpenGenerics = new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
+            foreach (var type in validTypes)
+            {
+                if (type.TypeParameters.Length > 0) emittedOpenGenerics.Add(type);
+            }
+
+            foreach (var closed in discoveredClosedInstantiations)
+            {
+                if (!emittedOpenGenerics.Contains(closed.OriginalDefinition)) continue;
+                if (seen.Add(closed)) result.Add(closed);
+            }
+
+            return result;
         }
 
         private static Dictionary<INamedTypeSymbol, List<(IFieldSymbol Field, ITypeSymbol TargetType)>> ComputeInheritedFields(
@@ -215,6 +256,14 @@ namespace AutoPackerGenerator
 
         private static bool ValidateField(GeneratorExecutionContext context, (IFieldSymbol Field, ITypeSymbol TargetType) tuple)
         {
+            // Per-T target-type override doesn't compose — the converter can't depend on the closed T.
+            if (tuple.Field.Type is ITypeParameterSymbol tp && tuple.TargetType != null)
+            {
+                var loc = tuple.Field.Locations.Length > 0 ? tuple.Field.Locations[0] : Location.None;
+                context.ReportDiagnostic(Diagnostic.Create(TypeParameterFieldNoTargetTypeDiagnostic, loc, tuple.Field.Name, tp.Name));
+                return false;
+            }
+
             var typeToCheck = tuple.TargetType ?? tuple.Field.Type;
             if (typeToCheck.IsUnmanagedType)
                 return true;
@@ -241,7 +290,9 @@ namespace AutoPackerGenerator
             bool isAbstractMarker)
         {
             var source = Emitter.EmitSource(typeSymbol, ownFields, inheritedFields, extensionMethods, ancestorEmits, descendantEmits, isAbstractMarker);
-            context.AddSource($"{typeSymbol.Name}.Packed.g.cs", SourceText.From(source, Encoding.UTF8));
+            // Arity suffix keeps Foo<T> and Foo from colliding in the same compilation.
+            string aritySuffix = typeSymbol.TypeParameters.Length > 0 ? $"_{typeSymbol.TypeParameters.Length}" : string.Empty;
+            context.AddSource($"{typeSymbol.Name}{aritySuffix}.Packed.g.cs", SourceText.From(source, Encoding.UTF8));
         }
     }
 }
