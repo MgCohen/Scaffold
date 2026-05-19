@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("AutoPackerContracts")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+dc6bd81172813f3e38e66b0f73049c59b8fde00e")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+3305a66e88045b96deb7b7af11ca097ed98c8a35")]
 [assembly: System.Reflection.AssemblyProductAttribute("AutoPackerContracts")]
 [assembly: System.Reflection.AssemblyTitleAttribute("AutoPackerContracts")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
