@@ -184,6 +184,26 @@ namespace Scaffold.Autopacker.Tests
         public override WalkLeaf.Packed GetIt() => default;
     }
 
+    // --- Generic-forwarding intermediate with own [Packed] fields ---
+    // The intermediate is generic, has its own [Packed] fields, and forwards TPacked to a
+    // hand-written generic abstract base (WireEnvelope<TPacked>). Without the suppression
+    // branch, the generator would emit a nested Packed struct + PackTyped/UnpackTyped that
+    // can't override the base's abstract typed methods (return type would be the wrong type).
+    public abstract class TypedReqBase<TPacked, TPayload> : WireEnvelope<TPacked>
+        where TPacked : unmanaged, IPackedStruct
+    {
+        [Packed] public int  Id;
+        [Packed] public int  ParentId;
+        [Packed] public bool Flag;
+    }
+
+    public sealed class SomeResponse { }
+
+    public partial class TypedReqLeaf : TypedReqBase<TypedReqLeaf.Packed, SomeResponse>
+    {
+        [Packed] public int Extra;
+    }
+
     public class AutoPackerTests
     {
         [Test]
@@ -569,6 +589,45 @@ namespace Scaffold.Autopacker.Tests
             BaseStamped b = d;
             BaseStamped.Packed basePacked = b.PackTyped();
             Assert.AreEqual(100, basePacked.Timestamp);
+        }
+
+        [Test]
+        public void AutoPacker_GenericIntermediate_WithPackedFields_AggregatesToLeaf()
+        {
+            var src = new TypedReqLeaf { Id = 7, ParentId = 3, Flag = true, Extra = 99 };
+            TypedReqLeaf.Packed packed = src.PackTyped();
+            Assert.AreEqual(7,    packed.Id);
+            Assert.AreEqual(3,    packed.ParentId);
+            Assert.AreEqual(true, packed.Flag);
+            Assert.AreEqual(99,   packed.Extra);
+
+            var dst = new TypedReqLeaf();
+            dst.UnpackTyped(packed);
+            Assert.AreEqual(7,    dst.Id);
+            Assert.AreEqual(3,    dst.ParentId);
+            Assert.AreEqual(true, dst.Flag);
+            Assert.AreEqual(99,   dst.Extra);
+        }
+
+        [Test]
+        public void AutoPacker_GenericIntermediate_DoesNot_Emit_OwnPackedStruct()
+        {
+            var nested = typeof(TypedReqBase<,>).GetNestedType("Packed");
+            Assert.IsNull(nested, "Generic-forwarding intermediate must not emit own Packed struct.");
+        }
+
+        [Test]
+        public void AutoPacker_GenericIntermediate_BoxedPack_RoundTrips()
+        {
+            var src = new TypedReqLeaf { Id = 5, ParentId = 1, Flag = false, Extra = 42 };
+            IPackedStruct boxed = src.Pack();
+
+            var dst = new TypedReqLeaf();
+            ((IUnpackable)dst).Unpack(boxed);
+            Assert.AreEqual(5,  dst.Id);
+            Assert.AreEqual(1,  dst.ParentId);
+            Assert.AreEqual(false, dst.Flag);
+            Assert.AreEqual(42, dst.Extra);
         }
 
         [Test]

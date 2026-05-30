@@ -1,0 +1,8 @@
+{
+  "mailbox_root": "C:/Unity/Scaffold/.agent-mail",
+  "pair_id": "card-framework__scaffold",
+  "role": "tooling",
+  "project_slug": "scaffold",
+  "package_source_dir": "Assets/Packages",
+  "version_policy": "keep-main"
+}

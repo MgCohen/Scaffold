@@ -218,6 +218,40 @@ namespace AutoPackerGenerator
             return false;
         }
 
+        // A generic intermediate that forwards one of its type parameters (constrained to
+        // unmanaged + IPackedStruct) into the base's TPacked slot can't emit its own nested
+        // Packed/PackTyped — the typed methods would have to return a concrete nested type
+        // while the base abstract returns the open TPacked, which fails CS0508. The leaf
+        // closes TPacked to its own .Packed and provides the typed overrides; the walker
+        // still inherits the intermediate's [Packed] fields into the leaf's Packed struct.
+        private static bool IsGenericForwardingIntermediate(INamedTypeSymbol type)
+        {
+            if (type.TypeParameters.Length == 0) return false;
+            var baseType = type.BaseType;
+            if (baseType == null || baseType.TypeArguments.Length == 0) return false;
+
+            foreach (var arg in baseType.TypeArguments)
+            {
+                if (!(arg is ITypeParameterSymbol tp)) continue;
+
+                bool isOwnParam = false;
+                foreach (var own in type.TypeParameters)
+                {
+                    if (SymbolEqualityComparer.Default.Equals(own, tp)) { isOwnParam = true; break; }
+                }
+                if (!isOwnParam) continue;
+
+                if (!tp.HasUnmanagedTypeConstraint) continue;
+
+                foreach (var constraint in tp.ConstraintTypes)
+                {
+                    if (constraint.Name == "IPackedStruct")
+                        return true;
+                }
+            }
+            return false;
+        }
+
         private static bool DeclaresOwnPackOrUnpack(INamedTypeSymbol type)
         {
             foreach (var member in type.GetMembers())
@@ -304,6 +338,11 @@ namespace AutoPackerGenerator
                 // see the abstract Pack/Unpack via HasUserDeclaredVirtualOrAbstractPackOrUnpack
                 // and pick up the override modifier.
                 if (isAbstractMarker && DeclaresOwnPackOrUnpack(typeSymbol))
+                    continue;
+
+                // Generic-forwarding intermediates skip codegen entirely. Their [Packed] fields
+                // are still inherited into the leaf's Packed struct via the field walker above.
+                if (IsGenericForwardingIntermediate(typeSymbol))
                     continue;
 
                 EmitPartial(context, typeSymbol, ownFields, inheritedFields, receiver.ExtensionMethods, ancestorEmits, descendantEmits, typedAncestorOverride, typedAncestorHides, isAbstractMarker);

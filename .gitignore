@@ -226,3 +226,6 @@ Utility/Utility/obj/Debug/netstandard2.1/Utility.assets.cache
 Utility/Utility/obj/Debug/netstandard2.1/Utility.csproj.AssemblyReference.cache
 Utility/Utility/bin/Release/netstandard2.1/Utility.deps.json
 Utility/Utility/bin/Release/netstandard2.1/Utility.dll
+
+# peer-courier mailbox (local-only state)
+.agent-mail/
