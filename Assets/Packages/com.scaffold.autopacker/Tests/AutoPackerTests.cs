@@ -204,6 +204,24 @@ namespace Scaffold.Autopacker.Tests
         [Packed] public int Extra;
     }
 
+    // --- Zero-[Packed]-field concrete leaves: empty-payload codegen ---
+    // A concrete (instantiable) [AutoPack] type whose aggregated [Packed] field set is empty
+    // must still receive full codegen with an EMPTY Packed payload, so it can register as a
+    // zero-data wire event (Network.Register<T, TPacked> constrains TPacked : unmanaged,
+    // IPackedStruct). The discriminator is abstract vs. concrete leaf, not field count — the
+    // abstract marker base WireEvent above must still get no Packed.
+
+    // Concrete leaf of an [AutoPack] base, zero [Packed] fields (inherited `Trace` isn't [Packed]).
+    public partial class SignalEvent : WireEvent { }
+
+    // Closed-generic zero-field leaf: Foo<Bar>. The open definition declares no [Packed] fields;
+    // the closed form must still get a Packed nested type whose PackedType resolves to Foo<Bar>.
+    // The closed instantiation is discovered from the typeof/new references in the tests below.
+    public struct Bar { }
+
+    [AutoPack]
+    public partial class Foo<T> { }
+
     public class AutoPackerTests
     {
         [Test]
@@ -647,6 +665,89 @@ namespace Scaffold.Autopacker.Tests
             Assert.IsTrue(TestPackingExtensions.UnpackWasCalled, "The unpacking extension method was not invoked.");
             var expectedCoordinate = new Vector2(5, 5);
             Assert.AreEqual(expectedCoordinate, restoredPayload.Coordinate, "Packer did not correctly invoke the implicitly bound extension method during Unpack.");
+        }
+
+        // --- Zero-[Packed]-field empty-payload codegen ---
+
+        [Test]
+        public void AutoPacker_ConcreteZeroFieldLeaf_GetsEmptyPackedStruct()
+        {
+            var nested = typeof(SignalEvent).GetNestedType("Packed");
+            Assert.IsNotNull(nested, "Concrete zero-field leaf must still get a generated Packed struct.");
+
+            var valueFields = nested.GetFields(
+                System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.Public |
+                System.Reflection.BindingFlags.NonPublic);
+            Assert.AreEqual(0, valueFields.Length, "Zero-field leaf's Packed must carry no value fields (empty payload).");
+
+            // Contrast: the abstract marker base it derives from still gets no Packed.
+            Assert.IsNull(typeof(WireEvent).GetNestedType("Packed"),
+                "Abstract marker base must still get no Packed struct — discriminator is abstract vs. concrete.");
+        }
+
+        [Test]
+        public void AutoPacker_ConcreteZeroFieldLeaf_DeclaresTypedAndBoxedInterfaces()
+        {
+            Assert.IsTrue(typeof(IPackable).IsAssignableFrom(typeof(SignalEvent)));
+            Assert.IsTrue(typeof(IUnpackable).IsAssignableFrom(typeof(SignalEvent)));
+            Assert.IsTrue(typeof(IPackable<SignalEvent.Packed>).IsAssignableFrom(typeof(SignalEvent)));
+            Assert.IsTrue(typeof(IUnpackable<SignalEvent.Packed>).IsAssignableFrom(typeof(SignalEvent)));
+        }
+
+        [Test]
+        public void AutoPacker_ConcreteZeroFieldLeaf_RoundTripsZeroBytePayload()
+        {
+            var src = new SignalEvent();
+
+            // Boxed path reports the concrete leaf type.
+            IPackedStruct packed = src.Pack();
+            Assert.AreEqual(typeof(SignalEvent), packed.PackedType, "Boxed Pack must report the concrete leaf type.");
+
+            // Typed path round-trips a zero-byte payload without throwing.
+            SignalEvent.Packed typed = src.PackTyped();
+            Assert.AreEqual(typeof(SignalEvent), typed.PackedType);
+
+            var dst = new SignalEvent();
+            ((IUnpackable)dst).Unpack(packed);   // boxed unpack
+            dst.UnpackTyped(typed);              // typed unpack
+            Assert.AreEqual(typeof(SignalEvent), dst.PackTyped().PackedType);
+
+            // ctor(Packed) reconstruction path also works for the empty payload.
+            var viaCtor = new SignalEvent(typed);
+            Assert.AreEqual(typeof(SignalEvent), viaCtor.PackTyped().PackedType);
+        }
+
+        [Test]
+        public void AutoPacker_ClosedGenericZeroFieldLeaf_GetsEmptyPackedStruct()
+        {
+            var nested = typeof(Foo<Bar>).GetNestedType("Packed");
+            Assert.IsNotNull(nested, "Closed-generic zero-field leaf must still get a generated Packed struct.");
+        }
+
+        [Test]
+        public void AutoPacker_ClosedGenericZeroFieldLeaf_DeclaresTypedInterfaces()
+        {
+            Assert.IsTrue(typeof(IPackable<Foo<Bar>.Packed>).IsAssignableFrom(typeof(Foo<Bar>)));
+            Assert.IsTrue(typeof(IUnpackable<Foo<Bar>.Packed>).IsAssignableFrom(typeof(Foo<Bar>)));
+        }
+
+        [Test]
+        public void AutoPacker_ClosedGenericZeroFieldLeaf_RoundTripsAndReportsClosedPackedType()
+        {
+            var src = new Foo<Bar>();
+
+            IPackedStruct packed = src.Pack();
+            Assert.AreEqual(typeof(Foo<Bar>), packed.PackedType,
+                "PackedType must resolve to the closed generic form, not the open definition.");
+
+            Foo<Bar>.Packed typed = src.PackTyped();
+            Assert.AreEqual(typeof(Foo<Bar>), typed.PackedType);
+
+            var dst = new Foo<Bar>();
+            ((IUnpackable)dst).Unpack(packed);
+            dst.UnpackTyped(typed);
+            Assert.AreEqual(typeof(Foo<Bar>), dst.PackTyped().PackedType);
         }
     }
 }
