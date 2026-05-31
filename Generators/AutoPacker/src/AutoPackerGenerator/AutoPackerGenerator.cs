@@ -119,7 +119,12 @@ namespace AutoPackerGenerator
             foreach (var pair in typeFields)
             {
                 var totalCount = pair.Value.Count + inheritedFieldsByType[pair.Key].Count;
-                if (totalCount > 0)
+                // Concrete (instantiable) [AutoPack] types always get codegen — even with zero
+                // aggregated [Packed] fields they receive a full (empty-payload) Packed struct so
+                // they can register as zero-data wire events. Abstract marker bases stay out unless
+                // a field-bearing descendant pulls them in (below) for the abstract Pack/Unpack
+                // surface. The discriminator is abstract vs. concrete leaf, not field count.
+                if (totalCount > 0 || !pair.Key.IsAbstract)
                     emitted.Add(pair.Key);
             }
             // Field-bearing types pull in their registered ancestors so the base can provide
@@ -198,10 +203,12 @@ namespace AutoPackerGenerator
         }
 
         // Did some [AutoPack] ancestor's generator-emitted partial also emit typed methods?
-        // That happens when the ancestor has its own [Packed] fields or inherited ones —
-        // i.e. it's NOT an abstract marker. If yes, derived must use `new` to suppress CS0108
-        // because base.PackTyped returns Base.Packed while derived.PackTyped returns Derived.Packed.
-        private static bool HasEmittedAncestorWithFields(
+        // That happens for any emitted ancestor that is NOT an abstract marker and NOT a
+        // generic-forwarding intermediate — i.e. it has its own/inherited [Packed] fields, OR
+        // it's a concrete zero-field leaf (which now emits an empty Packed + typed methods).
+        // If yes, derived must use `new` to suppress CS0108 because base.PackTyped returns
+        // Base.Packed while derived.PackTyped returns Derived.Packed.
+        private static bool HasEmittedAncestorEmittingTyped(
             INamedTypeSymbol type,
             HashSet<INamedTypeSymbol> emittedTypes,
             Dictionary<INamedTypeSymbol, List<(IFieldSymbol Field, ITypeSymbol TargetType)>> typeFields,
@@ -211,9 +218,13 @@ namespace AutoPackerGenerator
             {
                 var candidate = b.OriginalDefinition;
                 if (!emittedTypes.Contains(candidate)) continue;
+                if (IsGenericForwardingIntermediate(candidate)) continue;
                 bool hasOwn = typeFields.TryGetValue(candidate, out var own) && own.Count > 0;
                 bool hasInherited = inheritedFieldsByType.TryGetValue(candidate, out var inh) && inh.Count > 0;
-                if (hasOwn || hasInherited) return true;
+                // Abstract markers emit only the boxed abstract Pack/Unpack — no typed methods to hide.
+                bool isAbstractMarker = candidate.IsAbstract && !hasOwn && !hasInherited;
+                if (isAbstractMarker) continue;
+                return true;
             }
             return false;
         }
@@ -328,7 +339,7 @@ namespace AutoPackerGenerator
                 bool descendantEmits = HasEmittedDescendant(typeSymbol, emittedTypes);
                 bool typedAncestorOverride = HasUserDeclaredVirtualOrAbstractTypedPackOrUnpack(typeSymbol);
                 bool typedAncestorHides = !typedAncestorOverride
-                    && HasEmittedAncestorWithFields(typeSymbol, emittedTypes, receiver.TypeFields, inheritedFieldsByType);
+                    && HasEmittedAncestorEmittingTyped(typeSymbol, emittedTypes, receiver.TypeFields, inheritedFieldsByType);
                 bool isAbstractMarker = typeSymbol.IsAbstract
                                         && ownFields.Count == 0
                                         && inheritedFields.Count == 0;
