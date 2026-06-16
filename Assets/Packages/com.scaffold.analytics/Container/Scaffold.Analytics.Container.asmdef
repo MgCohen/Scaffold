@@ -1,0 +1,17 @@
+{
+    "name": "Scaffold.Analytics.Container",
+    "rootNamespace": "Scaffold.Analytics",
+    "references": [
+        "VContainer",
+        "Scaffold.Analytics.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}
