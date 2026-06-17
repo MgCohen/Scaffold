@@ -8,7 +8,8 @@
         "url": "https://github.com/MgCohen/Scaffold"
     },
     "dependencies": {
-        "jp.hadashikick.vcontainer": "1.17.0"
+        "jp.hadashikick.vcontainer": "1.17.0",
+        "com.unity.services.analytics": "5.1.0"
     },
     "path": "https://github.com/MgCohen/Scaffold.git?path=/Assets/Packages/com.scaffold.analytics#main"
 }
