@@ -26,6 +26,9 @@
 # Local MSBuild overrides (opt out of LiveOps template sync on build, etc.)
 /Directory.Build.user.props
 
+# Telemetry secrets (Honeycomb API key, etc.) - see Tools/Telemetry/README.md
+/Tools/Telemetry/.env
+
 # Visual Studio cache directory
 .vs/
 
