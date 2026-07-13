@@ -1,5 +1,6 @@
 using System;
 using Sirenix.OdinInspector;
+using Sirenix.Serialization;
 
 namespace Scaffold.Core.Variables
 {
