@@ -1,0 +1,7 @@
+{
+  "name": "com.scaffold.core",
+  "version": "1.0.0",
+  "displayName": "Scaffold Core",
+  "description": "Core utilities and foundational patterns for Scaffold.",
+  "dependencies": {}
+}
