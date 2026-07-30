@@ -1,0 +1,21 @@
+{
+  "name": "Scaffold.Figma.Editor",
+  "rootNamespace": "Scaffold.Figma.Editor",
+  "references": [
+    "GUID:c1ac9017434e3acbc4d2a22ca80f6db9",
+    "Unity.TextMeshPro",
+    "UnityEditor",
+    "UnityEngine.UI"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

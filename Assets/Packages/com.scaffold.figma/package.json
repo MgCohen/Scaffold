@@ -1,0 +1,13 @@
+{
+  "name": "com.scaffold.figma",
+  "version": "0.1.0",
+  "displayName": "Scaffold Figma",
+  "description": "Import .figma.json Figma node trees as UGUI prefab-style assets.",
+  "unity": "6000.0",
+  "author": {
+    "name": "Matheus Gandolf Cohen",
+    "email": "matheus@duckduckweasel.com",
+    "url": "https://github.com/MgCohen/Scaffold"
+  },
+  "dependencies": {}
+}

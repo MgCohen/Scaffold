@@ -1,0 +1,84 @@
+{
+  "documentName": "Fixture Screen",
+  "nodes": [
+    {
+      "id": "1:1",
+      "name": "Screen",
+      "type": "FRAME",
+      "rect": { "x": 0, "y": 0, "width": 400, "height": 600 },
+      "constraints": null,
+      "layoutMode": "VERTICAL",
+      "layoutSpacing": 8,
+      "layoutPadding": { "left": 0, "right": 0, "top": 0, "bottom": 0 },
+      "fills": null,
+      "text": null,
+      "style": null,
+      "children": [
+        {
+          "id": "1:2",
+          "name": "HeaderRow",
+          "type": "FRAME",
+          "rect": { "x": 0, "y": 0, "width": 400, "height": 48 },
+          "constraints": { "horizontal": "LEFT_RIGHT", "vertical": "TOP" },
+          "layoutMode": "HORIZONTAL",
+          "layoutSpacing": 12,
+          "layoutPadding": { "left": 16, "right": 16, "top": 8, "bottom": 8 },
+          "fills": [{ "type": "SOLID", "r": 0.92, "g": 0.92, "b": 0.94, "a": 1 }],
+          "text": null,
+          "style": null,
+          "children": [
+            {
+              "id": "1:3",
+              "name": "Title",
+              "type": "TEXT",
+              "rect": { "x": 16, "y": 8, "width": 200, "height": 32 },
+              "constraints": { "horizontal": "LEFT", "vertical": "TOP" },
+              "layoutMode": null,
+              "layoutSpacing": 0,
+              "layoutPadding": null,
+              "fills": null,
+              "text": "Hello Figma",
+              "style": {
+                "fontSize": 18,
+                "fontFamily": "Inter",
+                "color": { "r": 0.1, "g": 0.1, "b": 0.12, "a": 1 },
+                "alignH": "LEFT",
+                "alignV": "TOP"
+              },
+              "children": null
+            }
+          ]
+        },
+        {
+          "id": "1:4",
+          "name": "StretchedPanel",
+          "type": "FRAME",
+          "rect": { "x": 0, "y": 56, "width": 400, "height": 544 },
+          "constraints": { "horizontal": "LEFT_RIGHT", "vertical": "TOP_BOTTOM" },
+          "layoutMode": "NONE",
+          "layoutSpacing": 0,
+          "layoutPadding": null,
+          "fills": [{ "type": "SOLID", "r": 0.96, "g": 0.97, "b": 1, "a": 1 }],
+          "text": null,
+          "style": null,
+          "children": [
+            {
+              "id": "1:5",
+              "name": "BottomRightPin",
+              "type": "RECTANGLE",
+              "rect": { "x": 332, "y": 492, "width": 52, "height": 36 },
+              "constraints": { "horizontal": "RIGHT", "vertical": "BOTTOM" },
+              "layoutMode": null,
+              "layoutSpacing": 0,
+              "layoutPadding": null,
+              "fills": [{ "type": "SOLID", "r": 0.2, "g": 0.55, "b": 0.95, "a": 1 }],
+              "text": null,
+              "style": null,
+              "children": null
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
