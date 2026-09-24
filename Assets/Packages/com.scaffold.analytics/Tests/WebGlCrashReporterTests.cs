@@ -24,6 +24,8 @@ namespace Scaffold.Analytics.Tests
             Assert.That(analytics.FlushCount, Is.EqualTo(1));
             Assert.That(store.AcknowledgedSessionIds, Is.EqualTo(new[] { "session-a" }));
             Assert.That(analytics.Events[0].Parameters["lastPhase"], Is.EqualTo("webgl_context_lost"));
+            Assert.That(analytics.Events[0].Parameters["browserPlatform"], Is.EqualTo("iPhone"));
+            Assert.That(analytics.Events[0].Parameters, Does.Not.ContainKey("platform"));
         }
 
         [Test]

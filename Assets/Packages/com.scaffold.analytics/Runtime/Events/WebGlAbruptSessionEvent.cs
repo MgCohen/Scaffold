@@ -13,7 +13,7 @@ namespace Scaffold.Analytics
             bool runtimeReady,
             long durationMs,
             string userAgent,
-            string platform,
+            string browserPlatform,
             string viewport,
             double devicePixelRatio,
             double wasmHeapMb,
@@ -26,7 +26,7 @@ namespace Scaffold.Analytics
             SetParameter("runtimeReady", runtimeReady);
             SetParameter("durationMs", durationMs);
             SetParameter("userAgent", userAgent);
-            SetParameter("platform", platform);
+            SetParameter("browserPlatform", browserPlatform);
             SetParameter("viewport", viewport);
             SetParameter("devicePixelRatio", devicePixelRatio);
             SetParameter("wasmHeapMb", wasmHeapMb);
