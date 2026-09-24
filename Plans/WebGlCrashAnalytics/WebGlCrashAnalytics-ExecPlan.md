@@ -39,7 +39,7 @@ Unity Cloud Diagnostics does not support WebGL, and a mobile browser process tha
 
 ## Outcomes & Retrospective
 
-The Scaffold package now provides a recoverable WebGL crash reporter, a browser bridge with host-template and runtime-only modes, immediate Analytics flushing, acknowledgement after successful delivery, and retry behavior when delivery fails. Six focused EditMode tests pass in the Gear Engine consumer, the updated startup wiring test passes, both changed C# scopes pass deterministic lint, the JavaScript bridge passes syntax checking, and a complete WebGL IL2CPP build exits successfully with all five bridge symbols linked. The package README defines the Dashboard schema that must be created before events can be accepted.
+The Scaffold package now provides a recoverable WebGL crash reporter, a browser bridge with host-template and runtime-only modes, immediate Analytics flushing, acknowledgement after successful delivery, and retry behavior when delivery fails. Six focused EditMode tests pass in the Gear Engine consumer, the updated startup wiring test passes, both changed C# scopes pass deterministic lint, the JavaScript bridge passes syntax checking, and a complete WebGL IL2CPP build exits successfully with all four native bridge entry points linked. The package README defines the Dashboard schema that must be created before events can be accepted.
 
 ## Context and Orientation
 
