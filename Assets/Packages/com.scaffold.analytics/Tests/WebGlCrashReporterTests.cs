@@ -3,12 +3,28 @@ using System.Text.RegularExpressions;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
+using VContainer;
 
 namespace Scaffold.Analytics.Tests
 {
     [TestFixture]
     public sealed class WebGlCrashReporterTests
     {
+        [Test]
+        public void ContainerRegistration_ResolvesReporterWithoutInternalStoreRegistration()
+        {
+            RecordingAnalytics analytics = new RecordingAnalytics();
+            ContainerBuilder builder = new ContainerBuilder();
+            builder.RegisterInstance<IAnalyticsService>(analytics);
+            builder.Register<WebGlCrashReporter>(Lifetime.Singleton)
+                .As<IWebGlCrashReporter>();
+            IObjectResolver container = builder.Build();
+
+            IWebGlCrashReporter reporter = container.Resolve<IWebGlCrashReporter>();
+
+            Assert.That(reporter, Is.Not.Null);
+        }
+
         [Test]
         public void TryReportPreviousSession_WhenPreviousSessionEndedAbruptly_RecordsFlushesAndAcknowledges()
         {

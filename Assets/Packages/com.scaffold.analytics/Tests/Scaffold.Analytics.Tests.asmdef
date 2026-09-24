@@ -2,7 +2,8 @@
     "name": "Scaffold.Analytics.Tests",
     "rootNamespace": "Scaffold.Analytics.Tests",
     "references": [
-        "Scaffold.Analytics.Runtime"
+        "Scaffold.Analytics.Runtime",
+        "VContainer"
     ],
     "includePlatforms": [
         "Editor"

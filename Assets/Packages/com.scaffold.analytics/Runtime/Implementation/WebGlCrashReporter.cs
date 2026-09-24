@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using VContainer;
 
 namespace Scaffold.Analytics
 {
@@ -12,6 +13,7 @@ namespace Scaffold.Analytics
         private readonly IWebGlCrashReportStore _reportStore;
         private string _lastReportedSessionId;
 
+        [Inject]
         public WebGlCrashReporter(IAnalyticsService analyticsService)
             : this(analyticsService, new WebGlCrashReportStore())
         {
