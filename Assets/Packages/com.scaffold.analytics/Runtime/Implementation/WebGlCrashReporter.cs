@@ -6,12 +6,12 @@ namespace Scaffold.Analytics
 {
     public sealed class WebGlCrashReporter : IWebGlCrashReporter
     {
-        private const int MaximumStringLength = 100;
-        private const double BytesPerMegabyte = 1024d * 1024d;
+        private const int k_MaximumStringLength = 100;
+        private const double k_BytesPerMegabyte = 1024d * 1024d;
 
-        private readonly IAnalyticsService _analyticsService;
-        private readonly IWebGlCrashReportStore _reportStore;
-        private string _lastReportedSessionId;
+        private readonly IAnalyticsService analyticsService;
+        private readonly IWebGlCrashReportStore reportStore;
+        private string lastReportedSessionId;
 
         [Inject]
         public WebGlCrashReporter(IAnalyticsService analyticsService)
@@ -23,20 +23,20 @@ namespace Scaffold.Analytics
             IAnalyticsService analyticsService,
             IWebGlCrashReportStore reportStore)
         {
-            _analyticsService = analyticsService ?? throw new ArgumentNullException(nameof(analyticsService));
-            _reportStore = reportStore ?? throw new ArgumentNullException(nameof(reportStore));
+            this.analyticsService = analyticsService ?? throw new ArgumentNullException(nameof(analyticsService));
+            this.reportStore = reportStore ?? throw new ArgumentNullException(nameof(reportStore));
         }
 
         public bool TryReportPreviousSession()
         {
             try
             {
-                if (!_reportStore.IsAvailable)
+                if (!reportStore.IsAvailable)
                 {
                     return false;
                 }
 
-                string reportJson = _reportStore.ReadReport();
+                string reportJson = reportStore.ReadReport();
                 if (string.IsNullOrWhiteSpace(reportJson))
                 {
                     return false;
@@ -48,7 +48,7 @@ namespace Scaffold.Analytics
                     !report.previousEndedAbruptly ||
                     previous.cleanExit ||
                     string.IsNullOrWhiteSpace(previous.sessionId) ||
-                    previous.sessionId == _lastReportedSessionId)
+                    previous.sessionId == lastReportedSessionId)
                 {
                     return false;
                 }
@@ -65,14 +65,14 @@ namespace Scaffold.Analytics
                     Truncate(environment.platform),
                     Truncate(environment.viewport),
                     environment.devicePixelRatio,
-                    Math.Max(0d, environment.wasmHeapBytes / BytesPerMegabyte),
+                    Math.Max(0d, environment.wasmHeapBytes / k_BytesPerMegabyte),
                     Truncate(lastError?.phase ?? previous.phase),
                     Truncate(GetErrorMessage(lastError?.details)));
 
-                _analyticsService.Record(analyticsEvent);
-                _analyticsService.Flush();
-                _reportStore.Acknowledge(previous.sessionId);
-                _lastReportedSessionId = previous.sessionId;
+                analyticsService.Record(analyticsEvent);
+                analyticsService.Flush();
+                reportStore.Acknowledge(previous.sessionId);
+                lastReportedSessionId = previous.sessionId;
                 return true;
             }
             catch (Exception exception)
@@ -86,7 +86,7 @@ namespace Scaffold.Analytics
         {
             try
             {
-                if (!_reportStore.IsAvailable)
+                if (!reportStore.IsAvailable)
                 {
                     return;
                 }
@@ -96,7 +96,7 @@ namespace Scaffold.Analytics
                     throw new ArgumentException("Checkpoint phase cannot be null or whitespace.", nameof(phase));
                 }
 
-                _reportStore.SetCheckpoint(Truncate(phase), Truncate(details));
+                reportStore.SetCheckpoint(Truncate(phase), Truncate(details));
             }
             catch (Exception exception)
             {
@@ -158,12 +158,12 @@ namespace Scaffold.Analytics
 
         private static string Truncate(string value)
         {
-            if (string.IsNullOrEmpty(value) || value.Length <= MaximumStringLength)
+            if (string.IsNullOrEmpty(value) || value.Length <= k_MaximumStringLength)
             {
                 return value ?? string.Empty;
             }
 
-            return value.Substring(0, MaximumStringLength);
+            return value.Substring(0, k_MaximumStringLength);
         }
 
         [Serializable]
