@@ -6,8 +6,8 @@ namespace Scaffold.Analytics
 {
     public sealed class WebGlCrashReporter : IWebGlCrashReporter
     {
-        private const int k_MaximumStringLength = 100;
-        private const double k_BytesPerMegabyte = 1024d * 1024d;
+        private const int k_maximumStringLength = 100;
+        private const double k_bytesPerMegabyte = 1024d * 1024d;
 
         private readonly IAnalyticsService analyticsService;
         private readonly IWebGlCrashReportStore reportStore;
@@ -65,7 +65,7 @@ namespace Scaffold.Analytics
                     Truncate(environment.platform),
                     Truncate(environment.viewport),
                     environment.devicePixelRatio,
-                    Math.Max(0d, environment.wasmHeapBytes / k_BytesPerMegabyte),
+                    Math.Max(0d, environment.wasmHeapBytes / k_bytesPerMegabyte),
                     Truncate(lastError?.phase ?? previous.phase),
                     Truncate(GetErrorMessage(lastError?.details)));
 
@@ -158,12 +158,12 @@ namespace Scaffold.Analytics
 
         private static string Truncate(string value)
         {
-            if (string.IsNullOrEmpty(value) || value.Length <= k_MaximumStringLength)
+            if (string.IsNullOrEmpty(value) || value.Length <= k_maximumStringLength)
             {
                 return value ?? string.Empty;
             }
 
-            return value.Substring(0, k_MaximumStringLength);
+            return value.Substring(0, k_maximumStringLength);
         }
 
         [Serializable]
