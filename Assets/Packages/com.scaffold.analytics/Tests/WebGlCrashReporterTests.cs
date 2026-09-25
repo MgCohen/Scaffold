@@ -1,6 +1,8 @@
 using System.Collections.Generic;
+using System.IO;
 using System.Text.RegularExpressions;
 using NUnit.Framework;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.TestTools;
 using VContainer;
@@ -10,6 +12,29 @@ namespace Scaffold.Analytics.Tests
     [TestFixture]
     public sealed class WebGlCrashReporterTests
     {
+        [Test]
+        public void WebGlLibrary_ExportsDiagnosticStateToEmscriptenRuntime()
+        {
+            string[] assetGuids = AssetDatabase.FindAssets("ScaffoldAnalyticsWebGlDiagnostics");
+            string libraryPath = string.Empty;
+            foreach (string assetGuid in assetGuids)
+            {
+                string candidatePath = AssetDatabase.GUIDToAssetPath(assetGuid);
+                if (candidatePath.EndsWith("ScaffoldAnalyticsWebGlDiagnostics.jslib", System.StringComparison.Ordinal))
+                {
+                    libraryPath = candidatePath;
+                    break;
+                }
+            }
+
+            Assert.That(libraryPath, Is.Not.Empty);
+            string librarySource = File.ReadAllText(Path.GetFullPath(libraryPath));
+            Assert.That(librarySource, Does.Contain(".$ScaffoldAnalyticsWebGlDiagnostics = {"));
+            Assert.That(librarySource, Does.Contain(
+                "autoAddDeps(ScaffoldAnalyticsWebGlDiagnosticsLibrary, \"$ScaffoldAnalyticsWebGlDiagnostics\")"));
+            Assert.That(librarySource, Does.Not.Contain("var ScaffoldAnalyticsWebGlDiagnostics = {"));
+        }
+
         [Test]
         public void ContainerRegistration_ResolvesReporterWithoutInternalStoreRegistration()
         {

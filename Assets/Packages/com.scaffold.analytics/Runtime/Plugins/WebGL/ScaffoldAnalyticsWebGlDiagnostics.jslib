@@ -1,4 +1,4 @@
-mergeInto(LibraryManager.library, {
+var ScaffoldAnalyticsWebGlDiagnosticsLibrary = {
   ScaffoldAnalyticsGetWebGlCrashReportLength: function () {
     var report = ScaffoldAnalyticsWebGlDiagnostics.readReport();
     window.__scaffoldAnalyticsLastReportJson = report;
@@ -20,9 +20,9 @@ mergeInto(LibraryManager.library, {
       UTF8ToString(phasePointer),
       UTF8ToString(detailsPointer));
   }
-});
+};
 
-var ScaffoldAnalyticsWebGlDiagnostics = {
+ScaffoldAnalyticsWebGlDiagnosticsLibrary.$ScaffoldAnalyticsWebGlDiagnostics = {
   stateKey: "scaffold.analytics.webgl.session.v1",
   acknowledgementKey: "scaffold.analytics.webgl.ack.v1",
   initialized: false,
@@ -166,3 +166,6 @@ var ScaffoldAnalyticsWebGlDiagnostics = {
     };
   }
 };
+
+autoAddDeps(ScaffoldAnalyticsWebGlDiagnosticsLibrary, "$ScaffoldAnalyticsWebGlDiagnostics");
+mergeInto(LibraryManager.library, ScaffoldAnalyticsWebGlDiagnosticsLibrary);
