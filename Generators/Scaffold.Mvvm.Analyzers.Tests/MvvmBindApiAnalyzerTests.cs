@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Scaffold.Mvvm.Analyzers;
 using Xunit;
@@ -209,5 +210,49 @@ namespace Scaffold.MVVM
             MvvmBindApiAnalyzer.DiagnosticId);
 
         Assert.Single(diagnostics);
+    }
+
+    [Theory]
+    [InlineData("scaffold.global.ignored_assembly_name_contains", "Tests", "Consumer.Tests")]
+    [InlineData("scaffold.global.ignored_paths", "Assets/Scripts", "Consumer.Runtime")]
+    [InlineData("scaffold.global.ignore_infrastructure_assemblies", "true", "Consumer.Editor")]
+    public async Task NoDiagnostic_WhenConsumerScopeExcludesSource(string key, string value, string assemblyName)
+    {
+        const string source = @"
+namespace System.ComponentModel
+{
+    public class PropertyChangedEventArgs : System.EventArgs {}
+    public delegate void PropertyChangedEventHandler(object sender, PropertyChangedEventArgs e);
+    public interface INotifyPropertyChanged
+    {
+        event PropertyChangedEventHandler PropertyChanged;
+    }
+}
+
+namespace Scaffold.MVVM
+{
+    public abstract class ViewModel {}
+
+    public sealed class InventoryViewModel : ViewModel
+    {
+        public void BindTo(System.ComponentModel.INotifyPropertyChanged model)
+        {
+            model.PropertyChanged += OnChanged;
+        }
+
+        private void OnChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+        }
+    }
+}";
+        var options = new Dictionary<string, string> { [key] = value };
+        var diagnostics = await MvvmAnalyzerTestHarness.GetDiagnosticsByIdAsync(
+            source,
+            @"C:\Repo\Assets\Scripts\App\MainMenu\Runtime\InventoryViewModel.cs",
+            new MvvmBindApiAnalyzer(),
+            MvvmBindApiAnalyzer.DiagnosticId,
+            analyzerOptions: options,
+            compilationAssemblyName: assemblyName);
+        Assert.Empty(diagnostics);
     }
 }

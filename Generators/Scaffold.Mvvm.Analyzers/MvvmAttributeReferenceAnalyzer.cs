@@ -41,7 +41,7 @@ namespace Scaffold.Mvvm.Analyzers
 
         private void AnalyzeAttribute(SyntaxNodeAnalysisContext context)
         {
-            if (Scaffold.Analyzers.ModuleConventions.IsExcludedThirdPartyVendorPath(context.Node.SyntaxTree.FilePath)) return;
+            if (Scaffold.Analyzers.AnalyzerScopeGate.ShouldSkipSyntaxNodeAnalysis(context)) return;
 
             var options = context.Options.AnalyzerConfigOptionsProvider.GetOptions(context.Node.SyntaxTree);
             if (!Scaffold.Analyzers.AnalyzerConfig.TryGetEffectiveDescriptor(options, DiagnosticId, Rule, out var rule)) return;
