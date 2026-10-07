@@ -43,12 +43,12 @@ namespace Scaffold.Analyzers
                 return;
             }
 
-            if (IsGeneratedFile(context.Node.SyntaxTree.FilePath))
+            if (AnalyzerScopeGate.ShouldSkipSyntaxNodeAnalysis(context))
             {
                 return;
             }
 
-            if (ModuleConventions.IsExcludedThirdPartyVendorPath(context.Node.SyntaxTree.FilePath))
+            if (IsGeneratedFile(context.Node.SyntaxTree.FilePath))
             {
                 return;
             }

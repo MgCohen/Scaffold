@@ -46,7 +46,7 @@ namespace Scaffold.Analyzers
 
         private void AnalyzeField(SyntaxNodeAnalysisContext context)
         {
-            if (ModuleConventions.IsExcludedThirdPartyVendorPath(context.Node.SyntaxTree.FilePath)) return;
+            if (AnalyzerScopeGate.ShouldSkipSyntaxNodeAnalysis(context)) return;
 
             var options = context.Options.AnalyzerConfigOptionsProvider.GetOptions(context.Node.SyntaxTree);
             AnalyzerConfig.TryGetEffectiveDescriptor(options, DiagnosticIdPrefix, PrivateFieldRule, out var privateFieldRule);
@@ -84,7 +84,7 @@ namespace Scaffold.Analyzers
 
         private void AnalyzeProperty(SyntaxNodeAnalysisContext context)
         {
-            if (ModuleConventions.IsExcludedThirdPartyVendorPath(context.Node.SyntaxTree.FilePath)) return;
+            if (AnalyzerScopeGate.ShouldSkipSyntaxNodeAnalysis(context)) return;
 
             var options = context.Options.AnalyzerConfigOptionsProvider.GetOptions(context.Node.SyntaxTree);
             if (!AnalyzerConfig.TryGetEffectiveDescriptor(options, DiagnosticIdPascal, PascalRule, out var pascalRule)) return;
@@ -104,7 +104,7 @@ namespace Scaffold.Analyzers
 
         private void AnalyzeMethod(SyntaxNodeAnalysisContext context)
         {
-            if (ModuleConventions.IsExcludedThirdPartyVendorPath(context.Node.SyntaxTree.FilePath)) return;
+            if (AnalyzerScopeGate.ShouldSkipSyntaxNodeAnalysis(context)) return;
 
             var options = context.Options.AnalyzerConfigOptionsProvider.GetOptions(context.Node.SyntaxTree);
             if (!AnalyzerConfig.TryGetEffectiveDescriptor(options, DiagnosticIdPascal, PascalRule, out var pascalRule)) return;

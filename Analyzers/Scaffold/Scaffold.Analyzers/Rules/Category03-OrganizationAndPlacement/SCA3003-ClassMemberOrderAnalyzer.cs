@@ -53,7 +53,7 @@ namespace Scaffold.Analyzers
 
         private static void AnalyzeType(SyntaxNodeAnalysisContext context)
         {
-            if (ModuleConventions.IsExcludedThirdPartyVendorPath(context.Node.SyntaxTree.FilePath))
+            if (AnalyzerScopeGate.ShouldSkipSyntaxNodeAnalysis(context))
                 return;
 
             var options = context.Options.AnalyzerConfigOptionsProvider.GetOptions(context.Node.SyntaxTree);

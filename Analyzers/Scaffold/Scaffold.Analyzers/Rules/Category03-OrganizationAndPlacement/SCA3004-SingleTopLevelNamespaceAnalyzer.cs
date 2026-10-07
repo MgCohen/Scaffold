@@ -18,11 +18,9 @@ namespace Scaffold.Analyzers
         {
             context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
             context.EnableConcurrentExecution();
-
-            context.RegisterSyntaxTreeAction(ctx =>
-                NamespaceLayoutAnalysis.AnalyzeSyntaxTree(
-                    ctx,
-                    NamespaceLayoutRuleKind.Sca3004MultipleNamespaces | NamespaceLayoutRuleKind.Sca3004TypeOutsideBlock));
+            NamespaceLayoutAnalyzerRegistration.Register(
+                context,
+                NamespaceLayoutRuleKind.Sca3004MultipleNamespaces | NamespaceLayoutRuleKind.Sca3004TypeOutsideBlock);
         }
     }
 }

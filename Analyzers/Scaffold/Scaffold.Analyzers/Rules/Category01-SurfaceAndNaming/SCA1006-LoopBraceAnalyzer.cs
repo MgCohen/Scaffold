@@ -63,7 +63,7 @@ namespace Scaffold.Analyzers
             SyntaxToken headerToken,
             string loopLabel)
         {
-            if (ModuleConventions.IsExcludedThirdPartyVendorPath(context.Node.SyntaxTree.FilePath))
+            if (AnalyzerScopeGate.ShouldSkipSyntaxNodeAnalysis(context))
             {
                 return;
             }

@@ -60,7 +60,7 @@ namespace Scaffold.Analyzers
 
         private void AnalyzeMethodSignature(SyntaxNodeAnalysisContext context)
         {
-            if (ModuleConventions.IsExcludedThirdPartyVendorPath(context.Node.SyntaxTree.FilePath)) return;
+            if (AnalyzerScopeGate.ShouldSkipSyntaxNodeAnalysis(context)) return;
 
             var options = context.Options.AnalyzerConfigOptionsProvider.GetOptions(context.Node.SyntaxTree);
             if (!AnalyzerConfig.TryGetEffectiveDescriptor(options, DiagnosticId, Rule, out var rule)) return;
@@ -79,7 +79,7 @@ namespace Scaffold.Analyzers
 
         private void AnalyzeTypeDeclarationSignature(SyntaxNodeAnalysisContext context)
         {
-            if (ModuleConventions.IsExcludedThirdPartyVendorPath(context.Node.SyntaxTree.FilePath)) return;
+            if (AnalyzerScopeGate.ShouldSkipSyntaxNodeAnalysis(context)) return;
 
             var options = context.Options.AnalyzerConfigOptionsProvider.GetOptions(context.Node.SyntaxTree);
             if (!AnalyzerConfig.TryGetEffectiveDescriptor(options, DiagnosticId, Rule, out var rule)) return;
@@ -119,7 +119,7 @@ namespace Scaffold.Analyzers
 
         private void AnalyzeConstructorSignature(SyntaxNodeAnalysisContext context)
         {
-            if (ModuleConventions.IsExcludedThirdPartyVendorPath(context.Node.SyntaxTree.FilePath)) return;
+            if (AnalyzerScopeGate.ShouldSkipSyntaxNodeAnalysis(context)) return;
 
             var options = context.Options.AnalyzerConfigOptionsProvider.GetOptions(context.Node.SyntaxTree);
             if (!AnalyzerConfig.TryGetEffectiveDescriptor(options, DiagnosticId, Rule, out var rule)) return;
@@ -149,7 +149,7 @@ namespace Scaffold.Analyzers
 
         private void AnalyzeExpressionStatement(SyntaxNodeAnalysisContext context)
         {
-            if (ModuleConventions.IsExcludedThirdPartyVendorPath(context.Node.SyntaxTree.FilePath)) return;
+            if (AnalyzerScopeGate.ShouldSkipSyntaxNodeAnalysis(context)) return;
 
             var options = context.Options.AnalyzerConfigOptionsProvider.GetOptions(context.Node.SyntaxTree);
             if (!AnalyzerConfig.TryGetEffectiveDescriptor(options, DiagnosticId, Rule, out var rule)) return;
@@ -176,7 +176,7 @@ namespace Scaffold.Analyzers
 
         private void AnalyzeLocalDeclarationStatement(SyntaxNodeAnalysisContext context)
         {
-            if (ModuleConventions.IsExcludedThirdPartyVendorPath(context.Node.SyntaxTree.FilePath)) return;
+            if (AnalyzerScopeGate.ShouldSkipSyntaxNodeAnalysis(context)) return;
 
             var options = context.Options.AnalyzerConfigOptionsProvider.GetOptions(context.Node.SyntaxTree);
             if (!AnalyzerConfig.TryGetEffectiveDescriptor(options, DiagnosticId, Rule, out var rule)) return;
@@ -198,7 +198,7 @@ namespace Scaffold.Analyzers
 
         private void AnalyzeSwitchExpression(SyntaxNodeAnalysisContext context)
         {
-            if (ModuleConventions.IsExcludedThirdPartyVendorPath(context.Node.SyntaxTree.FilePath)) return;
+            if (AnalyzerScopeGate.ShouldSkipSyntaxNodeAnalysis(context)) return;
 
             var options = context.Options.AnalyzerConfigOptionsProvider.GetOptions(context.Node.SyntaxTree);
             if (!AnalyzerConfig.TryGetEffectiveDescriptor(options, DiagnosticId, Rule, out var rule)) return;
@@ -237,7 +237,7 @@ namespace Scaffold.Analyzers
 
         private void AnalyzeSwitchStatement(SyntaxNodeAnalysisContext context)
         {
-            if (ModuleConventions.IsExcludedThirdPartyVendorPath(context.Node.SyntaxTree.FilePath)) return;
+            if (AnalyzerScopeGate.ShouldSkipSyntaxNodeAnalysis(context)) return;
 
             var options = context.Options.AnalyzerConfigOptionsProvider.GetOptions(context.Node.SyntaxTree);
             if (!AnalyzerConfig.TryGetEffectiveDescriptor(options, DiagnosticId, Rule, out var rule)) return;

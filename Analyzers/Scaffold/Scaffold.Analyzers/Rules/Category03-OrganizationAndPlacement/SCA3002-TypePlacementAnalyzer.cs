@@ -42,6 +42,8 @@ namespace Scaffold.Analyzers
             if (!AnalyzerConfig.TryGetEffectiveDescriptor(options, DiagnosticId, Rule, out var rule)) return;
             var descriptor = rule;
 
+            if (AnalyzerScopeGate.ShouldSkipSyntaxNodeAnalysis(context)) return;
+
             if (!ScriptPathFilters.IsUnityScriptPath(syntaxTree.FilePath)) return;
 
             var topLevelTypes = GetTopLevelTypes(compilationUnit);
