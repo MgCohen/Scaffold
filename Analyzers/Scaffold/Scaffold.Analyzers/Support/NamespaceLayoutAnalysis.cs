@@ -23,15 +23,25 @@ namespace Scaffold.Analyzers
 
     internal static class NamespaceLayoutAnalysis
     {
-        internal static void AnalyzeSyntaxTree(SyntaxTreeAnalysisContext context, NamespaceLayoutRuleKind rules)
+        internal static void AnalyzeSyntaxTree(SyntaxTreeAnalysisContext context, NamespaceLayoutRuleKind rules, string? assemblyName = null)
         {
             var provider = context.Options.AnalyzerConfigOptionsProvider;
             var options = provider.GetOptions(context.Tree);
             var globalOptions = provider.GlobalOptions;
             var filePath = context.Tree.FilePath;
             if (string.IsNullOrWhiteSpace(filePath)) return;
-            if (IsGeneratedFile(filePath)) return;
+            if (ScriptPathFilters.IsGeneratedSourceFilePattern(ScriptPathFilters.Normalize(filePath))) return;
             if (IsNamespaceValidationExempt(filePath)) return;
+
+            var providerForGate = context.Options.AnalyzerConfigOptionsProvider;
+            if (AnalyzerScopeGate.ShouldSkipAllScaffoldRules(
+                    assemblyName,
+                    filePath,
+                    providerForGate.GetOptions(context.Tree),
+                    providerForGate.GlobalOptions))
+            {
+                return;
+            }
 
             DiagnosticDescriptor rule3005 = null!;
             var has5 = rules.HasFlag(NamespaceLayoutRuleKind.Sca3005) &&
@@ -196,21 +206,6 @@ namespace Scaffold.Analyzers
                         typeDecl.Identifier.Text));
                 }
             }
-        }
-
-        private static bool IsGeneratedFile(string filePath)
-        {
-            var normalized = ScriptPathFilters.Normalize(filePath);
-            if (normalized.IndexOf("/obj/", StringComparison.OrdinalIgnoreCase) >= 0) return true;
-            if (normalized.IndexOf("/bin/", StringComparison.OrdinalIgnoreCase) >= 0) return true;
-
-            var fileName = normalized.Split('/').LastOrDefault() ?? string.Empty;
-            if (fileName.EndsWith(".g.cs", StringComparison.OrdinalIgnoreCase)) return true;
-            if (fileName.EndsWith(".g.i.cs", StringComparison.OrdinalIgnoreCase)) return true;
-            if (fileName.EndsWith(".generated.cs", StringComparison.OrdinalIgnoreCase)) return true;
-            if (fileName.EndsWith(".designer.cs", StringComparison.OrdinalIgnoreCase)) return true;
-
-            return false;
         }
 
         private static bool IsNamespaceValidationExempt(string filePath)
