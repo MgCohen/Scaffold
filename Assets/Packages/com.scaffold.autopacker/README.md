@@ -26,7 +26,7 @@
 | `[AutoPack]` | Marks a `partial` class/struct for code generation | type declaration | n/a | type ignored if not partial or fields invalid |
 | `[Packed]` | Marks a field included in `Packed` | field on `[AutoPack]` type | n/a | CSG002 if field type is not unmanaged and no valid target type |
 | `[Packed(typeof(T))]` | Stores field as unmanaged type `T` using handler conversions | field + target `T` | n/a | CSG002 if `T` is not unmanaged |
-| `[AutoPack(AsReference = true)]` | Marks a class or interface as a reference type: fields of it pack as its key | class/interface with one `[Packed]` key field or property | n/a | CSG004 on the using field if the key is missing, duplicated or managed |
+| `[AutoPack(AsReference = true)]` | Marks a class or interface as a reference type: fields of it pack as its key | class/interface with one `[Packed]` key field or property | n/a | CSG004 on the using field if the key is missing, duplicated or not a signed integer |
 | `IPackingHandler` | Custom pack/unpack conversions | `Resolve<TSource,TTarget>(source)` | converted value | consumers define behavior; `DefaultPackingHandler` uses `Convert.ChangeType` / identity |
 | `IPackedStruct` | Marker for generated packed structs | n/a | `PackedType` | n/a |
 | `IPackable.Pack` | Implemented by generated partial | optional handler | `IPackedStruct` | uses `DefaultPackingHandler` when handler is null |
@@ -61,13 +61,15 @@ public partial class TagSetEvent
 
 | Step | Generated code | Result |
 |---|---|---|
-| Pack | `Target = source.Target != null ? source.Target.Id : default;` | Key, or `default` for `null` |
-| Unpack, handler given | `handler.Resolve<int, Entity>(packedData.Target)` | Object from the handler, or `null` |
+| Pack | `Target = source.Target != null ? source.Target.Id : -1;` | Key, or `-1` for `null` |
+| Unpack, key `-1` | None (`Resolve` is not called) | `null` |
+| Unpack, other key, handler given | `handler.Resolve<int, Entity>(packedData.Target)` | Object from the handler, or `null` |
 | Unpack, no handler | None | `null` (`DefaultPackingHandler` cannot look up objects) |
 
 - The marker applies to the type, its subclasses and the classes that implement a marked interface.
-- The key is one `[Packed]` field or property on the marker type, its base classes or its interfaces. Its type must be unmanaged.
+- The key is one `[Packed]` field or property on the marker type, its base classes or its interfaces. Its type must be a signed integer (`sbyte`, `short`, `int` or `long`).
 - Reference types get no codegen: no `Packed` struct, no registry entry, and they need not be `partial`.
+- Keys: `-1` is "no record". `0` is "never set" (a bug): it goes to `Resolve` like any other key, so the resolver can fail loudly. Valid keys start at `1`.
 - `[Packed(typeof(T))]` on a reference field wins: the field uses the handler conversion, not the key.
 - A per-type extension `Resolve(this IPackingHandler, int)` that returns the reference type binds as for other fields. C# ignores the return type in overload resolution, so two such extensions with the same key type in scope give CS0121.
 
@@ -82,7 +84,7 @@ public partial class TagSetEvent
 
 - Forgetting `partial` on the type (nothing is generated).
 - Marking managed fields without `[Packed(typeof(unmanagedTarget))]` → CSG002.
-- Expecting a reference field to unpack without a handler (it is `null`), or packing a `null` reference and reading `default` as a valid key.
+- Expecting a reference field to unpack without a handler (it is `null`), or giving a record the key `0` or `-1`.
 - Expecting non-`[Packed]` fields to round-trip through `Packed` (they are omitted).
 
 ## How to Use
@@ -186,7 +188,7 @@ public sealed class HashPacker : IPackingHandler
 - Change Checklist:
   - rebuild `Generators/AutoPacker` after editing the generator or contracts; copy/update DLLs under `Runtime/` as the project’s pipeline requires.
   - run `Scaffold.Autopacker.Tests`.
-  - verify CSG002 still triggers for managed fields without mapping, and CSG004 for reference types with a missing, duplicate or managed key.
+  - verify CSG002 still triggers for managed fields without mapping, and CSG004 for reference types with a missing or duplicate key, or a key that is not a signed integer.
 - Known Tricky Areas:
   - extension method binding for `IPackingHandler`—signature must match what `Emitter` discovers.
   - unpack restores only `[Packed]` fields; document defaults for everything else.
@@ -200,5 +202,5 @@ public sealed class HashPacker : IPackingHandler
 
 ## Changelog
 
-- `2026-11-01`: Reference types (`[AutoPack(AsReference = true)]`): fields pack the key and unpack through `IPackingHandler`; diagnostic CSG004; `[Packed]` allowed on properties for reference keys.
+- `2026-11-01`: Reference types (`[AutoPack(AsReference = true)]`): fields pack the key and unpack through `IPackingHandler`; null packs as key `-1`; diagnostic CSG004; `[Packed]` allowed on properties for reference keys.
 - `2026-03-31`: Initial README documenting generator flow, attributes, handlers, and tests.

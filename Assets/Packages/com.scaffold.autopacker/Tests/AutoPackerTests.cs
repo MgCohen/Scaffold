@@ -289,11 +289,14 @@ namespace Scaffold.Autopacker.Tests
         public readonly Dictionary<int, RefEntity> Entities = new Dictionary<int, RefEntity>();
         public readonly Dictionary<int, IRefCard> Cards = new Dictionary<int, IRefCard>();
         public readonly Dictionary<int, RefDeck> Decks = new Dictionary<int, RefDeck>();
+        public readonly List<int> ResolvedKeys = new List<int>();
 
         public TTarget Resolve<TSource, TTarget>(TSource source)
         {
             if (source is int key)
             {
+                if (!typeof(TTarget).IsValueType)
+                    ResolvedKeys.Add(key);
                 if (typeof(TTarget) == typeof(RefEntity))
                     return Entities.TryGetValue(key, out var entity) ? (TTarget)(object)entity : default;
                 if (typeof(TTarget) == typeof(IRefCard))
@@ -903,12 +906,37 @@ namespace Scaffold.Autopacker.Tests
         }
 
         [Test]
-        public void AutoPacker_ReferenceField_NullObject_PacksDefaultKey()
+        public void AutoPacker_ReferenceField_NullObject_PacksNoRecordKey()
         {
             var packed = new RefTargetEvent { Target = null, Card = null }.PackTyped();
 
-            Assert.AreEqual(0, packed.Target);
-            Assert.AreEqual(0, packed.Card);
+            Assert.AreEqual(-1, packed.Target, "A null reference packs as the no-record key -1.");
+            Assert.AreEqual(-1, packed.Card);
+        }
+
+        [Test]
+        public void AutoPacker_ReferenceField_NoRecordKey_UnpacksNullWithoutResolve()
+        {
+            var store = new RefStore();
+            var packed = new RefTargetEvent.Packed { Target = -1, Card = -1 };
+
+            var restored = new RefTargetEvent(packed, store);
+
+            Assert.IsNull(restored.Target);
+            Assert.IsNull(restored.Card);
+            CollectionAssert.IsEmpty(store.ResolvedKeys, "Key -1 must not reach the resolver.");
+        }
+
+        [Test]
+        public void AutoPacker_ReferenceField_NeverSetKey_ReachesResolver()
+        {
+            var store = new RefStore();
+            var packed = new RefTargetEvent.Packed { Target = 0, Card = 0 };
+
+            new RefTargetEvent(packed, store);
+
+            CollectionAssert.AreEqual(new[] { 0, 0 }, store.ResolvedKeys,
+                "Key 0 means never set; it must reach the resolver so the resolver can fail loudly.");
         }
 
         [Test]

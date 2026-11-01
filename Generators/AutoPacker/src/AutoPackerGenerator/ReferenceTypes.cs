@@ -8,7 +8,7 @@ namespace AutoPackerGenerator
     // single [Packed] key member on the wire and resolves it back through IPackingHandler on unpack.
     internal static class ReferenceTypes
     {
-        internal enum KeyStatus { Valid, NotClassOrInterface, NoKey, MultipleKeys, ManagedKey }
+        internal enum KeyStatus { Valid, NotClassOrInterface, NoKey, MultipleKeys, NotSignedIntegerKey }
 
         internal readonly struct ReferenceKey
         {
@@ -95,11 +95,26 @@ namespace AutoPackerGenerator
 
             var member0 = candidates[0];
             var keyType = member0 is IFieldSymbol f ? f.Type : ((IPropertySymbol)member0).Type;
-            if (!keyType.IsUnmanagedType)
-                return KeyStatus.ManagedKey;
+            if (!IsSignedInteger(keyType))
+                return KeyStatus.NotSignedIntegerKey;
 
             key = new ReferenceKey(plainType, member0, keyType);
             return KeyStatus.Valid;
+        }
+
+        // The "no record" key is -1, so the key type must hold a negative value.
+        private static bool IsSignedInteger(ITypeSymbol type)
+        {
+            switch (type.SpecialType)
+            {
+                case SpecialType.System_SByte:
+                case SpecialType.System_Int16:
+                case SpecialType.System_Int32:
+                case SpecialType.System_Int64:
+                    return true;
+                default:
+                    return false;
+            }
         }
 
         private static IEnumerable<INamedTypeSymbol> KeyOwners(INamedTypeSymbol marker)

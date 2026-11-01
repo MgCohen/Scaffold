@@ -390,6 +390,8 @@ namespace AutoPackerGenerator
         }
 
         // Pack reads the key from the object; unpack asks the handler for the existing object.
+        // Key -1 means "no record": null packs as -1 and -1 unpacks as null without a Resolve call.
+        // Key 0 means "never set" and goes to Resolve like any other key, so the resolver can fail loudly.
         private static void AppendReferenceAssignment(
             StringBuilder sb,
             IFieldSymbol field,
@@ -402,18 +404,19 @@ namespace AutoPackerGenerator
             var referenceTypeName = key.FieldType.ToDisplayString();
             var keyTypeName = key.KeyType.ToDisplayString();
             var value = $"{sourceName}.{field.Name}";
+            var noRecord = key.KeyType.SpecialType == SpecialType.System_Int32 ? "-1" : $"({keyTypeName})(-1)";
 
             if (convertToPacked)
             {
                 var owner = key.NeedsCast ? $"(({key.Member.ContainingType.ToDisplayString()}){value})" : value;
-                sb.AppendLine($"{indent}{field.Name} = {value} != null ? {owner}.{key.Member.Name} : default;");
+                sb.AppendLine($"{indent}{field.Name} = {value} != null ? {owner}.{key.Member.Name} : {noRecord};");
                 return;
             }
 
             var resolve = HasMatchingExtensionMethod(extensionMethods, keyTypeName, referenceTypeName)
                 ? $"{ReferenceResolverLocal}.Resolve({value})"
                 : $"{ReferenceResolverLocal}.Resolve<{keyTypeName}, {referenceTypeName}>({value})";
-            sb.AppendLine($"{indent}{field.Name} = {ReferenceResolverLocal} != null ? {resolve} : null;");
+            sb.AppendLine($"{indent}{field.Name} = {ReferenceResolverLocal} != null && {value} != {noRecord} ? {resolve} : null;");
         }
 
         private static bool HasMatchingExtensionMethod(IReadOnlyList<IMethodSymbol> extensionMethods, string sourceTypeName, string targetTypeName)

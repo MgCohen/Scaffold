@@ -26,7 +26,7 @@ namespace AutoPackerGenerator
 
         private static readonly DiagnosticDescriptor InvalidReferenceKeyDiagnostic = new DiagnosticDescriptor(
             id: "CSG004",
-            title: "Reference types need one unmanaged [Packed] key",
+            title: "Reference types need one signed integer [Packed] key",
             messageFormat: "Field '{0}' has reference type '{1}'; {2}",
             category: "AutoPackerGenerator",
             defaultSeverity: DiagnosticSeverity.Error,
@@ -409,7 +409,7 @@ namespace AutoPackerGenerator
                 case ReferenceTypes.KeyStatus.NotClassOrInterface: return "the field type must be a class or an interface.";
                 case ReferenceTypes.KeyStatus.NoKey: return "it declares no [Packed] key member.";
                 case ReferenceTypes.KeyStatus.MultipleKeys: return "it declares more than one [Packed] key member.";
-                case ReferenceTypes.KeyStatus.ManagedKey: return "its [Packed] key member must be an unmanaged type.";
+                case ReferenceTypes.KeyStatus.NotSignedIntegerKey: return "its [Packed] key member must be a signed integer type (sbyte, short, int or long).";
                 default: return "its key is invalid.";
             }
         }
