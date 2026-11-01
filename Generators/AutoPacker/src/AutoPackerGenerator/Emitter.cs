@@ -212,6 +212,7 @@ namespace AutoPackerGenerator
                 // a single field-assignment site.
                 sb.AppendLine($"{i1}public {type.Name}(Packed packedData, {nameof(IPackingHandler)} handler = null)");
                 sb.AppendLine($"{i1}{{");
+                AppendReferenceResolverCapture(sb, fields, i2);
                 sb.AppendLine($"{i2}handler ??= new DefaultPackingHandler();");
                 foreach (var tuple in fields)
                     AppendFieldAssignment(sb, tuple.Field, tuple.TargetType, "packedData", "handler", convertToPacked: false, i2, extensionMethods);
@@ -234,6 +235,7 @@ namespace AutoPackerGenerator
 
             sb.AppendLine($"{i1}public {typedModifier}void UnpackTyped(in Packed packedData, {nameof(IPackingHandler)} handler = null)");
             sb.AppendLine($"{i1}{{");
+            AppendReferenceResolverCapture(sb, fields, i2);
             sb.AppendLine($"{i2}handler ??= new DefaultPackingHandler();");
             foreach (var tuple in fields)
                 AppendFieldAssignment(sb, tuple.Field, tuple.TargetType, "packedData", "handler", convertToPacked: false, i2, extensionMethods);
@@ -300,6 +302,10 @@ namespace AutoPackerGenerator
                 {
                     typeName = targetType.ToDisplayString();
                 }
+                else if (TryGetReferenceKey(field, targetType, out var referenceKey))
+                {
+                    typeName = referenceKey.KeyType.ToDisplayString();
+                }
                 else if (TypeConversions.TryGetConversion(field.Type, out var targetFull))
                 {
                     typeName = TypeConversions.GetShortName(targetFull);
@@ -323,6 +329,12 @@ namespace AutoPackerGenerator
             string indent,
             IReadOnlyList<IMethodSymbol> extensionMethods)
         {
+            if (TryGetReferenceKey(field, targetType, out var referenceKey))
+            {
+                AppendReferenceAssignment(sb, field, referenceKey, sourceName, convertToPacked, indent, extensionMethods);
+                return;
+            }
+
             var sourceTypeName = field.Type.ToDisplayString();
             string targetTypeName;
             if (targetType != null)
@@ -349,6 +361,59 @@ namespace AutoPackerGenerator
             {
                 sb.AppendLine($"{indent}{field.Name} = {handlerName}.Resolve<{fromType}, {toType}>({sourceName}.{field.Name});");
             }
+        }
+
+        // Local name for the caller's handler, kept before `handler ??= new DefaultPackingHandler()`.
+        // Reference fields resolve only through a handler the caller passed: the default handler
+        // cannot look up objects, so without one the field stays null.
+        private const string ReferenceResolverLocal = "__referenceResolver";
+
+        private static void AppendReferenceResolverCapture(StringBuilder sb, IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> fields, string indent)
+        {
+            foreach (var tuple in fields)
+            {
+                if (!TryGetReferenceKey(tuple.Field, tuple.TargetType, out _))
+                    continue;
+                sb.AppendLine($"{indent}var {ReferenceResolverLocal} = handler;");
+                return;
+            }
+        }
+
+        private static bool TryGetReferenceKey(IFieldSymbol field, ITypeSymbol targetType, out ReferenceTypes.ReferenceKey key)
+        {
+            key = default;
+            if (targetType != null || field.Type.IsUnmanagedType)
+                return false;
+            if (!ReferenceTypes.TryGetMarker(field.Type, out var marker))
+                return false;
+            return ReferenceTypes.TryGetKey(field.Type, marker, out key) == ReferenceTypes.KeyStatus.Valid;
+        }
+
+        // Pack reads the key from the object; unpack asks the handler for the existing object.
+        private static void AppendReferenceAssignment(
+            StringBuilder sb,
+            IFieldSymbol field,
+            ReferenceTypes.ReferenceKey key,
+            string sourceName,
+            bool convertToPacked,
+            string indent,
+            IReadOnlyList<IMethodSymbol> extensionMethods)
+        {
+            var referenceTypeName = key.FieldType.ToDisplayString();
+            var keyTypeName = key.KeyType.ToDisplayString();
+            var value = $"{sourceName}.{field.Name}";
+
+            if (convertToPacked)
+            {
+                var owner = key.NeedsCast ? $"(({key.Member.ContainingType.ToDisplayString()}){value})" : value;
+                sb.AppendLine($"{indent}{field.Name} = {value} != null ? {owner}.{key.Member.Name} : default;");
+                return;
+            }
+
+            var resolve = HasMatchingExtensionMethod(extensionMethods, keyTypeName, referenceTypeName)
+                ? $"{ReferenceResolverLocal}.Resolve({value})"
+                : $"{ReferenceResolverLocal}.Resolve<{keyTypeName}, {referenceTypeName}>({value})";
+            sb.AppendLine($"{indent}{field.Name} = {ReferenceResolverLocal} != null ? {resolve} : null;");
         }
 
         private static bool HasMatchingExtensionMethod(IReadOnlyList<IMethodSymbol> extensionMethods, string sourceTypeName, string targetTypeName)

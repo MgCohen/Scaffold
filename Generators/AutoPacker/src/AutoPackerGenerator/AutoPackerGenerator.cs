@@ -24,6 +24,14 @@ namespace AutoPackerGenerator
             defaultSeverity: DiagnosticSeverity.Error,
             isEnabledByDefault: true);
 
+        private static readonly DiagnosticDescriptor InvalidReferenceKeyDiagnostic = new DiagnosticDescriptor(
+            id: "CSG004",
+            title: "Reference types need one unmanaged [Packed] key",
+            messageFormat: "Field '{0}' has reference type '{1}'; {2}",
+            category: "AutoPackerGenerator",
+            defaultSeverity: DiagnosticSeverity.Error,
+            isEnabledByDefault: true);
+
         public void Initialize(GeneratorInitializationContext context)
         {
             context.RegisterForSyntaxNotifications(() => new AutoPackSyntaxReceiver());
@@ -377,9 +385,33 @@ namespace AutoPackerGenerator
             if (typeToCheck.IsUnmanagedType)
                 return true;
             var location = tuple.Field.Locations.Length > 0 ? tuple.Field.Locations[0] : Location.None;
+
+            // An explicit [Packed(typeof(T))] wins over the reference-type key.
+            if (tuple.TargetType == null && ReferenceTypes.TryGetMarker(tuple.Field.Type, out var marker))
+            {
+                var status = ReferenceTypes.TryGetKey(tuple.Field.Type, marker, out _);
+                if (status == ReferenceTypes.KeyStatus.Valid)
+                    return true;
+                context.ReportDiagnostic(Diagnostic.Create(InvalidReferenceKeyDiagnostic, location,
+                    tuple.Field.Name, marker.ToDisplayString(), DescribeKeyStatus(status)));
+                return false;
+            }
+
             var diagnostic = Diagnostic.Create(MustBeUnmanagedDiagnostic, location, tuple.Field.Name, typeToCheck.ToDisplayString());
             context.ReportDiagnostic(diagnostic);
             return false;
+        }
+
+        private static string DescribeKeyStatus(ReferenceTypes.KeyStatus status)
+        {
+            switch (status)
+            {
+                case ReferenceTypes.KeyStatus.NotClassOrInterface: return "the field type must be a class or an interface.";
+                case ReferenceTypes.KeyStatus.NoKey: return "it declares no [Packed] key member.";
+                case ReferenceTypes.KeyStatus.MultipleKeys: return "it declares more than one [Packed] key member.";
+                case ReferenceTypes.KeyStatus.ManagedKey: return "its [Packed] key member must be an unmanaged type.";
+                default: return "its key is invalid.";
+            }
         }
 
         private static void EmitRegistryFile(GeneratorExecutionContext context, List<INamedTypeSymbol> types)

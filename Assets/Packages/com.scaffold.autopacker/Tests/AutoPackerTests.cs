@@ -2,6 +2,7 @@ using NUnit.Framework;
 using UnityEngine;
 using Scaffold.AutoPacker;
 using System;
+using System.Collections.Generic;
 
 namespace Scaffold.Autopacker.Tests
 {
@@ -221,6 +222,92 @@ namespace Scaffold.Autopacker.Tests
 
     [AutoPack]
     public partial class Foo<T> { }
+
+    // --- Reference types: a field of the type stores its key; unpack resolves the existing object ---
+
+    [AutoPack(AsReference = true)]
+    public class RefEntity
+    {
+        [Packed] public int Id;
+        public string Name;
+    }
+
+    // Subclass of a reference type: referenced, not packed. No codegen, so it need not be partial.
+    public class RefHero : RefEntity { }
+
+    // Interface key with an explicit implementation: the generator reads it through the interface.
+    [AutoPack(AsReference = true)]
+    public interface IRefCard
+    {
+        [Packed] int Id { get; }
+    }
+
+    public class RefCard : IRefCard
+    {
+        private readonly int id;
+
+        public RefCard(int id)
+        {
+            this.id = id;
+        }
+
+        int IRefCard.Id => id;
+    }
+
+    [AutoPack(AsReference = true)]
+    public class RefDeck
+    {
+        [Packed] public int Id { get; set; }
+    }
+
+    [AutoPack]
+    public partial class RefTargetEvent
+    {
+        [Packed] public RefEntity Target;
+        [Packed] public IRefCard Card;
+        [Packed] public int Slot;
+    }
+
+    [AutoPack]
+    public partial struct RefDeckEvent
+    {
+        [Packed] public RefDeck Deck;
+    }
+
+    // An explicit target type wins over the reference key: the handler converts the object.
+    [AutoPack]
+    public partial class RefExplicitEvent
+    {
+        [Packed(typeof(int))] public RefEntity Target;
+    }
+
+    // Stands in for a record store: unpack must hand back these instances, not copies.
+    public class RefStore : IPackingHandler
+    {
+        public const int EXPLICIT_FACTOR = 10;
+
+        public readonly Dictionary<int, RefEntity> Entities = new Dictionary<int, RefEntity>();
+        public readonly Dictionary<int, IRefCard> Cards = new Dictionary<int, IRefCard>();
+        public readonly Dictionary<int, RefDeck> Decks = new Dictionary<int, RefDeck>();
+
+        public TTarget Resolve<TSource, TTarget>(TSource source)
+        {
+            if (source is int key)
+            {
+                if (typeof(TTarget) == typeof(RefEntity))
+                    return Entities.TryGetValue(key, out var entity) ? (TTarget)(object)entity : default;
+                if (typeof(TTarget) == typeof(IRefCard))
+                    return Cards.TryGetValue(key, out var card) ? (TTarget)card : default;
+                if (typeof(TTarget) == typeof(RefDeck))
+                    return Decks.TryGetValue(key, out var deck) ? (TTarget)(object)deck : default;
+            }
+            if (source is RefEntity explicitEntity && typeof(TTarget) == typeof(int))
+                return (TTarget)(object)(explicitEntity.Id * EXPLICIT_FACTOR);
+            if (source is TTarget same)
+                return same;
+            return default;
+        }
+    }
 
     public class AutoPackerTests
     {
@@ -748,6 +835,111 @@ namespace Scaffold.Autopacker.Tests
             ((IUnpackable)dst).Unpack(packed);
             dst.UnpackTyped(typed);
             Assert.AreEqual(typeof(Foo<Bar>), dst.PackTyped().PackedType);
+        }
+
+        [Test]
+        public void AutoPacker_ReferenceField_PacksKeyNotCopy()
+        {
+            var hero = new RefHero { Id = 7, Name = "Hero" };
+
+            var packed = new RefTargetEvent { Target = hero, Card = new RefCard(42) }.PackTyped();
+
+            Assert.AreEqual(typeof(int), typeof(RefTargetEvent.Packed).GetField(nameof(RefTargetEvent.Target)).FieldType,
+                "A reference field must store the key type, not a nested copy.");
+            Assert.AreEqual(7, packed.Target);
+            Assert.AreEqual(42, packed.Card, "Interface key with an explicit implementation must still pack.");
+        }
+
+        [Test]
+        public void AutoPacker_ReferenceField_UnpackResolvesExistingObject()
+        {
+            var store = new RefStore();
+            var hero = new RefHero { Id = 7 };
+            var card = new RefCard(42);
+            store.Entities[7] = hero;
+            store.Cards[42] = card;
+
+            var packed = new RefTargetEvent { Target = hero, Card = card, Slot = 5 }.PackTyped();
+            var restored = new RefTargetEvent(packed, store);
+
+            Assert.AreSame(hero, restored.Target, "Unpack must return the receiver's existing object.");
+            Assert.AreSame(card, restored.Card, "Interface-typed field must resolve the existing object.");
+            Assert.AreEqual(5, restored.Slot);
+        }
+
+        [Test]
+        public void AutoPacker_ReferenceField_BoxedUnpack_ResolvesExistingObject()
+        {
+            var store = new RefStore();
+            var hero = new RefHero { Id = 3 };
+            store.Entities[3] = hero;
+
+            IPackedStruct packed = new RefTargetEvent { Target = hero }.Pack();
+            IUnpackable restored = new RefTargetEvent();
+            restored.Unpack(packed, store);
+
+            Assert.AreSame(hero, ((RefTargetEvent)restored).Target);
+        }
+
+        [Test]
+        public void AutoPacker_ReferenceField_NoHandler_UnpacksNull()
+        {
+            var packed = new RefTargetEvent { Target = new RefEntity { Id = 7 }, Card = new RefCard(42) }.PackTyped();
+
+            var restored = new RefTargetEvent(packed);
+
+            Assert.IsNull(restored.Target, "Without a handler there is no store to resolve from.");
+            Assert.IsNull(restored.Card);
+        }
+
+        [Test]
+        public void AutoPacker_ReferenceField_UnknownKey_UnpacksNull()
+        {
+            var packed = new RefTargetEvent { Target = new RefEntity { Id = 99 } }.PackTyped();
+
+            var restored = new RefTargetEvent(packed, new RefStore());
+
+            Assert.IsNull(restored.Target);
+        }
+
+        [Test]
+        public void AutoPacker_ReferenceField_NullObject_PacksDefaultKey()
+        {
+            var packed = new RefTargetEvent { Target = null, Card = null }.PackTyped();
+
+            Assert.AreEqual(0, packed.Target);
+            Assert.AreEqual(0, packed.Card);
+        }
+
+        [Test]
+        public void AutoPacker_ReferenceField_PropertyKeyOnStruct_RoundTrips()
+        {
+            var store = new RefStore();
+            var deck = new RefDeck { Id = 11 };
+            store.Decks[11] = deck;
+
+            var packed = new RefDeckEvent { Deck = deck }.PackTyped();
+            var restored = new RefDeckEvent(packed, store);
+
+            Assert.AreEqual(11, packed.Deck);
+            Assert.AreSame(deck, restored.Deck);
+        }
+
+        [Test]
+        public void AutoPacker_ReferenceField_ExplicitTargetType_UsesHandlerConversion()
+        {
+            var packed = new RefExplicitEvent { Target = new RefEntity { Id = 4 } }.PackTyped(new RefStore());
+
+            Assert.AreEqual(4 * RefStore.EXPLICIT_FACTOR, packed.Target);
+        }
+
+        [Test]
+        public void AutoPacker_ReferenceType_GetsNoCodegen()
+        {
+            Assert.IsNull(typeof(RefEntity).GetNestedType("Packed"), "Reference types are referenced, not packed.");
+            Assert.IsFalse(typeof(IPackable).IsAssignableFrom(typeof(RefEntity)));
+            Assert.IsFalse(typeof(IPackable).IsAssignableFrom(typeof(RefHero)), "Subclasses of a reference type stay unpacked.");
+            Assert.IsNull(typeof(RefDeck).GetNestedType("Packed"));
         }
     }
 }

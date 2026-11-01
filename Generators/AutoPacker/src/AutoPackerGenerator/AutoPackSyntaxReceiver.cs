@@ -82,15 +82,9 @@ namespace AutoPackerGenerator
             }
         }
 
+        // Reference types ([AutoPack(AsReference = true)]) and their subclasses are referenced, not packed.
         private static bool HasAutoPackInHierarchy(INamedTypeSymbol type)
-        {
-            for (var current = type; current != null; current = current.BaseType)
-            {
-                if (HasAttribute(current, nameof(AutoPackAttribute)))
-                    return true;
-            }
-            return false;
-        }
+            => ReferenceTypes.IsPackedAutoPackType(type);
 
         private static bool HasAttribute(ISymbol symbol, string fullAttributeName)
         {
