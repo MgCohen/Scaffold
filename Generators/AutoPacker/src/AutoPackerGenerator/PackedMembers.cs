@@ -71,15 +71,20 @@ namespace AutoPackerGenerator
     // EntityId : Id stores Id.Packed. Unpack makes a new object with an object initializer.
     // If the owner has one signed integer member, -1 means null: a null field packs as -1 and -1
     // unpacks as null.
+    // An owner in a referenced assembly comes from metadata: it carries [AutoPack] in its chain,
+    // its generated nested Packed struct is in the assembly, and it has [Packed] members.
     internal sealed class NestedTypes
     {
+        private readonly IAssemblySymbol _assembly;
         private readonly HashSet<INamedTypeSymbol> _emitted;
         private readonly Dictionary<INamedTypeSymbol, List<(ISymbol Field, ITypeSymbol TargetType)>> _members;
 
         public NestedTypes(
+            IAssemblySymbol assembly,
             HashSet<INamedTypeSymbol> emitted,
             Dictionary<INamedTypeSymbol, List<(ISymbol Field, ITypeSymbol TargetType)>> members)
         {
+            _assembly = assembly;
             _emitted = emitted;
             _members = members;
         }
@@ -94,13 +99,89 @@ namespace AutoPackerGenerator
             {
                 if (current.IsGenericType)
                     return false;
-                if (_emitted.Contains(current) && _members.TryGetValue(current, out var list) && list.Count > 0)
+                if (IsOwner(current))
                 {
                     owner = current;
                     return true;
                 }
             }
             return false;
+        }
+
+        private bool IsOwner(INamedTypeSymbol type)
+        {
+            if (SymbolEqualityComparer.Default.Equals(type.ContainingAssembly, _assembly))
+                return _emitted.Contains(type) && _members.TryGetValue(type, out var list) && list.Count > 0;
+            return IsMetadataOwner(type);
+        }
+
+        // The referenced assembly ran the generator on the type: the type has a nested Packed struct.
+        private bool IsMetadataOwner(INamedTypeSymbol type)
+        {
+            if (!HasAutoPackInChain(type) || !HasPackedStruct(type))
+                return false;
+            if (!_members.ContainsKey(type))
+                _members[type] = MetadataMembers(type);
+            return _members[type].Count > 0;
+        }
+
+        private static bool HasAutoPackInChain(INamedTypeSymbol type)
+        {
+            for (var current = type; current != null; current = current.BaseType)
+            {
+                foreach (var attribute in current.GetAttributes())
+                {
+                    var name = attribute.AttributeClass?.Name;
+                    if (name == "AutoPackAttribute" || name == "AutoPack")
+                        return true;
+                }
+            }
+            return false;
+        }
+
+        private static bool HasPackedStruct(INamedTypeSymbol type)
+        {
+            foreach (var nested in type.GetTypeMembers("Packed"))
+            {
+                if (nested.TypeKind != TypeKind.Struct)
+                    continue;
+                foreach (var face in nested.AllInterfaces)
+                {
+                    if (face.Name == "IPackedStruct")
+                        return true;
+                }
+            }
+            return false;
+        }
+
+        // Inherited members first (nearest base first), then own members: the order the generator uses.
+        private static List<(ISymbol Field, ITypeSymbol TargetType)> MetadataMembers(INamedTypeSymbol type)
+        {
+            var list = new List<(ISymbol Field, ITypeSymbol TargetType)>();
+            for (var current = type.BaseType; current != null; current = current.BaseType)
+                AddPackedMembers(current, list);
+            AddPackedMembers(type, list);
+            return list;
+        }
+
+        private static void AddPackedMembers(INamedTypeSymbol type, List<(ISymbol Field, ITypeSymbol TargetType)> list)
+        {
+            foreach (var member in type.GetMembers())
+            {
+                if (!PackedMembers.IsFieldOrProperty(member) || member.IsStatic)
+                    continue;
+                foreach (var attribute in member.GetAttributes())
+                {
+                    var name = attribute.AttributeClass?.Name;
+                    if (name != "PackedAttribute" && name != "Packed")
+                        continue;
+                    ITypeSymbol targetType = null;
+                    if (attribute.ConstructorArguments.Length > 0 && attribute.ConstructorArguments[0].Value is ITypeSymbol ts)
+                        targetType = ts;
+                    list.Add((member, targetType));
+                    break;
+                }
+            }
         }
 
         public IReadOnlyList<(ISymbol Field, ITypeSymbol TargetType)> MembersOf(INamedTypeSymbol owner) => _members[owner];

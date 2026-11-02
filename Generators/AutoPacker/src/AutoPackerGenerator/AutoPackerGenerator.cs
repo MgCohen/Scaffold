@@ -52,7 +52,7 @@ namespace AutoPackerGenerator
 
             var inheritedFieldsByType = ComputeInheritedFields(receiver.TypeFields);
             var emittedTypes = ComputeEmittedTypes(receiver.TypeFields, inheritedFieldsByType);
-            var nested = new NestedTypes(emittedTypes, ComputeAllMembers(receiver.TypeFields, inheritedFieldsByType));
+            var nested = new NestedTypes(context.Compilation.Assembly, emittedTypes, ComputeAllMembers(receiver.TypeFields, inheritedFieldsByType));
             var validTypes = CollectAndEmitPartials(context, receiver, inheritedFieldsByType, emittedTypes, nested);
             var registryEntries = BuildRegistryEntries(validTypes, receiver.ClosedInstantiations);
             EmitRegistryFile(context, registryEntries);

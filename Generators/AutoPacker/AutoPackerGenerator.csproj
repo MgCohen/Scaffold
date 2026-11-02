@@ -14,6 +14,9 @@
     <Compile Remove="src\Contracts\**" />
     <EmbeddedResource Remove="src\Contracts\**" />
     <None Remove="src\Contracts\**" />
+    <Compile Remove="tests\**" />
+    <EmbeddedResource Remove="tests\**" />
+    <None Remove="tests\**" />
   </ItemGroup>
 
   <ItemGroup>
