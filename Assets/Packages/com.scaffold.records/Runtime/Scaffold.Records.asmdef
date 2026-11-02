@@ -22,6 +22,6 @@
     "versionDefines":  [
 
                        ],
-    "noEngineReferences":  false
+    "noEngineReferences":  true
 }
 

@@ -50,11 +50,17 @@ namespace AutoPackerGenerator
             return sb.ToString();
         }
 
+        // The runtime finds Packed and the pack and unpack members by reflection. A stripped
+        // IL2CPP player removes them when no code calls them, so each one carries this attribute.
+        private const string Preserve = "[global::Scaffold.AutoPacker.PreserveAttribute]";
+
         private static void AppendAbstractMarkerMembers(StringBuilder sb, bool indented)
         {
             string i1 = indented ? "        " : "    ";
+            sb.AppendLine($"{i1}{Preserve}");
             sb.AppendLine($"{i1}public abstract {nameof(IPackedStruct)} Pack({nameof(IPackingHandler)} handler = null);");
             sb.AppendLine();
+            sb.AppendLine($"{i1}{Preserve}");
             sb.AppendLine($"{i1}public abstract void Unpack({nameof(IPackedStruct)} packed, {nameof(IPackingHandler)} handler = null);");
             sb.AppendLine();
         }
@@ -212,6 +218,7 @@ namespace AutoPackerGenerator
                 // Struct path: ctor + typed UnpackTyped body, no IUnpackable.
                 // Convention: the typed surface owns the body; the ctor delegates so there's
                 // a single field-assignment site.
+                sb.AppendLine($"{i1}{Preserve}");
                 sb.AppendLine($"{i1}public {type.Name}(Packed packedData, {nameof(IPackingHandler)} handler = null)");
                 sb.AppendLine($"{i1}{{");
                 sb.AppendLine($"{i2}handler ??= new DefaultPackingHandler();");
@@ -233,6 +240,7 @@ namespace AutoPackerGenerator
                 if (PackedMembers.IsInitOnly(tuple.Field)) { initOnlyMember = tuple.Field.Name; break; }
             }
 
+            sb.AppendLine($"{i1}{Preserve}");
             sb.AppendLine($"{i1}public {type.Name}(Packed packedData, {nameof(IPackingHandler)} handler = null)");
             if (initOnlyMember == null)
             {
@@ -249,10 +257,12 @@ namespace AutoPackerGenerator
             sb.AppendLine();
 
             string boxedModifier = MethodModifier(ancestorEmits, descendantEmits);
+            sb.AppendLine($"{i1}{Preserve}");
             sb.AppendLine($"{i1}public {boxedModifier}void Unpack({nameof(IPackedStruct)} packed, {nameof(IPackingHandler)} handler = null)");
             sb.AppendLine($"{i1}    => UnpackTyped((Packed)packed, handler);");
             sb.AppendLine();
 
+            sb.AppendLine($"{i1}{Preserve}");
             sb.AppendLine($"{i1}public {typedModifier}void UnpackTyped(in Packed packedData, {nameof(IPackingHandler)} handler = null)");
             sb.AppendLine($"{i1}{{");
             if (initOnlyMember == null)
@@ -277,12 +287,14 @@ namespace AutoPackerGenerator
 
             // Typed Pack owns the body. Boxed Pack returns the same value through IPackedStruct
             // (the struct boxes at the return-type boundary — that's the only allocation on this path).
+            sb.AppendLine($"{i1}{Preserve}");
             sb.AppendLine($"{i1}public {typedModifier}Packed PackTyped({nameof(IPackingHandler)} handler = null)");
             sb.AppendLine($"{i1}{{");
             sb.AppendLine($"{i1}    return new Packed(this, handler);");
             sb.AppendLine($"{i1}}}");
             sb.AppendLine();
 
+            sb.AppendLine($"{i1}{Preserve}");
             sb.AppendLine($"{i1}public {boxedModifier}{nameof(IPackedStruct)} Pack({nameof(IPackingHandler)} handler = null)");
             sb.AppendLine($"{i1}    => PackTyped(handler);");
             sb.AppendLine();
@@ -294,6 +306,7 @@ namespace AutoPackerGenerator
             string i2 = indented ? "            " : "        ";
             string i3 = indented ? "                " : "            ";
 
+            sb.AppendLine($"{i1}{Preserve}");
             sb.AppendLine($"{i1}public struct Packed : {nameof(IPackedStruct)}");
             sb.AppendLine($"{i1}{{");
             sb.AppendLine($"{i2}public Type PackedType => typeof({FormatSelfTypeReference(type)});");
@@ -307,6 +320,7 @@ namespace AutoPackerGenerator
 
         private static void AppendPackedConstructor(StringBuilder sb, INamedTypeSymbol type, IReadOnlyList<(ISymbol Field, ITypeSymbol TargetType)> fields, string i2, string i3, IReadOnlyList<IMethodSymbol> extensionMethods, NestedTypes nested)
         {
+            sb.AppendLine($"{i2}{Preserve}");
             sb.AppendLine($"{i2}public Packed({FormatSelfTypeReference(type)} source, {nameof(IPackingHandler)} handler = null)");
             sb.AppendLine($"{i2}{{");
             sb.AppendLine($"{i3}handler ??= new DefaultPackingHandler();");
