@@ -133,8 +133,11 @@ fmod_editor.log
 
 /Generators/*/bin/*
 /Generators/*/obj/*
+/Generators/*/tests/*/bin/*
+/Generators/*/tests/*/obj/*
 !/Generators/*/*.sln
 !/Generators/*/*.csproj
+!/Generators/*/tests/*/*.csproj
 
 # Custom files
 /Assets/AddressableAssetsData/link.*
