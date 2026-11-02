@@ -130,8 +130,8 @@ namespace Scaffold.Autopacker.Tests
         public void NestedRecord_NonPartialDerivedRecord_GetsNoCodegen()
         {
             Assert.IsNull(typeof(NestedEntityId).GetNestedType("Packed", BindingFlags.Public | BindingFlags.DeclaredOnly));
-            foreach (var entry in AutoPackerRegistry.GetPackableTypes())
-                Assert.IsFalse(entry.ContainsKey(typeof(NestedEntityId)));
+            Assert.AreEqual(typeof(NestedId), new NestedEntityId().Pack().PackedType,
+                "NestedEntityId uses the Pack of its base NestedId.");
         }
 
         [Test]
