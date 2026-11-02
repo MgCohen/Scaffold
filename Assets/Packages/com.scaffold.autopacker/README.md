@@ -17,14 +17,15 @@
 - Owns generated partial members: nested `Packed` struct implementing `IPackedStruct`, `Pack(...)`, constructor from `Packed`, and optional parameterless constructor for classes.
 - Emits `AutoPackerRegistry.g.cs` listing processed types.
 - Does not own transport, file formats, encryption, or Unity serialization (`SerializeField`); those stay in consuming modules or custom `IPackingHandler` implementations.
-- Boundary: generator enforces that each packed field maps to an **unmanaged** storage type (or a `[Packed(typeof(T))]` target type that is unmanaged); invalid fields produce diagnostic **CSG002**.
+- Boundary: generator enforces that each packed field maps to an **unmanaged** storage type (or a `[Packed(typeof(T))]` target type that is unmanaged); invalid fields produce diagnostic **CSG002**. A field whose type is an `[AutoPack]` class or record packs inline (see "Nested records and classes"); an invalid one produces **CSG004**.
 
 ## Public API
 
 | Symbol | Purpose | Inputs | Outputs | Failure behavior |
 |---|---|---|---|---|
 | `[AutoPack]` | Marks a `partial` class/struct for code generation | type declaration | n/a | type ignored if not partial or fields invalid |
-| `[Packed]` | Marks a field included in `Packed` | field on `[AutoPack]` type | n/a | CSG002 if field type is not unmanaged and no valid target type |
+| `[Packed]` | Marks a field or property included in `Packed` | field or property on `[AutoPack]` type | n/a | CSG002 if the type is not unmanaged, not nested and has no valid target type; CSG005 if a property has no set or init accessor |
+| `[Packed] T Field` (T is an `[AutoPack]` class or record) | Packs `T` inline as the `Packed` struct of its owner | field of a nested type | n/a | CSG004 if `T` is abstract, has no public parameterless constructor, or a member has no public setter |
 | `[Packed(typeof(T))]` | Stores field as unmanaged type `T` using handler conversions | field + target `T` | n/a | CSG002 if `T` is not unmanaged |
 | `IPackingHandler` | Custom pack/unpack conversions | `Resolve<TSource,TTarget>(source)` | converted value | consumers define behavior; `DefaultPackingHandler` uses `Convert.ChangeType` / identity |
 | `IPackedStruct` | Marker for generated packed structs | n/a | `PackedType` | n/a |
@@ -39,6 +40,37 @@ Generated per type (names illustrative):
 | `new YourType(YourType.Packed, handler)` | Restore instance from packed data | packed struct, optional handler | instance | non-packed fields get default values |
 | `YourType.Packed` | Unmanaged struct fields | n/a | blittable layout | n/a |
 
+### Nested records and classes
+
+A `[Packed]` field whose type is a class or record with `[AutoPack]` in its hierarchy packs inline. The field stores the `Packed` struct of the **owner**: the nearest type in the chain that gets codegen. Unpack makes a new object with an object initializer.
+
+```csharp
+[AutoPack]
+public abstract partial record Id
+{
+    [Packed] public int Value { get; init; } = -1;   // -1 = None, 0 = never set
+}
+public sealed record EntityId : Id;                  // not partial: no codegen, owner is Id
+
+[AutoPack]
+public partial class CardPlayedEvent
+{
+    [Packed] public EntityId Card;                   // Packed.Card is Id.Packed (4 bytes)
+}
+```
+
+| Step | Generated code |
+|---|---|
+| Pack | `Card = source.Card != null ? new Id.Packed(source.Card, handler) : new Id.Packed { Value = -1 };` |
+| Unpack | `Card = packedData.Card.Value != -1 ? new EntityId { Value = ... } : null;` |
+
+- **Owner:** a derived type that is not partial and has no `[Packed]` members of its own gets no codegen and no registry entry. It uses its base's `Pack` and `Packed`.
+- **No record:** if the owner has exactly one signed integer member (an id), `-1` means null. A null field and a `None` id both pack as `-1`, and `-1` unpacks as null. `0` is "never set" (a bug): it unpacks as an id with `Value` 0, so the bug stays visible.
+- **Other shapes:** without the `-1` rule, a null field packs as a new default object and always unpacks as an object.
+- **Rules (CSG004):** the field type must be concrete, with a public parameterless constructor, and each owner member needs a public `set` or `init` accessor.
+- **Init-only members:** a type with an `init` `[Packed]` member unpacks only through its constructor. The in-place `Unpack` / `UnpackTyped` of that type throws `NotSupportedException`. A container type that holds it unpacks in place as usual.
+- **C# 9 `init`** needs `System.Runtime.CompilerServices.IsExternalInit`. The Unity profile does not have it, so declare an internal shim in the assembly that uses `init`.
+
 ## Setup / Integration
 
 1. Add an assembly reference to `Scaffold.Autopacker` (`Runtime/Scaffold.Autopacker.asmdef`) from your asmdef.
@@ -49,6 +81,8 @@ Generated per type (names illustrative):
 **Common mistakes**
 
 - Forgetting `partial` on the type (nothing is generated).
+- Declaring a nested field with an abstract type (`[Packed] Id Any;`): unpack cannot make the object (CSG004). Use the concrete type.
+- Calling the in-place `Unpack` on a record with `init` members: it throws. Use the constructor.
 - Marking managed fields without `[Packed(typeof(unmanagedTarget))]` → CSG002.
 - Expecting non-`[Packed]` fields to round-trip through `Packed` (they are omitted).
 
@@ -144,7 +178,7 @@ public sealed class HashPacker : IPackingHandler
 ## AI Agent Context
 
 - Invariants:
-  - packed fields must be unmanaged (or mapped via `[Packed(typeof(T))]` with unmanaged `T`).
+  - packed fields must be unmanaged, mapped via `[Packed(typeof(T))]` with unmanaged `T`, or nested `[AutoPack]` classes or records.
   - generated types remain `partial`; user code stays in the same declaration.
 - Allowed Dependencies:
   - consuming assemblies may reference only `Scaffold.Autopacker` contracts unless they also implement handlers.
@@ -153,10 +187,11 @@ public sealed class HashPacker : IPackingHandler
 - Change Checklist:
   - rebuild `Generators/AutoPacker` after editing the generator or contracts; copy/update DLLs under `Runtime/` as the project’s pipeline requires.
   - run `Scaffold.Autopacker.Tests`.
-  - verify CSG002 still triggers for managed fields without mapping.
+  - verify CSG002 still triggers for managed fields without mapping, CSG004 for invalid nested types and CSG005 for properties without a setter.
 - Known Tricky Areas:
   - extension method binding for `IPackingHandler`—signature must match what `Emitter` discovers.
   - unpack restores only `[Packed]` fields; document defaults for everything else.
+  - nested fields: the stored struct is the owner's `Packed`, not the field type's; the unpack object initializer lists all owner members, recursively for nested members.
 
 ## Related
 
@@ -166,4 +201,5 @@ public sealed class HashPacker : IPackingHandler
 
 ## Changelog
 
+- `2026-11-02`: Nested `[AutoPack]` classes and records pack inline; `-1` is the null value for single-id owners; `[Packed]` on properties (including `init`); derived types that are not partial get no codegen; diagnostics CSG004 and CSG005.
 - `2026-03-31`: Initial README documenting generator flow, attributes, handlers, and tests.
