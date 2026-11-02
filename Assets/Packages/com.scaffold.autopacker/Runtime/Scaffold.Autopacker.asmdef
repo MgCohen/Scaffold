@@ -1,3 +1,4 @@
 {
-	"name": "Scaffold.Autopacker"
+	"name": "Scaffold.Autopacker",
+	"noEngineReferences": true
 }
