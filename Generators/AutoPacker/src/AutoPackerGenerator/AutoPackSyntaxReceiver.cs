@@ -7,8 +7,8 @@ namespace AutoPackerGenerator
 {
     internal class AutoPackSyntaxReceiver : ISyntaxContextReceiver
     {
-        public Dictionary<INamedTypeSymbol, List<(IFieldSymbol Field, ITypeSymbol TargetType)>> TypeFields { get; }
-            = new Dictionary<INamedTypeSymbol, List<(IFieldSymbol Field, ITypeSymbol TargetType)>>(SymbolEqualityComparer.Default);
+        public Dictionary<INamedTypeSymbol, List<(ISymbol Field, ITypeSymbol TargetType)>> TypeFields { get; }
+            = new Dictionary<INamedTypeSymbol, List<(ISymbol Field, ITypeSymbol TargetType)>>(SymbolEqualityComparer.Default);
 
         public List<IMethodSymbol> ExtensionMethods { get; } = new List<IMethodSymbol>();
 
@@ -22,6 +22,7 @@ namespace AutoPackerGenerator
         {
             VisitTypeDeclaration(context);
             VisitFieldDeclaration(context);
+            VisitPropertyDeclaration(context);
             VisitMethodDeclaration(context);
             VisitGenericName(context);
         }
@@ -36,9 +37,14 @@ namespace AutoPackerGenerator
                 return;
             if (!HasAutoPackInHierarchy(typeSymbol))
                 return;
+            // A derived type that is not partial and only inherits [Packed] members
+            // (`sealed record EntityId : Id;`) gets no codegen: it uses its base's Pack and Packed.
+            // A type with its own [Packed] members is still collected by the member visitors.
+            if (!HasAttribute(typeSymbol, nameof(AutoPackAttribute)) && !PackedMembers.IsPartial(typeSymbol))
+                return;
 
             if (!TypeFields.ContainsKey(typeSymbol))
-                TypeFields[typeSymbol] = new List<(IFieldSymbol Field, ITypeSymbol TargetType)>();
+                TypeFields[typeSymbol] = new List<(ISymbol Field, ITypeSymbol TargetType)>();
         }
 
         private void VisitFieldDeclaration(GeneratorSyntaxContext context)
@@ -49,37 +55,49 @@ namespace AutoPackerGenerator
                 return;
 
             foreach (var variable in fieldDeclaration.Declaration.Variables)
+                AddMember(context.SemanticModel.GetDeclaredSymbol(variable) as IFieldSymbol);
+        }
+
+        private void VisitPropertyDeclaration(GeneratorSyntaxContext context)
+        {
+            if (!(context.Node is PropertyDeclarationSyntax propertyDeclaration))
+                return;
+            if (propertyDeclaration.AttributeLists.Count == 0)
+                return;
+
+            AddMember(context.SemanticModel.GetDeclaredSymbol(propertyDeclaration) as IPropertySymbol);
+        }
+
+        private void AddMember(ISymbol member)
+        {
+            if (member == null || member.IsStatic)
+                return;
+            if (!HasAttribute(member, nameof(PackedAttribute)))
+                return;
+
+            var containingType = member.ContainingType;
+            if (containingType == null)
+                return;
+            if (!HasAutoPackInHierarchy(containingType))
+                return;
+
+            if (!TypeFields.ContainsKey(containingType))
+                TypeFields[containingType] = new List<(ISymbol Field, ITypeSymbol TargetType)>();
+
+            ITypeSymbol targetType = null;
+            foreach (var attr in member.GetAttributes())
             {
-                var fieldSymbol = context.SemanticModel.GetDeclaredSymbol(variable) as IFieldSymbol;
-                if (fieldSymbol == null || fieldSymbol.IsStatic)
-                    continue;
-                if (!HasAttribute(fieldSymbol, nameof(PackedAttribute)))
-                    continue;
-
-                var containingType = fieldSymbol.ContainingType;
-                if (containingType == null)
-                    continue;
-                if (!HasAutoPackInHierarchy(containingType))
-                    continue;
-
-                if (!TypeFields.ContainsKey(containingType))
-                    TypeFields[containingType] = new List<(IFieldSymbol Field, ITypeSymbol TargetType)>();
-
-                ITypeSymbol targetType = null;
-                foreach (var attr in fieldSymbol.GetAttributes())
+                if (attr.AttributeClass?.Name == nameof(PackedAttribute) || attr.AttributeClass?.Name == "Packed")
                 {
-                    if (attr.AttributeClass?.Name == nameof(PackedAttribute) || attr.AttributeClass?.Name == "Packed")
+                    if (attr.ConstructorArguments.Length > 0 && attr.ConstructorArguments[0].Value is ITypeSymbol ts)
                     {
-                        if (attr.ConstructorArguments.Length > 0 && attr.ConstructorArguments[0].Value is ITypeSymbol ts)
-                        {
-                            targetType = ts;
-                        }
-                        break;
+                        targetType = ts;
                     }
+                    break;
                 }
-
-                TypeFields[containingType].Add((fieldSymbol, targetType));
             }
+
+            TypeFields[containingType].Add((member, targetType));
         }
 
         private static bool HasAutoPackInHierarchy(INamedTypeSymbol type)

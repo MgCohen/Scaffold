@@ -9,9 +9,10 @@ namespace AutoPackerGenerator
     {
         public static string EmitSource(
             INamedTypeSymbol type,
-            IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> ownFields,
-            IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> inheritedFields,
+            IReadOnlyList<(ISymbol Field, ITypeSymbol TargetType)> ownFields,
+            IReadOnlyList<(ISymbol Field, ITypeSymbol TargetType)> inheritedFields,
             IReadOnlyList<IMethodSymbol> extensionMethods,
+            NestedTypes nested,
             bool ancestorEmits,
             bool descendantEmits,
             bool typedAncestorOverride,
@@ -36,9 +37,9 @@ namespace AutoPackerGenerator
             else
             {
                 AppendDefaultConstructorIfMissing(sb, type, hasNamespace);
-                AppendConstructorFromPacked(sb, type, allFields, hasNamespace, extensionMethods, ancestorEmits, descendantEmits, typedAncestorOverride, typedAncestorHides);
+                AppendConstructorFromPacked(sb, type, allFields, hasNamespace, extensionMethods, nested, ancestorEmits, descendantEmits, typedAncestorOverride, typedAncestorHides);
                 AppendPackMethod(sb, hasNamespace, ancestorEmits, descendantEmits, typedAncestorOverride, typedAncestorHides);
-                AppendPackedStruct(sb, type, allFields, hasNamespace, extensionMethods);
+                AppendPackedStruct(sb, type, allFields, hasNamespace, extensionMethods, nested);
             }
 
             AppendTypeClose(sb, hasNamespace);
@@ -58,11 +59,11 @@ namespace AutoPackerGenerator
             sb.AppendLine();
         }
 
-        private static IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> Combine(
-            IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> inherited,
-            IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> own)
+        private static IReadOnlyList<(ISymbol Field, ITypeSymbol TargetType)> Combine(
+            IReadOnlyList<(ISymbol Field, ITypeSymbol TargetType)> inherited,
+            IReadOnlyList<(ISymbol Field, ITypeSymbol TargetType)> own)
         {
-            var combined = new List<(IFieldSymbol, ITypeSymbol)>(inherited.Count + own.Count);
+            var combined = new List<(ISymbol, ITypeSymbol)>(inherited.Count + own.Count);
             combined.AddRange(inherited);
             combined.AddRange(own);
             return combined;
@@ -85,7 +86,7 @@ namespace AutoPackerGenerator
             return string.Empty;
         }
 
-        private static void AppendUsings(StringBuilder sb, IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> fields)
+        private static void AppendUsings(StringBuilder sb, IReadOnlyList<(ISymbol Field, ITypeSymbol TargetType)> fields)
         {
             sb.AppendLine("using System;");
             sb.AppendLine("using Scaffold.AutoPacker;");
@@ -94,12 +95,12 @@ namespace AutoPackerGenerator
             sb.AppendLine();
         }
 
-        private static IEnumerable<string> CollectConversionNamespaces(IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> fields)
+        private static IEnumerable<string> CollectConversionNamespaces(IReadOnlyList<(ISymbol Field, ITypeSymbol TargetType)> fields)
         {
             var seen = new HashSet<string>();
             foreach (var tuple in fields)
             {
-                if (!TypeConversions.TryGetConversion(tuple.Field.Type, out var targetFull))
+                if (!TypeConversions.TryGetConversion(PackedMembers.TypeOf(tuple.Field), out var targetFull))
                     continue;
                 var ns = TypeConversions.GetNamespace(targetFull);
                 if (ns != null && seen.Add(ns))
@@ -193,9 +194,10 @@ namespace AutoPackerGenerator
         private static void AppendConstructorFromPacked(
             StringBuilder sb,
             INamedTypeSymbol type,
-            IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> fields,
+            IReadOnlyList<(ISymbol Field, ITypeSymbol TargetType)> fields,
             bool indented,
             IReadOnlyList<IMethodSymbol> extensionMethods,
+            NestedTypes nested,
             bool ancestorEmits,
             bool descendantEmits,
             bool typedAncestorOverride,
@@ -214,7 +216,7 @@ namespace AutoPackerGenerator
                 sb.AppendLine($"{i1}{{");
                 sb.AppendLine($"{i2}handler ??= new DefaultPackingHandler();");
                 foreach (var tuple in fields)
-                    AppendFieldAssignment(sb, tuple.Field, tuple.TargetType, "packedData", "handler", convertToPacked: false, i2, extensionMethods);
+                    AppendFieldAssignment(sb, tuple.Field, tuple.TargetType, "packedData", "handler", convertToPacked: false, i2, extensionMethods, nested);
                 sb.AppendLine($"{i1}}}");
                 sb.AppendLine();
                 return;
@@ -223,8 +225,27 @@ namespace AutoPackerGenerator
             // Class path: typed UnpackTyped(in Packed, …) owns the body. The ctor and the
             // boxed Unpack(IPackedStruct, …) both delegate to it — one source of truth, and
             // the boxed path is the only place where an unbox cast happens.
+            // An init-only member can be set only in a constructor. Then the constructor owns the
+            // body, and the in-place unpack throws: the object is immutable.
+            string initOnlyMember = null;
+            foreach (var tuple in fields)
+            {
+                if (PackedMembers.IsInitOnly(tuple.Field)) { initOnlyMember = tuple.Field.Name; break; }
+            }
+
             sb.AppendLine($"{i1}public {type.Name}(Packed packedData, {nameof(IPackingHandler)} handler = null)");
-            sb.AppendLine($"{i1}    => UnpackTyped(packedData, handler);");
+            if (initOnlyMember == null)
+            {
+                sb.AppendLine($"{i1}    => UnpackTyped(packedData, handler);");
+            }
+            else
+            {
+                sb.AppendLine($"{i1}{{");
+                sb.AppendLine($"{i2}handler ??= new DefaultPackingHandler();");
+                foreach (var tuple in fields)
+                    AppendFieldAssignment(sb, tuple.Field, tuple.TargetType, "packedData", "handler", convertToPacked: false, i2, extensionMethods, nested);
+                sb.AppendLine($"{i1}}}");
+            }
             sb.AppendLine();
 
             string boxedModifier = MethodModifier(ancestorEmits, descendantEmits);
@@ -234,9 +255,16 @@ namespace AutoPackerGenerator
 
             sb.AppendLine($"{i1}public {typedModifier}void UnpackTyped(in Packed packedData, {nameof(IPackingHandler)} handler = null)");
             sb.AppendLine($"{i1}{{");
-            sb.AppendLine($"{i2}handler ??= new DefaultPackingHandler();");
-            foreach (var tuple in fields)
-                AppendFieldAssignment(sb, tuple.Field, tuple.TargetType, "packedData", "handler", convertToPacked: false, i2, extensionMethods);
+            if (initOnlyMember == null)
+            {
+                sb.AppendLine($"{i2}handler ??= new DefaultPackingHandler();");
+                foreach (var tuple in fields)
+                    AppendFieldAssignment(sb, tuple.Field, tuple.TargetType, "packedData", "handler", convertToPacked: false, i2, extensionMethods, nested);
+            }
+            else
+            {
+                sb.AppendLine($"{i2}throw new NotSupportedException(\"{type.Name}.{initOnlyMember} is init-only. Unpack {type.Name} with its constructor.\");");
+            }
             sb.AppendLine($"{i1}}}");
             sb.AppendLine();
         }
@@ -260,7 +288,7 @@ namespace AutoPackerGenerator
             sb.AppendLine();
         }
 
-        private static void AppendPackedStruct(StringBuilder sb, INamedTypeSymbol type, IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> fields, bool indented, IReadOnlyList<IMethodSymbol> extensionMethods)
+        private static void AppendPackedStruct(StringBuilder sb, INamedTypeSymbol type, IReadOnlyList<(ISymbol Field, ITypeSymbol TargetType)> fields, bool indented, IReadOnlyList<IMethodSymbol> extensionMethods, NestedTypes nested)
         {
             string i1 = indented ? "        " : "    ";
             string i2 = indented ? "            " : "        ";
@@ -271,42 +299,47 @@ namespace AutoPackerGenerator
             sb.AppendLine($"{i2}public Type PackedType => typeof({FormatSelfTypeReference(type)});");
             sb.AppendLine();
 
-            AppendPackedConstructor(sb, type, fields, i2, i3, extensionMethods);
-            AppendPackedFields(sb, fields, i2);
+            AppendPackedConstructor(sb, type, fields, i2, i3, extensionMethods, nested);
+            AppendPackedFields(sb, fields, i2, nested);
 
             sb.AppendLine($"{i1}}}");
         }
 
-        private static void AppendPackedConstructor(StringBuilder sb, INamedTypeSymbol type, IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> fields, string i2, string i3, IReadOnlyList<IMethodSymbol> extensionMethods)
+        private static void AppendPackedConstructor(StringBuilder sb, INamedTypeSymbol type, IReadOnlyList<(ISymbol Field, ITypeSymbol TargetType)> fields, string i2, string i3, IReadOnlyList<IMethodSymbol> extensionMethods, NestedTypes nested)
         {
             sb.AppendLine($"{i2}public Packed({FormatSelfTypeReference(type)} source, {nameof(IPackingHandler)} handler = null)");
             sb.AppendLine($"{i2}{{");
             sb.AppendLine($"{i3}handler ??= new DefaultPackingHandler();");
             foreach (var tuple in fields)
-                AppendFieldAssignment(sb, tuple.Field, tuple.TargetType, "source", "handler", convertToPacked: true, i3, extensionMethods);
+                AppendFieldAssignment(sb, tuple.Field, tuple.TargetType, "source", "handler", convertToPacked: true, i3, extensionMethods, nested);
             sb.AppendLine($"{i2}}}");
             sb.AppendLine();
         }
 
-        private static void AppendPackedFields(StringBuilder sb, IReadOnlyList<(IFieldSymbol Field, ITypeSymbol TargetType)> fields, string i2)
+        private static void AppendPackedFields(StringBuilder sb, IReadOnlyList<(ISymbol Field, ITypeSymbol TargetType)> fields, string i2, NestedTypes nested)
         {
             foreach (var tuple in fields)
             {
                 var field = tuple.Field;
                 var targetType = tuple.TargetType;
 
+                var fieldType = PackedMembers.TypeOf(field);
                 string typeName;
                 if (targetType != null)
                 {
                     typeName = targetType.ToDisplayString();
                 }
-                else if (TypeConversions.TryGetConversion(field.Type, out var targetFull))
+                else if (TypeConversions.TryGetConversion(fieldType, out var targetFull))
                 {
                     typeName = TypeConversions.GetShortName(targetFull);
                 }
+                else if (nested.TryGetOwner(fieldType, out var owner))
+                {
+                    typeName = $"{owner.ToDisplayString()}.Packed";
+                }
                 else
                 {
-                    typeName = field.Type.ToDisplayString();
+                    typeName = fieldType.ToDisplayString();
                 }
 
                 sb.AppendLine($"{i2}public {typeName} {field.Name};");
@@ -315,21 +348,44 @@ namespace AutoPackerGenerator
 
         private static void AppendFieldAssignment(
             StringBuilder sb,
-            IFieldSymbol field,
+            ISymbol field,
             ITypeSymbol targetType,
             string sourceName,
             string handlerName,
             bool convertToPacked,
             string indent,
-            IReadOnlyList<IMethodSymbol> extensionMethods)
+            IReadOnlyList<IMethodSymbol> extensionMethods,
+            NestedTypes nested)
         {
-            var sourceTypeName = field.Type.ToDisplayString();
+            var value = ValueExpression(field, targetType, $"{sourceName}.{field.Name}", handlerName, convertToPacked, extensionMethods, nested);
+            sb.AppendLine($"{indent}{field.Name} = {value};");
+        }
+
+        // The converted value of one member. `source` is the expression that reads the member.
+        private static string ValueExpression(
+            ISymbol field,
+            ITypeSymbol targetType,
+            string source,
+            string handlerName,
+            bool convertToPacked,
+            IReadOnlyList<IMethodSymbol> extensionMethods,
+            NestedTypes nested)
+        {
+            var fieldType = PackedMembers.TypeOf(field);
+            if (targetType == null
+                && !TypeConversions.TryGetConversion(fieldType, out _)
+                && nested.TryGetOwner(fieldType, out var owner))
+            {
+                return NestedExpression(fieldType, owner, source, handlerName, convertToPacked, extensionMethods, nested);
+            }
+
+            var sourceTypeName = fieldType.ToDisplayString();
             string targetTypeName;
             if (targetType != null)
             {
                 targetTypeName = targetType.ToDisplayString();
             }
-            else if (TypeConversions.TryGetConversion(field.Type, out var targetFull))
+            else if (TypeConversions.TryGetConversion(fieldType, out var targetFull))
             {
                 targetTypeName = targetFull;
             }
@@ -342,13 +398,44 @@ namespace AutoPackerGenerator
             var toType = convertToPacked ? targetTypeName : sourceTypeName;
 
             if (HasMatchingExtensionMethod(extensionMethods, fromType, toType))
+                return $"{handlerName}.Resolve({source})";
+            return $"{handlerName}.Resolve<{fromType}, {toType}>({source})";
+        }
+
+        // Pack: the owner's Packed struct, or the "no record" value for null.
+        // Unpack: a new object through an object initializer, or null for the "no record" value.
+        private static string NestedExpression(
+            ITypeSymbol fieldType,
+            INamedTypeSymbol owner,
+            string source,
+            string handlerName,
+            bool convertToPacked,
+            IReadOnlyList<IMethodSymbol> extensionMethods,
+            NestedTypes nested)
+        {
+            var packedName = $"{owner.ToDisplayString()}.Packed";
+            var noneMember = nested.NoneMember(owner);
+            var typeName = fieldType.WithNullableAnnotation(NullableAnnotation.NotAnnotated).ToDisplayString();
+
+            if (convertToPacked)
             {
-                sb.AppendLine($"{indent}{field.Name} = {handlerName}.Resolve({sourceName}.{field.Name});");
+                // Without a -1 key, null packs as a new default object, so nested ids inside it keep -1.
+                var none = noneMember != null
+                    ? $"new {packedName} {{ {noneMember.Name} = -1 }}"
+                    : $"new {packedName}(new {typeName}(), {handlerName})";
+                return $"{source} != null ? new {packedName}({source}, {handlerName}) : {none}";
             }
-            else
+
+            var assignments = new List<string>();
+            foreach (var member in nested.MembersOf(owner))
             {
-                sb.AppendLine($"{indent}{field.Name} = {handlerName}.Resolve<{fromType}, {toType}>({sourceName}.{field.Name});");
+                var memberValue = ValueExpression(member.Field, member.TargetType, $"{source}.{member.Field.Name}", handlerName, false, extensionMethods, nested);
+                assignments.Add($"{member.Field.Name} = {memberValue}");
             }
+            var create =$"new {typeName} {{ {string.Join(", ", assignments)} }}";
+            if (noneMember == null)
+                return create;
+            return $"{source}.{noneMember.Name} != -1 ? {create} : null";
         }
 
         private static bool HasMatchingExtensionMethod(IReadOnlyList<IMethodSymbol> extensionMethods, string sourceTypeName, string targetTypeName)

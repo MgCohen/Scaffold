@@ -24,6 +24,22 @@ namespace AutoPackerGenerator
             defaultSeverity: DiagnosticSeverity.Error,
             isEnabledByDefault: true);
 
+        private static readonly DiagnosticDescriptor InvalidNestedTypeDiagnostic = new DiagnosticDescriptor(
+            id: "CSG004",
+            title: "Nested [AutoPack] field cannot pack",
+            messageFormat: "Field '{0}' cannot pack inline: {1}.",
+            category: "AutoPackerGenerator",
+            defaultSeverity: DiagnosticSeverity.Error,
+            isEnabledByDefault: true);
+
+        private static readonly DiagnosticDescriptor PropertyNeedsSetterDiagnostic = new DiagnosticDescriptor(
+            id: "CSG005",
+            title: "[Packed] properties need a set or init accessor",
+            messageFormat: "Property '{0}' has no set or init accessor; unpack cannot assign it.",
+            category: "AutoPackerGenerator",
+            defaultSeverity: DiagnosticSeverity.Error,
+            isEnabledByDefault: true);
+
         public void Initialize(GeneratorInitializationContext context)
         {
             context.RegisterForSyntaxNotifications(() => new AutoPackSyntaxReceiver());
@@ -36,7 +52,8 @@ namespace AutoPackerGenerator
 
             var inheritedFieldsByType = ComputeInheritedFields(receiver.TypeFields);
             var emittedTypes = ComputeEmittedTypes(receiver.TypeFields, inheritedFieldsByType);
-            var validTypes = CollectAndEmitPartials(context, receiver, inheritedFieldsByType, emittedTypes);
+            var nested = new NestedTypes(emittedTypes, ComputeAllMembers(receiver.TypeFields, inheritedFieldsByType));
+            var validTypes = CollectAndEmitPartials(context, receiver, inheritedFieldsByType, emittedTypes, nested);
             var registryEntries = BuildRegistryEntries(validTypes, receiver.ClosedInstantiations);
             EmitRegistryFile(context, registryEntries);
         }
@@ -73,22 +90,22 @@ namespace AutoPackerGenerator
             return result;
         }
 
-        private static Dictionary<INamedTypeSymbol, List<(IFieldSymbol Field, ITypeSymbol TargetType)>> ComputeInheritedFields(
-            Dictionary<INamedTypeSymbol, List<(IFieldSymbol Field, ITypeSymbol TargetType)>> typeFields)
+        private static Dictionary<INamedTypeSymbol, List<(ISymbol Field, ITypeSymbol TargetType)>> ComputeInheritedFields(
+            Dictionary<INamedTypeSymbol, List<(ISymbol Field, ITypeSymbol TargetType)>> typeFields)
         {
-            var result = new Dictionary<INamedTypeSymbol, List<(IFieldSymbol Field, ITypeSymbol TargetType)>>(SymbolEqualityComparer.Default);
+            var result = new Dictionary<INamedTypeSymbol, List<(ISymbol Field, ITypeSymbol TargetType)>>(SymbolEqualityComparer.Default);
             foreach (var pair in typeFields)
             {
-                var list = new List<(IFieldSymbol, ITypeSymbol)>();
+                var list = new List<(ISymbol, ITypeSymbol)>();
                 for (var b = pair.Key.BaseType; b != null; b = b.BaseType)
                 {
                     foreach (var member in b.GetMembers())
                     {
-                        if (!(member is IFieldSymbol field) || field.IsStatic)
+                        if (!PackedMembers.IsFieldOrProperty(member) || member.IsStatic)
                             continue;
-                        if (!TryGetPackedAttribute(field, out var targetType))
+                        if (!TryGetPackedAttribute(member, out var targetType))
                             continue;
-                        list.Add((field, targetType));
+                        list.Add((member, targetType));
                     }
                 }
                 result[pair.Key] = list;
@@ -96,7 +113,22 @@ namespace AutoPackerGenerator
             return result;
         }
 
-        private static bool TryGetPackedAttribute(IFieldSymbol field, out ITypeSymbol targetType)
+        // Inherited members first, then own members: the same order as the Packed struct.
+        private static Dictionary<INamedTypeSymbol, List<(ISymbol Field, ITypeSymbol TargetType)>> ComputeAllMembers(
+            Dictionary<INamedTypeSymbol, List<(ISymbol Field, ITypeSymbol TargetType)>> typeFields,
+            Dictionary<INamedTypeSymbol, List<(ISymbol Field, ITypeSymbol TargetType)>> inheritedFieldsByType)
+        {
+            var result = new Dictionary<INamedTypeSymbol, List<(ISymbol Field, ITypeSymbol TargetType)>>(SymbolEqualityComparer.Default);
+            foreach (var pair in typeFields)
+            {
+                var list = new List<(ISymbol Field, ITypeSymbol TargetType)>(inheritedFieldsByType[pair.Key]);
+                list.AddRange(pair.Value);
+                result[pair.Key] = list;
+            }
+            return result;
+        }
+
+        private static bool TryGetPackedAttribute(ISymbol field, out ITypeSymbol targetType)
         {
             targetType = null;
             foreach (var attr in field.GetAttributes())
@@ -112,8 +144,8 @@ namespace AutoPackerGenerator
         }
 
         private static HashSet<INamedTypeSymbol> ComputeEmittedTypes(
-            Dictionary<INamedTypeSymbol, List<(IFieldSymbol Field, ITypeSymbol TargetType)>> typeFields,
-            Dictionary<INamedTypeSymbol, List<(IFieldSymbol Field, ITypeSymbol TargetType)>> inheritedFieldsByType)
+            Dictionary<INamedTypeSymbol, List<(ISymbol Field, ITypeSymbol TargetType)>> typeFields,
+            Dictionary<INamedTypeSymbol, List<(ISymbol Field, ITypeSymbol TargetType)>> inheritedFieldsByType)
         {
             var emitted = new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
             foreach (var pair in typeFields)
@@ -211,8 +243,8 @@ namespace AutoPackerGenerator
         private static bool HasEmittedAncestorEmittingTyped(
             INamedTypeSymbol type,
             HashSet<INamedTypeSymbol> emittedTypes,
-            Dictionary<INamedTypeSymbol, List<(IFieldSymbol Field, ITypeSymbol TargetType)>> typeFields,
-            Dictionary<INamedTypeSymbol, List<(IFieldSymbol Field, ITypeSymbol TargetType)>> inheritedFieldsByType)
+            Dictionary<INamedTypeSymbol, List<(ISymbol Field, ITypeSymbol TargetType)>> typeFields,
+            Dictionary<INamedTypeSymbol, List<(ISymbol Field, ITypeSymbol TargetType)>> inheritedFieldsByType)
         {
             for (var b = type.BaseType; b != null; b = b.BaseType)
             {
@@ -313,8 +345,9 @@ namespace AutoPackerGenerator
         private static List<INamedTypeSymbol> CollectAndEmitPartials(
             GeneratorExecutionContext context,
             AutoPackSyntaxReceiver receiver,
-            Dictionary<INamedTypeSymbol, List<(IFieldSymbol Field, ITypeSymbol TargetType)>> inheritedFieldsByType,
-            HashSet<INamedTypeSymbol> emittedTypes)
+            Dictionary<INamedTypeSymbol, List<(ISymbol Field, ITypeSymbol TargetType)>> inheritedFieldsByType,
+            HashSet<INamedTypeSymbol> emittedTypes,
+            NestedTypes nested)
         {
             var validTypes = new List<INamedTypeSymbol>();
             foreach (var pair in receiver.TypeFields)
@@ -329,7 +362,7 @@ namespace AutoPackerGenerator
                 bool hasErrors = false;
                 foreach (var tuple in ownFields)
                 {
-                    if (!ValidateField(context, tuple))
+                    if (!ValidateField(context, tuple, nested))
                         hasErrors = true;
                 }
                 if (hasErrors) continue;
@@ -356,27 +389,45 @@ namespace AutoPackerGenerator
                 if (IsGenericForwardingIntermediate(typeSymbol))
                     continue;
 
-                EmitPartial(context, typeSymbol, ownFields, inheritedFields, receiver.ExtensionMethods, ancestorEmits, descendantEmits, typedAncestorOverride, typedAncestorHides, isAbstractMarker);
+                EmitPartial(context, typeSymbol, ownFields, inheritedFields, receiver.ExtensionMethods, nested, ancestorEmits, descendantEmits, typedAncestorOverride, typedAncestorHides, isAbstractMarker);
                 if (!isAbstractMarker)
                     validTypes.Add(typeSymbol);
             }
             return validTypes;
         }
 
-        private static bool ValidateField(GeneratorExecutionContext context, (IFieldSymbol Field, ITypeSymbol TargetType) tuple)
+        private static bool ValidateField(GeneratorExecutionContext context, (ISymbol Field, ITypeSymbol TargetType) tuple, NestedTypes nested)
         {
+            var fieldType = PackedMembers.TypeOf(tuple.Field);
+            var location = tuple.Field.Locations.Length > 0 ? tuple.Field.Locations[0] : Location.None;
+
             // Per-T target-type override doesn't compose — the converter can't depend on the closed T.
-            if (tuple.Field.Type is ITypeParameterSymbol tp && tuple.TargetType != null)
+            if (fieldType is ITypeParameterSymbol tp && tuple.TargetType != null)
             {
-                var loc = tuple.Field.Locations.Length > 0 ? tuple.Field.Locations[0] : Location.None;
-                context.ReportDiagnostic(Diagnostic.Create(TypeParameterFieldNoTargetTypeDiagnostic, loc, tuple.Field.Name, tp.Name));
+                context.ReportDiagnostic(Diagnostic.Create(TypeParameterFieldNoTargetTypeDiagnostic, location, tuple.Field.Name, tp.Name));
                 return false;
             }
 
-            var typeToCheck = tuple.TargetType ?? tuple.Field.Type;
+            // Unpack assigns the member, so a property needs a set or init accessor.
+            if (!PackedMembers.HasSetter(tuple.Field))
+            {
+                context.ReportDiagnostic(Diagnostic.Create(PropertyNeedsSetterDiagnostic, location, tuple.Field.Name));
+                return false;
+            }
+
+            var typeToCheck = tuple.TargetType ?? fieldType;
             if (typeToCheck.IsUnmanagedType)
                 return true;
-            var location = tuple.Field.Locations.Length > 0 ? tuple.Field.Locations[0] : Location.None;
+
+            if (tuple.TargetType == null && nested.TryGetOwner(fieldType, out var owner))
+            {
+                var problem = nested.Problem((INamedTypeSymbol)fieldType, owner);
+                if (problem == null)
+                    return true;
+                context.ReportDiagnostic(Diagnostic.Create(InvalidNestedTypeDiagnostic, location, tuple.Field.Name, problem));
+                return false;
+            }
+
             var diagnostic = Diagnostic.Create(MustBeUnmanagedDiagnostic, location, tuple.Field.Name, typeToCheck.ToDisplayString());
             context.ReportDiagnostic(diagnostic);
             return false;
@@ -391,16 +442,17 @@ namespace AutoPackerGenerator
         private static void EmitPartial(
             GeneratorExecutionContext context,
             INamedTypeSymbol typeSymbol,
-            List<(IFieldSymbol Field, ITypeSymbol TargetType)> ownFields,
-            List<(IFieldSymbol Field, ITypeSymbol TargetType)> inheritedFields,
+            List<(ISymbol Field, ITypeSymbol TargetType)> ownFields,
+            List<(ISymbol Field, ITypeSymbol TargetType)> inheritedFields,
             List<IMethodSymbol> extensionMethods,
+            NestedTypes nested,
             bool ancestorEmits,
             bool descendantEmits,
             bool typedAncestorOverride,
             bool typedAncestorHides,
             bool isAbstractMarker)
         {
-            var source = Emitter.EmitSource(typeSymbol, ownFields, inheritedFields, extensionMethods, ancestorEmits, descendantEmits, typedAncestorOverride, typedAncestorHides, isAbstractMarker);
+            var source = Emitter.EmitSource(typeSymbol, ownFields, inheritedFields, extensionMethods, nested, ancestorEmits, descendantEmits, typedAncestorOverride, typedAncestorHides, isAbstractMarker);
             // Arity suffix keeps Foo<T> and Foo from colliding in the same compilation.
             string aritySuffix = typeSymbol.TypeParameters.Length > 0 ? $"_{typeSymbol.TypeParameters.Length}" : string.Empty;
             context.AddSource($"{typeSymbol.Name}{aritySuffix}.Packed.g.cs", SourceText.From(source, Encoding.UTF8));
