@@ -62,7 +62,7 @@ namespace Scaffold.Analyzers
                 return;
             }
 
-            if (ModuleConventions.IsExcludedThirdPartyVendorPath(context.Node.SyntaxTree.FilePath))
+            if (AnalyzerScopeGate.ShouldSkipSyntaxNodeAnalysis(context))
             {
                 return;
             }

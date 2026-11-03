@@ -52,7 +52,7 @@ namespace Scaffold.Analyzers
 
         private void AnalyzeDeclaration(SyntaxNodeAnalysisContext context)
         {
-            if (ModuleConventions.IsExcludedThirdPartyVendorPath(context.Node.SyntaxTree.FilePath)) return;
+            if (AnalyzerScopeGate.ShouldSkipSyntaxNodeAnalysis(context)) return;
             if (ModuleConventions.IsExcludedFromDeclarationCommentAnalysis(context.Node.SyntaxTree.FilePath)) return;
 
             var options = context.Options.AnalyzerConfigOptionsProvider.GetOptions(context.Node.SyntaxTree);

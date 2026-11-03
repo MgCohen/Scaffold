@@ -99,7 +99,9 @@ namespace Scaffold.Analyzers
         }
 
         /// <summary>
-        /// Semicolon- or newline-separated tokens (trimmed); empty entries skipped.
+        /// Comma-, semicolon-, or newline-separated tokens (trimmed); empty entries skipped.
+        /// Use commas in <c>.editorconfig</c> for multi-token values: Roslyn's EditorConfig parser treats
+        /// unescaped <c>;</c> as the start of an end-of-line comment, so <c>key = a;b</c> is stored as <c>a</c> only.
         /// </summary>
         internal static List<string> ParseSemicolonList(string? raw)
         {
@@ -110,7 +112,7 @@ namespace Scaffold.Analyzers
 
             var text = raw!;
             return text
-                .Split(new[] { ';', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
+                .Split(new[] { ',', ';', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
                 .Select(s => s.Trim())
                 .Where(s => s.Length > 0)
                 .ToList();
@@ -149,18 +151,205 @@ namespace Scaffold.Analyzers
             return map;
         }
 
+        /// <summary>
+        /// Merges semicolon-list values from per-tree options (if any) then global options; order preserved, duplicates ignored (ordinal case-sensitive on token text).
+        /// </summary>
+        internal static List<string> MergeSemicolonOptions(
+            AnalyzerConfigOptions? treeOptions,
+            AnalyzerConfigOptions globalOptions,
+            string key)
+        {
+            var result = new List<string>();
+            void addFrom(AnalyzerConfigOptions? options)
+            {
+                if (options == null || !options.TryGetValue(key, out var raw))
+                {
+                    return;
+                }
+
+                foreach (var s in ParseSemicolonList(raw))
+                {
+                    if (result.Contains(s))
+                    {
+                        continue;
+                    }
+
+                    result.Add(s);
+                }
+            }
+
+            addFrom(treeOptions);
+            addFrom(globalOptions);
+            return result;
+        }
+
         private static DiagnosticSeverity? ParseSeverity(string raw)
         {
             switch (raw.Trim().ToLowerInvariant())
             {
-                case "error":      return DiagnosticSeverity.Error;
-                case "warning":    return DiagnosticSeverity.Warning;
+                case "error": return DiagnosticSeverity.Error;
+                case "warning": return DiagnosticSeverity.Warning;
                 case "suggestion":
-                case "info":       return DiagnosticSeverity.Info;
+                case "info": return DiagnosticSeverity.Info;
                 case "hidden":
-                case "silent":     return DiagnosticSeverity.Hidden;
-                default:           return null;
+                case "silent": return DiagnosticSeverity.Hidden;
+                default: return null;
             }
+        }
+    }
+
+    /// <summary>
+    /// Repo-wide opt-out for Scaffold analyzers: vendor paths, optional infrastructure assemblies,
+    /// configured assembly-name substrings, and configured path roots (see <c>scaffold.global.*</c> keys).
+    /// Lives in this file so assemblies that link <see cref="AnalyzerConfig"/> (for example MVVM analyzers) share the same implementation.
+    /// </summary>
+    internal static class AnalyzerScopeGate
+    {
+        internal const string IgnoredAssemblyNameContainsKey = "scaffold.global.ignored_assembly_name_contains";
+        internal const string IgnoredPathsKey = "scaffold.global.ignored_paths";
+        internal const string IgnoreInfrastructureAssembliesKey = "scaffold.global.ignore_infrastructure_assemblies";
+
+        /// <summary>
+        /// When the compilation assembly name alone should skip all further analysis (no syntax tree yet).
+        /// Uses global options only for assembly tokens; per-tree options are not available at compilation start.
+        /// </summary>
+        internal static bool ShouldSkipEntireCompilation(string? assemblyName, AnalyzerConfigOptions globalOptions)
+        {
+            if (string.IsNullOrWhiteSpace(assemblyName))
+            {
+                return false;
+            }
+
+            if (ShouldSkipByInfrastructureAssembly(assemblyName!, treeOptions: null, globalOptions))
+            {
+                return true;
+            }
+
+            return MatchesAnyAssemblyToken(
+                assemblyName!,
+                AnalyzerConfig.MergeSemicolonOptions(null, globalOptions, IgnoredAssemblyNameContainsKey));
+        }
+
+        /// <summary>
+        /// Full gate for a source file: vendor, infrastructure (optional), configured paths, configured assembly tokens.
+        /// </summary>
+        internal static bool ShouldSkipAllScaffoldRules(
+            string? assemblyName,
+            string? filePath,
+            AnalyzerConfigOptions? treeOptions,
+            AnalyzerConfigOptions globalOptions)
+        {
+            if (!string.IsNullOrWhiteSpace(filePath))
+            {
+                var path = filePath!;
+                if (ModuleConventions.IsExcludedThirdPartyVendorPath(path))
+                {
+                    return true;
+                }
+
+                var normalized = ScriptPathFilters.Normalize(path);
+                if (ScriptPathFilters.IsPathUnderAnyConfiguredIgnoredRoot(
+                        normalized,
+                        AnalyzerConfig.MergeSemicolonOptions(treeOptions, globalOptions, IgnoredPathsKey)))
+                {
+                    return true;
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(assemblyName))
+            {
+                return false;
+            }
+
+            if (ShouldSkipByInfrastructureAssembly(assemblyName!, treeOptions, globalOptions))
+            {
+                return true;
+            }
+
+            return MatchesAnyAssemblyToken(
+                assemblyName!,
+                AnalyzerConfig.MergeSemicolonOptions(treeOptions, globalOptions, IgnoredAssemblyNameContainsKey));
+        }
+
+        private static bool ShouldSkipByInfrastructureAssembly(
+            string assemblyName,
+            AnalyzerConfigOptions? treeOptions,
+            AnalyzerConfigOptions globalOptions)
+        {
+            string? raw = null;
+            if (treeOptions != null &&
+                treeOptions.TryGetValue(IgnoreInfrastructureAssembliesKey, out var treeRaw) &&
+                !string.IsNullOrWhiteSpace(treeRaw))
+            {
+                raw = treeRaw;
+            }
+            else if (globalOptions.TryGetValue(IgnoreInfrastructureAssembliesKey, out var globalRaw) &&
+                     !string.IsNullOrWhiteSpace(globalRaw))
+            {
+                raw = globalRaw;
+            }
+
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                return false;
+            }
+
+            var v = raw!.Trim();
+            if (v.Equals("true", StringComparison.OrdinalIgnoreCase) ||
+                v.Equals("1", StringComparison.OrdinalIgnoreCase) ||
+                v.Equals("yes", StringComparison.OrdinalIgnoreCase))
+            {
+                return ModuleConventions.IsInfrastructureAssembly(assemblyName);
+            }
+
+            return false;
+        }
+
+        private static bool MatchesAnyAssemblyToken(string assemblyName, IReadOnlyList<string> tokens)
+        {
+            foreach (var token in tokens)
+            {
+                if (string.IsNullOrWhiteSpace(token))
+                {
+                    continue;
+                }
+
+                if (assemblyName.IndexOf(token.Trim(), StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        internal static bool ShouldSkipSyntaxNodeAnalysis(SyntaxNodeAnalysisContext context)
+        {
+            var provider = context.Options.AnalyzerConfigOptionsProvider;
+            var tree = context.Node.SyntaxTree;
+            return ShouldSkipAllScaffoldRules(
+                context.SemanticModel.Compilation.AssemblyName,
+                tree.FilePath,
+                provider.GetOptions(tree),
+                provider.GlobalOptions);
+        }
+
+        internal static bool ShouldSkipSymbolAnalysis(SymbolAnalysisContext context, INamedTypeSymbol typeSymbol)
+        {
+            var provider = context.Options.AnalyzerConfigOptionsProvider;
+            var assemblyName = typeSymbol.ContainingAssembly?.Name;
+            var sourceLoc = typeSymbol.Locations.FirstOrDefault(l => l.SourceTree != null);
+            if (sourceLoc?.SourceTree == null)
+            {
+                return false;
+            }
+
+            var tree = sourceLoc.SourceTree;
+            return ShouldSkipAllScaffoldRules(
+                assemblyName,
+                tree.FilePath,
+                provider.GetOptions(tree),
+                provider.GlobalOptions);
         }
     }
 }

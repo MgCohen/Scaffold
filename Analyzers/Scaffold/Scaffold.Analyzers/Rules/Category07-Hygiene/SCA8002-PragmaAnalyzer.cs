@@ -30,18 +30,37 @@ namespace Scaffold.Analyzers
         {
             context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
             context.EnableConcurrentExecution();
-            context.RegisterSyntaxTreeAction(AnalyzeSyntaxTree);
+            context.RegisterCompilationStartAction(startContext =>
+            {
+                var globalOptions = startContext.Options.AnalyzerConfigOptionsProvider.GlobalOptions;
+                if (AnalyzerScopeGate.ShouldSkipEntireCompilation(startContext.Compilation.AssemblyName, globalOptions))
+                {
+                    return;
+                }
+
+                startContext.RegisterSyntaxTreeAction(treeContext => AnalyzeSyntaxTree(treeContext, startContext.Compilation.AssemblyName));
+            });
         }
 
-        private static void AnalyzeSyntaxTree(SyntaxTreeAnalysisContext context)
+        private static void AnalyzeSyntaxTree(SyntaxTreeAnalysisContext context, string? assemblyName)
         {
-            var options = context.Options.AnalyzerConfigOptionsProvider.GlobalOptions;
+            var provider = context.Options.AnalyzerConfigOptionsProvider;
+            var options = provider.GlobalOptions;
             if (!AnalyzerConfig.TryGetEffectiveDescriptor(options, DiagnosticId, Rule, out var rule))
             {
                 return;
             }
 
             var descriptor = rule;
+
+            if (AnalyzerScopeGate.ShouldSkipAllScaffoldRules(
+                    assemblyName,
+                    context.Tree.FilePath,
+                    provider.GetOptions(context.Tree),
+                    provider.GlobalOptions))
+            {
+                return;
+            }
 
             if (!ScriptPathFilters.IsRuntimeUnityScriptPath(context.Tree.FilePath))
             {

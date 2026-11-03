@@ -51,6 +51,12 @@ namespace Scaffold.Analyzers
 
         private static void OnCompilationStart(CompilationStartAnalysisContext context)
         {
+            var globalOptions = context.Options.AnalyzerConfigOptionsProvider.GlobalOptions;
+            if (AnalyzerScopeGate.ShouldSkipEntireCompilation(context.Compilation.AssemblyName, globalOptions))
+            {
+                return;
+            }
+
             var candidates = new ConcurrentBag<CandidateMember>();
             var references = new ConcurrentDictionary<IMethodSymbol, byte>(SymbolEqualityComparer.Default);
 
@@ -86,7 +92,17 @@ namespace Scaffold.Analyzers
             var tree = context.SemanticModel.SyntaxTree;
             var semanticModel = context.SemanticModel;
             var cancellationToken = context.CancellationToken;
-            var options = context.Options.AnalyzerConfigOptionsProvider.GetOptions(tree);
+            var provider = context.Options.AnalyzerConfigOptionsProvider;
+            var options = provider.GetOptions(tree);
+
+            if (AnalyzerScopeGate.ShouldSkipAllScaffoldRules(
+                    semanticModel.Compilation.AssemblyName,
+                    tree.FilePath,
+                    options,
+                    provider.GlobalOptions))
+            {
+                return;
+            }
 
             if (ScriptPathFilters.IsSca0030RuntimeCandidatePath(tree.FilePath))
             {

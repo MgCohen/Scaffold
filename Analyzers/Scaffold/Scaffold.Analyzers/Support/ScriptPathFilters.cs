@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 
 namespace Scaffold.Analyzers
@@ -270,6 +271,57 @@ namespace Scaffold.Analyzers
         {
             var n = Normalize(filePath);
             return IsTestOrSamplePath(n) || IsGeneratedOrBuildArtifactPath(n);
+        }
+        /// <summary>
+        /// True when <paramref name="normalizedPath"/> lies under any configured root (e.g. <c>Assets/Samples</c>).
+        /// Roots are normalized to forward slashes without leading slash; matching is segment-safe.
+        /// </summary>
+        public static bool IsPathUnderAnyConfiguredIgnoredRoot(string normalizedPath, IReadOnlyList<string> ignoredRoots)
+        {
+            if (string.IsNullOrWhiteSpace(normalizedPath) || ignoredRoots == null || ignoredRoots.Count == 0)
+            {
+                return false;
+            }
+
+            foreach (var raw in ignoredRoots)
+            {
+                if (IsPathUnderIgnoredRoot(normalizedPath, raw))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Segment-safe prefix match for one ignore root from <c>scaffold.global.ignored_paths</c>.
+        /// </summary>
+        public static bool IsPathUnderIgnoredRoot(string normalizedPath, string? ignoredRootRaw)
+        {
+            if (string.IsNullOrWhiteSpace(normalizedPath) || string.IsNullOrWhiteSpace(ignoredRootRaw))
+            {
+                return false;
+            }
+
+            var root = Normalize(ignoredRootRaw).Trim('/');
+            if (root.Length == 0)
+            {
+                return false;
+            }
+
+            if (normalizedPath.Equals(root, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (normalizedPath.StartsWith(root + "/", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            var needle = "/" + root + "/";
+            return normalizedPath.IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0;
         }
     }
 }

@@ -32,7 +32,7 @@ namespace Scaffold.Analyzers
 
         private static void AnalyzeIfStatement(SyntaxNodeAnalysisContext context)
         {
-            if (ModuleConventions.IsExcludedThirdPartyVendorPath(context.Node.SyntaxTree.FilePath))
+            if (AnalyzerScopeGate.ShouldSkipSyntaxNodeAnalysis(context))
             {
                 return;
             }

@@ -16,9 +16,7 @@ namespace Scaffold.Analyzers
         {
             context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
             context.EnableConcurrentExecution();
-
-            context.RegisterSyntaxTreeAction(ctx =>
-                NamespaceLayoutAnalysis.AnalyzeSyntaxTree(ctx, NamespaceLayoutRuleKind.Sca3005));
+            NamespaceLayoutAnalyzerRegistration.Register(context, NamespaceLayoutRuleKind.Sca3005);
         }
     }
 }

@@ -60,7 +60,7 @@ namespace Scaffold.Analyzers
 
         private void AnalyzeArguments(SyntaxNodeAnalysisContext context, ArgumentListSyntax argumentList)
         {
-            if (ModuleConventions.IsExcludedThirdPartyVendorPath(context.Node.SyntaxTree.FilePath)) return;
+            if (AnalyzerScopeGate.ShouldSkipSyntaxNodeAnalysis(context)) return;
 
             var options = context.Options.AnalyzerConfigOptionsProvider.GetOptions(context.Node.SyntaxTree);
             if (!AnalyzerConfig.TryGetEffectiveDescriptor(options, DiagnosticId, Rule, out var rule)) return;

@@ -1137,3 +1137,28 @@ public sealed class Game2 { }
 ```
 
 ---
+
+## Consumer analyzer scope
+
+General-purpose SCA rules and SCM rules share optional scope settings. Defaults retain the existing
+analysis scope; consumers can configure exclusions in their own `.editorconfig`:
+
+```ini
+[*.cs]
+scaffold.global.ignored_assembly_name_contains = Tests,Samples,Examples
+scaffold.global.ignored_paths = Assets/Samples,Assets/ExternalTools
+scaffold.global.ignore_infrastructure_assemblies = false
+```
+
+Assembly tokens match case-insensitively within the compilation assembly name.
+Ignored paths use normalized, segment-safe roots: `Assets/Samples` does not match
+`Assets/SamplesBackup`. Tree settings and global list settings are combined.
+Setting `ignore_infrastructure_assemblies` to true also excludes assemblies
+classified as infrastructure by `ModuleConventions`.
+
+Use commas for lists in `.editorconfig`; Roslyn treats semicolons as inline
+comments. Programmatic analyzer options still accept semicolons and newlines.
+These options supplement existing vendor exclusions without removing first-party
+Scaffold package checks. Shared configuration sources remain linked into the
+MVVM analyzer project, so no new runtime dependency is introduced.
+The LiveOps-specific SCA7101–SCA7103 rules retain their existing domain-specific scope.

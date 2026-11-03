@@ -39,6 +39,7 @@ namespace Scaffold.Mvvm.Analyzers
         private void AnalyzeNamedType(SymbolAnalysisContext context)
         {
             if (context.Symbol is not INamedTypeSymbol typeSymbol) return;
+            if (Scaffold.Analyzers.AnalyzerScopeGate.ShouldSkipSymbolAnalysis(context, typeSymbol)) return;
 
             var sourceLoc = typeSymbol.Locations.FirstOrDefault(l => l.SourceTree != null);
             if (sourceLoc?.SourceTree == null) return;

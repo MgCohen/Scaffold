@@ -90,4 +90,32 @@ public sealed class ScriptPathFiltersTests
         const string path = "Assets/Packages/com.scaffold.cloudcode/Runtime/Optimistic/IRequestHandler.cs";
         Assert.True(ScriptPathFilters.IsUnityScriptPath(path));
     }
+    [Fact]
+    public void IsPathUnderIgnoredRoot_MatchesAbsolutePath_WithSegment()
+    {
+        var normalized = ScriptPathFilters.Normalize(@"C:\Repo\Assets\Samples\Splines\Foo.cs");
+        Assert.True(ScriptPathFilters.IsPathUnderIgnoredRoot(normalized, "Assets/Samples"));
+    }
+
+    [Fact]
+    public void IsPathUnderIgnoredRoot_MatchesRelativePrefix()
+    {
+        var normalized = ScriptPathFilters.Normalize("Assets/Samples/Foo.cs");
+        Assert.True(ScriptPathFilters.IsPathUnderIgnoredRoot(normalized, "Assets/Samples"));
+    }
+
+    [Fact]
+    public void IsPathUnderIgnoredRoot_False_WhenSimilarButNotSameSegment()
+    {
+        var normalized = ScriptPathFilters.Normalize("Assets/SamplesBackup/Foo.cs");
+        Assert.False(ScriptPathFilters.IsPathUnderIgnoredRoot(normalized, "Assets/Samples"));
+    }
+
+    [Fact]
+    public void IsPathUnderAnyConfiguredIgnoredRoot_True_WhenAnyEntryMatches()
+    {
+        var normalized = ScriptPathFilters.Normalize(@"C:\X\Assets\Samples\a.cs");
+        var roots = new[] { "Assets/Plugins", "Assets/Samples" };
+        Assert.True(ScriptPathFilters.IsPathUnderAnyConfiguredIgnoredRoot(normalized, roots));
+    }
 }

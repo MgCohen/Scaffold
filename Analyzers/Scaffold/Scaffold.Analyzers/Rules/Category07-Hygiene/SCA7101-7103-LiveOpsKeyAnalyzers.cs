@@ -97,7 +97,7 @@ namespace Scaffold.Analyzers
         private static bool InLiveOpsDtos(INamedTypeSymbol type)
         {
             string? ns = type.ContainingNamespace?.ToDisplayString();
-            if (string.IsNullOrEmpty(ns))
+            if (ns == null || ns.Length == 0)
             {
                 return false;
             }
@@ -320,7 +320,7 @@ namespace Scaffold.Analyzers
 
         private static bool IsTestOrGenerated(string? path)
         {
-            if (string.IsNullOrEmpty(path))
+            if (path == null || path.Length == 0)
             {
                 return false;
             }
