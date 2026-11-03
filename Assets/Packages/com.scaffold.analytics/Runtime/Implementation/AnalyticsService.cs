@@ -1,3 +1,4 @@
+using System;
 #if UNITY_6000_5_OR_NEWER
 using System.Collections.Generic;
 using Unity.Services.Analytics;
@@ -20,10 +21,19 @@ namespace Scaffold.Analytics
 
         public void Record<T>(T evt) where T : AnalyticsEvent
         {
-            Debug.Log($"[AnalyticsService] Sending event of type '{typeof(T).FullName}'.");
-
-            if (UGSAnalyticsService.Instance != null)
+            try
             {
+                if (evt == null)
+                {
+                    throw new ArgumentNullException(nameof(evt));
+                }
+
+                Debug.Log($"[AnalyticsService] Sending event of type '{typeof(T).FullName}'.");
+                if (UGSAnalyticsService.Instance == null)
+                {
+                    throw new InvalidOperationException("UGS Analytics is not initialized.");
+                }
+
 #if UNITY_6000_5_OR_NEWER
                 CustomEvent customEvent = new CustomEvent(evt.Name);
                 foreach (KeyValuePair<string, object> parameter in evt.Parameters)
@@ -35,6 +45,29 @@ namespace Scaffold.Analytics
 #else
                 UGSAnalyticsService.Instance.CustomData(evt.Name, evt.Parameters);
 #endif
+            }
+            catch (Exception exception)
+            {
+                Debug.LogError($"[AnalyticsService] Failed to record analytics event: {exception.Message}\n{exception.StackTrace}");
+                throw;
+            }
+        }
+
+        public void Flush()
+        {
+            try
+            {
+                if (UGSAnalyticsService.Instance == null)
+                {
+                    throw new InvalidOperationException("UGS Analytics is not initialized.");
+                }
+
+                UGSAnalyticsService.Instance.Flush();
+            }
+            catch (Exception exception)
+            {
+                Debug.LogError($"[AnalyticsService] Failed to flush analytics events: {exception.Message}\n{exception.StackTrace}");
+                throw;
             }
         }
     }

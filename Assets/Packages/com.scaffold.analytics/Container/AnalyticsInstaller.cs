@@ -9,6 +9,8 @@ namespace Scaffold.Analytics
         {
             builder.Register<AnalyticsService>(Lifetime.Singleton)
                 .AsImplementedInterfaces();
+            builder.Register<WebGlCrashReporter>(Lifetime.Singleton)
+                .As<IWebGlCrashReporter>();
         }
     }
 }

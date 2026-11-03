@@ -1,0 +1,22 @@
+{
+    "name": "Scaffold.Analytics.Tests",
+    "rootNamespace": "Scaffold.Analytics.Tests",
+    "references": [
+        "Scaffold.Analytics.Runtime",
+        "VContainer"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false,
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
+}

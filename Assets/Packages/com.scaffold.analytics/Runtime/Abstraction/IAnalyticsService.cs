@@ -11,5 +11,10 @@ namespace Scaffold.Analytics
         /// <typeparam name="T">The type of the event.</typeparam>
         /// <param name="evt">The event instance to record.</param>
         void Record<T>(T evt) where T : AnalyticsEvent;
+
+        /// <summary>
+        /// Requests immediate delivery of buffered analytics events.
+        /// </summary>
+        void Flush();
     }
 }

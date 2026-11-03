@@ -1,8 +1,8 @@
 {
     "name": "com.scaffold.analytics",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "displayName": "Scaffold Analytics",
-    "description": "Scaffold generic analytics events and services wrapper for UGS.",
+    "description": "Scaffold analytics events, UGS delivery, and recoverable WebGL crash reporting.",
     "unity": "6000.0",
     "author": {
         "url": "https://github.com/MgCohen/Scaffold"
